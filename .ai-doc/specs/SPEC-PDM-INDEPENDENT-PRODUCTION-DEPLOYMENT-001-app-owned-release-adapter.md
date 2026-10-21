@@ -595,6 +595,14 @@ Archive SHA、generation、CRC32C 只屬單次上傳物件與其原始 provider 
 
 Reader 能否讀已准入 revision、該次 profile 應採 current 或 historical policy、以及 executable bytes 是 current checkout 或 historical archive，是三個分離事實。validation mode 由 requested revision admission 決定；executable checkout guard 由明示的 byte-origin 決定，不以 `reader.isHistorical` 同時代理三者。歷史 profile／receipt 的 deadline、security 或執行政策不得延伸成本次 attempt 的 authority；新 attempt 仍使用 current profile、fresh deadline、current security readback 與既有 unknown-write readback/recovery。
 
+### 26.6 Release evidence boundary and special-path isolation（2026-10-21）
+
+日常 `full_release`／`build_only` 只接受 reviewed source、current release prerequisites、current build／migration evidence 與 candidate／activation decisions。一次性 data cutover、program-only、principal-only、paused-recovery 及 applied-migration continuation 是各自的特殊 workflow responsibility；它們的歷史 receipt 可作為 immutable provenance，但不得再被日常 owner path 當成 raw input 重新推導。執行器以 `dev117-release-control-policy.mjs` 分類 release mode；daily workflow 以 `PDM_ENFORCE_DAILY_MODE_BOUNDARY=true` fail closed，特殊 intent 必須轉入明示的 special workflow。
+
+所有離線整鏈驗證先通過單一 `jenfu.dev117.release-evidence.v1` normalized model，集中解析 source lineage、evidence scope、deadline、migration disposition 與 release mode；後續 consumer 只使用 normalized model 或其已驗證的 stage receipt，不自行解讀同一 raw prerequisite。正式 provider receipt、candidate／traffic 與專用測試帳號行為仍是正式驗收，不以本機模型取代。
+
+planner／owner executor 接受 machine-readable failure history；同一 failure family 第二次出現時回傳 `RELEASE_COMMON_MECHANISM_STOP`，停止新增 call-site patch，要求先修共同機制。這是既有執行器的 fail-closed policy，不是人工簽核、額外報告或新的 provider gate；無 history 時維持既有一次失敗行為。原有 required CI、source／permission／data safety 與 rollback/recovery 邊界不變。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

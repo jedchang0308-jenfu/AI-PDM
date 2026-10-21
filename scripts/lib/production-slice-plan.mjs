@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { evaluateRepeatedFailure } from './dev117-release-control-policy.mjs'
 
 const SLICE_ORDER = Object.freeze([
   'documentation',
@@ -108,7 +109,7 @@ export function classifyProductionPath(value) {
   return SLICE_ORDER.filter(slice => slices.has(slice))
 }
 
-export function createProductionSlicePlan(paths, { baseRevision = null, headRevision = null } = {}) {
+export function createProductionSlicePlan(paths, { baseRevision = null, headRevision = null, failureHistory = [], currentFailureCode = null } = {}) {
   const files = [...new Set(paths.map(normalizeChangedPath).filter(Boolean))].sort()
   const reasons = Object.fromEntries(SLICE_ORDER.map(slice => [slice, []]))
   for (const file of files) {
@@ -164,6 +165,9 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
     gates,
     releasePhases,
     evidenceRequirements: [...new Set(evidenceRequirements)],
+    failurePolicy: currentFailureCode
+      ? evaluateRepeatedFailure(failureHistory, currentFailureCode)
+      : { family: null, occurrences: 0, limit: 2, action: 'CONTINUE' },
   }
 }
 
@@ -192,7 +196,18 @@ export function createProductionSlicePlanFromGit({ root = process.cwd(), base = 
   if (includeWorkingTree) {
     changed.push(...git(root, ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/u).filter(Boolean))
   }
-  return createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead })
+  let failureHistory = []
+  let currentFailureCode = null
+  if (process.env.PDM_RELEASE_FAILURE_HISTORY_JSON) {
+    try {
+      const parsed = JSON.parse(process.env.PDM_RELEASE_FAILURE_HISTORY_JSON)
+      failureHistory = Array.isArray(parsed.history) ? parsed.history : []
+      currentFailureCode = parsed.currentCode ?? null
+    } catch {
+      currentFailureCode = 'FAILURE_HISTORY_INVALID'
+    }
+  }
+  return createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead, failureHistory, currentFailureCode })
 }
 
 export const productionSliceOrder = SLICE_ORDER
