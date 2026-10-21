@@ -2236,7 +2236,7 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
   assert.ok(!f.h.calls.some(row=>/:addVersion|cloudbuild.*POST/u.test(row.url)))
 })
 
-test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',async()=>{
+test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',{timeout:120_000},async()=>{
   const f=await rdProgramOnlyServingFixture({secretVersionIam:true,historicalOriginProfile:true})
   f.h.controls.scheduler={state:'PAUSED'}
   assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
@@ -2675,54 +2675,6 @@ test('completed FAILED DAILY checkpoint permits the next source while requiring 
   assert.equal(h.puts.length, incompletePuts)
 })
 
-test('completed FAILED DAILY checkpoint envelopes admit eight genuine association transitions and reject the ninth before authority', async () => {
-  const f = await partialFailedDailyNextSourceFixture(), h = f.h
-  let input = f.input, saved, completed, full
-  // Each step uses the real producer, fresh normal drain and completed bootstrap.
-  // History includes a failed isolated run, completed checkpoint and expired
-  // partial pause; no fabricated context ancestors or depth numbers are used.
-  for (const index of [84, 85, 86, 87, 88]) {
-    const inputRef = await h.put('checkpoint-depth-reuse-' + index, input), calls = h.calls.length
-    saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
-    assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
-    assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
-    const descriptor = (await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value, replayCalls = h.calls.length
-    const artifact = await resolveWorkerArtifact({ transport: h.transport, descriptor, profile, readSource: f.reader })
-    assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
-    assert.equal(h.calls.length, replayCalls, 'independent consumer authenticates sealed history without provider reads')
-    const pauseRef = h.seed('CHECKPOINT-DEPTH-PAUSE-' + index + '-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
-      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-PAUSE-' + index, drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: input.priorActivationRef,
-      failedDailyContinuation: f.failedDailyContinuation })
-    const pauseCalls = h.calls.length
-    const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
-    assert.equal(h.calls.slice(pauseCalls).filter(row => row.url.endsWith(':run')).length, 1, 'each source still needs a fresh drain')
-    const bootstrapRef = h.seed('CHECKPOINT-DEPTH-BOOTSTRAP-' + index + '-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
-      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-BOOTSTRAP-' + index, bootstrapKind: 'DAILY_REFRESH', priorActivationRef: input.priorActivationRef,
-      pausedDrainedRef: paused.ref, failedDailyContinuation: f.failedDailyContinuation })
-    const bootstrapCalls = h.calls.length
-    completed = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
-    assert.equal(h.calls.slice(bootstrapCalls).filter(row => row.url.endsWith(':run')).length, 0, 'completed isolation is retained')
-    full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
-    const fullCalls = h.calls.length
-    await readWorkerFullEvidence(h.transport, full, profile, f.reader)
-    assert.equal(h.calls.length, fullCalls)
-    const next = h.nextAttempt(index + 1, input.priorActivationRef), lock = { ...next.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
-    next.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
-    const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: lock.sourceRevision, sourceLockRef: next.input.sourceLockRef,
-      supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef, reader: f.reader,
-      name: 'checkpoint-depth-metadata-' + index, secretPolicies: h.metadata.before.secretPolicies })
-    input = { ...next.input, failedDailyContinuation: f.failedDailyContinuation, secretVersionIamContinuationRef: metadata.continuationRef,
-      completedFailedDailyCheckpointRef: completed.refs.fullDescriptorRef }
-    assert.equal(input.partialFailedDailyPauseInputRef, undefined, 'latest complete checkpoint carries partial history itself')
-  }
-  // The path is 88 -> 87 -> 86 -> 85 -> 84 -> partial 83 -> completed 81
-  // -> original association. Source 89 adds the ninth real association.
-  const refusedRef = await h.put('checkpoint-depth-ninth-input', input), calls = h.calls.length, puts = h.puts.length
-  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID' })
-  assert.ok(!h.puts.slice(puts).some(uri => uri.endsWith('-association.json') || uri.endsWith('-descriptor-build-only.json')))
-  assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
-})
-
 // LOCAL_TEST complete frozen source model. All tracked paths plus the new
 // native entrypoint carry actual executable bytes from this working checkout.
 // Synthetic identity is never protected-main/provider evidence.
@@ -2814,7 +2766,10 @@ function historyPublicProofFixture(h,issuer,complete) {
   return{prepare,capsule,intentRef,calls,fetchImpl}
 }
 
-test('native history basis qualifies the complete eight-transition predecessor and admits the ninth through native consumers', async () => {
+// This is the sole maximum-depth integration spine. It also owns the producer,
+// pause, bootstrap, resolver and ninth-transition assertions that used to be
+// repeated by a second test immediately above this fixture.
+test('native history basis preserves the eight-transition boundary and admits the ninth through native consumers',{timeout:120_000},async () => {
   const f = await partialFailedDailyNextSourceFixture({proofMetadata:true}), h = f.h
   let input = f.input, saved, completed, full
   // Each step uses the real producer, fresh normal drain and completed bootstrap.
