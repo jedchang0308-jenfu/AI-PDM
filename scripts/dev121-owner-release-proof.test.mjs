@@ -21,7 +21,7 @@ import { assertMigration, readOwnerReleaseProof,
   verifyOwnerProviderReadback, readAiPdmSourceArchive, parseAiPdmMigrationArchive,
   assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, createAiPdmEvidenceContext,
   runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf,
-  readAiPdmObservationInputs } from './lib/dev121-owner-release-proof.mjs'
+  readAiPdmObservationInputs, assertReadyRepairActivationHistory } from './lib/dev121-owner-release-proof.mjs'
 
 const revision = 'a'.repeat(40)
 const manifest = 'b'.repeat(64)
@@ -1037,6 +1037,49 @@ test('B23 completed historical migration chronology remains strict', async () =>
     const input = fixture({ migrationChange })
     await assert.rejects(readOwnerReleaseProof({ owner: 'platform', sourceRevision: revision, refs: input.refs, token: 'provider-readback-token', fetchImpl: input.fetchImpl }), /MIGRATION_INVALID/u)
   }
+})
+
+function readyRepairActivationHistoryFixture() {
+  const releaseId = 'DEV122-WORKER-HISTORY-001', sourceRevision = 'f'.repeat(40), capsuleSha256 = '1'.repeat(64)
+  const ref = (uri, hash) => ({ uri, sha256: hash })
+  const receiptRef = name => ref(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${releaseId}/${name}.json`, '2'.repeat(64))
+  const workerDescriptorRef = ref('gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/retained-worker.json', '3'.repeat(64))
+  const capsuleRef = ref(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${releaseId}/release-intent.json`, capsuleSha256)
+  const canonicalRef = ref(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${releaseId}/${capsuleSha256}/canonical.json`, '4'.repeat(64))
+  const capsule = {
+    schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision,
+    sourceSha256: '5'.repeat(64), sourceLockRef: receiptRef('source-lock'), authorizationPolicyRef: receiptRef('authorization'), readinessReceiptRef: receiptRef('readiness'),
+    foundationReceiptRef: receiptRef('foundation'), infraReceiptRef: receiptRef('infra'), runtimeConfigRef: receiptRef('runtime-config'), migrationManifestSha256: '6'.repeat(64),
+    previousRevision: 'ai-pdm-prod-123456789abc', deadlineAt: '2026-10-22T20:00:00.000Z', openswxWorkerRef: workerDescriptorRef,
+  }
+  const canonical = stageReceipt({ profile: { application: { id: 'ai-pdm' } }, intent: capsule, stage: 'canonical', previousReceiptRef: receiptRef('activate'), facts: {}, observedAt: '2026-10-22T19:00:00.000Z' })
+  const descriptor = { retainedWorkerDescriptorRef: workerDescriptorRef, tokenSecretVersion: '12', registrySecretVersion: '34' }
+  const image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker@sha256:${'7'.repeat(64)}`
+  const baseline = { value: { after: { image, normalTemplateSha256: '8'.repeat(64) } } }
+  const activation = {
+    schemaVersion: 'aipdm.openswx-owner-receipt.v1', kind: 'activation', ownerApplicationId: 'ai-pdm', status: 'PASS', actor: 'jedchang0308@jenfu.com.tw', sourceRevision,
+    image, templateSha256: baseline.value.after.normalTemplateSha256, previousRefs: [capsuleRef, receiptRef('decision'), canonicalRef, receiptRef('finalize'), receiptRef('terminal')],
+    facts: { workerStatus: 'READY', schedulerState: 'ENABLED', claimProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', numericCredentials: { token: '12', registry: '34' } },
+  }
+  return { activation, activationCapsule: capsule, activationCapsuleRef: capsuleRef, activationCanonical: canonical, activationCanonicalRef: canonicalRef, descriptor, baseline }
+}
+
+test('READY repair validates the worker activation against its own capsule when the serving app has a different source', () => {
+  const input = readyRepairActivationHistoryFixture(), servingSourceRevision = '9'.repeat(40)
+  assert.notEqual(input.activation.sourceRevision, servingSourceRevision, 'production-shaped app and retained worker histories are deliberately distinct')
+  assert.deepEqual(assertReadyRepairActivationHistory(input), { sourceRevision: input.activation.sourceRevision, releaseId: input.activationCapsule.releaseId })
+})
+
+for (const [name, mutate, code] of [
+  ['activation source', value => { value.activation.sourceRevision = 'a'.repeat(40) }, /OBSERVED_CAPSULE_INVALID/u],
+  ['retained descriptor', value => { value.activationCapsule.openswxWorkerRef = { ...value.activationCapsule.openswxWorkerRef, sha256: 'a'.repeat(64) } }, /REPAIR_HISTORY_INVALID/u],
+  ['canonical release root', value => { value.activationCanonicalRef = { ...value.activationCanonicalRef, uri: value.activationCanonicalRef.uri.replace('/canonical.json', '/other/canonical.json') }; value.activation.previousRefs[2] = value.activationCanonicalRef }, /REPAIR_HISTORY_INVALID/u],
+  ['canonical source', value => { value.activationCanonical = { ...value.activationCanonical, sourceRevision: 'a'.repeat(40) } }, /STAGE_INVALID/u],
+  ['authenticated claim', value => { value.activation.facts.claimProof.claimProof = 'UNAUTHENTICATED' }, /REPAIR_HISTORY_INVALID/u],
+  ['numeric Secret versions', value => { value.activation.facts.numericCredentials.token = '99' }, /REPAIR_HISTORY_INVALID/u],
+]) test(`READY repair rejects changed ${name} in the worker activation history`, () => {
+  const input = readyRepairActivationHistoryFixture(); mutate(input)
+  assert.throws(() => assertReadyRepairActivationHistory(input), code)
 })
 
 // Mandatory root evidence layer is registered only by the sealed root controller.
