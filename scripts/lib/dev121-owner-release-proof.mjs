@@ -1754,6 +1754,13 @@ function assertPrincipalOnlyFenceSummary(value, expectedRef = null) {
 }
 
 export function assertMigration(value, owner, config, revision, manifestSha256, unlinkedProfileCleanupRef, principalOnlyFenceRef = null) {
+  const ownerPolicy = OWNERS[owner]
+  if (!config || typeof config !== 'object' || Array.isArray(config) || !ownerPolicy) fail('MIGRATION_INVALID')
+  const receiptConfig = {
+    ...config,
+    ...(!Object.hasOwn(config, 'migrationBootstrap') ? { migrationBootstrap: ownerPolicy.migrationBootstrap } : {}),
+    ...(!Object.hasOwn(config, 'principalContractLedgerFloor') ? { principalContractLedgerFloor: ownerPolicy.principalContractLedgerFloor } : {}),
+  }
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') || unlinkedProfileCleanupRef !== undefined) {
     if (owner !== 'ai-pdm') fail('MIGRATION_INVALID')
     assertUnlinkedProfileCleanupReceipt(value?.unlinkedProfileCleanup, unlinkedProfileCleanupRef)
@@ -1763,12 +1770,12 @@ export function assertMigration(value, owner, config, revision, manifestSha256, 
     if (owner !== 'ai-pdm' || !hasPrincipalOnlyFence) fail('MIGRATION_INVALID')
     assertPrincipalOnlyFenceSummary(value.principalOnlyFence, principalOnlyFenceRef)
   }
-  if (typeof config.migrationBootstrap !== 'boolean' ||
-      !Number.isInteger(config.principalContractLedgerFloor) ||
-      config.principalContractLedgerFloor < 1) fail('MIGRATION_INVALID')
+  if (typeof receiptConfig.migrationBootstrap !== 'boolean' ||
+      !Number.isInteger(receiptConfig.principalContractLedgerFloor) ||
+      receiptConfig.principalContractLedgerFloor < 1) fail('MIGRATION_INVALID')
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'sourceRevision',
     'database', 'ledger', 'manifestSha256', 'baselineCount', 'minimumLedgerCount',
-    ...(config.migrationBootstrap ? ['ledgerBootstrap'] : []),
+    ...(receiptConfig.migrationBootstrap ? ['ledgerBootstrap'] : []),
     ...(owner === 'ai-pdm' && Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') ? ['unlinkedProfileCleanup'] : []),
     ...(owner === 'ai-pdm' && hasPrincipalOnlyFence ? ['principalOnlyFence'] : []),
     'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials',
@@ -1776,7 +1783,7 @@ export function assertMigration(value, owner, config, revision, manifestSha256, 
     'receiptSha256']) ||
     value.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' ||
     value.ownerApplicationId !== owner || value.sourceRevision !== revision ||
-    value.database !== 'jenfu_prod' || value.ledger !== config.ledger ||
+    value.database !== 'jenfu_prod' || value.ledger !== receiptConfig.ledger ||
     value.manifestSha256 !== manifestSha256 || value.status !== 'PASS' ||
     value.boundaryStatus !== 'PASS' || value.receiptSha256 !== receiptHash(value) ||
     !Number.isInteger(value.baselineCount) || value.baselineCount < 0 ||
@@ -1786,11 +1793,11 @@ export function assertMigration(value, owner, config, revision, manifestSha256, 
     !Number.isInteger(value.ledgerCount) ||
     value.ledgerCount < value.baselineCount ||
     value.ledgerCount < value.minimumLedgerCount ||
-    value.ledgerCount < config.principalContractLedgerFloor ||
+    value.ledgerCount < receiptConfig.principalContractLedgerFloor ||
     !Number.isInteger(value.applied) || value.applied < 0 ||
     !Number.isInteger(value.replayed) || value.replayed < 0 ||
     value.applied + value.replayed !== value.ledgerCount ||
-    (config.migrationBootstrap &&
+    (receiptConfig.migrationBootstrap &&
       (!exactKeys(value.ledgerBootstrap, ['enabled', 'created']) ||
         typeof value.ledgerBootstrap.enabled !== 'boolean' ||
         typeof value.ledgerBootstrap.created !== 'boolean' ||

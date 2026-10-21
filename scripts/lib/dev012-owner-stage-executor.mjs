@@ -563,7 +563,7 @@ async function repairPrerequisite({ basis, transport, paths, profile, intent, in
 }
 async function validateRepairMigration({ basis, transport, paths, profile, intent, intentRef, deployment, receipt }) {
   if (basis.migrationMode === 'FORWARD_APPLIED') {
-    assertMigration(receipt.value, 'ai-pdm', { ledger: profile.migrations.ledger, migrationBootstrap: true, principalContractLedgerFloor: 20 }, intent.sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef, intent.principalOnlyFenceRef ?? null)
+    assertMigration(receipt.value, 'ai-pdm', profile.migrations, intent.sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef, intent.principalOnlyFenceRef ?? null)
     if (receipt.value.ledgerCount !== basis.current.bundle.entries.length || receipt.value.baselineCount !== basis.current.bundle.baselineCount ||
         Date.parse(receipt.value.completedAt) > Date.parse(intent.deadlineAt)) fail('MIGRATION_RECEIPT_INVALID')
     const bundle = await transport.readBytes(deployment.value.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: deployment.value.migrationBundleRef.sha256 })

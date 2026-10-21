@@ -2462,6 +2462,11 @@ test('accepts the exact migration-runner Principal fence summary and joins it to
     ledgerCount: 35, applied: 2, replayed: 33, principalOnlyFence })
   assert.doesNotThrow(() => assertMigration(receipt, 'ai-pdm', aiConfig,
     revision, manifest, undefined, principalOnlyFenceRef))
+  assert.doesNotThrow(() => assertMigration(receipt, 'ai-pdm', { ledger: aiConfig.ledger },
+    revision, manifest, undefined, principalOnlyFenceRef))
+  assert.throws(() => assertMigration(receipt, 'ai-pdm', { ledger: aiConfig.ledger, migrationBootstrap: false },
+    revision, manifest, undefined, principalOnlyFenceRef),
+  /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
   assert.throws(() => assertMigration(receipt, 'ai-pdm', aiConfig,
     revision, manifest, undefined, { ...principalOnlyFenceRef, sha256: 'e'.repeat(64) }),
   /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
