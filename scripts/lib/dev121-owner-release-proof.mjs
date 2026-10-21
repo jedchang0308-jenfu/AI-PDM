@@ -1174,6 +1174,19 @@ function assertObservedCapsule(value, ref, sourceRevision) {
   }
   return value
 }
+export function assertReadyRepairActivationHistory({ activation, activationCapsule, activationCapsuleRef, activationCanonical, activationCanonicalRef, descriptor, baseline }) {
+  if (activation.schemaVersion !== 'aipdm.openswx-owner-receipt.v1' || activation.kind !== 'activation' || activation.ownerApplicationId !== 'ai-pdm' || activation.status !== 'PASS' || activation.actor !== 'jedchang0308@jenfu.com.tw' ||
+      activation.image !== baseline.value.after.image || activation.templateSha256 !== baseline.value.after.normalTemplateSha256 || activation.facts?.workerStatus !== 'READY' || activation.facts.schedulerState !== 'ENABLED' ||
+      activation.facts.claimProof?.claimProof !== 'AUTHENTICATED_204_SOURCE_BOUND' || activation.facts.dbAdmissionProof !== 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN' || !Array.isArray(activation.previousRefs) || activation.previousRefs.length !== 5) fail('REPAIR_HISTORY_INVALID')
+  assertAiReleaseRef(activationCapsuleRef); assertAiReleaseRef(activationCanonicalRef)
+  if (canonicalize(activation.previousRefs[0]) !== canonicalize(activationCapsuleRef) || canonicalize(activation.previousRefs[2]) !== canonicalize(activationCanonicalRef)) fail('REPAIR_HISTORY_INVALID')
+  const intent = assertObservedCapsule(activationCapsule, activationCapsuleRef, activation.sourceRevision)
+  if (!intent.openswxWorkerRef || canonicalize(intent.openswxWorkerRef) !== canonicalize(descriptor.retainedWorkerDescriptorRef) ||
+      activationCanonicalRef.uri !== `gs://${AI_BUCKET}/receipts/releases/${intent.releaseId}/${activationCapsuleRef.sha256}/canonical.json`) fail('REPAIR_HISTORY_INVALID')
+  assertStage(activationCanonical, 'ai-pdm', intent.sourceRevision, intent.releaseId, 'canonical')
+  if (canonicalize(activation.facts.numericCredentials) !== canonicalize({ token: descriptor.tokenSecretVersion, registry: descriptor.registrySecretVersion })) fail('REPAIR_HISTORY_INVALID')
+  return { sourceRevision: intent.sourceRevision, releaseId: intent.releaseId }
+}
 async function readObservationBundle({ ref, revision, token, fetchImpl }) {
   if (!exactKeys(ref, ['uri', 'sha256']) || !H64.test(ref.sha256 ?? '') || !new RegExp(`^gs://${AI_BUCKET}/source/migration-bundles/${revision}/[a-f0-9]{64}\\.json$`, 'u').test(ref.uri ?? '')) fail('MIGRATION_BUNDLE_REF_INVALID')
   const bytes = await readAiPdmEvidenceLeaf({ ref, kind: 'bundle', sourceRevision: revision, read: async () =>
@@ -1329,11 +1342,12 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
           if (descriptor.tokenSecretVersion !== historical.descriptor.tokenSecretVersion || descriptor.registrySecretVersion !== historical.descriptor.registrySecretVersion) fail('REPAIR_HISTORY_INVALID')
         } else {
           const activation = (await readRef(descriptor.priorActivationRef, AI_BUCKET, token, fetchImpl)).value
-          if (activation.schemaVersion !== 'aipdm.openswx-owner-receipt.v1' || activation.kind !== 'activation' || activation.ownerApplicationId !== 'ai-pdm' || activation.status !== 'PASS' || activation.actor !== 'jedchang0308@jenfu.com.tw' ||
-              activation.sourceRevision !== historical.intent.sourceRevision || activation.image !== baseline.value.after.image || activation.templateSha256 !== baseline.value.after.normalTemplateSha256 || activation.facts?.workerStatus !== 'READY' || activation.facts.schedulerState !== 'ENABLED' ||
-              activation.facts.claimProof?.claimProof !== 'AUTHENTICATED_204_SOURCE_BOUND' || activation.facts.dbAdmissionProof !== 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN' || !Array.isArray(activation.previousRefs) || activation.previousRefs.length !== 5) fail('REPAIR_HISTORY_INVALID')
-          sameProof(activation.previousRefs[0], historical.intentRef); sameProof(activation.previousRefs[2], historical.chain.canonical.ref)
-          sameProof(activation.facts.numericCredentials, { token: descriptor.tokenSecretVersion, registry: descriptor.registrySecretVersion })
+          if (!Array.isArray(activation.previousRefs) || activation.previousRefs.length !== 5) fail('REPAIR_HISTORY_INVALID')
+          const activationCapsuleRef = activation.previousRefs[0], activationCanonicalRef = activation.previousRefs[2]
+          assertAiReleaseRef(activationCapsuleRef); assertAiReleaseRef(activationCanonicalRef)
+          const activationCapsule = (await readRef(activationCapsuleRef, AI_BUCKET, token, fetchImpl)).value
+          const activationCanonical = (await readRef(activationCanonicalRef, AI_BUCKET, token, fetchImpl)).value
+          assertReadyRepairActivationHistory({ activation, activationCapsule, activationCapsuleRef, activationCanonical, activationCanonicalRef, descriptor, baseline })
         }
       }
       if (!programOnly && !historicalMigrationReuse && migrate) {
