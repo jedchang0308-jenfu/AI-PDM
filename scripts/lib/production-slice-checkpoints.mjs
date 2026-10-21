@@ -34,8 +34,9 @@ export function localCheckContext(root, environment = process.env) {
 }
 
 export function fullContinuousGroups(script) {
-  if (typeof script !== 'string' || !/^node --test (?:scripts\/[A-Za-z0-9_./-]+\.test\.mjs)(?: scripts\/[A-Za-z0-9_./-]+\.test\.mjs)*$/u.test(script)) throw new Error('PRODUCTION_SLICE_FULL_COMMAND_INVALID')
-  return [...new Set(script.slice('node --test '.length).split(' '))].map(file => ({ name: `full:${file}`, tests: [file] }))
+  const command = typeof script === 'string' ? script.replace(/^node scripts\/dev117-test-environment\.mjs && /u, '') : ''
+  if (!/^node --test (?:scripts\/[A-Za-z0-9_./-]+\.test\.mjs)(?: scripts\/[A-Za-z0-9_./-]+\.test\.mjs)*$/u.test(command)) throw new Error('PRODUCTION_SLICE_FULL_COMMAND_INVALID')
+  return [...new Set(command.slice('node --test '.length).split(' '))].map(file => ({ name: `full:${file}`, tests: [file] }))
 }
 
 // Each group is persisted immediately, including failure. No mutable "PASS" file

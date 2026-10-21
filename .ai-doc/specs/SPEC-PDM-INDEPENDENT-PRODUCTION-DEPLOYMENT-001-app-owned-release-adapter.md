@@ -583,6 +583,8 @@ Owner 產物沿用既有 immutable build／migration receipts 與 source/profile
 
 變更範圍仍由 §26.3 planner 決定；不取消 required CI、不跳過共享 release-control 的 full gate。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
 
+continuous／QC／affected-slice runner 共用 `scripts/dev117-test-environment.mjs`，在啟動選定測試前實測其 temporary Git/config、shared Git metadata 寫入及 loopback listen/read 能力。任何需求不可用都以 `BLOCKED / tests=NOT_RUN`、exit 2 結束；不再等完整套件逐案回報同一 sandbox 限制。既有失敗仍保留；執行端可在已核准的 host／CI 重跑相同命令，預檢不得自行提升權限、跳測或將環境不足視為 PASS。純 planner 測試不取得無關能力；既有 required gate 與 full manifest 不減免。
+
 ### 26.5 Source authority and artifact transport separation（2026-10-19）
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical tree source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app source object 與 worker source object 可由不同 OS、tar 或 gzip 實作產生；兩者的 archive SHA 不得互相比較，也不得用來決定 fresh／reuse、current／historical 或 candidate admission。candidate 另以 immutable worker image digest join；worker input 等價另以逐檔 manifest 與 effective recipe 驗證。
