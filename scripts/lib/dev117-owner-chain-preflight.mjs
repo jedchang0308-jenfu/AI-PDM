@@ -2,6 +2,7 @@ import { buildInfraReuseReceipt } from './dev012-owner-prerequisite-producer.mjs
 import { assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { normalizeReleaseEvidence } from './dev117-release-control-policy.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -174,6 +175,14 @@ export function normalizeOwnerChain({ profile, intent, values, infraInput = null
     : null
   if (applied && (!isAncestor || !isAncestor(applied.sourceRevision, intent.sourceRevision))) fail('CHAIN_MIGRATION_SOURCE_JOIN_INVALID')
   const prepared = assertPreparePrerequisites({ intent, profile, values: normalizedValues })
+  const releaseEvidence = normalizeReleaseEvidence({
+    intent,
+    source: { ...source, migrationRunnerRevision: prepared.migrationRunnerSourceRevision },
+    receipts: normalizedValues,
+    migration,
+    executionMode: 'full_release',
+    now: observedAt,
+  })
   const workerModel = normalizeWorker(worker, { sourceRevision: intent.sourceRevision, deadlineAt: intent.deadlineAt })
   const migrationModel = normalizeMigration({ profile, intent, migration, continuation: applied })
   const buildModel = normalizeBuild({ profile, intent, build })
@@ -182,6 +191,7 @@ export function normalizeOwnerChain({ profile, intent, values, infraInput = null
   return structuredClone({
     schemaVersion: 'jenfu.dev117.owner-chain-preflight.v1',
     status: 'READY_FOR_CANDIDATE',
+    releaseEvidence,
     releaseId: intent.releaseId,
     source: {
       applicationRevision: intent.sourceRevision,

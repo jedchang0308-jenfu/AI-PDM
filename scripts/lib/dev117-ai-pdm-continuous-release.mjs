@@ -172,6 +172,7 @@ export function assertDev117WorkflowSource(source) {
     || !source.includes('  candidate-smoke:\n    name: candidate-smoke\n    needs: [preflight, migrate]')
     || !source.includes('  activate-readback:\n    name: activate-readback\n    needs: [preflight, candidate-smoke]')
     || !source.includes("if: ${{ always() && inputs.executionMode == 'full_release' && needs.preflight.result == 'success' && contains(needs.*.result, 'failure') }}")) fail('WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT', 'Artifact preparation must not migrate, create candidates or roll back')
+  if (!source.includes('PDM_ENFORCE_DAILY_MODE_BOUNDARY: "true"')) fail('WORKFLOW_RELEASE_MODE_BOUNDARY_MISSING', 'Daily full release must reject special recovery modes')
   for (const forbidden of ['product_owner_decision:', 'artifact_receipt_ref:', 'candidate_receipt_ref:', 'level4_receipt_ref:', 'stage:']) if (source.includes(forbidden)) fail('HISTORICAL_INPUT_ACTIVE', `Forbidden v1 workflow input ${forbidden}`)
   if (!source.includes('group: production-release-ai-pdm-prod')) fail('WORKFLOW_CONCURRENCY_DRIFT', 'Concurrency must be service-wide')
   const expectedJobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback', 'failure']

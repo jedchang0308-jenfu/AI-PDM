@@ -113,3 +113,16 @@ test('required CI owns affected-slice validation and protected workflows reuse e
     assert.match(source, /fetch-depth: 0/u, file)
   }
 })
+
+test('planner stops the second failure in one family before another point patch', () => {
+  const plan = createProductionSlicePlan(['scripts/lib/dev117-ai-pdm-continuous-release.mjs'], {
+    failureHistory: [{ code: 'OPENSWX_SOURCE_JOIN_INVALID' }],
+    currentFailureCode: 'CHAIN_SOURCE_HASH_MISMATCH',
+  })
+  assert.deepEqual(plan.failurePolicy, {
+    family: 'SOURCE_LINEAGE',
+    occurrences: 2,
+    limit: 2,
+    action: 'STOP_FOR_COMMON_MECHANISM',
+  })
+})

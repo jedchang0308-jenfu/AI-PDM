@@ -16,6 +16,7 @@ import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRele
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
 import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
+import { assertDailyReleaseMode, classifyReleaseMode, profileForReleaseMode } from './dev117-release-control-policy.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -628,6 +629,12 @@ async function readCleanupMigrationBundle({ transport, deployment, intent, profi
 export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
+  const releaseMode = classifyReleaseMode({ intent, executionMode: environment.OWNER_EXECUTION_MODE ?? 'full_release', cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover' })
+  if (environment.PDM_ENFORCE_DAILY_MODE_BOUNDARY === 'true') assertDailyReleaseMode({ mode: releaseMode, workflowRef: environment.GITHUB_WORKFLOW_REF })
+  // One-time cutover is an explicit workflow responsibility. Ordinary full,
+  // build-only, program-only and recovery paths retain the historical fact but
+  // do not re-parse its raw handoff receipts on every release stage.
+  profile = profileForReleaseMode(profile, releaseMode)
   if (profile.application.id === 'ai-pdm') {
     const originalTransport = transport
     const asyncMethods = ['readJson', 'readBytes', 'readOwnerSourceProof', 'readOwnerRun', 'getService', 'getRevision', 'request', 'putJson', 'putBytes', 'createBuild', 'readArtifactImage', 'waitArtifactEvidence', 'runMigrationJob', 'createCandidate', 'configureEntrypoint', 'runAuthenticatedSmoke', 'setTraffic', 'activatePrincipalOnly', 'removeCandidateTag', 'rollbackTraffic', 'restoreEntrypoint', 'prepareProductionStorage']
