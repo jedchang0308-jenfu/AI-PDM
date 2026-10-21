@@ -77,7 +77,7 @@ test('release intent consumes source-bound infra reuse and rejects a tampered re
     reusedInfraReceiptRef: ref('infra-original'), reusedSourceRevision: 'f'.repeat(40),
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
-    providerJobReadback: assertInfraReuseProviderJob({ profile, existingInfra: { migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision: 'f'.repeat(40) }, job: providerJob() }),
+    providerJobReadback: assertInfraReuseProviderJob({ profile, existingInfra: { migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision: H40, reusedSourceRevision: 'f'.repeat(40) }, job: providerJob() }),
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt: NOW,
   }
@@ -91,7 +91,7 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -105,6 +105,10 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ digest: profile.artifact.migrationRunnerUri + '@sha256:' + 'e'.repeat(64) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'e'.repeat(40) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
+  const splitSource = { ...original, sourceRevision: 'c'.repeat(40), reusedSourceRevision: 'f'.repeat(40) }
+  splitSource.receiptSha256 = sha256(canonicalize(Object.fromEntries(Object.entries(splitSource).filter(([key]) => key !== 'receiptSha256'))))
+  const splitReceipt = buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: splitSource, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'f'.repeat(40) }), observedAt: NOW })
+  assert.equal(splitReceipt.reusedSourceRevision, 'f'.repeat(40))
   for (const drift of [
     { terminalCondition: { type: 'Ready', state: 'CONDITION_FAILED' } },
     { terminalCondition: undefined, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] },
@@ -117,7 +121,7 @@ test('infra reuse producer reads the live migration job before publishing provid
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -148,7 +152,7 @@ test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () =
   const workflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     mutationProfile: 'APP_INFRA_AIPDM_PRINCIPAL_MIGRATION_WIF', allowedWorkflowRefs: [workflowRef],
