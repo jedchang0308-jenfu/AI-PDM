@@ -86,13 +86,18 @@ export function ownerWorkflowAuthority(profile, intent, environment, { stage = n
     environment.GITHUB_WORKFLOW_REF === migrationOnlyRef
   const migrationStageWorkflow = migrationOnlyRef !== null && ['prepare', 'build', 'migrate'].includes(stage) &&
     environment.GITHUB_WORKFLOW_REF === migrationOnlyRef
+  const executionMode = environment.OWNER_EXECUTION_MODE ?? 'full_release'
+  const workerPurpose = executionMode === 'build_only' ? 'build_only'
+    : executionMode === 'full_release' ? 'full' : null
   return {
     expectedRef,
     expectedWorkflowRef,
     migrationOnlyRef,
     appliedContinuationRelease,
+    executionMode,
+    workerPurpose,
     fullWorkflowAllowed: primaryWorkflow || appliedContinuationWorkflow,
-    workflowAllowed: primaryWorkflow || appliedContinuationWorkflow || migrationStageWorkflow,
+    workflowAllowed: workerPurpose !== null && (primaryWorkflow || appliedContinuationWorkflow || migrationStageWorkflow),
   }
 }
 

@@ -119,7 +119,7 @@ test('repair classification validates only the pinned descriptor before choosing
   }
 })
 
-test('applied migration continuation admits the exact principal workflow only with both intent and mode binding', async () => {
+test('applied migration continuation derives full mode from the exact principal workflow authority', async () => {
   const descriptor = workerDescriptor('full')
   const bytes = Buffer.from(canonicalize(descriptor))
   const descriptorRef = { ...ref('applied-continuation-classification'), sha256: sha256(bytes) }
@@ -131,13 +131,14 @@ test('applied migration continuation admits the exact principal workflow only wi
       assert.equal(actualRevision, sourceRevision)
       return profileBytes
     },
-    environment: { ...environment, OWNER_EXECUTION_MODE: 'full_release' },
+    environment,
   })
   const intent = { sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: '2999-01-01T00:00:00Z', appliedMigrationContinuation: {} }
   const withoutContinuation = { ...intent }
   delete withoutContinuation.appliedMigrationContinuation
   const admitted = await makeOwner({ GITHUB_WORKFLOW_REF: principalRef, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(intent, appProfile)
   assert.equal(admitted.purpose, 'full')
+  await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: principalRef, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true', OWNER_EXECUTION_MODE: 'build_only' }).classifyRepair(intent, appProfile), /OPENSWX_EXECUTION_MODE_MISMATCH/u)
   await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: principalRef }).classifyRepair(intent, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
   await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: principalRef, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(withoutContinuation, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
   await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/.github/workflows/unknown.yml@refs/heads/main`, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(intent, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
