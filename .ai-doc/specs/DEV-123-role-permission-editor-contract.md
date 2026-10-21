@@ -546,3 +546,19 @@ Native直接證據：OrgMaster實作工作樹 output/qa/dev-058/native-pg-bilate
 PDM已補submission list/detail/search的canonical group與分頁前過濾、原檔／ZIP逐成員view+download及storage前後重驗、numbering export讀取的實際內容群組、Preview／recognition完整verified initiator及worker當前Principal/session/grant／實際來源重驗。088保留舊job NULL且提醒重試；089將transfer metadata綁定新registry hash。Org035與PDM086～089只套於task-owned PG18，正式migration／資料／部署／traffic／IAM／Secret均未操作；source初始仍NOT_READY/revision0及DISABLED/generation0。
 
 尚未關閉：正常登入HTTP/browser旅程、20action全部caller與CG01/02逐案驗收、QA24/52完整case closure、required CI及另行授權的正式首次切換。上述局部PASS只支持實際層級；不以mock browser或native synthetic session冒充正式L4。DEV121/122最新遠端main=02239aaeaac82702bbc8c4d58b38d47fca051afe已合入PDM分支540a0013b3bc8dbb6f4751f15d87494c159126f5；這次主線差異只有兩個release-recovery程式／測試，app／worker／SQL未變。任務120條path在合併未改，0227 build的app輸入維持，無須重建；先前77檔raw SHA保存紀錄仍是歷史證據。同範圍待驗不推成外部任務阻塞。
+
+### 15.6 正常旅程與 caller 修正續接（2026-10-21）
+
+最新狀態與52案逐案對照見[QA §8](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#8-2026-10-21-正常旅程續接與剩餘-qa)，前次0254記錄保留原source/層級。OrgMaster DEV-058仍是配人authority；本節是PDM-owned caller及正常登入前置修正，沒有把授權資料移回PDM自行編輯。
+
+1. **SSO transport**：HTTP loopback development/test改用 `ai_pdm_sso_tx`，與OrgMaster本機cookie分開；HTTPS仍為原`__Host-jenfu_sso_tx` + Secure/Path=/HttpOnly/SameSite=Lax/無Domain，不接受local-name fallback。HTTP僅允許明示dev/test、loopback、非K_SERVICE；拒絕帶URL credentials的origin。MAC/PKCE/state/issuer、Google服務身分與session/Principal驗證不變。真Chrome before/after已證明兩端start的cookie傳輸修正；不是完整登入。
+2. **附件**：精確reviewed route推parent；command同verified write transaction以company-bound canonical parent及active/deleted attachment重讀category，CAD/intermediate另外要求model.edit。upload使用既有server category validator，正規化結果由內部execution context交給實際write，audit/outbox亦用同值；raw body不能換群組。既有owner/target/lifecycle、idempotency/outbox/transaction guard保留；legacy沿原generic policy。
+3. **路由**：既有drawing preview POST本已使用Principal command，卻缺v2 entry；補精確entry與產物/generator/負例，沒有開放retired/410 kind。現行checker輸出150 files/172 methods/182 entries；這是本輪source盤點，不是永久固定數字。
+4. **模型審核**：沿原drawing/part review package，不新增model workflow/state/第二次批准。僅primary submitted target為送審對象，其canonical DB binding/source asset/hash/category決定parent + optional model.review；用於reviewer選派、target/comparison與最終鎖定決策。合法前版檔引用對照source file revision及同drawing，不誤要求asset linkId等於新work revision。
+5. **恢復與資料讀取**：submit/approve嚴格檢查frozen file、hash、binding及active狀態；inspection/return仍驗當前parent/model能力，允許看見stale並退回修改，未知分類保守要求model.review。送審前早已刪除且不屬package的歷史檔不提高本次權限；current active新增CAD仍納入comparison的model guard。指定reviewer/no-self/current grants/state/CAS皆保留。
+
+registry的私有route/caller索引已同步上述接線；沒有把model.review加入泛用approval.request.decide的固定requiredActions。外部semantic registry hash仍是 `c2340c96a64004538b11fd59b1a1c4f03a88779c7db722f583037b4dc6c49869`，SQL086～089逐bytes不變，不新增migration。
+
+證據：固定入口55檔494 PASS＋Node9 PASS；最後私有索引更新後，受影響Node9及domain/bilateral10 PASS；附件focused58、review-focused73、target/comparison接線8 PASS（與aggregate有重疊，不加總）；DB boundary26 governed files PASS。新canonical SQL目前只有source/單元/接線證據，不能移用舊native生命週期報告冒充新SQL原生PASS。
+
+尚缺正常登入HTTP/browser、真snapshot競爭、完整原生fault/ACL/expiry與實際bytes配送矩陣等，詳QA §8。非正式SSO/IdP設定/既有測試帳號未提供，C槽約13GiB且Governor EMERGENCY禁止應用完整build/dev server；新source完整build仍待驗，舊0227產物只支持當時source。未執行正式migration、部署、資料、traffic/IAM/Secret操作；沒有新增人為關卡或放寬安全控制。

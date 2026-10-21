@@ -43,6 +43,17 @@ function requestedIdempotencyKey(request: Request, body: Record<string, unknown>
   return supplied || `request:${requestId}`;
 }
 
+function attachmentIngressGroups(routePath: string, method: string, permissionCode: string) {
+  if (permissionCode !== "numbering.attachments.manage") return undefined;
+  if (method === "DELETE" && routePath === "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts") return ["part"] as const;
+  if (method === "POST" && (
+    routePath === "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts" ||
+    routePath === "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts")) return ["part"] as const;
+  if (method === "POST" && routePath === "src/app/api/parts/[partNumber]/attachments/route.ts") return ["part"] as const;
+  if (method === "POST" && routePath === "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts") return ["drawing"] as const;
+  return undefined;
+}
+
 export async function requireNumberingPlatformCommandAsync(
   request: Request,
   input: {
@@ -64,8 +75,12 @@ export async function requireNumberingPlatformCommandAsync(
     };
   }
   const body = input.body ?? {};
+  const resourceGroups = attachmentIngressGroups(route.path, request.method, permissionCode);
+  const resourceGroupsDynamicOnly = route.path === "src/app/api/parts/[partNumber]/attachments/route.ts" &&
+    request.method === "POST";
   const auth = await requirePrincipalNumberingPermissionAsync(request, "action", permissionCode,
-    requestedNumberingCompanyCodeFromRequest(request, body));
+    requestedNumberingCompanyCodeFromRequest(request, body),
+    resourceGroups ? { resourceGroups, ...(resourceGroupsDynamicOnly ? { resourceGroupsDynamicOnly: true } : {}) } : {});
   if (auth.response || !auth.company || !auth.user.authorizationActor) {
     return {
       auth, company: null, actor: null, metadata: null,

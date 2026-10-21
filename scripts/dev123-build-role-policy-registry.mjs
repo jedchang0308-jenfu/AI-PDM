@@ -88,6 +88,20 @@ export function buildRolePolicyRegistry(activeCapabilities, catalog) {
       const legacyCodes = legacyByAction[key]
       const routeBindings = legacyCodes.flatMap(code => (byCode.get(code)?.routes ?? []).map(route => ({ legacyCode: code, ...route })))
       const callerBindings = legacyCodes.flatMap(code => (byCode.get(code)?.callers ?? []).map(caller => ({ legacyCode: code, caller })))
+      if (key === 'drawing:edit') routeBindings.push({
+        legacyCode: 'numbering.attachments.manage', method: 'POST',
+        path: 'src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts',
+      })
+      if (key === 'model:edit') callerBindings.push({
+        caller: 'src/lib/platform-command-service.ts',
+        condition: 'canonical-attachment-cad-or-intermediate-parent-and-model-edit',
+      })
+      // Direct resource checks are conditional on canonical DB targets. They do
+      // not add model.review to every generic parent approval operation.
+      if (key === 'model:review') callerBindings.push({
+        caller: 'src/lib/pdm-principal-review-resource.ts',
+        condition: 'submitted-canonical-cad-or-intermediate-parent-and-model-review',
+      })
       return {
         groupId, groupLabel, groupOrder, actionId, actionLabel, actionOrder,
         kind: 'action', code: `pdm.${groupId}.${actionId}`, editClass: 'business-role-grid',

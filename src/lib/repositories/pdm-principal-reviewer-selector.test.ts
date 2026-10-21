@@ -202,4 +202,25 @@ describe("DEV-123 dynamic reviewer capability", () => {
       candidate("principal-reviewer", "owner-profile")
     ]), { ...input, resourceGroup: "drawing" })).rejects.toMatchObject({ status: 409 });
   });
+
+  it.each([
+    ["parent denial", "pdm.drawing.review"],
+    ["model denial", "pdm.model.review"]
+  ])("requires both drawing and model review when the submitted target has CAD (%s)", async (_label, deniedCode) => {
+    mocks.catalog.mockResolvedValue({
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000030",
+      roles: [{ roleCode: "custom_drawing_review" }]
+    });
+    mocks.entitlement.mockImplementation(async (requests: Array<{ permissionCode: string }>) =>
+      requests.map(request => ({ decisionCode: request.permissionCode === deniedCode
+        ? "permission_not_granted" : "allowed", role: { roleCode: "custom_drawing_review" } })));
+    await expect(selectPrincipalReviewerInSnapshot(client([
+      candidate("principal-reviewer", "profile-reviewer")
+    ]), { ...input, resourceGroup: "drawing", resourceGroups: ["drawing", "model"] }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(mocks.entitlement).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ permissionCode: "pdm.drawing.review" }),
+      expect.objectContaining({ permissionCode: "pdm.model.review" })
+    ]), expect.any(Date));
+  });
 });

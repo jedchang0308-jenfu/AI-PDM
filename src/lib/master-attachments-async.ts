@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { canonicalJsonStringify } from "@/lib/canonical-json";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
-import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import { executePdmCommandWithOutbox, type PdmCommandExecutionContext } from "@/lib/platform-command-service";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
@@ -243,17 +243,20 @@ export async function executeMasterAttachmentUploadAsync(input: {
   const executed = await executePdmCommandWithOutbox({client:getAsyncDatabaseClient(),command,
     principalRequest:metadata.principalRequest,principalAuthorization:metadata.principalAuthorization,
     serializable:false,
-    execute:async (snapshot,_decision,verified) => {
+    execute:async (snapshot,_decision,verified,executionContext?:PdmCommandExecutionContext) => {
       if (!verified || verified.session.principalId !== metadata.actor.principalId ||
           verified.profile.companyId !== metadata.actor.organizationId ||
           verified.profile.pdmUserId !== metadata.actor.pdmUserId) {
         throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
       }
+      const documentCategory = executionContext?.validatedAttachmentCategory;
+      if (!documentCategory) throw new Error("MASTER_ATTACHMENT_CATEGORY_NOT_VALIDATED");
       const repository = new AsyncMasterAttachmentRepository(snapshot,undefined,undefined,{
         companyId:verified.profile.companyId,profileId:verified.profile.pdmUserId,
         principalId:verified.session.principalId,profileVersion:verified.session.profileVersion
       });
       const attachment = await repository.createMasterAttachment({...input,attachmentId,
+        documentCategory,
         file:new File([new Uint8Array(bytes)],input.file.name,{type:input.file.type}),
         uploadedBy:verified.profile.pdmUserId,deferDriveSync:true});
       if (!attachment) throw new Error("MASTER_ATTACHMENT_CREATE_FAILED");
@@ -268,7 +271,8 @@ export async function executeMasterAttachmentUploadAsync(input: {
       return decorated[0] ?? attachment;
     },
     event:attachment => ({aggregateType:"master_attachment",aggregateId:attachment.id,
-      eventType:"pdm.master_attachment.upload",payload:{...payload,attachmentId:attachment.id}})
+      eventType:"pdm.master_attachment.upload",payload:{...payload,documentCategory:attachment.documentCategory,
+        attachmentId:attachment.id}})
   });
   return executed.result;
 }

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   legacyActor: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
   readCurrent: vi.fn(), compare: vi.fn(), issueContract: vi.fn(),
-  readWork: vi.fn(), resolveWorkBasis: vi.fn()
+  readWork: vi.fn(), resolveWorkBasis: vi.fn(), reviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
@@ -16,6 +17,9 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
+}));
+vi.mock("@/lib/pdm-principal-review-resource", () => ({
+  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.reviewResources
 }));
 vi.mock("@/lib/pdm-dev087-route", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-dev087-route")>(),
@@ -74,7 +78,8 @@ beforeEach(() => {
   })));
   mocks.getReview.mockResolvedValue({ id: "review-one", requestKind: "drawing_revision",
     requestStatus: "pending", reviewerUserId: "profile-one", companyId: "company-one",
-    workId: "work-one", rowVersion: 4, snapshotPayload: {}, snapshotHash: "package-hash" });
+    canonicalEntityId: "drawing-one", workId: "work-one", rowVersion: 4, snapshotPayload: {}, snapshotHash: "package-hash" });
+  mocks.reviewResources.mockResolvedValue(["drawing"]);
   mocks.parsePackage.mockReturnValue({ kind: "v2" });
   mocks.verifyPackage.mockReturnValue({ schemaVersion: "pdm-review-package-v2",
     targets: [{ targetKey: "drawing:drawing-one", scope: "submitted",
@@ -112,6 +117,10 @@ describe("principal review target and comparison", () => {
       expect.any(Function), { readOnly: true, isolationLevel: "repeatable_read" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
       [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" }]);
+    expect(mocks.reviewResources).toHaveBeenCalledWith(tx,verified,{
+      companyId:"company-one",requestKind:"drawing_revision",entityType:"drawing",
+      entityId:"drawing-one",workId:"work-one",envelope:expect.any(Object)
+    },{strictSnapshot:false});
     expect(mocks.readCurrent).toHaveBeenCalledWith(tx, {
       companyId: "company-one", entityType: "drawing", entityId: "drawing-one",
       workId: "work-one"
@@ -129,6 +138,14 @@ describe("principal review target and comparison", () => {
     expect(mocks.readCurrent).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
+
+  it.each([["target",targetGET,false],["comparison",comparisonGET,true]] as const)(
+    "does not disclose %s data when its canonical model review guard denies",async(_name,route,comparison)=>{
+      mocks.reviewResources.mockRejectedValueOnce(new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST","無權限執行此操作",403));
+      expect((await route(request(comparison),params)).status).toBe(403);
+      expect(mocks.readCurrent).not.toHaveBeenCalled();
+      expect(mocks.compare).not.toHaveBeenCalled();
+    });
 
   it("hides another reviewer's target and rejects a legacy package", async () => {
     mocks.getReview.mockResolvedValueOnce({ requestKind: "drawing_revision",

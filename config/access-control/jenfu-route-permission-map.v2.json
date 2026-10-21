@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "e3f31202a008b66899ee75820238c4e74496a66adb14e3c6da09cff89ec8b717",
+  "sourceSha256": "01d3923e169b0485956c14d76f33b151a629d0a113b7c5c1db001f0aabc20747",
   "denominator": {
-    "uniqueFiles": 149,
-    "uniqueMethods": 171,
-    "policyEntries": 181
+    "uniqueFiles": 150,
+    "uniqueMethods": 172,
+    "policyEntries": 182
   },
   "entries": [
     {
@@ -1750,6 +1750,16 @@
       "preservedGuards": "same-company session, current version and signed impact preview"
     },
     {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact drawing/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
       "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
       "method": "POST",
       "discriminator": null,
@@ -1787,7 +1797,7 @@
       "permissionCode": "numbering.attachments.manage",
       "authorizationTarget": "numbering.attachments.manage",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+      "preservedGuards": "verified Principal/company; exact part; registry-validated category→part/model; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
     },
     {
       "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",

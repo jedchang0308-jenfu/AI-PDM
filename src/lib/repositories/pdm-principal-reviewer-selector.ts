@@ -21,7 +21,9 @@ export type PrincipalReviewerSelection = Readonly<{ principalId: string; profile
 /** Candidate eligibility is not a login. The eventual decision route must verify its own AAL2 session. */
 export async function selectPrincipalReviewerInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string; requirePublish?: boolean; resourceGroup?: 'drawing' | 'part' | 'transfer' }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean;
+    resourceGroup?: 'drawing' | 'part' | 'transfer';
+    resourceGroups?: readonly ('drawing' | 'part' | 'model' | 'transfer')[] }
 ): Promise<string> {
   return (await selectPrincipalReviewerIdentityInSnapshot(tx, input)).profileId;
 }
@@ -29,7 +31,9 @@ export async function selectPrincipalReviewerInSnapshot(
 /** Keep the security subject alongside the historical review/profile FK. */
 export async function selectPrincipalReviewerIdentityInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string; requirePublish?: boolean; resourceGroup?: 'drawing' | 'part' | 'transfer' }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean;
+    resourceGroup?: 'drawing' | 'part' | 'transfer';
+    resourceGroups?: readonly ('drawing' | 'part' | 'model' | 'transfer')[] }
 ): Promise<PrincipalReviewerSelection> {
   if (tx.kind !== "postgres" || tx.transactionScope !== "postgres" ||
       !input.companyId || !input.ownerUserId) {
@@ -98,12 +102,18 @@ export async function selectPrincipalReviewerIdentityInSnapshot(
     if (!actor) throw new Error("PRINCIPAL_REVIEWER_CANDIDATE_INVALID");
     let role: string | null = null;
     try {
-      const review = dynamic && input.resourceGroup
-        ? { permissionKind: "action" as const, permissionCode: 'pdm.' + input.resourceGroup + '.review' }
-        : reviewerPermission;
-      const permissions = [review, ...(input.requirePublish
-        ? [{ permissionKind: "action" as const, permissionCode: dynamic && input.resourceGroup
-          ? 'pdm.' + input.resourceGroup + '.publish' : "numbering.publish" }] : [])];
+      const selectedGroups = dynamic && input.resourceGroups?.length
+        ? [...new Set(input.resourceGroups)] : [];
+      const reviews = selectedGroups.length
+        ? selectedGroups.map(group => ({ permissionKind: "action" as const,
+          permissionCode: `pdm.${group}.review`, resourceGroup: group }))
+        : [dynamic && input.resourceGroup
+          ? { permissionKind: "action" as const, permissionCode: `pdm.${input.resourceGroup}.review` }
+          : reviewerPermission];
+      const publishGroup = input.resourceGroup ?? selectedGroups.find(group => group !== "model");
+      const permissions = [...reviews, ...(input.requirePublish
+        ? [{ permissionKind: "action" as const, permissionCode: dynamic && publishGroup
+          ? `pdm.${publishGroup}.publish` : "numbering.publish" }] : [])];
       const results = await entitlement.evaluatePermissions(permissions.map(permission => ({
         actor, ...permission, workspaceCode: input.companyId,
         projectCode: null, rolePriority: effectivePriority

@@ -72,6 +72,8 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 ## DEV-123#role-permission-editor — local implementation in progress / rollout disabled (2026-10-21)
 
+**正常旅程續接：** 修正loopback SSO transaction Cookie、generic附件的canonical parent/model判權、上傳category同交易交接、drawing preview缺失的精確route，以及既有送審/選派/target/comparison/最終決策的conditional model.review。退回修改保留恢復路徑，不以附件漂移卡死；核准仍驗frozen內容/關聯。固定入口55檔494 PASS＋Node9 PASS，新增私有接線索引後Node9及domain/bilateral10例重驗PASS；語意hash與SQL086～089原文不改。最新逐案證據與缺項見[QA §8](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#8-2026-10-21-正常旅程續接與剩餘-qa)。正常SSO仍缺非正式環境，C槽EMERGENCY阻止應用完整build/dev server；全52案/CG/真HTTP配送未完成。下段0254為前次切片證據，不能宣稱新source build已PASS；本次沒有正式migration、部署或資料寫入。
+
 本輪本機可整合實作目標完成；DEV整案仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash與commandId重用缺陷已修正，raw failures保留。OrgMaster targeted browser 8 checks／9 screenshots通過（actual component＋mock API）；受影響治理回歸另32 PASS。
 
 證據及責任：[DEV-123 §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)。目前native使用owner bootstrap／合成session／Platform stub，PDM targeted browser仍用mock API；正常登入HTTP/browser、CG、完整QA24/52及正式首次啟用尚未關閉。正式migration／資料／部署／traffic／IAM／Secret均未操作，source初始NOT_READY/DISABLED保持；不將本機PASS改稱正式或全案驗收。

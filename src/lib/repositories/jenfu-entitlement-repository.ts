@@ -47,6 +47,8 @@ export type JenfuEnforcedPermissionInput = {
   permissionCode: string;
   /** Set only by a server-owned canonical resource adapter. */
   resourceGroup?: "drawing" | "part" | "model" | "transfer";
+  /** Exact canonical group union for a server-resolved mixed resource. */
+  resourceGroups?: readonly ("drawing" | "part" | "model" | "transfer")[];
   workspaceCode?: string | null;
   projectCode?: string | null;
   rolePriority: readonly string[];
@@ -74,12 +76,20 @@ const policyRegistry = rolePolicyRegistryJson as {
 };
 
 function permissionRequirements(kind: "page" | "action", code: string,
-  resourceGroup?: JenfuEnforcedPermissionInput["resourceGroup"]) {
+  resourceGroup?: JenfuEnforcedPermissionInput["resourceGroup"],
+  resourceGroups?: JenfuEnforcedPermissionInput["resourceGroups"]) {
   const business = policyRegistry.businessActions.find(action => action.kind === kind && action.code === code);
   if (business) return business.requiredActions.map(required => ({ kind: "action" as const, code: required }));
   const legacy = policyRegistry.legacyBindings.find(binding => binding.kind === kind && binding.code === code);
   if (!legacy) return null;
   if (legacy.disposition === "protected" || legacy.requiredActions.length === 0) return [{ kind, code }];
+  if (resourceGroups !== undefined) {
+    const groups = [...new Set(resourceGroups)];
+    if (!groups.length || groups.some(group => !["drawing", "part", "model", "transfer"].includes(group))) return null;
+    const required = legacy.requiredActions.filter(action => action.startsWith("pdm.model.") ||
+      groups.some(group => action.startsWith("pdm." + group + ".")));
+    return required.length ? required.map(action => ({ kind: "action" as const, code: action })) : null;
+  }
   // A generic legacy key can cover several resource types. Narrow only after
   // the caller resolves the actual target; an unclassified caller keeps AND.
   const required = resourceGroup ? legacy.requiredActions.filter(action =>
@@ -257,7 +267,8 @@ export class JenfuEntitlementRepository {
         if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
         const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
         const requirements = dynamicPolicy
-          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode, candidate.resourceGroup)
+          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode,
+            candidate.resourceGroup, candidate.resourceGroups)
           : [{ kind: candidate.permissionKind, code: candidate.permissionCode }];
         if (!requirements) continue;
         const permissions = requirements.map(requirement => role.permissions.find(entry =>

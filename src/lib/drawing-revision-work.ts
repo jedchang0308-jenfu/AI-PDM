@@ -15,13 +15,16 @@ import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev0
 import { DrawingRevisionWorkAsyncRepository, parseCanonicalRevision, type RevisionTuple } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository, type PdmWorkReviewRequestRecord } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
+import { resolvePrincipalReviewResourceGroupsInSnapshot,
+  requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { hydrateDrawingChangeImpactForWork, validateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
 import { createFileStorageService } from "@/lib/file-storage";
 import { deriveDrawingRevisionBasis, type DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { issueDrawingRevisionTargetToken, verifyDrawingRevisionTargetToken } from "@/lib/drawing-revision-target-token.server";
 import { DrawingRevisionTargetContractError, parseDrawingRevisionCreateSelection } from "@/lib/drawing-revision-target-contract";
 import { assertDrawingRecognitionWriteReady, assertReviewPackagePrimaryRoot, assertReviewPackageRecognitionReady, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
-import { parseReviewPackageSnapshot, type ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
+import { parseReviewPackageSnapshot, type ReviewPackageEnvelope,
+  type ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
 
 export type DrawingRevisionActor = { id: string; companyId: string; canEditNonOwned: boolean; permissions: { create: boolean; update: boolean; submit: boolean; cancel: boolean; decide: boolean; obsolete: boolean } };
 type CommandContext = { idempotencyKey: string; contractToken: string; expectedRowVersion: number; correlationId?: string };
@@ -532,11 +535,6 @@ export class DrawingRevisionWorkService {
           required: Number(locked.target_minor) === 0
         })
         : null;
-      const reviewerUserId = principalOnly
-        ? await selectPrincipalReviewerInSnapshot(tx,
-          { companyId, ownerUserId: locked.owner_user_id, resourceGroup: 'drawing',
-            ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {}) })
-        : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
       const snapshotPayload = sanitizeDrawingRevisionWorkPayload(submittedPayload);
       const basisFields = { payload: snapshotPayload, revisionId: locked.revision_id,
         claimId: locked.target_claim_id,
@@ -549,6 +547,17 @@ export class DrawingRevisionWorkService {
       const packagePayload = principalOnly || reviewPackageV2WriteEnabled()
         ? await buildReviewPackage(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, decisionBasis: { hash: legacySnapshotHash, ...decisionBasis } })
         : { payload: snapshotPayload, revisionId: locked.revision_id, claimId: locked.target_claim_id };
+      const reviewerUserId = principalOnly
+        ? await selectPrincipalReviewerInSnapshot(tx, {
+          companyId, ownerUserId: locked.owner_user_id, resourceGroup: "drawing",
+          resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+            companyId, requestKind: "drawing_revision", entityType: "drawing",
+            entityId: locked.drawing_id, workId,
+            envelope: packagePayload as ReviewPackageEnvelope
+          }),
+          ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {})
+        })
+        : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
       const request = await reviews.create(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, reviewerUserId, snapshotPayload: packagePayload, snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : legacySnapshotHash });
       await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'in_review', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`, { companyId, revisionId: locked.revision_id });
       await tx.execute(`UPDATE canonical_workbench_states SET handling = 'review_owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND work_id = :workId AND handling = 'owner'`, { companyId, workId }); return { requestId: request.id, reviewCycleId: request.reviewCycleId, rowVersion: request.rowVersion };
@@ -618,8 +627,6 @@ export class DrawingRevisionWorkService {
           "目前無法申請作廢這個研發版", 409);
       }
       const reviews = new PdmWorkReviewAsyncRepository(tx);
-      const reviewerUserId = await selectPrincipalReviewerInSnapshot(tx,
-        { companyId: profile.companyId, ownerUserId: profile.profileId, resourceGroup: 'drawing' });
       const snapshot = { drawingId: locked.drawing_id, branchId,
         revisionId: locked.revision_id, revision: locked.revision };
       const basisHash = dev087RequestHash(snapshot);
@@ -629,6 +636,15 @@ export class DrawingRevisionWorkService {
         workId: null, branchId,
         decisionBasis: { hash: basisHash, payload: snapshot,
           revisionId: locked.revision_id, claimId: null }
+      });
+      const reviewerUserId = await selectPrincipalReviewerInSnapshot(tx, {
+        companyId: profile.companyId, ownerUserId: profile.profileId,
+        resourceGroup: "drawing",
+        resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+          companyId: profile.companyId, requestKind: "drawing_rd_void",
+          entityType: "drawing", entityId: locked.drawing_id, workId: null,
+          envelope: reviewPackage
+        })
       });
       let review;
       try {
@@ -732,6 +748,11 @@ export class DrawingRevisionWorkService {
         throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
           "審核包格式無效", 409);
       }
+      await requirePrincipalReviewResourceCapabilitiesInSnapshot(tx, verified, {
+        companyId: profile.companyId, requestKind: locked.requestKind,
+        entityType: "drawing", entityId: locked.canonicalEntityId,
+        workId: locked.workId, envelope: verifiedPackage
+      }, { strictSnapshot: decision !== "return_for_correction" });
       if (locked.requestKind === "drawing_rd_void") {
         if (decision === "return_for_correction") {
           return returnDrawingRdVoidReview(tx, locked, reviews);

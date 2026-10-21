@@ -5,7 +5,8 @@ import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { principalCommandRouteMatches } from "@/lib/principal-command-route-proof";
 import {
   evaluatePrincipalWorkspacePermissionsInSnapshot,
-  type PrincipalWorkspaceDecision
+  type PrincipalWorkspaceDecision,
+  type PrincipalWorkspacePermission
 } from "@/lib/jenfu-principal-permission-service";
 import {
   withVerifiedJenfuPrincipalRequest, type PrincipalRequestInput,
@@ -14,6 +15,10 @@ import {
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { canonicalCapabilityGroups, isDynamicRolePolicyInSnapshot,
+  type PrincipalCapabilityGroup } from "@/lib/principal-resource-capability";
+import { AsyncMasterAttachmentRepository, normalizeMasterAttachmentCategory } from "@/lib/repositories/master-attachment-async-repository";
+import type { MasterAttachmentCategory } from "@/lib/repositories/master-attachment-repository";
 import { PlatformMappingAsyncRepository } from "@/lib/repositories/platform-mapping-async-repository";
 import { PlatformOutboxAsyncRepository } from "@/lib/repositories/platform-outbox-async-repository";
 
@@ -21,7 +26,7 @@ type CommandInput<TPayload, TResult> = {
   client: AsyncDatabaseClient;
   command: PdmCommand<TPayload>;
   execute: (client: AsyncDatabaseClient, primaryDecision: PrincipalWorkspaceDecision | null,
-    verified: VerifiedPrincipalRequest | null) => Promise<TResult>;
+    verified: VerifiedPrincipalRequest | null, context?: PdmCommandExecutionContext) => Promise<TResult>;
   event: (result: TResult) => {
     aggregateType: string;
     aggregateId: string;
@@ -42,11 +47,142 @@ type CommandInput<TPayload, TResult> = {
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 };
 
+/** Server-derived values resolved in the command snapshot and handed to the write callback. */
+export type PdmCommandExecutionContext = {
+  validatedAttachmentCategory?: MasterAttachmentCategory;
+};
+
+type AttachmentCommandAuthorization = {
+  groups: PrincipalCapabilityGroup[];
+  documentCategory?: MasterAttachmentCategory;
+};
+
+type AttachmentCommandBinding = {
+  entityType: "drawing_number" | "part_number";
+  routePath: string;
+  method: string;
+  suffix: "previews" | "restore" | null;
+  deleted: boolean;
+};
+
+function attachmentCommandBinding(commandName: string): AttachmentCommandBinding | null {
+  if (commandName === "pdm.master_attachment.delete") return {
+    entityType: "part_number", routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+    method: "DELETE", suffix: null, deleted: false
+  };
+  if (commandName === "pdm.master_attachment.restore") return {
+    entityType: "part_number", routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+    method: "POST", suffix: "restore", deleted: true
+  };
+  if (commandName === "pdm.master_attachment.preview") return null;
+  return null;
+}
+
+function decodePathSegment(value: string) {
+  try { return decodeURIComponent(value); } catch { return null; }
+}
+
+async function resolveAttachmentCommandGroupsInSnapshot(
+  client: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest,
+  route: NonNullable<CommandInput<unknown, unknown>["principalAuthorization"]>,
+  commandName: string,
+  rawPayload: unknown
+): Promise<AttachmentCommandAuthorization | null> {
+  const payload = rawPayload && typeof rawPayload === "object" ? rawPayload as Record<string, unknown> : {};
+  if (commandName === "pdm.master_attachment.upload") {
+    const routePath = "src/app/api/parts/[partNumber]/attachments/route.ts";
+    const pathname = new URL(route.request.url).pathname;
+    const match = /^\/api\/parts\/([^/]+)\/attachments$/u.exec(pathname);
+    const code = match ? decodePathSegment(match[1]) : null;
+    if (route.routePath !== routePath || route.method !== "POST" ||
+        route.permissionCode !== "numbering.attachments.manage" ||
+        payload.entityType !== "part_number" || typeof payload.entityCode !== "string" ||
+        typeof payload.documentCategory !== "string" || !match || code !== payload.entityCode) {
+      throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+    }
+    const repository = new AsyncMasterAttachmentRepository(client, undefined, undefined, {
+      companyId: verified.profile.companyId, principalId: verified.session.principalId,
+      profileId: verified.profile.pdmUserId, profileVersion: verified.session.profileVersion
+    });
+    const entity = await repository.resolveCompanyEntity({
+      entityType: "part_number", entityCode: payload.entityCode, companyId: verified.profile.companyId
+    });
+    if (!entity || entity.entityCode !== payload.entityCode) {
+      throw new JenfuEntitlementRepositoryError("permission_not_granted");
+    }
+    const documentCategory = normalizeMasterAttachmentCategory(entity.entityType, payload.documentCategory);
+    const groups = canonicalCapabilityGroups(entity.entityType, documentCategory);
+    if (!groups.includes("part") || groups.some(group => !["part", "model"].includes(group))) {
+      throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+    }
+    return { groups, documentCategory };
+  }
+  let binding = attachmentCommandBinding(commandName);
+  if (commandName === "pdm.master_attachment.preview") {
+    if (route.routePath === "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts" && route.method === "POST") {
+      binding = { entityType: "part_number", routePath: route.routePath, method: "POST", suffix: "previews", deleted: false };
+    } else if (route.routePath === "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts" && route.method === "POST") {
+      binding = { entityType: "drawing_number", routePath: route.routePath, method: "POST", suffix: "previews", deleted: false };
+    }
+  }
+  if (!binding) {
+    if (["pdm.master_attachment.delete", "pdm.master_attachment.restore", "pdm.master_attachment.preview"].includes(commandName)) {
+      throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+    }
+    return null;
+  }
+  if (route.routePath !== binding.routePath || route.method !== binding.method ||
+      route.permissionCode !== "numbering.attachments.manage" ||
+      payload.entityType !== binding.entityType || typeof payload.entityCode !== "string" ||
+      typeof payload.attachmentId !== "string") {
+    throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+  }
+  const pathname = new URL(route.request.url).pathname;
+  const match = binding.entityType === "part_number"
+    ? /^\/api\/parts\/([^/]+)\/attachments\/([^/]+)(?:\/(previews|restore))?$/u.exec(pathname)
+    : /^\/api\/numbering\/drawings\/([^/]+)\/attachments\/([^/]+)\/(previews)$/u.exec(pathname);
+  const code = match ? decodePathSegment(match[1]) : null;
+  const attachmentId = match ? decodePathSegment(match[2]) : null;
+  const suffix = binding.entityType === "part_number" ? match?.[3] ?? null : match?.[3] ?? null;
+  if (!match || code !== payload.entityCode || attachmentId !== payload.attachmentId || suffix !== binding.suffix) {
+    throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+  }
+
+  const repository = new AsyncMasterAttachmentRepository(client, undefined, undefined, {
+    companyId: verified.profile.companyId, principalId: verified.session.principalId,
+    profileId: verified.profile.pdmUserId, profileVersion: verified.session.profileVersion
+  });
+  let attachment;
+  if (binding.deleted) {
+    const deleted = await repository.listDeletedMasterAttachmentsInCompany({
+      entityType: binding.entityType, entityCode: payload.entityCode, companyId: verified.profile.companyId
+    });
+    attachment = deleted?.attachments.find(item => item.attachment.id === payload.attachmentId)?.attachment ?? null;
+  } else {
+    attachment = await repository.getMasterAttachmentInCompany({
+      entityType: binding.entityType, entityCode: payload.entityCode,
+      attachmentId: payload.attachmentId, companyId: verified.profile.companyId
+    });
+  }
+  if (!attachment || attachment.entityType !== binding.entityType) {
+    throw new JenfuEntitlementRepositoryError("permission_not_granted");
+  }
+  const category = normalizeMasterAttachmentCategory(binding.entityType, attachment.documentCategory);
+  const groups = canonicalCapabilityGroups(attachment.entityType, category);
+  const parentGroup = binding.entityType === "drawing_number" ? "drawing" : "part";
+  if (!groups.includes(parentGroup) || groups.some(group => !["drawing", "part", "model", "transfer"].includes(group))) {
+    throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+  }
+  return { groups, documentCategory: category };
+}
+
 async function executeWithinClient<TPayload, TResult>(
   input: CommandInput<TPayload, TResult>, client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest | null
 ): Promise<{ result: TResult; reusedFromCommandReceipt: boolean }> {
     let primaryDecision: PrincipalWorkspaceDecision | null = null;
+    let validatedAttachmentCategory: MasterAttachmentCategory | undefined;
     const verifiedActor = verified
       ? createJenfuVerifiedAuthorizationActor({
         identityIssuer: verified.session.identityIssuer,
@@ -108,8 +244,26 @@ async function executeWithinClient<TPayload, TResult>(
           (needsLinkVariant && route.permissionCode !== "numbering.create")) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
       }
-      const permissions = [route.permissionCode, ...additional].map((permissionCode) =>
+      const attachmentPolicyCommand = ["pdm.master_attachment.delete", "pdm.master_attachment.restore",
+        "pdm.master_attachment.preview", "pdm.master_attachment.upload"].includes(input.command.commandName);
+      const dynamicAttachmentPolicy = attachmentPolicyCommand && await isDynamicRolePolicyInSnapshot(client);
+      const attachmentAuthorization = input.command.commandName === "pdm.master_attachment.upload"
+        ? await resolveAttachmentCommandGroupsInSnapshot(
+          client, verified, route, input.command.commandName, input.command.payload)
+        : dynamicAttachmentPolicy
+          ? await resolveAttachmentCommandGroupsInSnapshot(
+            client, verified, route, input.command.commandName, input.command.payload)
+          : null;
+      validatedAttachmentCategory = attachmentAuthorization?.documentCategory;
+      const permissions: PrincipalWorkspacePermission[] = [route.permissionCode, ...additional].map((permissionCode) =>
         ({ permissionKind: "action" as const, permissionCode }));
+      if (dynamicAttachmentPolicy && attachmentAuthorization) {
+        const parentGroups = attachmentAuthorization.groups.filter(group => group !== "model");
+        permissions[0] = { ...permissions[0], resourceGroups: parentGroups };
+        if (attachmentAuthorization.groups.includes("model")) {
+          permissions.push({ permissionKind: "action", permissionCode: "pdm.model.edit" });
+        }
+      }
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, permissions);
       if (decisions.length !== permissions.length || decisions.some((decision, index) =>
         !decision.allowed || decision.principalId !== verified.session.principalId ||
@@ -234,7 +388,8 @@ async function executeWithinClient<TPayload, TResult>(
       throw new Error("PLATFORM_COMMAND_IN_PROGRESS");
     }
 
-    const result = await input.execute(client, primaryDecision, verified);
+    const result = await input.execute(client, primaryDecision, verified,
+      validatedAttachmentCategory ? { validatedAttachmentCategory } : undefined);
     const events = input.event(result);
     input.faultInjector?.("before_outbox_enqueue");
     for (const event of Array.isArray(events) ? events : [events]) {

@@ -5,6 +5,7 @@ import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract"
 import { parseReviewPackageSnapshot, reviewPackageTargetKey,
   type ReviewPackageEntityType } from "@/lib/pdm-review-package-contract";
 import { readCurrentReviewTarget, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 
@@ -31,6 +32,14 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
     throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
   }
   const packageValue = verifyReviewPackageIntegrity(item.snapshotPayload, item.snapshotHash);
+  if (item.requestKind === "drawing_revision" || item.requestKind === "drawing_rd_void" ||
+      item.requestKind === "part_change") {
+    await requirePrincipalReviewResourceCapabilitiesInSnapshot(client, verified, {
+      companyId, requestKind: item.requestKind,
+      entityType: item.requestKind === "part_change" ? "part" : "drawing",
+      entityId: item.canonicalEntityId, workId: item.workId, envelope: packageValue
+    }, { strictSnapshot: false });
+  }
   const entityType = input.entityType as ReviewPackageEntityType;
   const target = packageValue.targets.find((candidate) =>
     candidate.targetKey === reviewPackageTargetKey(entityType, input.entityId));

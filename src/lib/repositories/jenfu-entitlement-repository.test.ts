@@ -328,6 +328,39 @@ describe("DEV-005 EntitlementRepository", () => {
     custom.permissions.push({ kind: "action", code: "pdm.model.publish", allowed: true });
     await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroup: "drawing" }))
       .resolves.toMatchObject({ decisionCode: "allowed" });
+    custom.permissions.pop();
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroups: ["drawing"] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    custom.permissions.push({ kind: "action", code: "pdm.model.publish", allowed: true });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroups: ["drawing"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
+  });
+
+  it("uses an exact server-resolved parent group for generic attachment permissions", async () => {
+    const custom = {
+      stableRoleId: "role-custom-10000000-0000-4000-8000-000000000098",
+      roleCode: "custom_10000000000040008000000000000098", displayName: "Part editor",
+      assignable: true, risk: "normal" as const, subjectKind: "employee" as const,
+      recommendationAllowed: true, delegationAllowed: true, allowedScopeKinds: ["workspace" as const],
+      assignmentTier: "app_admin" as const, roleDefinitionHash: "custom-attachment-test",
+      permissions: [{ kind: "action" as const, code: "pdm.part.edit", allowed: true }]
+    };
+    const source = repository({ assignmentRows: [{ ...assignment, stable_role_id: custom.stableRoleId,
+      role_code: custom.roleCode }] }, {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000098", roles: [custom]
+    });
+    const input = { actor, rolePriority: [], permissionKind: "action" as const,
+      permissionCode: "numbering.attachments.manage", workspaceCode: "company-jenfu" };
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["part"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    // Model-category enforcement is a separate direct pdm.model.edit check in
+    // the attachment command's same-snapshot target adapter.
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["part", "model"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["drawing"] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission({ ...input, resourceGroups: [] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
   });
 
   it("skips an inactive high-priority grant without poisoning an active role", async () => {

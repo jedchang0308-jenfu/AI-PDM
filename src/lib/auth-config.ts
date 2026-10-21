@@ -107,7 +107,11 @@ export function getJenfuSsoHandoffConfig(env: NodeJS.ProcessEnv = process.env): 
   if (!broker || !base) throw new Error("SSO_CONFIG_MISSING");
   const brokerUrl = new URL(broker);
   const baseUrl = new URL(base);
-  if (!["http:", "https:"].includes(brokerUrl.protocol) || !["http:", "https:"].includes(baseUrl.protocol) || brokerUrl.search || brokerUrl.hash || brokerUrl.pathname !== "/" || baseUrl.search || baseUrl.hash || baseUrl.pathname !== "/") {
+  const allowedOrigin = (url: URL) => url.protocol === "https:" || (
+    url.protocol === "http:" && !env.K_SERVICE && ["development", "test"].includes(String(env.NODE_ENV)) &&
+    (url.hostname === "localhost" || url.hostname === "[::1]" || /^127(?:\.\d{1,3}){3}$/u.test(url.hostname))
+  );
+  if (!allowedOrigin(brokerUrl) || !allowedOrigin(baseUrl) || brokerUrl.username || brokerUrl.password || baseUrl.username || baseUrl.password || brokerUrl.search || brokerUrl.hash || brokerUrl.pathname !== "/" || baseUrl.search || baseUrl.hash || baseUrl.pathname !== "/") {
     throw new Error("SSO_ORIGIN_INVALID");
   }
   return { broker: brokerUrl.origin, base: baseUrl.origin, issuer: `${brokerUrl.origin}/api/sso`, callback: `${baseUrl.origin}/api/auth/jenfu-sso/callback` };

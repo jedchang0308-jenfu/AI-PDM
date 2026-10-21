@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
   parsePackage: vi.fn(), verifyPackage: vi.fn(),
   assertPackageRecognition: vi.fn(), assertFormalizationAllowed: vi.fn(),
   formalize: vi.fn(), beginApproval: vi.fn(), assertPrimaryRoot: vi.fn(),
-  withVerified: vi.fn(), deleteObject: vi.fn(), assertWorkFileSnapshot: vi.fn()
+  withVerified: vi.fn(), deleteObject: vi.fn(), assertWorkFileSnapshot: vi.fn(),
+  resolveReviewResources: vi.fn(), checkReviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
@@ -83,6 +84,10 @@ vi.mock("@/lib/pdm-work-review", async (importOriginal) => ({
 vi.mock("@/lib/repositories/pdm-principal-reviewer-selector", () => ({
   selectPrincipalReviewerInSnapshot: mocks.selectPrincipalReviewer
 }));
+vi.mock("@/lib/pdm-principal-review-resource", () => ({
+  resolvePrincipalReviewResourceGroupsInSnapshot: mocks.resolveReviewResources,
+  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.checkReviewResources
+}));
 vi.mock("@/lib/repositories/pdm-work-review-async-repository", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/repositories/pdm-work-review-async-repository")>(),
   PdmWorkReviewAsyncRepository: class {
@@ -141,6 +146,7 @@ beforeEach(() => {
   mocks.selectPrincipalReviewer.mockResolvedValue("reviewer-principal-profile");
   mocks.selectLegacyReviewer.mockResolvedValue("reviewer-legacy-profile");
   mocks.buildReviewPackage.mockResolvedValue({ packageHash: "review-package-hash" });
+  mocks.resolveReviewResources.mockImplementation(async (_tx, input) => [input.entityType]);
   mocks.reviewCreate.mockResolvedValue({ id: "request-one", reviewCycleId: "cycle-one",
     rowVersion: 1 });
   mocks.reviewGet.mockResolvedValue({ id: "request-one", requestKind: "drawing_revision",
@@ -274,7 +280,8 @@ describe("principal drawing revision work read", () => {
       { permissionKind: "action", permissionCode: "numbering.candidate.review.submit", resourceGroup: "drawing" }
     ]);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing",
+        resourceGroups: ["drawing"] });
   });
 
   it("submits through the principal reviewer and v2 package without legacy role selection", async () => {
@@ -286,7 +293,8 @@ describe("principal drawing revision work read", () => {
       rowVersion: 1 });
     expect(mocks.readWork).toHaveBeenCalledWith(client, "company-one", "work-one", true);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing",
+        resourceGroups: ["drawing"] });
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
     expect(mocks.buildReviewPackage).toHaveBeenCalledWith(client,
       expect.objectContaining({ companyId: "company-one",
@@ -315,7 +323,8 @@ describe("principal drawing revision work read", () => {
       required: true
     });
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client, {
-      companyId: "company-one", ownerUserId: "profile-one", requirePublish: true, resourceGroup: "drawing"
+      companyId: "company-one", ownerUserId: "profile-one", requirePublish: true,
+      resourceGroup: "drawing", resourceGroups: ["drawing"]
     });
     const packageInput = mocks.buildReviewPackage.mock.calls[0]?.[1] as {
       decisionBasis: { payload: Record<string, unknown>; hash: string;
@@ -346,7 +355,8 @@ describe("principal drawing revision work read", () => {
     expect(mocks.readSourceState).toHaveBeenCalledWith(client, "company-one",
       "11111111-1111-4111-8111-111111111111", true);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing",
+        resourceGroups: ["drawing"] });
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
     expect(mocks.buildReviewPackage).toHaveBeenCalledWith(client,
       expect.objectContaining({ companyId: "company-one",

@@ -13,6 +13,10 @@ import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitl
 export { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 
 const COOKIE = "__Host-jenfu_sso_tx";
+// Cookies share a host across ports; the HTTP loopback lane has its own name.
+function transactionCookieName(config: ReturnType<typeof getJenfuSsoHandoffConfig>) {
+  return config.base.startsWith("https://") ? COOKIE : "ai_pdm_sso_tx";
+}
 const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
 
@@ -75,7 +79,7 @@ function callbackFailure(config: ReturnType<typeof setup>, code: string) {
   const response = NextResponse.redirect(target, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  response.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
+  response.cookies.set(transactionCookieName(config), "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
   return response;
 }
 
@@ -95,8 +99,9 @@ async function token(audience: string) {
   return client.idTokenProvider.fetchIdToken(audience);
 }
 
-function readCookie(request: Request) {
-  const value = request.headers.get("cookie")?.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
+function readCookie(request: Request, config: ReturnType<typeof setup>) {
+  const name = transactionCookieName(config);
+  const value = request.headers.get("cookie")?.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1);
   if (!value) return undefined;
   try { return decodeURIComponent(value); } catch { return undefined; }
 }
@@ -114,7 +119,7 @@ function callbackSuccess(config: ReturnType<typeof setup>, tx: Transaction, sess
   const response = NextResponse.redirect(new URL(tx.returnTo, config.base), 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  response.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
+  response.cookies.set(transactionCookieName(config), "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
   setJenfuPlatformSessionResponseCookie(response, sessionToken);
   return response;
 }
@@ -131,7 +136,7 @@ export async function jenfuSsoStart(request: Request) {
   const response = NextResponse.redirect(authorize, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  response.cookies.set(COOKIE, encode({ state, verifier, returnTo, issuer: config.issuer, expiresAt: Date.now() + 300_000 }), { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 300 });
+  response.cookies.set(transactionCookieName(config), encode({ state, verifier, returnTo, issuer: config.issuer, expiresAt: Date.now() + 300_000 }), { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 300 });
   return response;
 }
 
@@ -140,7 +145,7 @@ export async function jenfuSsoCallback(request: Request) {
   try { config = setup(); } catch { return error("sso_request_invalid", 404); }
   if (request.method !== "GET") return error("sso_request_invalid", 405);
   const params = new URL(request.url).searchParams;
-  const tx = decode(readCookie(request));
+  const tx = decode(readCookie(request, config));
   const code = params.get("code");
   if (!tx || params.get("state") !== tx.state || params.get("iss") !== tx.issuer || !code || params.getAll("code").length !== 1 || params.getAll("state").length !== 1) return callbackFailure(config, "sso_request_invalid");
   let stage: CallbackStage = "service_identity";

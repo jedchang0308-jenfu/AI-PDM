@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   getWork: vi.fn(), createReview: vi.fn(), selectLegacyReviewer: vi.fn(),
   selectPrincipalReviewer: vi.fn(), buildPackage: vi.fn(),
   createWork: vi.fn(), updateWork: vi.fn(), cancelWork: vi.fn(), issueContract: vi.fn(),
-  readLifecycle: vi.fn(), formalize: vi.fn(), beginApproval: vi.fn(), terminal: vi.fn(), assertPrimaryRoot: vi.fn()
+  readLifecycle: vi.fn(), formalize: vi.fn(), beginApproval: vi.fn(), terminal: vi.fn(), assertPrimaryRoot: vi.fn(),
+  resolveReviewResources: vi.fn(), checkReviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
@@ -41,6 +42,10 @@ vi.mock("@/lib/repositories/part-change-work-async-repository", async (importOri
 }));
 vi.mock("@/lib/repositories/pdm-principal-reviewer-selector", () => ({
   selectPrincipalReviewerInSnapshot: mocks.selectPrincipalReviewer
+}));
+vi.mock("@/lib/pdm-principal-review-resource", () => ({
+  resolvePrincipalReviewResourceGroupsInSnapshot: mocks.resolveReviewResources,
+  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.checkReviewResources
 }));
 vi.mock("@/lib/pdm-work-review", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-work-review")>(),
@@ -75,6 +80,7 @@ const payload = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.resolveReviewResources.mockImplementation(async (_tx, input) => [input.entityType]);
   mocks.evaluate.mockResolvedValue([{ allowed: true }]);
   mocks.verifyContract.mockResolvedValue(undefined);
   mocks.getReview.mockResolvedValue({ id: "review-one", requestKind: "part_change",
@@ -154,7 +160,8 @@ describe("principal part-review submission", () => {
       expect.objectContaining({ command: "part.submit", effectKey: "part-work:work-one:review" }),
       expect.any(Function));
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(tx,
-      { companyId: "company-jenfu", ownerUserId: "profile-one", resourceGroup: "part" });
+      { companyId: "company-jenfu", ownerUserId: "profile-one", resourceGroup: "part",
+        resourceGroups: ["part"] });
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
     expect(mocks.buildPackage).toHaveBeenCalledWith(tx,
       expect.objectContaining({ requestKind: "part_change", workId: "work-one" }));
@@ -238,7 +245,8 @@ describe("Part explicit first release", () => {
     mocks.readLifecycle.mockResolvedValue(lifecycle);
     await new PartChangeWorkService(tx).submitPrincipal("work-one", verified, context);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(tx,
-      { companyId: "company-jenfu", ownerUserId: "profile-one", requirePublish: true, resourceGroup: "part" });
+      { companyId: "company-jenfu", ownerUserId: "profile-one", requirePublish: true,
+        resourceGroup: "part", resourceGroups: ["part"] });
     expect(mocks.buildPackage).toHaveBeenCalledWith(tx, expect.objectContaining({
       decisionBasis: expect.objectContaining({ lifecycle, workRowVersion: 3 }) }));
   });

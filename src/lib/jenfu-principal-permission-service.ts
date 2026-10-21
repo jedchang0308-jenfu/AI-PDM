@@ -15,6 +15,8 @@ export type PrincipalWorkspacePermission = {
   permissionCode: string;
   /** Canonical resource group selected by the server, never request payload. */
   resourceGroup?: "drawing" | "part" | "model" | "transfer";
+  /** Exact server-resolved groups for one resource, including mixed CAD/model targets. */
+  resourceGroups?: readonly ("drawing" | "part" | "model" | "transfer")[];
 };
 export type PrincipalResourceScope = { workspaceCode?: string | null; projectCode?: string | null };
 
@@ -85,9 +87,10 @@ export async function evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(
     const rolePriority = await new AsyncAccessControlRepository(snapshot).getEnforcedRolePriority([]);
     const publishedCatalog = await requirePublishedPrincipalCatalog(snapshot);
     const evaluated = await new JenfuEntitlementRepository(snapshot, publishedCatalog).evaluatePermissions(
-      permissions.map(({ permissionKind, permissionCode, resourceGroup }) => ({
+      permissions.map(({ permissionKind, permissionCode, resourceGroup, resourceGroups }) => ({
         actor, permissionKind, permissionCode,
         ...(resourceGroup ? { resourceGroup } : {}),
+        ...(resourceGroups ? { resourceGroups } : {}),
         workspaceCode: resource.workspaceCode ?? actor.companyId,
         projectCode: resource.projectCode ?? null,
         rolePriority

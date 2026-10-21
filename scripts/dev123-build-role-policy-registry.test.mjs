@@ -41,3 +41,18 @@ test('transfer package metadata remains view-only while byte delivery retains do
   const handoffView = registry.legacyBindings.find(binding => binding.code === 'handoff.published.view')
   assert.deepEqual(handoffView.requiredActions, ['pdm.transfer.download', 'pdm.transfer.view'])
 })
+
+test('model review records its conditional direct caller without broadening generic approval',()=>{
+  const capabilities=JSON.parse(readFileSync('config/access-control/jenfu-active-capabilities.v1.json','utf8'))
+  const catalog=JSON.parse(readFileSync('config/access-control/jenfu-role-catalog.v7.json','utf8'))
+  const registry=buildRolePolicyRegistry(capabilities,catalog)
+  const model=registry.businessActions.find(action=>action.code==='pdm.model.review')
+  assert.equal(model.callerBindings[0].caller,'src/lib/pdm-principal-review-resource.ts')
+  assert.deepEqual(model.legacyOperationBindings,[])
+  const generic=registry.legacyBindings.find(binding=>binding.code==='approval.request.decide')
+  assert.ok(!generic.requiredActions.includes('pdm.model.review'))
+  assert.ok(registry.businessActions.find(action=>action.code==='pdm.drawing.edit').routeBindings.some(binding=>
+    binding.method==='POST' && binding.path==='src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts'))
+  assert.ok(registry.businessActions.find(action=>action.code==='pdm.model.edit').callerBindings.some(binding=>
+    binding.caller==='src/lib/platform-command-service.ts'))
+})

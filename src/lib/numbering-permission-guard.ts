@@ -9,6 +9,7 @@ import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { isDynamicRolePolicyInSnapshot } from "@/lib/principal-resource-capability";
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { AsyncUserRepository } from "@/lib/repositories/user-async-repository";
 import { resolvePrincipalCompanyContextInSnapshot, type PdmCompanyContext, type PdmCompanyRequest } from "@/lib/company-context";
@@ -86,7 +87,9 @@ export async function requirePrincipalNumberingPermissionAsync(
   permissionKind: NumberingPermissionKind,
   permissionCode: string,
   requestedCompany: PdmCompanyRequest,
-  options: { workspaceCode?: string | null; projectCode?: string | null; actionCode?: string | null } = {}
+  options: { workspaceCode?: string | null; projectCode?: string | null; actionCode?: string | null;
+    resourceGroups?: readonly ("drawing" | "part" | "model" | "transfer")[];
+    resourceGroupsDynamicOnly?: boolean } = {}
 ): Promise<NumberingGuardResult> {
   const principalToken = principalSessionTokenFromRequest(request);
   if (!principalToken) {
@@ -137,8 +140,11 @@ export async function requirePrincipalNumberingPermissionAsync(
         return { user: permissionUser, company: companyResult.company, permission,
           response: jenfuEntitlementFailureResponse(permission.decisionCode) } satisfies NumberingGuardResult;
       }
+      const useResourceGroups = options.resourceGroups &&
+        (!options.resourceGroupsDynamicOnly || await isDynamicRolePolicyInSnapshot(snapshot));
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified, [
-        { permissionKind, permissionCode }
+        { permissionKind, permissionCode,
+          ...(useResourceGroups ? { resourceGroups: options.resourceGroups } : {}) }
       ]);
       if (decisions.length !== 1 || !decisions[0] || decisions[0].principalId !== actor.principalId) {
         throw new JenfuPrincipalRequestError("principal_dependency_unavailable");

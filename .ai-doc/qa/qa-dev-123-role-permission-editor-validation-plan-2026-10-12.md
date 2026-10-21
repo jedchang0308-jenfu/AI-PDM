@@ -1,6 +1,6 @@
 # DEV-123 角色權限設定驗證計畫
 
-建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。依[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)及[自用五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)設計。2026-10-21已取得本機L1／應用建置、真實雙邊schema/vector與部分mock-API browser證據；實作仍進行中；原生PG18 schema/ACL smoke見§7，atomic apply、正常browser、完整L4、52案whole、required CI及正式啟用仍`NOT_RUN`。RD自查不稱獨立QC。
+建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。依[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)及[自用五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)設計。最新續接及案例證據見§8；§7保留各輪實際來源。已有actual PG18 atomic apply／角色往返及部分故障證據，不能再將它們一律標NOT_RUN；正常登入browser、完整L4、52案whole、required CI及正式啟用仍未完成。RD自查不稱獨立QC。
 
 ## 1. 驗證範圍與方式
 
@@ -188,3 +188,72 @@ Native直接證據：OrgMaster實作工作樹 output/qa/dev-058/native-pg-bilate
 PDM已補submission list/detail/search的canonical group與分頁前過濾、原檔／ZIP逐成員view+download及storage前後重驗、numbering export讀取的實際內容群組、Preview／recognition完整verified initiator及worker當前Principal/session/grant／實際來源重驗。088保留舊job NULL且提醒重試；089將transfer metadata綁定新registry hash。Org035與PDM086～089只套於task-owned PG18，正式migration／資料／部署／traffic／IAM／Secret均未操作；source初始仍NOT_READY/revision0及DISABLED/generation0。
 
 尚未關閉：正常登入HTTP/browser旅程、20action全部caller與CG01/02逐案驗收、QA24/52完整case closure、required CI及另行授權的正式首次切換。上述局部PASS只支持實際層級；不以mock browser或native synthetic session冒充正式L4。DEV121/122最新遠端main=02239aaeaac82702bbc8c4d58b38d47fca051afe已合入PDM分支540a0013b3bc8dbb6f4751f15d87494c159126f5；這次主線差異只有兩個release-recovery程式／測試，app／worker／SQL未變。任務120條path在合併未改，0227 build的app輸入維持，無須重建；先前77檔raw SHA保存紀錄仍是歷史證據。同範圍待驗不推成外部任務阻塞。
+
+## 8. 2026-10-21 正常旅程續接與剩餘 QA
+
+沿用 `codex/dev123-role-policy-editor`，合入遠端main `b183efb7a` 後的 merge HEAD `d851bc4bb735189f623a1414dfbb9532aee905c0`；該merge只含release/workflow/docs，沒有src/db/package變更。此後的SSO、canonical附件與review caller修正需刷新相關測試，不能沿用舊app build宣稱新source已建置。SQL086～089及發布語意hash不改；沒有正式migration/部署/資料寫入。
+
+### 8.1 證據重用與新修正
+
+- **U**：原固定入口48檔401＋Node6、其各測試的實際斷言；新增SSO、platform command、review-resource與上限回歸併入同一固定入口，最終結果以本輪log及下方紀錄為準，不跨輪重複加總。
+- **N**：OrgMaster實作工作樹 `output/qa/dev-058/native-pg-bilateral-audit-id-20261021/report.json` 與同目錄 actual journey scripts。actual service create/save/preview/apply、雙連線same-ID apply、replay、reuse mismatch、CAS/stale base、receipt readback與final command/audit故障全rollback。另有 actual Org v2 writer 的新增→任用→停用→撤銷→恢復；bootstrap/Platform stub/synthetic session限制保持，非正常登入。
+- **F**：同工作樹 `native-pg-enabled-20261021-0226/report.json` 的 managerFence，含等待後grant revoke/expiry/identity-link expiry拒絕、次writer等consumer commit；此組是owner/migrator測試fixture，不改標Org v2任用命令證據。
+- **D**：同工作樹 `native-pg-manager-schema-20261021-0133/report.json` 及後續088/089原生報告。支持列出的schema/contract SELECT、foreign core/UPDATE/helper EXECUTE拒絕、NOT_READY/revision0及DISABLED/generation0；未驗的DML權限不能推定通過。
+- **V**：PDM editor 10 checks/27 screenshots、share 4 cases/4 screenshots及Org targeted browser報告；真元件＋mock API，非正常SSO或真兩端UI。
+- **S**：OrgMaster實作工作樹 `output/qa/dev-058/normal-journey-20261021/cookie-transport-report.md`。真Chrome兩端actual start：修正前都未帶回HTTP缺Secure的`__Host-` cookie，修正後各自`orgmaster_sso_tx`／`ai_pdm_sso_tx`已帶回；沒有callback/token/IdP/DB/session issuance。HTTPS保留原Secure名稱，不接受local-name fallback，HTTP配置限explicit dev/test loopback且不允許K_SERVICE。SSO兩檔16 PASS；原測試mock缺Compute export的首次失敗保留，修測試mock後重驗，未為此改產品。
+
+原子性、角色生命周期與schema的未變輸入可以重用N/F/D。新canonical SQL query／新caller的單元測試不冒充原生PG或實際HTTP bytes證據；舊native lifecycle也不自動證明它們。
+
+### 8.2 52案實際對照
+
+下列ID為QA123尾碼；52案、17AC與CG01/02分母全部保留。PARTIAL代表已執行部分原定主張，不是全案PASS；目前尚無原案全部合取條件皆齊的52案whole closure，不因此抹除實際已通過子項。缺項均來自§3原目的，沒有另加production或逐case正常UI條件。
+
+| ID | 狀態 | 已驗部分／仍缺的原定主張 |
+|---|---|---|
+| 01–06 | PARTIAL | U/V有七profile、20action、dirty/save/cancel/history呈現；正常設定導航與own API/DB一致、全部reload/離開組仍缺 |
+| 07–10 | PARTIAL | U的actor/typed payload/protected/alias/priority拒絕；完整actor類型×create/save/apply零寫入、partial legacy/missing-code/false優先序組未齊 |
+| 11 | PARTIAL | F的post-wait revoke/grant expiry/link expiry；workspace/project/delegation/external分享目標矩陣仍缺 |
+| 12 | PARTIAL | 既有no-self/reviewer/kind/state及新增parent/model guard回歸；正常合併審核/核准/退回整組與真正DB target仍缺 |
+| 13–17 | PARTIAL | U/N save/preview無active mutation、apply/CAS/stale base/下一次capability決策；正常UI、原session新protected HTTP與所有stale變體仍缺 |
+| 18 | PARTIAL | N兩transaction same-ID apply僅一命令、順序create replay、reuse reason mismatch與receipt；不同actor同ID、create/save並發及完整roleBindings assertion仍缺 |
+| 19 | PARTIAL | N final audit fault完整rollback；commit後drop HTTP response仍缺 |
+| 20 | PARTIAL | U/V server結果恢復與storage提示；真apply送出前後reload、無storage及unknown整組仍缺 |
+| 21 | PARTIAL | N最後command/audit故障可回滾已做的publication/pointer；各指定identity/header/entries/pointer/command邊界fault尚未全驗 |
+| 22 | PARTIAL | U/V原command與current分開；真正commit/drop/hard reload、404/503及被後版取代整組仍缺 |
+| 23 | NOT_RUN | 尚未執行短business write暫停→管理apply撤權→舊write完成→新請求deny的真雙連線時序 |
+| 24 | PARTIAL | U worker/provenance/current來源guard；真worker最終採用/新delivery跨apply撤權證據仍缺 |
+| 25 | PARTIAL | D窄ACL拒絕及N受控apply正例；逐publication/entries/status/pointer/state/identity/command/diff直接DML與繼承ACL尚未全驗 |
+| 26 | PARTIAL | U JSONB reorder/registry/protected hash；Unicode/unsafe integer/各semantic drift/私有路徑變更穩定性完整組仍缺 |
+| 27 | PARTIAL | U history clone保留current identity/inactive/protected；真history→新draft→apply及UI仍缺 |
+| 28 | PARTIAL | U精確14欄NOT_READY/missing-view，D初始disabled；multirow/only-v1-READY/schema/registry/hash/revision漂移與拒絕後active/grants回讀仍缺 |
+| 29–30 | BLOCKED | N有actual owner角色往返；正常登入兩端UI缺非正式SSO；snapshot overlap另缺Org17/18真時序，不能稱只等登入 |
+| 31–35 | PARTIAL | V viewport/error/storage及U parser/Origin/CSRF子項；正常導航、keyboard、late response/換Principal、全部busy/empty/conflict/unknown與零寫入組未齊 |
+| 36 | PARTIAL | U/D legacy disabled reader不注入範本；v5/v6/v7雙reader完整bytes/hash/grants/pointer、dynamic downgrade矩陣未齊 |
+| 37–38 | PARTIAL | U/V本地新增/保存與cancel，U64含inactive→65拒絕、63roleChanges/1241caps拒絕且來源不變；62/1240成功邊界及API零寫入回讀等仍缺 |
+| 39–40 | PARTIAL | N custom停用/恢復不復活已撤任用；direct+delegated/expired/wrong-scope/source失效與正常UI組未齊 |
+| 41–43 | PARTIAL | U/V mixed dirty/save/cancel/history及alias/tombstone子項；全部unknown/不同actor/late response、ACL與兩draft同名套用原子性未齊 |
+| 44 | BLOCKED | N actual custom lifecycle已驗；正常雙端登入UI、全部expiry/source/推薦與snapshot race仍缺 |
+| 45–47 | PARTIAL | U/V七profile/alias/false/同格控制及既有審核拒絕；legacy scope/priority混合、所有子caller動作與正常UI/DB組未齊 |
+| 48 | PARTIAL | canonical parent/model附件接線及錯target/category負例在本輪修正；全泛用caller、wrong body/mixed batch原子、redacted read/query未齊 |
+| 49 | PARTIAL | U/V share view/download、file/ZIP/worker guard；完整真HTTP bytes/Range/CSV/CAD/URL/export跨撤權及UI旅程仍缺 |
+| 50 | PARTIAL | 新conditional model.review接既有review package，不新建workflow；U驗parent AND model/nonCAD/未知資料；新SQL/全部model/BOM/shared/snapshot/worker實際正例與配送仍缺 |
+| 51 | PARTIAL | D分享binding immutable/legacy NULL，U/V project share；正常share建立、external有效session/原入口/P1/P2/失效/mixed delivery整組仍缺 |
+| 52 | BLOCKED | Org decoder/七角色targeted UI及N角色往返；正常登入雙端、legacy採購/生管各scope/priority/代理/到期/重疊完整組未齊 |
+
+CG01/02仍open：有真實caller缺口會直接修正，不能以檔案存在、401/404、mock UI或上述子項總數代替全20action/66key與實際bytes去向驗收。
+
+### 8.3 環境限制
+
+非正式Platform SSO/IdP設定與既有測試帳號尚未提供；本機Platform DB URL空白，無可沿用的auth runtime。不以demo/quick-login、合成cookie或正式session冒充正常登入。待補非正式入口與帳號識別後，走正常登入與設定導航；密碼不寫入文件／聊天。
+
+C槽約13GiB，`ai-dev-resource-governor` 的本輪容量檢查為EMERGENCY，不能以先前一次風險接受覆寫。只讀盤點無可安全執行清理候選；未啟動Next/Vite編譯或完整build。新source完整build待釋放空間或具名另一足夠容量本機磁碟後重新檢查；舊0227 build保留當時產物證據。普通source修改、小型測試及無輸出typecheck仍繼續。沒有正式migration、部署、資料、traffic/IAM/Secret操作。
+
+### 8.4 本輪固定入口結果
+
+`ORGMASTER_DEV058_ROOT` 明示指向 OrgMaster DEV-058 隔離工作樹；`npm run test:dev-123:contracts -- --maxWorkers=2`：**55檔494 PASS＋Node9 PASS**，log為 `output/qa/dev-123/fixed-contracts-normal-journey-final-20261021.log`。最終私有caller/route索引更新不改外部語意：另重驗Node9（registry-caller-final-20261021.log）及domain/bilateral10（private-bindings-semantic-final-with-owner-20261021.log）PASS；其餘有效aggregate證據重用，不因私有路徑更新重跑全部。
+
+`check:db-boundary`：26 governed files PASS；新query位於PDM自有表，跨owner仍用versioned contract。SQL086～089的原SHA保持，沒有改已提交migration。新query未跑原生PG，不假稱native驗收完成。
+
+本次有效失敗保留：第一次aggregate為52檔通過/1檔失敗、470 PASS/4 FAIL，因原target route fixture沒有隔離新增resource guard而在前置依賴失敗；補明確fixture及實際guard接線斷言後8/8 PASS，再跑上述55檔全PASS。最終另增加target/comparison model deny不洩露資料的兩例，沒有放寬原403/404/stale判定。早先型別失敗均屬新測試literal widening/泛型/mock型別，原log保留，未使用any/never掩蓋；semantic補驗首次少ORGMASTER_DEV058_ROOT而失敗，補回明示owner參數後10/10 PASS。focused中missing-hash fixture使用??錯吞null、idempotency fixture含空格及sandbox temp EPERM，原工具輸出/現有log保留，不當產品失敗或未跑測試的PASS。
+
+最終 `npm run typecheck:app` PASS（`typecheck-normal-journey-final-20261021.log`），涵蓋最後target fixture；OrgMaster無輸出typecheck亦PASS。應用完整build仍因容量EMERGENCY未執行，不把typecheck當build。此次最後一輪未啟動任何Next/Vite應用dev server；Vitest內部有界轉換屬小型測試，與完整應用編譯分開。

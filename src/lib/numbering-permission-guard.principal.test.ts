@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   requireAuthAsync: vi.fn(),
   withVerified: vi.fn(),
   evaluate: vi.fn(),
-  getUserById: vi.fn()
+  getUserById: vi.fn(),
+  dynamicPolicy: vi.fn()
 }));
 
 vi.mock("@/lib/auth-async", () => ({ requireAuthAsync: mocks.requireAuthAsync }));
@@ -26,6 +27,9 @@ vi.mock("@/lib/jenfu-principal-request-guard", () => ({
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
+}));
+vi.mock("@/lib/principal-resource-capability", () => ({
+  isDynamicRolePolicyInSnapshot: mocks.dynamicPolicy
 }));
 vi.mock("@/lib/repositories/user-async-repository", () => ({
   AsyncUserRepository: class { getUserById = mocks.getUserById; }
@@ -83,6 +87,14 @@ describe("DEV-121 v2 numbering guard", () => {
     expect(project.permission?.decisionCode).toBe("entitlement_scope_mismatch");
     expect(workspace.response?.status).toBe(403);
     expect(mocks.evaluate).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("uses upload parent scoping only for a dynamic policy (dynamic=%s)", async dynamic => {
+    mocks.dynamicPolicy.mockResolvedValueOnce(dynamic);
+    await requirePrincipalNumberingPermissionAsync(request, "action", "numbering.attachments.manage", defaultCompany,
+      { resourceGroups: ["part"], resourceGroupsDynamicOnly: true });
+    expect(mocks.evaluate).toHaveBeenCalledWith(snapshot, verified, [{ permissionKind: "action",
+      permissionCode: "numbering.attachments.manage", ...(dynamic ? { resourceGroups: ["part"] } : {}) }]);
   });
 
   it("rejects profile drift and an incomplete principal decision", async () => {

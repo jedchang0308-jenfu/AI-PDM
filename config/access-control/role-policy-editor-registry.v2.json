@@ -1600,6 +1600,11 @@
           "authorizationTarget": "submission.update",
           "scopeResolver": "submission company",
           "preservedGuards": "submission company＋owner／preflight state"
+        },
+        {
+          "legacyCode": "numbering.attachments.manage",
+          "method": "POST",
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts"
         }
       ],
       "callerBindings": [
@@ -5108,7 +5113,12 @@
           "preservedGuards": "Part company＋owner／content validation"
         }
       ],
-      "callerBindings": [],
+      "callerBindings": [
+        {
+          "caller": "src/lib/platform-command-service.ts",
+          "condition": "canonical-attachment-cad-or-intermediate-parent-and-model-edit"
+        }
+      ],
       "preservedGuards": [
         "canonical-resource-from-database",
         "assignment-scope-and-validity",
@@ -5135,7 +5145,12 @@
       ],
       "legacyOperationBindings": [],
       "routeBindings": [],
-      "callerBindings": [],
+      "callerBindings": [
+        {
+          "caller": "src/lib/pdm-principal-review-resource.ts",
+          "condition": "submitted-canonical-cad-or-intermediate-parent-and-model-review"
+        }
+      ],
       "preservedGuards": [
         "canonical-resource-from-database",
         "assignment-scope-and-validity",

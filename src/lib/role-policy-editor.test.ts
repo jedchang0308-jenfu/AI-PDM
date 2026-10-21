@@ -35,6 +35,22 @@ describe('DEV-123 role policy domain', () => {
     expect(rolePolicyDiff(before, result.candidate).roleChanges).toHaveLength(1)
   })
 
+  it('counts inactive identities in the 64-role bound and rejects oversized change batches without mutation',()=>{
+    let sequence=0
+    const candidate=applyRolePolicyDraftChanges({candidate:buildDefaultRolePolicyCandidate(),changes:[],
+      uuid:()=>`58000000-0000-4000-8000-${String(++sequence).padStart(12,'0')}`,
+      roleChanges:Array.from({length:55},(_,index)=>({type:'create' as const,clientRoleId:`client-boundary-${index+1}`,displayName:`邊界角色 ${index+1}`})),
+    }).candidate
+    const inactive=applyRolePolicyDraftChanges({candidate,changes:[],roleChanges:[{type:'deactivate',stableRoleId:candidate.roles[9].stableRoleId}]}).candidate
+    const before=structuredClone(inactive)
+    expect(inactive.roles).toHaveLength(64)
+    expect(()=>applyRolePolicyDraftChanges({candidate:inactive,changes:[],uuid:fixedUuid,
+      roleChanges:[{type:'create',clientRoleId:'client-over-limit',displayName:'超過上限'}]})).toThrow('ROLE_LIMIT_REACHED')
+    expect(()=>applyRolePolicyDraftChanges({candidate:inactive,changes:[],roleChanges:Array.from({length:63},()=>({type:'deactivate' as const,stableRoleId:'role-rd'}))})).toThrow('ROLE_POLICY_CHANGE_LIMIT_REACHED')
+    expect(()=>applyRolePolicyDraftChanges({candidate:inactive,roleChanges:[],changes:Array.from({length:1241},()=>({roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'view',enabled:true}))})).toThrow('ROLE_POLICY_CHANGE_LIMIT_REACHED')
+    expect(inactive).toEqual(before)
+  })
+
   it('synchronizes procurement and planning status while preserving identity and capabilities', () => {
     const candidate = buildDefaultRolePolicyCandidate()
     const { candidate: changed } = applyRolePolicyDraftChanges({ candidate, roleChanges: [
