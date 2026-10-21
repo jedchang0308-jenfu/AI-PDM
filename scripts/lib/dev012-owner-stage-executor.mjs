@@ -15,6 +15,7 @@ import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
+import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -93,6 +94,12 @@ function assertIntentBase(intent, profile, intentRef, intentSha256) {
     assertImmutableRef(intent.postAbortLedgerReadbackRef, profile.artifact.releaseBucket, ['receipts/releases'])
     if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/[a-f0-9]{64}\/ledger-readback-result\.json$/u.test(intent.postAbortLedgerReadbackRef.uri)
       || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery || intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_REF_INVALID', 'postAbortLedgerReadbackRef')
+  }
+  if (Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')) {
+    exact.push('appliedMigrationContinuation'); exact.sort()
+    assertAppliedMigrationContinuation(intent.appliedMigrationContinuation, profile.artifact.releaseBucket)
+    if (!intent.openswxWorkerRef || !intent.postAbortLedgerReadbackRef || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery ||
+        intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_REF_INVALID', 'appliedMigrationContinuation')
   }
   if (Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) {
     if (profile.application.id !== 'ai-pdm') fail('OPENSWX_OWNER_MISMATCH')
@@ -452,17 +459,57 @@ export async function resolveRepairStageDescriptor({ worker, intent, profile }) 
     || canonicalize(descriptor.ref) !== canonicalize(classification.descriptorRef)) fail('REPAIR_DESCRIPTOR_CLASSIFICATION_INVALID')
   return descriptor
 }
+function gitIsAncestor(root, ancestor, descendant) {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { cwd: root, encoding: 'utf8', windowsHide: true })
+  return !result.error && result.status === 0
+}
+export async function readAppliedMigrationContinuationHistory({ intent, profile, transport, buildMigrationBundle, repositoryRoot = process.cwd(), readObservationInputs = readAiPdmObservationInputs, ancestorRunner = null, compatibilityRunner = null }) {
+  if (!Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')) return null
+  const binding = assertAppliedMigrationContinuation(intent.appliedMigrationContinuation, profile.artifact.releaseBucket)
+  const isAncestor = ancestorRunner ?? ((ancestor, descendant) => gitIsAncestor(repositoryRoot, ancestor, descendant))
+  assertAppliedMigrationSource(binding, intent.sourceRevision, isAncestor)
+  const observed = await transport.readOwnerSourceProof({ profile, sourceRevision: binding.sourceRevision,
+    refs: { prepare: binding.prepareRef, migrate: binding.migrateRef, terminal: null }, verifyProvider: true })
+  if (observed?.proof?.disposition !== 'migration_only' || observed.proof.sourceRevision !== binding.sourceRevision ||
+      Object.hasOwn(observed.proof, 'terminal') || observed.provider?.status !== 'BUILD_IMAGE_VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+  const graph = await readObservationInputs(observed.proof)
+  if (graph.terminal !== null || graph.migrate === null || graph.migrationMode !== 'FORWARD_APPLIED' ||
+      canonicalize(graph.prepare.ref) !== canonicalize(binding.prepareRef) || canonicalize(graph.migrate.ref) !== canonicalize(binding.migrateRef) ||
+      graph.intent.sourceRevision !== binding.sourceRevision || graph.chain.deployment.value.migrationRunnerDigest == null ||
+      graph.chain.deployment.value.migrationRunnerSourceRevision == null) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+  const history = assertAiPdmMigrationHistory(graph.migrationHistory)
+  const currentRecovery = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
+  const appliedRecovery = assertReconciledPrincipalAbortBinding(graph.intent, profile.artifact.releaseBucket)
+  if (!currentRecovery || !appliedRecovery || canonicalize(currentRecovery) !== canonicalize(appliedRecovery)) fail('APPLIED_MIGRATION_CONTINUATION_RECOVERY_INVALID')
+
+  await readAppliedMigrationReadbackEvidence({ binding, profile, history, deployment: graph.chain.deployment.value,
+    readJson: ref => transport.readJson(ref, profile.artifact.releaseBucket, ['receipts']),
+    sourceVerification: async readbackIntent => {
+      if (typeof buildMigrationBundle !== 'function') fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
+      return assertAppliedMigrationReadbackSource({ readbackIntent, profile,
+        fullMigration: await buildMigrationBundle(readbackIntent.runnerSourceRevision), root: repositoryRoot,
+        ancestorRunner: isAncestor, compatibilityRunner })
+    } })
+  return history
+}
 export async function readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment, currentDeployment = null, currentPrepare = null }) {
   currentExecutionDeadline(intent)
   const result = await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
     const descriptor = await resolveRepairStageDescriptor({ worker, intent, profile })
-    if (!descriptor) return null
+    if (!descriptor) {
+      if (Object.hasOwn(intent, 'appliedMigrationContinuation')) fail('APPLIED_MIGRATION_CONTINUATION_REPAIR_REQUIRED')
+      return null
+    }
     const releaseContinuation = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
     if (profile.application.id !== 'ai-pdm' || ((intent.principalOnlyRecovery || intent.principalOnlyFenceRef) && !releaseContinuation) || typeof buildMigrationBundle !== 'function') fail('REPAIR_CAPSULE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
     try { assertReconciledRepairContinuation(intent, evidence.artifact.input, profile.artifact.releaseBucket) }
     catch { fail('REPAIR_CONTINUATION_MISMATCH') }
-    const history = assertAiPdmMigrationHistory(evidence.artifact.servingGraph.migrationHistory)
+    const servingHistory = assertAiPdmMigrationHistory(evidence.artifact.servingGraph.migrationHistory)
+    const appliedHistory = await readAppliedMigrationContinuationHistory({ intent, profile, transport,
+      buildMigrationBundle, repositoryRoot: environment.GITHUB_WORKSPACE ?? process.cwd() })
+    if (appliedHistory) assertAiPdmRepairMigrationMode(servingHistory, appliedHistory.source.content)
+    const history = appliedHistory ?? servingHistory
     if (intent.unlinkedProfileCleanupRef) fail('UNLINKED_PROFILE_CLEANUP_REPAIR_MIX_DENIED')
     const current = await buildMigrationBundle(intent.sourceRevision)
     const checked = assertAiPdmMigrationBundleBytes({ bytes: current.bytes, bundle: current.bundle, sourceRevision: intent.sourceRevision })

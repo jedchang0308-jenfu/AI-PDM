@@ -299,6 +299,23 @@ test('AI-PDM intent producer admits reconciled abort evidence for the exact paus
   const produce = changed => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, ...changed },
     sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent, workerDescriptor: descriptor })
   assert.deepEqual(produce({}).postAbortLedgerReadbackRef, input.postAbortLedgerReadbackRef)
+  const appliedRoot = `gs://${bucket}/receipts/releases/DEV122-RD-APPLIED/${'2'.repeat(64)}`
+  const appliedMigrationContinuation = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: '3'.repeat(40),
+    prepareRef: { uri: `${appliedRoot}/prepare.json`, sha256: '4'.repeat(64) },
+    migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: '5'.repeat(64) },
+    ledgerReadbackResultRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER35/${'6'.repeat(64)}/ledger-readback-result.json`, sha256: '7'.repeat(64) } }
+  assert.deepEqual(produce({ appliedMigrationContinuation }).appliedMigrationContinuation, appliedMigrationContinuation)
+  const aliased = structuredClone(appliedMigrationContinuation); aliased.migrateRef.uri = aliased.migrateRef.uri.replace('/migrate.json', '/../migrate.json')
+  assert.throws(() => produce({ appliedMigrationContinuation: aliased }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
+  assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
+    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
+    workerDescriptor: { ...descriptor, releaseVariant: 'ORDINARY' } }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
+  for (const missing of ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']) {
+    const changed = { ...input, appliedMigrationContinuation }; delete changed[missing]
+    assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: changed,
+      sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
+      workerDescriptor: descriptor }), /APPLIED_MIGRATION_CONTINUATION_INVALID|RELEASE_INTENT_INVALID/u)
+  }
   const incomplete = { ...input }; delete incomplete.postAbortLedgerReadbackRef
   assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: incomplete,
     sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent, workerDescriptor: descriptor }), /REPAIR_CAPSULE_INVALID/u)

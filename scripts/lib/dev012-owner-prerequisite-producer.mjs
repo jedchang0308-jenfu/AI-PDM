@@ -10,6 +10,7 @@ import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from '.
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
 import { WORKER_PROFILE_PATH, assertWorkerRuntimeJoin, readWorkerDescriptor, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
+import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -249,6 +250,10 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
 
 export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null, cleanupMigrationBundle = null, programOnlyPolicy = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
+  if (Object.hasOwn(input ?? {}, 'appliedMigrationContinuation') &&
+      (!Object.hasOwn(input, 'postAbortLedgerReadbackRef') || !Object.hasOwn(input, 'principalOnlyFenceRef') || !Object.hasOwn(input, 'principalOnlyRecovery'))) {
+    fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+  }
   const intent = {
     schemaVersion: profile.schemas.releaseIntent,
     ownerApplicationId: profile.application.id,
@@ -286,7 +291,12 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/[a-f0-9]{64}\/ledger-readback-result\.json$/u.test(intent.postAbortLedgerReadbackRef.uri)
       || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery) fail('POST_ABORT_LEDGER_READBACK_INVALID')
   }
+  if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
+    if (workerDescriptor?.releaseVariant !== 'PAUSED_APP_REPAIR' || input.programOnlyBaseline || input.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+    intent.appliedMigrationContinuation = structuredClone(assertAppliedMigrationContinuation(input.appliedMigrationContinuation, profile.artifact.releaseBucket))
+  }
   const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
+  if (Object.hasOwn(intent, 'appliedMigrationContinuation') && !reconciledAbort) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
   if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR' &&
     (intent.principalOnlyFenceRef || intent.principalOnlyRecovery) && !reconciledAbort) fail('REPAIR_CAPSULE_INVALID')
   if (Object.hasOwn(input, 'programOnlyBaseline')) {
