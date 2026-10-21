@@ -768,12 +768,12 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     nextSourceRevision, recoverySourceRevision }
 }
 
-function addPermissionReadbackExecution(h) {
-  const operationId = 'DEV122-RD-PERMISSION-READBACK-LOCAL'
+function addPermissionReadbackExecution(h, { sourceRevision = h.runnerSourceRevision, migrationRunnerDigest = h.deployment.value.migrationRunnerDigest, suffix = 'LOCAL' } = {}) {
+  const operationId = `DEV122-RD-PERMISSION-READBACK-${suffix}`
   const operation = buildPermissionStateOperation({
     operationId,
-    sourceRevision: h.runnerSourceRevision,
-    migrationRunnerDigest: h.deployment.value.migrationRunnerDigest,
+    sourceRevision,
+    migrationRunnerDigest,
     actor: {
       principalIdSha256: '1'.repeat(64), employeeIdSha256: '2'.repeat(64),
       identityIssuer: 'https://securetoken.google.com/jenfu-platform-prod', identitySubjectSha256: '3'.repeat(64),
@@ -781,17 +781,17 @@ function addPermissionReadbackExecution(h) {
     catalogVersion: 'ai-pdm.role-catalog.2026-10-05.v6',
     catalogSha256: 'bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af',
   })
-  const operationUri = `gs://${bucket}/source/rd-permission-readback/dev122-rd-permission-readback-local.json`
+  const operationUri = `gs://${bucket}/source/rd-permission-readback/dev122-rd-permission-readback-${suffix.toLowerCase()}.json`
   const operationRow = h.put(operationUri, operation.value)
   assert.equal(operationRow.ref.sha256, operation.sha256)
   const operationRef = { ...operationRow.ref, generation: operationRow.metadata.generation }
   const outputRef = `gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/state.json`
   const args = ['--permission-operation-ref', operationUri, '--permission-operation-sha256', operation.sha256,
-    '--source-revision', h.runnerSourceRevision, '--permission-output-ref', outputRef]
+    '--source-revision', sourceRevision, '--permission-output-ref', outputRef]
   const submissionCore = {
     schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm',
-    workflowSourceRevision: '9'.repeat(40), sourceRevision: h.runnerSourceRevision, operationRef, outputRef,
-    operationId, migrationRunnerDigest: h.deployment.value.migrationRunnerDigest, args,
+    workflowSourceRevision: '9'.repeat(40), sourceRevision, operationRef, outputRef,
+    operationId, migrationRunnerDigest, args,
     executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: '2026-10-03T00:04:00Z', status: 'SUBMISSION_INTENT',
   }
   const submission = h.put(`gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/submission.json`,
@@ -801,8 +801,9 @@ function addPermissionReadbackExecution(h) {
     startTime: '2026-10-03T00:04:11Z', completionTime: '2026-10-03T00:04:30Z', reconciling: false,
     taskCount: 1, parallelism: 1, succeededCount: 1, failedCount: 0, runningCount: 0,
     conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
-    template: h.task(args, { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }),
+    template: h.task(args, { ...rdReadbackJobEnvironment(h.profile, sourceRevision), PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }),
   }
+  execution.template.containers[0].image = migrationRunnerDigest
   delete execution.template.volumes
   delete execution.template.containers[0].volumeMounts
   const state = { database: 'jenfu_prod', databaseMutationExpected: false, transactionMode: 'REPEATABLE READ READ ONLY' }
@@ -812,12 +813,18 @@ function addPermissionReadbackExecution(h) {
   return { operation, operationRow, operationRef, submission, execution, output }
 }
 
-function addPriorLedgerReadbackExecutions(h) {
-  const releaseId = 'DEV122-RD-READBACK-PRIOR'
+function addPriorLedgerReadbackExecutions(h, { sourceRevision = h.runnerSourceRevision, migrationRunnerDigest = h.deployment.value.migrationRunnerDigest, suffix = 'PRIOR' } = {}) {
+  const releaseId = `DEV122-RD-READBACK-${suffix}`
+  const job = structuredClone(h.staticJob)
+  job.template.template.containers[0].image = migrationRunnerDigest
+  job.template.template.containers[0].env = Object.entries(rdReadbackJobEnvironment(h.profile, sourceRevision)).map(([name, value]) => ({ name, value }))
+  const probes = h.readbackIntent.probes.map(row => sourceRevision === h.runnerSourceRevision
+    ? row
+    : { ...row, migrationBundleRef: h.put(`gs://${bucket}/source/migration-bundles/${sourceRevision}/${row.manifestSha256}.json`, { ledgerCount: row.ledgerCount }).ref })
   const intent = buildRdLedgerReadbackIntent({
     releaseId, workflowSourceRevision: '8'.repeat(40), workflowSourceTree: 'b'.repeat(40),
-    workflowSourceIdentitySha256: 'c'.repeat(64), runnerSourceRevision: h.runnerSourceRevision,
-    profileSha256: 'd'.repeat(64), probes: h.readbackIntent.probes, job: h.staticJob,
+    workflowSourceIdentitySha256: 'c'.repeat(64), runnerSourceRevision: sourceRevision,
+    profileSha256: 'd'.repeat(64), probes, job,
     observedAt: '2026-10-02T12:00:00Z', deadlineAt: '2026-10-02T14:00:00Z',
   })
   const intentRef = h.put(`gs://${bucket}/receipts/releases/${releaseId}/rd-permission-ledger-readback-intent.json`, intent).ref
@@ -825,8 +832,8 @@ function addPriorLedgerReadbackExecutions(h) {
   const receiptSeal = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
   h.put(`${base}/ledger-job-readback.json`, receiptSeal({
     schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId,
-    workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
-    projection: rdReadbackJobProjection(h.staticJob), observedAt: intent.observedAt, status: 'PASS',
+    workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: sourceRevision, readbackIntentRef: intentRef,
+    projection: rdReadbackJobProjection(job), observedAt: intent.observedAt, status: 'PASS',
   }))
   const executions = []
   for (const [index, probe] of intent.probes.entries()) {
@@ -839,13 +846,14 @@ function addPriorLedgerReadbackExecutions(h) {
       taskCount: 1, parallelism: 1, succeededCount: pass ? 1 : 0, failedCount: pass ? 0 : 1, runningCount: 0,
       conditions: [{ type: 'Completed', state: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED' }],
       template: h.task(rdReadbackProbeArguments(intent, probe, outputUri),
-        { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: '-c default_transaction_read_only=on' }),
+        { ...rdReadbackJobEnvironment(h.profile, sourceRevision), PGOPTIONS: '-c default_transaction_read_only=on' }),
     }
+    execution.template.containers[0].image = migrationRunnerDigest
     delete execution.template.volumes
     delete execution.template.containers[0].volumeMounts
     h.put(`${base}/ledger-probe-${probe.ledgerCount}-execution-readback.json`, receiptSeal({
       schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId,
-      workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
+      workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: sourceRevision, readbackIntentRef: intentRef,
       ledgerCount: probe.ledgerCount, executionName: execution.name, createTime, startTime: createTime, completionTime,
       succeededCount: execution.succeededCount, failedCount: execution.failedCount,
       completedState: execution.conditions[0].state, templateSha256: rdReadbackSha256(execution.template), observedAt: completionTime,
@@ -853,7 +861,7 @@ function addPriorLedgerReadbackExecutions(h) {
     }))
     if (pass) {
       const nativeCore = {
-        schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: h.runnerSourceRevision,
+        schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision,
         database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256,
         baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 33,
         applied: 0, replayed: 33, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
@@ -1061,6 +1069,32 @@ test('post-abort reconciliation admits a sealed read-only RD permission diagnost
   assert.equal(continuation.authorityBasis.reconciliation.migration085State, 'NOT_APPLIED')
   assert.equal(diagnostic.output.value.state.databaseMutationExpected, false)
   assert.equal(diagnostic.output.value.state.transactionMode, 'REPEATABLE READ READ ONLY')
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits a later sealed permission diagnostic after runner rotation', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const diagnostic = addPermissionReadbackExecution(h, {
+    sourceRevision: '6'.repeat(40),
+    migrationRunnerDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}`,
+    suffix: 'ROTATED',
+  })
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(diagnostic.execution.template.containers[0].image, diagnostic.operation.value.migrationRunnerDigest)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits later sealed ledger and permission diagnostics after runner rotation', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const sourceRevision = '6'.repeat(40)
+  const migrationRunnerDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}`
+  const ledger = addPriorLedgerReadbackExecutions(h, { sourceRevision, migrationRunnerDigest, suffix: 'ROTATED' })
+  const permission = addPermissionReadbackExecution(h, { sourceRevision, migrationRunnerDigest, suffix: 'ROTATED' })
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(ledger.executions.length, 3)
+  assert.equal(permission.execution.template.containers[0].image, migrationRunnerDigest)
   assert.equal(h.calls.puts, 0)
 })
 
