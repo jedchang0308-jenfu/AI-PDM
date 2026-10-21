@@ -26,6 +26,7 @@ const CORE_TESTS = [
   'scripts/dev012-owner-release-runtime.test.mjs',
   'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev012-owner-prerequisite-producer.test.mjs',
+  'scripts/dev117-owner-chain-preflight.test.mjs',
   'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev117-release-efficiency.test.mjs',
   'scripts/dev122-applied-migration-continuation.test.mjs',
