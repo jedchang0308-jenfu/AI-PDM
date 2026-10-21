@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
+import { assertStageReceipt, canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
 import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
@@ -1707,13 +1707,8 @@ async function readFixedJson(uri, bucket, token, fetchImpl) {
     generation: object.generation, crc32c: object.crc32c }
 }
 export function assertStage(value, owner, revision, releaseId, stage) {
-  if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'releaseId',
-    'sourceRevision', 'stage', 'previousReceiptRef', 'facts', 'observedAt',
-    'status', 'receiptSha256']) ||
-    value.schemaVersion !== 'jenfu.dev012.stage-receipt.v1' ||
-    value.ownerApplicationId !== owner || value.sourceRevision !== revision ||
-    value.releaseId !== releaseId || value.stage !== stage ||
-    value.status !== 'PASS' || value.receiptSha256 !== receiptHash(value)) fail('STAGE_INVALID')
+  try { assertStageReceipt(value, { ownerApplicationId: owner, releaseId, sourceRevision: revision, stage }) }
+  catch { fail('STAGE_INVALID') }
 }
 function assertSourceLock(value, owner, config, revision, releaseId) {
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'repository',

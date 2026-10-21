@@ -9,7 +9,6 @@ import { createOwnerTransport, createAiPdmBuildReadbackTransport } from './lib/d
 import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
 import { createFrozenWorkerSourceReader } from './lib/dev122-openswx-native-source-reader.mjs'
-import { assertFailureRetryAllowed } from './lib/dev117-release-control-policy.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
@@ -40,20 +39,9 @@ async function main() {
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => {
-  const historyInput = process.env.PDM_RELEASE_FAILURE_HISTORY_JSON
-  if (historyInput) {
-    try {
-      const parsed = JSON.parse(historyInput)
-      const policyError = (() => {
-        try { assertFailureRetryAllowed({ history: parsed.history ?? [], currentCode: error.code ?? error.message }) } catch (candidate) { return candidate }
-        return null
-      })()
-      if (policyError) error = policyError
-    } catch {
-      error = Object.assign(new Error('RELEASE_FAILURE_HISTORY_INVALID'), { code: 'RELEASE_FAILURE_HISTORY_INVALID' })
-    }
-  }
-  process.stderr.write(`${error.code ?? error.message}\n`)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(async (error) => {
+  const code = /^[A-Z][A-Z0-9_]{2,127}$/u.test(String(error.code ?? '')) ? String(error.code) : 'WORKFLOW_JOB_FAILURE'
+  if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `failure_code=${code}\n`, 'utf8')
+  process.stderr.write(`${code}\n`)
   process.exitCode = 1
 })

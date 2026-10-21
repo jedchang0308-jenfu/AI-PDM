@@ -562,13 +562,22 @@ test('five-stage owner workflow keeps stage identities and proof tokens on exact
   assert.ok(candidate); assert.ok(activation); assert.equal(assertDev117WorkflowSource(source), true)
   const mutations = [
     candidate.replace(proof, ''),
-    candidate.replace('      - name: Configure direct Cloud Run entrypoint\n        env:\n', '      - name: Configure direct Cloud Run entrypoint\n        env:\n' + proof),
+    candidate.replace('      - id: entrypoint\n        name: Configure direct Cloud Run entrypoint\n        env:\n', '      - id: entrypoint\n        name: Configure direct Cloud Run entrypoint\n        env:\n' + proof),
     candidate.replace('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"', 'GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"'),
     activation.replace(proof, ''),
-    activation.replace('      - name: Execute canonical\n        env:\n', '      - name: Execute canonical\n        env:\n' + proof),
+    activation.replace('      - id: canonical\n        name: Execute canonical\n        env:\n', '      - id: canonical\n        name: Execute canonical\n        env:\n' + proof),
     activation.replace('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"', 'GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"'),
   ]
   for (const block of mutations) assert.throws(() => assertDev117WorkflowSource(source.replace(block.includes('candidate-smoke') ? candidate : activation, block)))
+})
+
+test('formal failure handling carries the executor error code without ambient human history', () => {
+  const workflow = readText('.github/workflows/deploy-ai-pdm-independent-production.yml')
+  const cli = readText('scripts/dev117-ai-pdm-continuous-release.mjs')
+  assert.match(workflow, /PDM_RELEASE_FAILURE_CODE:/u)
+  assert.match(workflow, /needs\.candidate-smoke\.outputs\.failure_code/u)
+  assert.match(cli, /GITHUB_OUTPUT/u)
+  assert.doesNotMatch(cli, /PDM_RELEASE_FAILURE_HISTORY_JSON/u)
 })
 
 test('build verifier token remains isolated from builder authority', () => {

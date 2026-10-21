@@ -37,8 +37,9 @@ export function classifyReleaseMode({ intent = {}, executionMode = 'full_release
   return 'full_release'
 }
 
-export function assertDailyReleaseMode({ mode, workflowRef = '' } = {}) {
-  const dailyWorkflow = /\/deploy-ai-pdm-independent-production\.yml@refs\/heads\/main$/u.test(String(workflowRef))
+export function assertDailyReleaseMode({ mode, workflowRef = '', requiredWorkflowRef = null } = {}) {
+  if (requiredWorkflowRef !== null && workflowRef !== requiredWorkflowRef) fail('DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID')
+  const dailyWorkflow = requiredWorkflowRef !== null || /\/deploy-ai-pdm-independent-production\.yml@refs\/heads\/main$/u.test(String(workflowRef))
   if (dailyWorkflow && !['full_release', 'build_only'].includes(mode)) fail('SPECIAL_RELEASE_MODE_OUTSIDE_DAILY_PATH', mode)
   return true
 }
@@ -63,9 +64,9 @@ function assertDate(value, code) {
  * consumers; source lineage, scope, deadline and migration disposition are
  * represented once here.
  */
-export function normalizeReleaseEvidence({ intent, source, receipts = {}, migration = null, executionMode = 'full_release', workflowRef = '', cutover = false, now } = {}) {
+export function normalizeReleaseEvidence({ intent, source, receipts = {}, migration = null, runtimeConfig = null, readiness = null, executionMode = 'full_release', workflowRef = '', requiredWorkflowRef = null, cutover = false, now } = {}) {
   const mode = classifyReleaseMode({ intent, executionMode, cutover })
-  assertDailyReleaseMode({ mode, workflowRef })
+  if (requiredWorkflowRef !== null) assertDailyReleaseMode({ mode, workflowRef, requiredWorkflowRef })
   if (!intent || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '')) fail('RELEASE_EVIDENCE_SOURCE_INVALID')
   if (!source || source.sourceRevision !== intent.sourceRevision || source.sourceSha256 !== intent.sourceSha256) fail('RELEASE_EVIDENCE_SOURCE_JOIN_INVALID')
   assertHash(source.sourceSha256, 'RELEASE_EVIDENCE_SOURCE_INVALID')
@@ -74,19 +75,24 @@ export function normalizeReleaseEvidence({ intent, source, receipts = {}, migrat
   const deadlineMs = assertDate(intent.deadlineAt, 'RELEASE_EVIDENCE_DEADLINE_INVALID')
   if (deadlineMs <= observedMs) fail('RELEASE_EVIDENCE_DEADLINE_EXPIRED')
 
-  const scopes = new Set(['PRODUCTION_BOUND', 'PRODUCTION_PROVIDER', 'PRODUCTION_PROVIDER_REUSE'])
+  // PROVIDER is retained for the shared executor's non-AI-PDM harnesses. The
+  // AI-PDM producer still emits the production-specific scopes above.
+  const scopes = new Set(['PROVIDER', 'PRODUCTION_BOUND', 'PRODUCTION_PROVIDER', 'PRODUCTION_PROVIDER_REUSE'])
+  if (requiredWorkflowRef === null) scopes.add('LOCAL_TEST')
   const normalizedReceipts = {}
   for (const [name, value] of Object.entries(receipts)) {
     if (!value || typeof value !== 'object') fail('RELEASE_EVIDENCE_RECEIPT_INVALID', name)
     if (!scopes.has(value.evidenceScope) || value.releaseAuthority !== true) fail('RELEASE_EVIDENCE_SCOPE_INVALID', name)
-    const expiresAt = value.expiresAt ?? intent.deadlineAt
-    const expiresMs = assertDate(expiresAt, 'RELEASE_EVIDENCE_DEADLINE_INVALID')
-    if (expiresMs <= observedMs || expiresMs > deadlineMs) fail('RELEASE_EVIDENCE_DEADLINE_INVALID', name)
+    const authorityExpiresAt = value.expiresAt ?? intent.deadlineAt
+    const expiresMs = assertDate(authorityExpiresAt, 'RELEASE_EVIDENCE_DEADLINE_INVALID')
+    if (expiresMs <= observedMs) fail('RELEASE_EVIDENCE_DEADLINE_INVALID', name)
+    const expiresAt = new Date(Math.min(expiresMs, deadlineMs)).toISOString()
     normalizedReceipts[name] = {
       schemaVersion: value.schemaVersion ?? null,
       evidenceScope: value.evidenceScope,
       status: value.status ?? null,
       expiresAt,
+      authorityExpiresAt,
     }
   }
 
@@ -114,6 +120,8 @@ export function normalizeReleaseEvidence({ intent, source, receipts = {}, migrat
     deadlineAt: intent.deadlineAt,
     observedAt,
     receipts: normalizedReceipts,
+    runtimeConfig: runtimeConfig ? structuredClone(runtimeConfig) : null,
+    readiness: readiness ? structuredClone(readiness) : null,
     migration: migrationModel,
     specialIntentFields: SPECIAL_INTENT_FIELDS.filter(name => Object.hasOwn(intent, name)),
   })

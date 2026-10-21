@@ -28,6 +28,9 @@ test('daily full release accepts only ordinary modes and classifies special path
   assert.equal(classifyReleaseMode({ intent: { ...intent, principalOnlyRecovery: {} } }), 'principal_only')
   assert.equal(classifyReleaseMode({ intent, executionMode: 'build_only' }), 'build_only')
   assert.throws(() => assertDailyReleaseMode({ mode: 'program_only', workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main' }), /SPECIAL_RELEASE_MODE_OUTSIDE_DAILY_PATH/u)
+  const requiredWorkflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main'
+  assert.throws(() => assertDailyReleaseMode({ mode: 'full_release', workflowRef: '', requiredWorkflowRef }), /DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID/u)
+  assert.throws(() => assertDailyReleaseMode({ mode: 'full_release', workflowRef: requiredWorkflowRef.replace('/main', '/feature'), requiredWorkflowRef }), /DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID/u)
 })
 
 test('ordinary releases keep cutover history without consuming raw cutover receipts', () => {
