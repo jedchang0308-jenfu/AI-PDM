@@ -118,6 +118,30 @@ test('repair classification validates only the pinned descriptor before choosing
     assert.equal(reads, 1, `${name} classification must not traverse worker history or full evidence`)
   }
 })
+
+test('applied migration continuation admits the exact principal workflow only with both intent and mode binding', async () => {
+  const descriptor = workerDescriptor('full')
+  const bytes = Buffer.from(canonicalize(descriptor))
+  const descriptorRef = { ...ref('applied-continuation-classification'), sha256: sha256(bytes) }
+  const principalRef = `${appProfile.application.repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main`
+  const makeOwner = environment => createOpenSwxOwnerRelease({
+    transport: { async readJson(actual) { assert.deepEqual(actual, descriptorRef); return { value: descriptor, bytes, ref: descriptorRef } } },
+    readSource(path, actualRevision) {
+      assert.equal(path, 'config/release/dev122-openswx-worker.json')
+      assert.equal(actualRevision, sourceRevision)
+      return profileBytes
+    },
+    environment: { ...environment, OWNER_EXECUTION_MODE: 'full_release' },
+  })
+  const intent = { sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: '2999-01-01T00:00:00Z', appliedMigrationContinuation: {} }
+  const withoutContinuation = { ...intent }
+  delete withoutContinuation.appliedMigrationContinuation
+  const admitted = await makeOwner({ GITHUB_WORKFLOW_REF: principalRef, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(intent, appProfile)
+  assert.equal(admitted.purpose, 'full')
+  await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: principalRef }).classifyRepair(intent, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
+  await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: principalRef, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(withoutContinuation, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
+  await assert.rejects(makeOwner({ GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/.github/workflows/unknown.yml@refs/heads/main`, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }).classifyRepair(intent, appProfile), /OPENSWX_FULL_WORKFLOW_REQUIRED/u)
+})
 test('B24 finalize cannot use forward pending-only mode for an ordinary worker or an unbound migration profile', async () => {
   const { baseline, retained } = b23Baseline(), baselineRef = ref('paused-baseline'), associationRef = ref('association')
   const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
