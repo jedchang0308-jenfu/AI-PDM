@@ -102,6 +102,9 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   assert.equal(receipt.sourceRevision, sourceLock.sourceRevision)
   assert.equal(receipt.reusedSourceRevision, core.sourceRevision)
   assert.equal(receipt.receiptSha256, sha256(canonicalize(Object.fromEntries(Object.entries(receipt).filter(([key]) => key !== 'receiptSha256')))))
+  const currentReceipt = { ...original, schemaVersion: 'jenfu.dev012.app-infra-receipt.v2' }
+  currentReceipt.receiptSha256 = sha256(canonicalize(Object.fromEntries(Object.entries(currentReceipt).filter(([key]) => key !== 'receiptSha256'))))
+  assert.equal(buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: currentReceipt, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }).reusedSourceRevision, core.sourceRevision)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ digest: profile.artifact.migrationRunnerUri + '@sha256:' + 'e'.repeat(64) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'e'.repeat(40) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
