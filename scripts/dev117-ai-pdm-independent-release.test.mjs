@@ -170,7 +170,7 @@ test('QA-117-003 AI_PDM-only immutable artifact', () => {
   assert.throws(() => assertDev117ArtifactReceipt(mutable, config, source), /DEV117_ARTIFACT_RECEIPT_INVALID/u)
   const vulnerable = rehash({ ...artifact, vulnerabilities: { critical: 0, high: 1 } })
   assert.throws(() => assertDev117ArtifactReceipt(vulnerable, config, source), /DEV117_ARTIFACT_SECURITY_INVALID/u)
-  const candidateSection = workflow.split('\n  candidate:')[1].split('\n  level4-access:')[0]
+  const candidateSection = workflow.split('\n  candidate-smoke:')[1].split('\n  activate-readback:')[0]
   assert.doesNotMatch(candidateSection, /docker\s+build|buildx|gcloud\s+builds/iu)
 })
 
@@ -267,9 +267,9 @@ test('QA-117-010 legacy promotion receipt and current direct canonical entry sta
   assert.doesNotThrow(() => assertDev117PromotionRequest(request, config, { candidateReceipt: candidate, accessReceipt: access, dev116Receipt: r02 }))
   assert.equal(config.target.canonicalOrigin, 'https://pdm.jenfu.com.tw')
   assert.equal(currentConfig.target.canonicalOrigin, 'https://ai-pdm-prod-9536592944.asia-east1.run.app')
-  for (const stage of ['entrypoint', 'verify', 'decision', 'activate', 'canonical']) assert.match(workflow, new RegExp(`\\n  ${stage}:\\r?\\n`, 'u'))
+  for (const stage of ['entrypoint', 'verify', 'decision', 'activate', 'canonical']) assert.match(workflow, new RegExp(`--stage ${stage}\\b`, 'u'))
   assert.doesNotMatch(workflow, /https:\/\/pdm\.jenfu\.com\.tw/u)
-  const candidateSection = workflow.split(/\r?\n  candidate:/u)[1].split(/\r?\n  entrypoint:/u)[0]
+  const candidateSection = workflow.split(/\r?\n  candidate-smoke:/u)[1].split(/\r?\n  activate-readback:/u)[0]
   assert.doesNotMatch(candidateSection, /update-traffic[^\n]*--to-revisions/iu)
 })
 
@@ -284,7 +284,7 @@ test('QA-117-011 AI_PDM-only traffic rollback', () => {
   assert.doesNotThrow(() => assertDev117RollbackReceipt(receipt, config))
   assert.throws(() => assertDev117RollbackReceipt(rehash({ ...receipt, platformMutationCount: 1 }), config), /DEV117_ROLLBACK_RECEIPT_INVALID/u)
   assert.match(workflow, /\n  failure:\r?\n[\s\S]*--stage rollback\b/u)
-  assert.match(workflow, /needs: \[prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical\]/u)
+  assert.match(workflow, /needs: \[preflight, build, migrate, candidate-smoke, activate-readback\]/u)
   assert.deepEqual(currentConfig.edge, { servingDependency: false, rollbackDependency: false, ordinaryReleaseMutations: 0, disposition: 'RETAINED_UNUSED_EDGE' })
 })
 

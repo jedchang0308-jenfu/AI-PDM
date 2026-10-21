@@ -517,7 +517,8 @@ async function unpublishedAbortFixture(inherited = false) {
     inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
   h.control()
   Object.assign(h.ownerRun, { id: '43', headSha: f.intent.sourceRevision, createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:05:00Z' })
-  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner' }
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', ledger: 'ai_pdm_core.schema_migrations',
+    migrationBootstrap: true, principalContractLedgerFloor: 35 }
   const request = h.transport.request
   h.transport.request = async (url, ...args) => {
     if (url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${f.intent.releaseId.toLowerCase()}`) return { builds: [build] }
@@ -534,7 +535,7 @@ async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat
   const priorOwnerRun = structuredClone(h.ownerRun)
   const prior = h.failed, inheritedBasis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
   const principalOnlyBinding = principalOnly ? {
-    principalOnlyFenceRef: h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${source}/fence.json`, {
+    principalOnlyFenceRef: h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${source}/fence-214.json`, {
       schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: source, projectId: 'jenfu-platform-prod',
       region: 'asia-east1', service: 'ai-pdm-prod', serviceUid: h.service.uid, oldRevision: previousRevision,
       beforeGeneration: '1', quiescentGeneration: '2', serviceUpdateTime: '2026-10-03T11:58:00Z',
@@ -609,7 +610,8 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   })
   const f = h.failed
   const serviceAccount = 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com'
-  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', serviceAccount }
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', serviceAccount,
+    ledger: 'ai_pdm_core.schema_migrations', migrationBootstrap: true, principalContractLedgerFloor: 35 }
   const jobName = `projects/${h.profile.target.projectId}/locations/${h.profile.target.region}/jobs/${h.profile.migrations.jobName}`
   const runnerSourceRevision = f.intent.sourceRevision
   const deployment = h.objects.get(f.paths.deployment)
@@ -754,7 +756,7 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: h.profile.runtime.containerName, image: recoveryImage }] })
   if (principalOnly) { h.controlCore.previousRevision = recoveryRevision; h.control() }
   const principalOnlyRecovery = { revision: recoveryRevision, imageDigest: recoveryImage, serviceUid: h.service.uid, receiptRef: recoveryReceipt.ref }
-  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${recoverySourceRevision}/fence.json`, {
+  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${recoverySourceRevision}/fence-214.json`, {
     schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: recoverySourceRevision,
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: h.service.uid, oldRevision: previousRevision, beforeGeneration: '1', quiescentGeneration: '2',

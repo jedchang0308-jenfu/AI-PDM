@@ -35,7 +35,7 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
   const frozenRoot = mkdtempSync(join(tmpdir(), 'aipdm-oa-'))
   console.log('DEV012_OWNER_ARCHIVE_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Owner and worker source archive byte equivalence', port: null, parentPid: process.pid, PDM_DATA_DIR: 'UNUSED', PDM_REPOSITORY_DIR: frozenRoot, mutationScope: 'TASK_OWNED_GIT_WORKTREE_ONLY', cleanupCondition: 'finally removes exact worktree and temporary directory' }))
   try {
-    const checkout = spawnSync('git', ['worktree', 'add', '--detach', frozenRoot, revision], {
+    const checkout = spawnSync('git', ['-c', 'core.longpaths=true', 'worktree', 'add', '--detach', frozenRoot, revision], {
       cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
     })
     assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
@@ -52,7 +52,7 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
     const workerArchive = createWorkerGitReader(canonicalFrozenRoot, revision).readArchive(revision)
     assert.deepEqual(ownerArchive, workerArchive)
   } finally {
-    spawnSync('git', ['worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
+    spawnSync('git', ['-c', 'core.longpaths=true', 'worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
     rmSync(frozenRoot, { recursive: true, force: true })
     console.log('DEV012_OWNER_ARCHIVE_RUNTIME_CLEANUP=' + JSON.stringify({ taskTempRemoved: true, port: null }))
   }

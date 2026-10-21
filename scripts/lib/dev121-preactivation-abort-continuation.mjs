@@ -2,7 +2,7 @@ import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyS
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { assertImmutableRef, assertMigrationSubmissionIntent, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
-import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
+import { assertMigration, assertStage, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
@@ -1331,14 +1331,9 @@ async function authorizeAppliedMigrationExecution({ profile, transport, read, ex
     read(paths.prepare), read(paths.migrate), read(paths.deployment), read(migrationSubmissionIntentUri(profile, paths.migrate)),
   ])
   if (!same(prepare.ref, binding.prepareRef) || !same(migrate.ref, binding.migrateRef)) fail()
-  const sealStage = (row, stage) => {
-    const { receiptSha256, ...core } = row.value ?? {}
-    if (receiptSha256 !== sha256(canonicalize(core)) || core.schemaVersion !== 'jenfu.dev012.stage-receipt.v1'
-      || core.ownerApplicationId !== profile.application.id || core.releaseId !== appliedIntent.releaseId
-      || core.sourceRevision !== appliedIntent.sourceRevision || core.stage !== stage || core.status !== 'PASS') fail()
-    return core.facts
-  }
-  const prepareFacts = sealStage(prepare, 'prepare')
+  try { assertStage(prepare.value, profile.application.id, appliedIntent.sourceRevision, appliedIntent.releaseId, 'prepare') }
+  catch { fail() }
+  const prepareFacts = prepare.value.facts
   const deploymentValue = deployment.value
   if (deploymentValue?.schemaVersion !== 'jenfu.dev117.ai-pdm-deployment-capsule.v2'
     || deploymentValue.ownerApplicationId !== profile.application.id
@@ -1355,20 +1350,10 @@ async function authorizeAppliedMigrationExecution({ profile, transport, read, ex
       deadlineAt: appliedIntent.deadlineAt, principalOnlyFenceRef })
   } catch { fail() }
   const migration = migrate.value
-  const migrationKeys = ['schemaVersion', 'ownerApplicationId', 'sourceRevision', 'database', 'ledger', 'manifestSha256', 'baselineCount',
-    'minimumLedgerCount', 'ledgerBootstrap', 'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials', 'boundaryStatus',
-    'executionName', 'startedAt', 'completedAt', 'status', 'principalOnlyFence', 'receiptSha256']
-  if (!same(Object.keys(migration).sort(), migrationKeys.sort())
-    || migration.schemaVersion !== 'jenfu.dev012.migration-receipt.v1'
-    || migration.ownerApplicationId !== profile.application.id || migration.sourceRevision !== binding.sourceRevision
-    || migration.database !== 'jenfu_prod' || migration.ledger !== 'ai_pdm_core.schema_migrations'
-    || migration.manifestSha256 !== appliedIntent.migrationManifestSha256 || migration.baselineCount !== 15 || migration.minimumLedgerCount !== 0
-    || !same(migration.ledgerBootstrap, { enabled: true, created: false }) || migration.ledgerCount !== 35 || migration.applied !== 2
-    || migration.replayed !== 33 || !same(migration.crossDatabaseDenials, [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }])
-    || migration.boundaryStatus !== 'PASS' || migration.status !== 'PASS'
-    || migration.principalOnlyFence?.ref !== principalOnlyFenceRef?.uri || migration.principalOnlyFence?.sha256 !== principalOnlyFenceRef?.sha256
-    || migration.principalOnlyFence?.fenceSourceRevision !== principalOnlyFenceRef?.uri.split('/').at(-2)
-    || migration.receiptSha256 !== sha256(canonicalize(Object.fromEntries(Object.entries(migration).filter(([key]) => key !== 'receiptSha256'))))) fail()
+  try { assertMigration(migration, profile.application.id, profile.migrations, binding.sourceRevision,
+    appliedIntent.migrationManifestSha256, undefined, principalOnlyFenceRef) } catch { fail() }
+  if (!same(migration.ledgerBootstrap, { enabled: true, created: false }) || migration.ledgerCount !== 35 ||
+      migration.applied !== 2 || migration.replayed !== 33) fail()
   const facts = executionTerminalFacts(execution)
   const environment = executionEnvironment(execution)
   const sourceIndex = args.indexOf('--source-revision')

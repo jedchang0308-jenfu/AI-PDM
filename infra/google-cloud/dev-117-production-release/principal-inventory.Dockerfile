@@ -8,19 +8,10 @@ RUN npm ci --omit=dev --ignore-scripts \
     && rm -rf /usr/local/lib/node_modules/npm \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
-COPY scripts/lib/dev012-production-migration-runner.mjs scripts/lib/dev012-production-migration-runner.mjs
-COPY scripts/lib/dev121-unlinked-profile-cleanup.mjs scripts/lib/dev121-unlinked-profile-cleanup.mjs
-COPY scripts/lib/dev121-ai-pdm-quiescence.mjs scripts/lib/dev121-ai-pdm-quiescence.mjs
-COPY scripts/lib/dev121-migration-fence.mjs scripts/lib/dev121-migration-fence.mjs
-COPY scripts/lib/dev121-principal-inventory-runner.mjs scripts/lib/dev121-principal-inventory-runner.mjs
-COPY scripts/lib/dev121-principal-only-apply.mjs scripts/lib/dev121-principal-only-apply.mjs
-COPY scripts/lib/dev121-principal-only-source-receipt.mjs scripts/lib/dev121-principal-only-source-receipt.mjs
-COPY scripts/lib/dev121-principal-only-release.mjs scripts/lib/dev121-principal-only-release.mjs
-COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
-COPY scripts/lib/dev122-rd-permission-ledger-readback.mjs scripts/lib/dev122-rd-permission-ledger-readback.mjs
-COPY scripts/lib/dev122-source-authority.mjs scripts/lib/dev122-source-authority.mjs
-COPY scripts/lib/dev122-openswx-dispatch-recovery.mjs scripts/lib/dev122-openswx-dispatch-recovery.mjs
-COPY scripts/lib/dev122-applied-migration-continuation.mjs scripts/lib/dev122-applied-migration-continuation.mjs
+# The operator imports a tested closure rooted in scripts/lib. Copy that
+# directory once so adding a transitive local import cannot produce a green
+# source test and a broken production image.
+COPY scripts/lib/ scripts/lib/
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-inventory-runner.mjs scripts/dev121-production-principal-inventory-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs

@@ -1706,7 +1706,7 @@ async function readFixedJson(uri, bucket, token, fetchImpl) {
   return { value, bytes: object.bytes, ref,
     generation: object.generation, crc32c: object.crc32c }
 }
-function assertStage(value, owner, revision, releaseId, stage) {
+export function assertStage(value, owner, revision, releaseId, stage) {
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'releaseId',
     'sourceRevision', 'stage', 'previousReceiptRef', 'facts', 'observedAt',
     'status', 'receiptSha256']) ||

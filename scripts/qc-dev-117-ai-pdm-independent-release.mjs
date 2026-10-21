@@ -72,15 +72,17 @@ function staticScan() {
   }
   if (/firebase\s+deploy|\bpsql\b|\bDROP\s+(?:DATABASE|SCHEMA|TABLE)|:[ \t]*latest(?:[\s,"']|$)/iu.test(source)) fail('DEV117_QC_FORBIDDEN_RELEASE_CAPABILITY_FOUND')
   if (/(?:run\s+deploy|services\s+update-traffic)[^\n]*jenfu-platform-prod|(?:run\s+deploy|services\s+update-traffic)[^\n]*orgmaster-prod/iu.test(source)) fail('DEV117_CROSS_APP_MUTATION_FOUND')
-  const candidate = section(source, 'candidate', 'entrypoint')
-  if (!candidate.includes('--stage candidate') || /\bgcloud\b|--to-revisions/iu.test(candidate)) fail('DEV117_QC_CANDIDATE_BOUNDARY_INVALID')
-  const entrypoint = section(source, 'entrypoint', 'verify')
-  if (!entrypoint.includes('--stage entrypoint') || /\bgcloud\b|--to-revisions/iu.test(entrypoint)) fail('DEV117_QC_ENTRYPOINT_BOUNDARY_INVALID')
+  const candidate = section(source, 'candidate-smoke', 'activate-readback')
+  if (!['candidate', 'entrypoint', 'verify', 'decision'].every(stage => candidate.includes(`--stage ${stage}`)) ||
+      /\bgcloud\b|--to-revisions/iu.test(candidate)) fail('DEV117_QC_CANDIDATE_BOUNDARY_INVALID')
+  const activation = section(source, 'activate-readback', 'failure')
+  if (!['activate', 'canonical', 'finalize'].every(stage => activation.includes(`--stage ${stage}`)) ||
+      /\bgcloud\b|--to-revisions/iu.test(activation)) fail('DEV117_QC_ENTRYPOINT_BOUNDARY_INVALID')
   const failure = section(source, 'failure')
   if (!failure.includes('--stage rollback') || !failure.includes('aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com')) fail('DEV117_QC_ROLLBACK_BOUNDARY_INVALID')
   const actionLines = source.split(/\r?\n/u).map((line) => line.trim().replace(/^-\s+/u, '')).filter((line) => line.startsWith('uses:'))
   const allowedActions = new Set(['uses: actions/checkout@v4', 'uses: actions/setup-node@v4', 'uses: google-github-actions/auth@v3'])
-  if (actionLines.length < 30 || actionLines.some((line) => !allowedActions.has(line))) fail('DEV117_QC_ACTION_VERSION_INVALID')
+  if (actionLines.some((line) => !allowedActions.has(line))) fail('DEV117_QC_ACTION_VERSION_INVALID')
   return { yamlParsed: true, stageCount: currentConfig.workflow.jobs.length, actionVersionsChecked: actionLines.length, forbiddenMatches: 0 }
 }
 

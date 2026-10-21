@@ -27,7 +27,8 @@ env:
   WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
 
 jobs:
-  prepare:
+  preflight:
+    name: preflight
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, pull-requests: read, checks: read, id-token: write }
@@ -56,13 +57,14 @@ jobs:
           [[ "$capsule_sha256" =~ ^[a-f0-9]{64}$ ]]
           echo "capsule_uri=$capsule_uri" >> "$GITHUB_OUTPUT"
           echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
-      - id: auth
+      - id: verifier_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - id: proof_builder_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -82,12 +84,13 @@ jobs:
       - name: Execute prepare
         env:
           AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
 
   build:
-    needs: prepare
+    name: build
+    needs: preflight
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -97,13 +100,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - id: auth
+      - id: builder_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - id: build_verifier_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -114,13 +118,14 @@ jobs:
           export_environment_variables: false
       - name: Execute build
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
 
   migrate:
+    name: migrate-if-needed
     if: ${{ inputs.executionMode == 'full_release' }}
-    needs: [prepare, build]
+    needs: [preflight, build]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -130,13 +135,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - id: auth
+      - id: deployer_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - id: proof_builder_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -147,12 +153,13 @@ jobs:
           export_environment_variables: false
       - name: Execute migrate
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
 
-  candidate:
-    needs: [prepare, migrate]
+  candidate-smoke:
+    name: candidate-smoke
+    needs: [preflight, migrate]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -162,13 +169,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - id: auth
+      - id: deployer_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - id: proof_builder_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -179,92 +187,36 @@ jobs:
           export_environment_variables: false
       - name: Execute candidate
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
-
-  entrypoint:
-    needs: [prepare, candidate]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
-    steps:
-      - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0", cache: npm }
-      - run: npm ci
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
-          token_format: access_token
-          create_credentials_file: false
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
       - name: Configure direct Cloud Run entrypoint
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
-
-  verify:
-    needs: [prepare, entrypoint]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
-    steps:
-      - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0", cache: npm }
-      - run: npm ci
-      - id: auth
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
+      - id: verifier_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
-          token_format: access_token
-          create_credentials_file: false
-      - id: proof_builder_read_auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
       - name: Execute verify
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
-
-  decision:
-    needs: [prepare, verify]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
-    steps:
-      - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0", cache: npm }
-      - run: npm ci
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
-          token_format: access_token
-          create_credentials_file: false
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
       - name: Execute decision
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
 
-  activate:
-    needs: [prepare, decision]
+  activate-readback:
+    name: activate-readback
+    needs: [preflight, candidate-smoke]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -274,13 +226,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - id: auth
+      - id: deployer_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - id: proof_builder_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -291,37 +244,32 @@ jobs:
           export_environment_variables: false
       - name: Execute activate
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
-
-  canonical:
-    needs: [prepare, activate]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
-    steps:
-      - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0", cache: npm }
-      - run: npm ci
-      - id: auth
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
+      - id: verifier_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+          export_environment_variables: false
       - name: Execute canonical
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
+      - name: Execute finalize
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
 
-  finalize:
-    needs: [prepare, canonical]
+  failure:
+    if: ${{ always() && inputs.executionMode == 'full_release' && needs.preflight.result == 'success' && contains(needs.*.result, 'failure') }}
+    needs: [preflight, build, migrate, candidate-smoke, activate-readback]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -331,46 +279,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - id: auth
+      - id: deployer_auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
-          token_format: access_token
-          create_credentials_file: false
-      - id: proof_builder_read_auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute finalize
-        env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
-          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
-
-  failure:
-    if: ${{ always() && inputs.executionMode == 'full_release' && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
-    needs: [prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical, finalize]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
-    steps:
-      - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0", cache: npm }
-      - run: npm ci
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
-          token_format: access_token
-          create_credentials_file: false
       - id: proof_builder_read_auth
         uses: google-github-actions/auth@v3
         with:
@@ -381,6 +297,6 @@ jobs:
           export_environment_variables: false
       - name: Read back, roll back own traffic if needed, and publish terminal receipt
         env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
