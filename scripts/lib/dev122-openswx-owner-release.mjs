@@ -1,7 +1,7 @@
 import { assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { READBACK_IAM_PATHS, readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
-import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, canonicalize, ownerWorkflowAuthority, sha256 } from './dev012-owner-release-runtime.mjs'
 import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { runAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject, assertAiPdmRepairMigrationMode } from './dev121-owner-release-proof.mjs'
 import { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertHistoricalOpenSwxWorkerProfile, assertHistoricalProfileCompatibility, assertOpenSwxWorkerProfile, programOnlyHistoricalProfileRequired, resolveWorkerProfileContext, sourceReaderForRevision, workerProfileValidationMode } from './dev122-openswx-profile-context.mjs'
@@ -816,7 +816,10 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   async function readDescriptor(intent, appProfile) {
     if (!intent.openswxWorkerRef) return null
     transport = boundOpenSwxTransport(stageTransport, intent.deadlineAt)
-    if (appProfile.application.id !== 'ai-pdm' || environment.GITHUB_WORKFLOW_REF !== `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
+    const authority = ownerWorkflowAuthority(appProfile, intent, environment, {
+      migrationOnlyWorkflowPath: '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
+    })
+    if (appProfile.application.id !== 'ai-pdm' || !authority.fullWorkflowAllowed) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
     const descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
     if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
     return descriptor
