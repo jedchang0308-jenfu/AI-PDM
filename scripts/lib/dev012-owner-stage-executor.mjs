@@ -297,34 +297,9 @@ async function writeMigrationAdmission({ transport, paths, profile, intent, depl
   return { ...result, value }
 }
 
-function nextFailurePolicy(prior, code) {
+function currentFailureSignal(code) {
   const normalizedCode = /^[A-Z][A-Z0-9_]{2,127}$/u.test(String(code ?? '')) ? String(code) : 'WORKFLOW_JOB_FAILURE'
-  const family = classifyFailureFamily(normalizedCode)
-  const occurrences = prior?.family === family ? prior.occurrences + 1 : 1
-  return { code: normalizedCode, family, occurrences, limit: 2,
-    action: occurrences >= 2 ? 'STOP_FOR_COMMON_MECHANISM' : 'CONTINUE' }
-}
-
-function assertFailurePolicy(value) {
-  if (!value || !/^[A-Z][A-Z0-9_]{2,127}$/u.test(value.code ?? '') || typeof value.family !== 'string'
-    || !Number.isInteger(value.occurrences) || value.occurrences < 1 || value.limit !== 2
-    || value.action !== (value.occurrences >= 2 ? 'STOP_FOR_COMMON_MECHANISM' : 'CONTINUE')) fail('RELEASE_FAILURE_POLICY_INVALID')
-  return value
-}
-
-async function readPriorFailurePolicy({ transport, profile, intent }) {
-  if (!intent.baselineIntentRef) return null
-  const baseline = await transport.readJson(intent.baselineIntentRef, profile.artifact.releaseBucket, ['receipts'])
-  const priorIntent = baseline.value
-  if (priorIntent?.ownerApplicationId !== profile.application.id || !H40.test(priorIntent.sourceRevision ?? '')) return null
-  const priorPaths = releasePaths(profile, priorIntent, intent.baselineIntentRef.sha256)
-  const terminal = await optionalNamedJson(transport, priorPaths.terminal, profile)
-  // Older valid terminal receipts predate machine-recorded failure policy and
-  // remain ordinary provenance. Once a policy is present, its enclosing stage
-  // receipt must be fully authentic; corruption cannot silently erase history.
-  if (!terminal?.value?.facts?.failurePolicy) return null
-  assertStage(terminal.value, profile, priorIntent, 'terminal')
-  return { ...assertFailurePolicy(terminal.value.facts.failurePolicy), sourceRevision: priorIntent.sourceRevision }
+  return { code: normalizedCode, family: classifyFailureFamily(normalizedCode) }
 }
 
 function dataCutoverCleanupTransport(transport, profile) {
@@ -742,10 +717,6 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     ? await readOwnerCleanupBinding({ intent, profile, transport, readWorkerSource, buildMigrationBundle }) : null
 
   if (stage === 'prepare') {
-    const priorFailurePolicy = await readPriorFailurePolicy({ transport, profile, intent })
-    if (priorFailurePolicy?.sourceRevision === intent.sourceRevision && priorFailurePolicy.action === 'STOP_FOR_COMMON_MECHANISM') {
-      fail('RELEASE_COMMON_MECHANISM_STOP', `${priorFailurePolicy.family}:${priorFailurePolicy.occurrences}`)
-    }
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
@@ -782,7 +753,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       source: { ...values.sourceLock, migrationRunnerRevision: derived.migrationRunnerSourceRevision },
       receipts: values,
       runtimeConfig: derived.runtimeConfig,
-      readiness: values.readiness,
+      readiness: {
+        schemaVersion: 'jenfu.dev117.release-readiness.v1',
+        dataCutoverHandoffRef: values.readiness.dataCutoverHandoffRef ?? null,
+        dataCutoverCompletionRef: values.readiness.dataCutoverCompletionRef ?? null,
+        dev013Transition: dev013TerminalTransitionFact(values.readiness, intent),
+      },
       executionMode: environment.OWNER_EXECUTION_MODE ?? 'full_release',
       workflowRef: environment.GITHUB_WORKFLOW_REF,
       requiredWorkflowRef,
@@ -1078,7 +1054,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const conformance = buildDev014ConsumerConformance({ appId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: candidate.value.facts.artifactDigest.split('@').at(-1), failSeekingEvidenceRef: canonical.ref.uri, verifiedAt: transport.now() })
     const conformanceResult = await transport.putJson(`gs://${profile.artifact.releaseBucket}/${paths.root}/dev014-consumer-conformance.json`, conformance, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
-    const dev013Transition = dev013TerminalTransitionFact(assertPreparedReleaseEvidence(prepare, profile, intent, releaseMode).readiness, intent)
+    const dev013Transition = assertPreparedReleaseEvidence(prepare, profile, intent, releaseMode).readiness.dev013Transition
     const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: migrationMode, ...([PROGRAM_ONLY_DISPOSITION, 'HISTORICAL_EVIDENCE_REUSED'].includes(migrationMode) ? { migrationEvidenceRef: migration.value.facts.migrationReceiptRef } : {}), ...(migrationMode === PROGRAM_ONLY_DISPOSITION ? { currentDatabaseReadPerformed: true } : {}), remainingHumanAction: 0, dev014ConsumerConformanceRef: conformanceResult.ref, ...(workerFinalization ? { openswxWorker: workerFinalization } : {}), ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
     const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     if (profile.dataCutover?.postLiveCleanupRequired === true && prepare.value.facts?.dataCutover?.status === 'DATA_READY_FOR_CANDIDATE') {
@@ -1100,7 +1076,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   const migrationAdmission = await optionalMigrationAdmission(transport, paths, profile, intent)
   const migration = migrationAdmission ? null : await optionalNamedJson(transport, paths.migrate, profile)
   const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
-  const failurePolicy = nextFailurePolicy(await readPriorFailurePolicy({ transport, profile, intent }), environment.PDM_RELEASE_FAILURE_CODE)
+  const failureSignal = currentFailureSignal(environment.PDM_RELEASE_FAILURE_CODE)
   if (migration && programPolicy) await validateProgramMigration(migration, await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256))
   else if (migration && repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment: await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256), receipt: migration })
   else if (migration && (migration.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || migration.value.ownerApplicationId !== profile.application.id || migration.value.sourceRevision !== intent.sourceRevision || migration.value.manifestSha256 !== intent.migrationManifestSha256 || migration.value.status !== 'PASS' || migration.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && migration.value.productionData?.status !== 'PASS'))) fail('MIGRATION_RECEIPT_INVALID')
@@ -1146,8 +1122,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       await transport.removeCandidateTag({ profile, tag: deterministicTag, candidateRevision: deterministicRevision, expectedActiveRevision: activeRevision, deadlineAt: intent.deadlineAt })
     }
   }
-  const rollback = await writeStage(transport, paths, profile, intent, 'rollback', entrypoint?.ref ?? candidate?.ref ?? migrationAdmission?.ref ?? migration?.ref ?? null, { result: disposition, previousRevision: rollbackRevision, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'], entrypointRecovery, databaseDisposition, failurePolicy, ...migrationEvidence, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) })
-  const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref, facts: { result: disposition, previousRevision: rollbackRevision, entrypointRecovery, databaseDisposition, failurePolicy, ...migrationEvidence, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) }, observedAt: transport.now() })
+  const rollback = await writeStage(transport, paths, profile, intent, 'rollback', entrypoint?.ref ?? candidate?.ref ?? migrationAdmission?.ref ?? migration?.ref ?? null, { result: disposition, previousRevision: rollbackRevision, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'], entrypointRecovery, databaseDisposition, failureSignal, ...migrationEvidence, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) })
+  const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref, facts: { result: disposition, previousRevision: rollbackRevision, entrypointRecovery, databaseDisposition, failureSignal, ...migrationEvidence, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) }, observedAt: transport.now() })
   const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   await transport.publishIncident(profile, { correlationId: `${intent.releaseId}-${environment.GITHUB_RUN_ATTEMPT ?? '1'}`, ownerApplicationId: profile.application.id, sourceLockSha256: intent.sourceLockRef.sha256, eventRef: terminalResult.ref, occurredAt: transport.now() })
   await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate?.value?.facts ?? null, state: 'FINALIZED', result: disposition, environment })
