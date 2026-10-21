@@ -164,7 +164,7 @@ export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundat
   const controllerPrefix = `${profile.artifact.uri.slice(0, profile.artifact.uri.lastIndexOf('/'))}/`
   const migrationWorkflowRef = `${profile.application.repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/${profile.application.branch}`
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || !H40.test(sourceLock.sourceRevision ?? '')
-    || existingInfra?.schemaVersion !== 'jenfu.dev012.app-infra-receipt.v1' || existingInfra.ownerApplicationId !== profile.application.id || existingInfra.projectId !== profile.target.projectId || existingInfra.region !== profile.target.region
+    || !['jenfu.dev012.app-infra-receipt.v1', 'jenfu.dev012.app-infra-receipt.v2'].includes(existingInfra?.schemaVersion) || existingInfra.ownerApplicationId !== profile.application.id || existingInfra.projectId !== profile.target.projectId || existingInfra.region !== profile.target.region
     || existingInfra.status !== 'APPLIED' || existingInfra.releaseAuthority !== true || existingInfra.evidenceScope !== 'PRODUCTION_PROVIDER' || existingInfra.receiptSha256 !== sha256(canonicalize(core))
     || existingInfra.sourceRevision === sourceLock.sourceRevision || !H40.test(existingInfra.sourceRevision ?? '')
     || existingInfra.foundationManifestSha256 !== foundation?.foundationManifestSha256
