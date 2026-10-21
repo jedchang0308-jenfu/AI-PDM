@@ -366,7 +366,7 @@ test('S1B-20 AI-PDM single-capsule workflow and mutation masks', () => {
   assert.throws(() => buildDev117Mutation({ operation: 'ACTIVATE', service: 'ai-pdm-prod', updateMask: 'template,traffic', revision: 'latest', trafficPercent: 100, etag: 'e' }), /target invalid|traffic-only/)
 })
 
-test('S1B-20 principal migration workflow stops before candidate and uses exact owner identities', () => {
+test('S1B-20 principal workflow keeps ordinary migration bounded and admits only applied continuation completion', () => {
   const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
   const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
@@ -377,7 +377,7 @@ test('S1B-20 principal migration workflow stops before candidate and uses exact 
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })
 
-test('S1B-20 migration-only GitHub source authority is limited to prepare/build/migrate', () => {
+test('S1B-20 principal workflow completes only an explicit applied-migration continuation', () => {
   const intent = { sourceRevision: 'a'.repeat(40) }
   const environment = {
     GITHUB_ACTIONS: 'true', ACTIONS_ID_TOKEN_REQUEST_URL: 'https://token.actions.example', GOOGLE_OAUTH_ACCESS_TOKEN: 'x'.repeat(32),
@@ -393,6 +393,12 @@ test('S1B-20 migration-only GitHub source authority is limited to prepare/build/
   for (const stage of ['candidate', 'activate', 'finalize']) {
     assert.throws(() => assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
   }
+  const continuationIntent = { ...intent, appliedMigrationContinuation: {} }
+  const continuationEnvironment = { ...environment, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }
+  for (const stage of ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback']) {
+    assert.equal(assertProtectedGitHubContext(profile, continuationIntent, continuationEnvironment, { stage, migrationOnlyWorkflowPath }), true)
+  }
+  assert.throws(() => assertProtectedGitHubContext(profile, continuationIntent, environment, { stage: 'candidate', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
   assert.throws(() => assertProtectedGitHubContext(profile, intent, { ...environment, GITHUB_SHA: 'b'.repeat(40) }, { stage: 'prepare', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
   const mainWorkflow = { ...environment, GITHUB_WORKFLOW_REF: `${profile.application.repository}/${profile.workflow.path}@refs/heads/main` }
   assert.equal(assertProtectedGitHubContext(profile, intent, mainWorkflow, { stage: 'candidate', migrationOnlyWorkflowPath }), true)

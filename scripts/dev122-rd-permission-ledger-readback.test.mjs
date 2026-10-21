@@ -102,6 +102,7 @@ test('RD02 intent binds exact source, provider Job etag/template, runner and thr
   assert.equal(rdReadbackJobSourceRevision(job()), runnerSourceRevision)
   assert.equal(classifyRdReadbackCapsule(value), 'rd_readback')
   assert.equal(classifyRdReadbackCapsule({ schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2' }), 'release')
+  assert.equal(classifyRdReadbackCapsule({ schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2', appliedMigrationContinuation: {} }), 'applied_release')
   for (const mutate of [
     (row) => { row.workflowSourceRevision = 'f'.repeat(40) },
     (row) => { row.runnerSourceRevision = 'f'.repeat(40) },
@@ -233,7 +234,7 @@ test('RD06a immutable Job, execution and result receipts reject drift and retain
   assert.throws(() => assertRdReadbackResultRef({ ...resultRef, uri: resultRef.uri.replace('ledger-readback-result', 'alias') }, result), { code: 'RD_READBACK_RESULT_REF_INVALID' })
 })
 
-test('RD07 owner path reads back unknown submissions and cannot reach service, traffic, IAM, Secret, worker or Scheduler mutations', () => {
+test('RD07 readback stays read-only while the same protected workflow confines service stages to applied continuation', () => {
   assert.equal(typeof rdLedgerReadbackMain, 'function')
   const source = fs.readFileSync(new URL('./dev122-rd-permission-ledger-readback.mjs', import.meta.url), 'utf8')
   const workflow = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
@@ -242,7 +243,13 @@ test('RD07 owner path reads back unknown submissions and cannot reach service, t
   assert.match(source, /if \(error\?\.code !== 'OUTCOME_UNKNOWN'\) throw error/u)
   assert.match(source, /inventory = await listExecutions\(transport\)[\s\S]*matches = inventory\.filter\(match\)/u)
   assert.doesNotMatch(source, /createCandidate|configureEntrypoint|setTraffic|activatePrincipalOnly|restoreEntrypoint|worker|scheduler|secretmanager|iam\.googleapis/iu)
-  assert.deepEqual([...workflow.matchAll(/^      - name: Execute (prepare|build|migrate|RD ledger readback)$/gmu)].map((row) => row[1]), ['prepare', 'build', 'migrate', 'RD ledger readback'])
+  assert.deepEqual([...workflow.matchAll(/--stage (prepare|build|migrate|candidate|entrypoint|verify|decision|activate|canonical|finalize|rollback) --capsule-ref/gmu)].map((row) => row[1]),
+    ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
+  assert.match(workflow, /name: Execute RD ledger readback\r?\n        if: \$\{\{ steps\.classify\.outputs\.kind == 'rd_readback' \}\}/u)
+  for (const stage of ['candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) {
+    assert.match(workflow, new RegExp(`name: Execute ${stage}\\r?\\n        if: \\$\\{\\{ steps\\.classify\\.outputs\\.kind == 'applied_release' \\}\\}`, 'u'))
+  }
+  assert.match(workflow, /name: Recover applied-continuation release failure\r?\n        if: \$\{\{ failure\(\) && steps\.classify\.outputs\.kind == 'applied_release'/u)
   assert.equal((workflow.match(/releaseCapsuleRef:/gu) ?? []).length, 1)
   assert.doesNotMatch(workflow, /--stage publish|--release-id|--deadline-at/iu)
 })

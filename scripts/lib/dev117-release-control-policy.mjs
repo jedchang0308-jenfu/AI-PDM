@@ -149,14 +149,8 @@ export function evaluateRepeatedFailure(history = [], currentCode) {
     family,
     occurrences,
     limit: 2,
-    action: occurrences >= 2 ? 'STOP_FOR_COMMON_MECHANISM' : 'CONTINUE',
+    action: occurrences >= 2 ? 'TRIGGER_AI_COO_REVIEW' : 'CONTINUE',
   }
-}
-
-export function assertFailureRetryAllowed({ history = [], currentCode } = {}) {
-  const decision = evaluateRepeatedFailure(history, currentCode)
-  if (decision.action === 'STOP_FOR_COMMON_MECHANISM') fail('RELEASE_COMMON_MECHANISM_STOP', `${decision.family}:${decision.occurrences}`)
-  return decision
 }
 
 export function specialIntentFields() {

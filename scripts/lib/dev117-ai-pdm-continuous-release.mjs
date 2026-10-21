@@ -264,9 +264,12 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const jobs = [...source.matchAll(/^  ([a-z][a-z-]+):\s*$/gm)].map((match) => match[1])
   const stages = [...source.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
   const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
+  const releaseOrApplied = "if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}"
+  const appliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
+  const rollbackOnly = "if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}"
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
-      JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
+      JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback']) ||
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
       (source.match(/^      - run:/gm) ?? []).length !== 1 ||
       source.includes('test:production-slice:affected') ||
@@ -275,16 +278,49 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||
       !source.includes('cancel-in-progress: false') ||
+      !source.includes('PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: "true"') ||
       !source.includes("if: ${{ steps.classify.outputs.kind == 'rd_readback' }}") ||
-      (source.match(/if: \$\{\{ steps\.classify\.outputs\.kind == 'release' \}\}/gu) ?? []).length !== 4 ||
+      source.split(releaseOrApplied).length - 1 !== 4 ||
+      source.split(appliedOnly).length - 1 !== 13 ||
+      source.split(rollbackOnly).length - 1 !== 3 ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"') ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
       /dev122-rd-permission-ledger-readback\.mjs --stage publish|--release-id|--deadline-at/iu.test(source) ||
       source.includes('continue-on-error:') ||
-      /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Migration-only workflow must stop after migrate')
-  for (const [step, identity] of [['verifier_auth', 'verifier'], ['builder_auth', 'builder'], ['deployer_auth', 'deployer']]) {
-    if (!source.includes(`- id: ${step}`) || !source.includes(`service_account: aipdm-prod-${identity}@jenfu-platform-prod.iam.gserviceaccount.com`) ||
-        !source.includes(`GOOGLE_OAUTH_ACCESS_TOKEN: "\${{ steps.${step}.outputs.access_token }}"`)) fail('MIGRATION_ONLY_IDENTITY_DRIFT', step)
+      /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Special workflow route drifted')
+  const identities = [
+    ['verifier_auth', 'verifier'], ['builder_auth', 'builder'], ['deployer_auth', 'deployer'],
+    ['candidate_deployer_auth', 'deployer'], ['candidate_builder_read_auth', 'builder'], ['candidate_verifier_auth', 'verifier'],
+    ['activation_deployer_auth', 'deployer'], ['activation_builder_read_auth', 'builder'], ['activation_verifier_auth', 'verifier'],
+    ['rollback_deployer_auth', 'deployer'], ['rollback_builder_read_auth', 'builder'],
+  ]
+  const stepBlocks = source.split(/\r?\n      - /u).slice(1).map((value) => `\n      - ${value}`)
+  for (const [step, identity] of identities) {
+    const matches = stepBlocks.filter((value) => value.startsWith(`\n      - id: ${step}\n`) || value.startsWith(`\n      - id: ${step}\r\n`))
+    const block = matches.length === 1 ? matches[0] : ''
+    if (!block.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}') ||
+        !block.includes('service_account: aipdm-prod-' + identity + '@jenfu-platform-prod.iam.gserviceaccount.com') ||
+        !block.includes('token_format: access_token') || !block.includes('create_credentials_file: false') ||
+        !block.includes('export_environment_variables: false')) fail('MIGRATION_ONLY_IDENTITY_DRIFT', step)
+  }
+  const stageBindings = [
+    ['prepare', 'steps.verifier_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"', 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"']],
+    ['build', 'steps.builder_auth', ['AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"']],
+    ['migrate', 'steps.deployer_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"']],
+    ['candidate', 'steps.candidate_deployer_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"']],
+    ['entrypoint', 'steps.candidate_deployer_auth', []],
+    ['verify', 'steps.candidate_verifier_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"', 'DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:', 'DEV012_AIPDM_FIREBASE_API_KEY:']],
+    ['decision', 'steps.candidate_verifier_auth', []],
+    ['activate', 'steps.activation_deployer_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"']],
+    ['canonical', 'steps.activation_verifier_auth', ['DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:', 'DEV012_AIPDM_FIREBASE_API_KEY:']],
+    ['finalize', 'steps.activation_deployer_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"']],
+    ['rollback', 'steps.rollback_deployer_auth', ['AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.rollback_builder_read_auth.outputs.access_token }}"', 'PDM_RELEASE_FAILURE_CODE:']],
+  ]
+  for (const [stage, tokenStep, required] of stageBindings) {
+    const matches = stepBlocks.filter((value) => value.includes(`run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage ${stage} `))
+    const block = matches.length === 1 ? matches[0] : ''
+    const tokenLine = 'GOOGLE_OAUTH_ACCESS_TOKEN: "${{ ' + tokenStep + '.outputs.access_token }}"'
+    if (!block.includes(tokenLine) || required.some((line) => !block.includes(line))) fail('MIGRATION_ONLY_IDENTITY_DRIFT', stage)
   }
   const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}' || assertion.workflow_ref == '${local.github_rd_permission_readback_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
   const observedCondition = workloadIdentitySource.match(/^  attribute_condition = "([^"]+)"$/m)?.[1]

@@ -77,7 +77,10 @@ export function assertImmutableRef(value, bucket, prefixes = ['receipts']) {
 export function assertProtectedGitHubContext(profile, intent, environment, { stage = null, migrationOnlyWorkflowPath = null } = {}) {
   const expectedRef = `refs/heads/${profile.application.branch}`
   const expectedWorkflowRef = `${profile.application.repository}/${profile.workflow.path}@${expectedRef}`
-  const migrationOnlyRef = migrationOnlyWorkflowPath && ['prepare', 'build', 'migrate'].includes(stage)
+  const appliedContinuationRelease = environment.PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE === 'true' &&
+    Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')
+  const migrationOnlyRef = migrationOnlyWorkflowPath &&
+    (['prepare', 'build', 'migrate'].includes(stage) || appliedContinuationRelease)
     ? `${profile.application.repository}/${migrationOnlyWorkflowPath}@${expectedRef}` : null
   const workflowAllowed = environment.GITHUB_WORKFLOW_REF === expectedWorkflowRef ||
     (migrationOnlyRef !== null && environment.GITHUB_WORKFLOW_REF === migrationOnlyRef)

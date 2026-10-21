@@ -213,7 +213,9 @@ export function assertRdReadbackGitHubContext(intent, environment, root, profile
 
 export function classifyRdReadbackCapsule(value) {
   if (value?.schemaVersion === RD_LEDGER_READBACK_SCHEMA) { assertRdLedgerReadbackIntent(value); return 'rd_readback' }
-  if (value?.schemaVersion === 'jenfu.dev117.ai-pdm-release-intent.v2') return 'release'
+  if (value?.schemaVersion === 'jenfu.dev117.ai-pdm-release-intent.v2') {
+    return Object.hasOwn(value, 'appliedMigrationContinuation') ? 'applied_release' : 'release'
+  }
   fail('RD_READBACK_CAPSULE_TYPE_INVALID')
 }
 
