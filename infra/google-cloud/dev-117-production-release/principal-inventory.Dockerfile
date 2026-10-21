@@ -17,7 +17,10 @@ COPY scripts/lib/dev121-principal-only-apply.mjs scripts/lib/dev121-principal-on
 COPY scripts/lib/dev121-principal-only-source-receipt.mjs scripts/lib/dev121-principal-only-source-receipt.mjs
 COPY scripts/lib/dev121-principal-only-release.mjs scripts/lib/dev121-principal-only-release.mjs
 COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
+COPY scripts/lib/dev122-rd-permission-ledger-readback.mjs scripts/lib/dev122-rd-permission-ledger-readback.mjs
+COPY scripts/lib/dev122-source-authority.mjs scripts/lib/dev122-source-authority.mjs
 COPY scripts/lib/dev122-openswx-dispatch-recovery.mjs scripts/lib/dev122-openswx-dispatch-recovery.mjs
+COPY scripts/lib/dev122-applied-migration-continuation.mjs scripts/lib/dev122-applied-migration-continuation.mjs
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-inventory-runner.mjs scripts/dev121-production-principal-inventory-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
