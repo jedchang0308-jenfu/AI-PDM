@@ -14,6 +14,7 @@ import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { assertUnlinkedProfileCleanupRef } from './dev121-unlinked-profile-cleanup.mjs'
 import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
+import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
@@ -30,6 +31,12 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (value?.principalOnlyFenceRef) expected.push('principalOnlyFenceRef')
   if (value?.principalOnlyRecovery) expected.push('principalOnlyRecovery')
   if (value?.postAbortLedgerReadbackRef) expected.push('postAbortLedgerReadbackRef')
+  if (Object.hasOwn(value ?? {}, 'appliedMigrationContinuation')) {
+    expected.push('appliedMigrationContinuation')
+    assertAppliedMigrationContinuation(value.appliedMigrationContinuation, profile.artifact.releaseBucket)
+    if (!value.openswxWorkerRef || !value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
+        value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_INVALID', 'Applied migration continuation requires reconciled paused repair')
+  }
   if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
   if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) expected.push('programOnlyBaseline')
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanupRef')) {
