@@ -327,7 +327,7 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
     const tokenLine = 'GOOGLE_OAUTH_ACCESS_TOKEN: "${{ ' + tokenStep + '.outputs.access_token }}"'
     if (!block.includes(tokenLine) || required.some((line) => !block.includes(line))) fail('MIGRATION_ONLY_IDENTITY_DRIFT', stage)
   }
-  const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}' || assertion.workflow_ref == '${local.github_rd_permission_readback_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
+  const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_rd_permission_readback_ref}' || ((assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}') && assertion.environment == 'production')) && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
   const observedCondition = workloadIdentitySource.match(/^  attribute_condition = "([^"]+)"$/m)?.[1]
   if (observedCondition !== expectedCondition) fail('MIGRATION_ONLY_WIF_DRIFT', 'Migration-only workflow WIF binding drifted')
   return true
