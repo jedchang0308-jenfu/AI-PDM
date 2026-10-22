@@ -252,6 +252,8 @@ test('stable diagnostic binder routes the closed OpenSWX recovery namespace to t
 
 test('stable workflow keeps readonly diagnostics approval-free and retains production approval for recovery', () => {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/read-ai-pdm-rd-permission-state-production.yml'), 'utf8')
+  assert.match(workflow, /WIF_PROVIDER: projects\/9536592944\/locations\/global\/workloadIdentityPools\/jenfu-prod-release\/providers\/aipdm-github/u)
+  assert.doesNotMatch(workflow, /vars\.AIPDM_PROD_WIF_PROVIDER/u)
   assert.match(workflow, /id: verifier_auth\s+if: steps.bind.outputs.kind == 'service-state'/u)
   assert.match(workflow, /id: deployer_auth\s+if: steps.bind.outputs.kind == 'rd-permission-state'/u)
   assert.match(workflow, /service_account: aipdm-prod-verifier@/u)

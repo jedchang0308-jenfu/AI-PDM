@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
+  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/jenfu-prod-release/providers/aipdm-github
 
 jobs:
   inspect:
