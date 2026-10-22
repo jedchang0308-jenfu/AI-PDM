@@ -19,9 +19,12 @@ export function createWifAppliedContinuationRefreshTransport({
   createTransport = createOwnerTransport,
 }) {
   return createAppliedContinuationRefreshTransport({
-    verifier: createTransport({ token: verifierToken, builderReadbackToken: builderToken }),
+    verifier: createTransport({
+      token: verifierToken,
+      builderReadbackToken: builderToken,
+      migrationExecutionReadbackToken: deployerToken,
+    }),
     builder: createTransport({ token: builderToken, builderReadbackToken: null }),
-    deployer: createTransport({ token: deployerToken, builderReadbackToken: null }),
   })
 }
 

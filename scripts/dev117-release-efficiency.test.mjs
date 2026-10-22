@@ -327,7 +327,7 @@ test('full gate expands every existing test without npm shell injection or omiss
   assert.throws(() => fullContinuousGroups(script + ' && echo unsafe'), /COMMAND_INVALID/u)
 })
 
-test('deleted/renamed release inputs cannot disappear into a documentation-only plan', t => {
+test('deleted/renamed release inputs retain their classified release-control gate', t => {
   const { directory } = checkpointFixture(t)
   const git = (...args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8', windowsHide: true })
   git('init', '--quiet')
@@ -350,6 +350,8 @@ test('deleted/renamed release inputs cannot disappear into a documentation-only 
     if (previousHead === undefined) delete process.env.PDM_SLICE_HEAD_SHA
     else process.env.PDM_SLICE_HEAD_SHA = previousHead
   }
-  assert.equal(plan.classification, 'FULL')
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.equal(plan.gates.releaseCore, true)
+  assert.equal(plan.gates.application, false)
   assert.ok(plan.files.includes('scripts/dev012-example.mjs'))
 })

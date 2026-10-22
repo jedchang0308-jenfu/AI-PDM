@@ -72,6 +72,7 @@ const APPLICATION = [
   /^public\//u,
   /^next\.config\./u,
   /^tsconfig(?:\..+)?\.json$/u,
+  /^(?:Dockerfile|\.dockerignore|package(?:-lock)?\.json)$/u,
 ]
 
 const DOCUMENTATION = [
@@ -121,25 +122,31 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
 
   const slices = SLICE_ORDER.filter(slice => reasons[slice].length > 0)
   const has = slice => slices.includes(slice)
-  const full = has('release-control') || has('unknown')
+  const full = has('unknown')
+  const releaseControlAffected = has('release-control')
   const docsOnly = !full && slices.length === 1 && has('documentation')
   const databaseAffected = full || has('database')
+  const applicationAffected = full || has('application') || has('authorization') || has('preview') || has('recognition')
+  const abortControllerAffected = full || files.some(file => file.startsWith('tools/dev-117/abort-controller/'))
   const gates = {
     planner: true,
     full,
     documentation: docsOnly,
-    application: full || has('application') || has('authorization') || has('preview') || has('recognition'),
+    application: applicationAffected,
     authorization: full || has('authorization'),
     database: databaseAffected,
     preview: full || has('preview'),
     recognition: full || has('recognition'),
     worker: full || has('worker'),
     infrastructure: full || has('infrastructure'),
-    releaseCore: databaseAffected || has('worker') || has('infrastructure'),
+    releaseCore: full || releaseControlAffected || databaseAffected || has('worker') || has('infrastructure'),
+    abortController: abortControllerAffected,
+    dependencyAudit: full || files.some(file => /^(?:Dockerfile|package(?:-lock)?\.json)$/u.test(file)),
+    lint: full || applicationAffected,
     dbBoundary: databaseAffected,
     nativePostgres: databaseAffected,
     migration: databaseAffected,
-    isolatedBuild: full || has('application') || has('authorization') || has('preview') || has('recognition'),
+    isolatedBuild: applicationAffected,
     desktopUi: full || has('application') || has('preview') || has('recognition'),
   }
   const releasePhases = docsOnly
@@ -153,11 +160,11 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
         ...(gates.preview ? ['version-bytes-desktop'] : []),
         ...(gates.worker ? ['job-terminal-cleanup'] : []),
         ...(gates.desktopUi && !gates.preview ? ['focused-behavior-desktop'] : []),
-        ...(gates.full || gates.infrastructure ? ['source-image-revision-traffic-rollback'] : []),
+        ...(gates.releaseCore || gates.infrastructure ? ['source-image-revision-traffic-rollback'] : []),
       ]
 
   return {
-    schemaVersion: 'aipdm.production-slice-plan.v2',
+    schemaVersion: 'aipdm.production-slice-plan.v3',
     baseRevision,
     headRevision,
     classification: full ? 'FULL' : docsOnly ? 'DOCUMENTATION_ONLY' : 'AFFECTED_SLICES',

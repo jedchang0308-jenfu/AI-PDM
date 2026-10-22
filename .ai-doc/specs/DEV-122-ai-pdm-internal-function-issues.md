@@ -99,6 +99,10 @@ PR #432／#433 後的 C110 與 diagnostics 證據已證明：migration 085 `APPL
 
 PR #437已以exact main `1614054e08fbe6274c6a76070c9ef1f0a07516ff`合併，merge-main required CI run `39726772045`兩項required checks均SUCCESS。正式run `39727734796`已越過builder provider-proof讀取，接著在refresh真實pre-activation continuation路徑以`transport.readOwnerRun is not a function`停止；effective capsule selection與所有owner release stages均skipped，沒有Job／DB／service／traffic mutation。根因不是新的IAM或RD產品邏輯，而是refresh facade逐方法手寫角色路由時漏掉既有唯讀介面，且原focused producer stub與不完整PAUSED fixture未重現`routine-authority → readPreActivationAbortContinuation`。corrective將整份refresh介面收斂為單一、建構時fail-fast的角色映射，`readOwnerRun`固定由verifier執行，builder仍只寫immutable evidence、deployer仍只執行provider request；並以真實routine-authority failed-control fixture及完整route-map回歸封住同族逃逸。085維持已套用且不得重送；本修正尚待protected PR／required CI／fresh owner continuation及專用測試actor UI／API正負驗收，RD production acceptance與DEV-122原7 issues／29 groups仍為`NOT_ACCEPTED`。
 
+PR #438 已以 exact main `78cdd4da82cbce04042076ba3761bfb56f54ee78` 合併，exact-main required CI run `39732218893` 兩項 required checks 均 SUCCESS。正式 run `39733602118` 通過 `readOwnerRun` 後，在 capsule refresh 以 raw `DENIED:403` 停止；所有 effective capsule 與 owner release stages 均 skipped，沒有 migration 085 重送、Job／DB／service／traffic mutation。raw provider 錯誤與可達呼叫鏈、repo IAM 及正式 prepare 的既有分流共同證明：refresh 把 Cloud Build list 錯送 deployer；該 read 應由 verifier，只有 exact migration Job／Execution read 應切 deployer。corrective 改為直接重用 verifier-primary + exact migration readback token 的共同 transport，保留 builder secondary proof 與 builder-only immutable writes，並刪除無獨立責任的 deployer transport instance；不新增 IAM、Secret、workflow、writer或平行 gate。正式發布須待 protected PR／required CI 後從 C110 continuation 續接；專用測試 actor UI／API 正負驗收與 DEV-122 原 7 issues／29 groups仍為 `NOT_ACCEPTED`。
+
+同一切片的治理根因亦已收斂：舊 planner 將任何 release-control 變更視為跨產品 `FULL`，CI 再把 release-core 與 infrastructure、business storage、preview worker、Principal smoke、dependency audit、lint、DB與app build綁定。v3只有unknown path保留完整fail-closed；已分類release-control只驗source／receipt／續跑／provider routing／recovery，其他責任按實際changed path選擇。舊完整回歸466／466與abort 6／6保存為舊來源真實證據；新實際plan只選planner＋release-core，fresh 214／214 PASS（evidence SHA `ab1fd9c30d5740cb9201cf05ed7002d902960740f896ab5c39a90f2c8bcc3434`），未選gates不執行且其獨立缺陷改列各自修復，不阻擋或冒充本RD切片結果。required CI、來源保護、provider readback與正式rollback能力維持不變。
+
 ### Release source authority 與 artifact transport 分離
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app 與 worker 可由不同 OS、tar 或 gzip 實作產生來源物件；archive SHA、generation 與 CRC32C 只驗各自上傳物件，不得跨 build、attempt 或 descriptor 決定 source identity。worker artifact 另由逐檔 input manifest、effective recipe、provider build identity 與 image digest 驗證。
@@ -129,7 +133,9 @@ Reader 能否讀取已准入 revision、requested revision 應採 current 或 hi
 | database／lifecycle | DB boundary、forward-only migration、native PostgreSQL、交易／rollback | 未受影響 worker／preview 歷史 |
 | preview／file | current-version binding、bytes／hash、terminal job、桌面可讀性 | 授權或 DB 全套；除非路徑也受影響 |
 | worker | job claim／complete、terminal、bytes、來源與 cleanup | 一般 UI 全套 |
-| infrastructure／release-control／unknown | protected full gate | 無 |
+| infrastructure | IaC／resource contract及其protected gate | 未受影響產品與release-control歷史 |
+| release-control | source／receipt／續跑／provider routing／recovery的release-core gate | app、DB、worker、preview、recognition、infrastructure、abort、audit、lint、build；除非該責任也有變更 |
+| unknown | protected full fallback | 無 |
 
 授權程式碼不再因「authorization」分類自動觸發資料庫檢查；只有實際資料庫責任路徑才啟用 `database`、`dbBoundary`、`nativePostgres` 與 `migration`。
 

@@ -37,11 +37,11 @@ export const APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES = Object.freeze({
   now: 'verifier',
   putBytes: 'builder',
   putJson: 'builder',
-  request: 'deployer',
+  request: 'verifier',
 })
 
-export function createAppliedContinuationRefreshTransport({ verifier, builder, deployer }) {
-  const roles = { verifier, builder, deployer }
+export function createAppliedContinuationRefreshTransport({ verifier, builder }) {
+  const roles = { verifier, builder }
   if (Object.values(roles).some(value => !value)) fail('APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID')
   const routes = Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES).map(([method, role]) => {
     const source = roles[role]

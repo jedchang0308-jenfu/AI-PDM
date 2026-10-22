@@ -318,7 +318,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
   const read = (url, options) => fetchProviderRead(url, options, { fetchImpl, sleep })
 
   async function request(url, options = {}) {
-    const migrationRead = migrationExecutionReadbackToken !== null && isAiPdmMigrationExecutionListGet(url, options)
+    const migrationRead = migrationExecutionReadbackToken !== null && isAiPdmMigrationProviderRead(url, options)
     const headers = migrationRead ? { ...(options.headers ?? {}), authorization: `Bearer ${migrationExecutionReadbackToken}` } : { ...authHeaders, ...(options.headers ?? {}) }
     let response
     try {
@@ -1321,7 +1321,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
 
 // The existing deployer's exact-job viewer is borrowed only for fixed Job, Execution and inventory GETs.
 // Its token never authorizes generic requests, executions.run, or receipt writes.
-function isAiPdmMigrationExecutionListGet(url, options) {
+function isAiPdmMigrationProviderRead(url, options = {}) {
   if (typeof url !== 'string' || (options.method ?? 'GET') !== 'GET' || options.body != null) return false
   let parsed
   try { parsed = new URL(url) } catch { return false }
