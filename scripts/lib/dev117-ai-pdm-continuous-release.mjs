@@ -34,8 +34,8 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (Object.hasOwn(value ?? {}, 'appliedMigrationContinuation')) {
     expected.push('appliedMigrationContinuation')
     assertAppliedMigrationContinuation(value.appliedMigrationContinuation, profile.artifact.releaseBucket)
-    if (!value.openswxWorkerRef || !value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
-        value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_INVALID', 'Applied migration continuation requires reconciled paused repair')
+    if (!value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
+        value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_INVALID', 'Applied migration continuation requires reconciled migration authority')
   }
   if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
   if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) expected.push('programOnlyBaseline')

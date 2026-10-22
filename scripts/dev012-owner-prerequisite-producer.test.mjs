@@ -273,7 +273,7 @@ test('AI-PDM intent producer preserves the migration fence and maintenance recov
   ]) assert.throws(() => produce(changed))
 })
 
-test('AI-PDM intent producer admits reconciled abort evidence for the exact paused-repair worker and rejects an incomplete mix', () => {
+test('AI-PDM intent producer admits reconciled migration evidence independently of its retained worker binding', () => {
   const bucket = 'jenfu-platform-prod-aipdm-release'
   const p = { ...profile, application: { ...profile.application, id: 'ai-pdm' },
     artifact: { ...profile.artifact, releaseBucket: bucket }, schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2' },
@@ -314,9 +314,17 @@ test('AI-PDM intent producer admits reconciled abort evidence for the exact paus
   assert.deepEqual(produce({ appliedMigrationContinuation }).appliedMigrationContinuation, appliedMigrationContinuation)
   const aliased = structuredClone(appliedMigrationContinuation); aliased.migrateRef.uri = aliased.migrateRef.uri.replace('/migrate.json', '/../migrate.json')
   assert.throws(() => produce({ appliedMigrationContinuation: aliased }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
-  assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
+  assert.deepEqual(buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
     sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
-    workerDescriptor: { ...descriptor, releaseVariant: 'ORDINARY' } }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
+    workerDescriptor: { ...descriptor, releaseVariant: 'ORDINARY' } }).appliedMigrationContinuation, appliedMigrationContinuation)
+  const workerlessInput = { ...input, appliedMigrationContinuation }; delete workerlessInput.openswxWorkerRef
+  const workerlessRuntime = buildRuntimeConfigReceipt({ profile: p, releaseId: 'REL-001', sourceLock: lock,
+    plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '0' },
+    secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, observedAt: NOW })
+  const workerless = buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: workerlessInput,
+    sourceLock: lock, prerequisiteValues: { ...values, runtimeConfig: workerlessRuntime }, validateIntent: assertDev117ReleaseIntent })
+  assert.equal(Object.hasOwn(workerless, 'openswxWorkerRef'), false)
+  assert.deepEqual(workerless.appliedMigrationContinuation, appliedMigrationContinuation)
   for (const missing of ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']) {
     const changed = { ...input, appliedMigrationContinuation }; delete changed[missing]
     assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: changed,

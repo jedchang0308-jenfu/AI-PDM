@@ -1,3 +1,11 @@
+## DEV-121#rd-capabilities — 2026-10-22 applied migration 證據隔離
+
+PR #444 exact main的正式續跑在prepare因完整owner proof遞迴進入無關OpenSWX歷史而停止；corrective以migration-only source／receipt／runner／ledger／recovery reader取代該依賴，existing worker binding只被動帶過，workerless continuation亦可成立。planner僅選documentation＋database＋release-control；fresh 17／17、214／214、27／27與DB boundary PASS。OpenSWX自身修復改由DEV-124獨立追蹤，不阻擋RD，也不被RD結果改判PASS。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-22-applied-migration-證據隔離本地-affected-slice-pass待受保護交付)。
+
+## DEV-124 — OpenSWX worker 獨立修復（DEFERRED）
+
+worker descriptor、reader、profile／deadline、Secret IAM continuation、artifact reuse與recovery由本任務獨立驗收；不得成為RD catalog→085→grant→API→UI的前置條件。[任務](dev_task.md#dev-124--openswx-worker-獨立修復deferrednot_started不阻擋-rd)。
+
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
 C91 full35於SQL前因runner錯把current release source當retained fence source而拒絕；官方唯讀ledger readback證明仍為33且085未套用。corrective保留fence歷史provenance，僅由持有recovery authority的caller執行exact source join；current migration capsule／bundle、hash、service、MANUAL0、tag及writer守門不變。planner FULL、focused 76／76、continuous 430／430與required QC 483／483及尾端gates均PASS；protected merge、新exact-main runner/full35及專用測試RD actor驗收待完成。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-21-retained-migration-fence-source-model本地完整-gate-pass待受保護交付)。

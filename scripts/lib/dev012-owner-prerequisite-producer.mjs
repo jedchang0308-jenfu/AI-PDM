@@ -293,7 +293,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
       || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery) fail('POST_ABORT_LEDGER_READBACK_INVALID')
   }
   if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
-    if (workerDescriptor?.releaseVariant !== 'PAUSED_APP_REPAIR' || input.programOnlyBaseline || input.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+    if (input.programOnlyBaseline || input.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
     intent.appliedMigrationContinuation = structuredClone(assertAppliedMigrationContinuation(input.appliedMigrationContinuation, profile.artifact.releaseBucket))
   }
   const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
@@ -356,7 +356,14 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
   if (stage === 'runtime-config') {
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
     let openswxWorker = null, enabled = '0'
-    if (input.openswxWorkerRef) {
+    if (input.retainedOpenswxWorker) {
+      const retained = input.retainedOpenswxWorker
+      if (!input.openswxWorkerRef || canonicalize(Object.keys(retained).sort()) !== canonicalize(['descriptorRef', 'purpose', 'sourceRevision', 'workerProfileSha256'].sort())
+        || canonicalize(retained.descriptorRef) !== canonicalize(input.openswxWorkerRef) || retained.purpose !== 'full'
+        || !H40.test(retained.sourceRevision ?? '') || !H64.test(retained.workerProfileSha256 ?? '')) fail('OPENSWX_RUNTIME_BINDING_INVALID')
+      openswxWorker = structuredClone(retained)
+      enabled = '1'
+    } else if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
       const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: sourceLock.sourceRevision })
       if (descriptor.value.purpose === 'full') {
@@ -462,10 +469,15 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const prerequisiteValues = Object.fromEntries(rows)
     let workerDescriptor = null, workerProfile = null, workerEvidence = null
     if (input.openswxWorkerRef) {
-      if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
-      const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: prerequisiteValues.sourceLock.sourceRevision })
-      workerDescriptor = descriptor.value; workerProfile = descriptor.profile
-      if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') workerEvidence = await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
+      if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
+        workerDescriptor = prerequisiteValues.runtimeConfig?.runtimeConfig?.openswxWorker ?? prerequisiteValues.runtimeConfig?.openswxWorker
+        if (!workerDescriptor || canonicalize(workerDescriptor.descriptorRef) !== canonicalize(input.openswxWorkerRef)) fail('OPENSWX_RUNTIME_BINDING_INVALID')
+      } else {
+        if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
+        const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: prerequisiteValues.sourceLock.sourceRevision })
+        workerDescriptor = descriptor.value; workerProfile = descriptor.profile
+        if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') workerEvidence = await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
+      }
     }
     if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR') {
       try { assertReconciledRepairContinuation(input, workerEvidence?.artifact?.input, profile.artifact.releaseBucket) }
