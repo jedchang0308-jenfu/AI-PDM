@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   assertPrincipalOnlyRecoveryBinding,
+  assertHistoricalPrincipalOnlyRecoveryReadback,
   assertReconciledPrincipalAbortBinding,
   assertReconciledRepairContinuation,
   assertPrincipalOnlyRecoveryReadback,
@@ -55,6 +56,7 @@ test('Principal-only recovery is source-bound and distinct from the old security
   assert.equal(assertPrincipalOnlyRecoveryBinding(intent, bucket).revision, recovery)
   assert.equal(principalOnlyRollbackRevision(intent), recovery)
   assert.equal(principalOnlyRollbackRevision({ previousRevision: old }), old)
+  assert.equal(principalOnlyRollbackRevision({ ...intent, appliedMigrationContinuation: {} }), old)
   for (const broken of [
     { ...intent, principalOnlyFenceRef: undefined },
     { ...intent, principalOnlyRecovery: undefined },
@@ -63,6 +65,20 @@ test('Principal-only recovery is source-bound and distinct from the old security
     { ...intent, principalOnlyRecovery: { ...intent.principalOnlyRecovery,
       receiptRef: { ...intent.principalOnlyRecovery.receiptRef, uri: `gs://${bucket}/receipts/other.json` } } },
   ]) assert.throws(() => assertPrincipalOnlyRecoveryBinding(broken, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+})
+
+test('applied continuation keeps the recovery proof as history while current traffic stays authoritative', () => {
+  const current = 'ai-pdm-prod-current'
+  const historicalIntent = { ...intent, previousRevision: current, appliedMigrationContinuation: {} }
+  const currentTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: current, percent: 100 }
+  const currentService = { ...base, traffic: [currentTraffic], trafficStatuses: [currentTraffic] }
+  assert.equal(assertHistoricalPrincipalOnlyRecoveryReadback({ intent: historicalIntent,
+    profile, proof, service: currentService, revision }).revision, recovery)
+  assert.equal(principalOnlyRollbackRevision(historicalIntent), current)
+  assert.throws(() => assertPrincipalOnlyRecoveryReadback({ intent: historicalIntent,
+    profile, proof, service: currentService, revision }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+  assert.throws(() => assertHistoricalPrincipalOnlyRecoveryReadback({ intent,
+    profile, proof, service: currentService, revision }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
 test('reconciled abort evidence is continuation data and joins an exact paused-repair worker input', () => {

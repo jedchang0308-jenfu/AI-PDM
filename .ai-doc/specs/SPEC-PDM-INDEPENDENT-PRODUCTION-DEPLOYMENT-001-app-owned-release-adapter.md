@@ -611,6 +611,8 @@ owner CLI 將實際 stage error code寫入 GitHub job output；failure recovery 
 
 App source與 retained finite-worker source是分離的 artifact identity。舊 worker descriptor只有在其 revision 是 current exact main 的祖先，且已驗 manifest 中每個 worker input在 current main的bytes／size／SHA-256完全相同時才可沿用；runtime binding保留descriptor自己的source revision，app intent則綁current source lock。來源分歧、worker bytes漂移、profile不相容、缺 continuation、過期／畸形 ref或 provider readback不一致均須在新receipt或正式mutation前fail closed。新attempt只刷新attempt-owned deadline與receipts；不改寫舊receipt、不重建相同worker、不重送已套用migration，candidate／traffic與rollback仍走原executor。
 
+Applied-migration continuation 中的 Principal recovery receipt、fence 與 recovery revision 只保存 migration 當時的不可變歷史來源與撤離證明；它們不再代表目前 app runtime、traffic 或 rollback 權威。fresh intent 的 `previousRevision` 才是當次服務基線，deployment → migration-admission → candidate → entrypoint及後續 verify／decision／activate／canonical 必須逐段綁定該 revision、exact candidate 與 live provider traffic；失敗後的 rollback／terminal／control也必須記錄同一 `previousRevision`。只有既有已封存、candidate-null、`NOT_APPLIED` 的 prepare 前失敗形狀，可為相容舊收據保留 recovery revision，且該值不得授權 current traffic。已形成 `HISTORICAL_EVIDENCE_REUSED` candidate chain 的 `ROLLED_BACK` 續跑必由 applied-continuation reader 驗完整 chain 與 live current baseline，不得再送入 Principal-only forward-repair reader或回到歷史 MANUAL0 recovery revision。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

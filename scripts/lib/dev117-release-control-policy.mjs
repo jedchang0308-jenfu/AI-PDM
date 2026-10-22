@@ -47,6 +47,11 @@ export function requiresPrincipalOnlyMigrationFence(intent = {}) {
     !Object.hasOwn(intent, 'appliedMigrationContinuation')
 }
 
+export function requiresPrincipalOnlyRuntimeAuthority(intent = {}) {
+  return Boolean(intent.principalOnlyRecovery) &&
+    !Object.hasOwn(intent, 'appliedMigrationContinuation')
+}
+
 export function assertDailyReleaseMode({ mode, workflowRef = '', requiredWorkflowRef = null } = {}) {
   if (requiredWorkflowRef !== null && workflowRef !== requiredWorkflowRef) fail('DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID')
   const dailyWorkflow = requiredWorkflowRef !== null || /\/deploy-ai-pdm-independent-production\.yml@refs\/heads\/main$/u.test(String(workflowRef))

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildRuntimeConfig, canonicalize, createOwnerTransport, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
-import { executeOwnerStage, validatePrincipalRecoveryForPrepare } from './lib/dev012-owner-stage-executor.mjs'
+import { executeOwnerStage, requiresPrincipalOnlyForwardRepair, validatePrincipalRecoveryForPrepare } from './lib/dev012-owner-stage-executor.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
@@ -168,15 +168,17 @@ for (const watchdogRecovered of [false, true]) test(`owner Principal-only releas
     { ...original, principalOnlyRecovery, principalOnlyFenceRef: fence.ref }, { bucket, prefix: 'receipts' })
   const input = { ...a.input, capsuleRef: result.ref.uri, capsuleSha256: result.ref.sha256,
     verifyRoutineRelease: async () => ({ migrationDisposition: 'UNCHANGED_VERIFIED' }) }
-  await assert.doesNotReject(validatePrincipalRecoveryForPrepare({
-    intent: { ...original, principalOnlyRecovery, principalOnlyFenceRef: fence.ref, appliedMigrationContinuation: {} },
+  const currentRevision = 'ai-pdm-prod-current-abcdef123456'
+  const currentTraffic = [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: currentRevision, percent: 100 }]
+  assert.equal(await validatePrincipalRecoveryForPrepare({
+    intent: { ...original, previousRevision: currentRevision, principalOnlyRecovery, principalOnlyFenceRef: fence.ref, appliedMigrationContinuation: {} },
     profile: h.profile,
     transport: { ...h.transport, readBytes: async uri => {
       if (uri === fence.ref.uri) throw new Error('APPLIED_CONTINUATION_MUST_NOT_READ_HISTORICAL_FENCE')
       return h.transport.readBytes(uri)
     } },
-    service: await h.transport.getService(h.profile),
-  }))
+    service: { ...await h.transport.getService(h.profile), traffic: currentTraffic, trafficStatuses: currentTraffic },
+  }), null)
   const setTraffic = h.transport.setTraffic
   const trafficCalls = []
   h.transport.setTraffic = async (args) => { trafficCalls.push(args.revision); return setTraffic(args) }
@@ -391,7 +393,7 @@ test('applied continuation retry follows the active control after a later pre-ex
   assert.equal(h.calls.puts > 0,true)
 })
 
-test('applied continuation retry accepts one rolled-back candidate abort without reopening historical release evidence',async()=>{
+test('applied continuation retry accepts one current-baseline rollback after activation starts without reopening historical release evidence',async()=>{
   const h=await reconciledMigrationAbortFixture({principalOnly:true})
   const applied=addAppliedMigrationExecution(h)
   const continuation={...h.continuation,appliedMigrationContinuation:applied.binding}
@@ -401,15 +403,25 @@ test('applied continuation retry accepts one rolled-back candidate abort without
   const intent=failed.capsule.value, paths=releasePaths(h.profile,intent,failed.capsule.ref.sha256)
   const artifactDigest=`${h.profile.artifact.uri}@sha256:${'8'.repeat(64)}`
   const discarded='ai-pdm-prod-candidate-aborted'
-  const migration=h.put(paths.migrationAdmission,stageReceipt({profile:h.profile,intent,stage:'migrate',previousReceiptRef:{uri:paths.deployment,sha256:'7'.repeat(64)},facts:{
+  const deployment=h.put(paths.deployment,{schemaVersion:h.profile.schemas.deploymentCapsule,ownerApplicationId:'ai-pdm',
+    sourceRevision:intent.sourceRevision,artifactDigest,releaseIntentRef:failed.capsule.ref,
+    releaseIntentSha256:failed.capsule.ref.sha256,deadlineAt:intent.deadlineAt})
+  const migration=h.put(paths.migrationAdmission,stageReceipt({profile:h.profile,intent,stage:'migrate',previousReceiptRef:deployment.ref,facts:{
     disposition:'HISTORICAL_EVIDENCE_REUSED',manifestSha256:intent.migrationManifestSha256,
     migrationReceiptRef:applied.binding.migrateRef,sourceRevision:intent.sourceRevision},observedAt:'2026-10-03T12:00:00Z'}))
   const candidate=h.put(paths.candidate,stageReceipt({profile:h.profile,intent,stage:'candidate',previousReceiptRef:migration.ref,facts:{
     previousRevision:intent.previousRevision,beforeTraffic:[{revision:intent.previousRevision,percent:100}],candidateRevision:discarded,
-    artifactDigest,migrationAdmissionRef:migration.ref,migrationReceiptRef:applied.binding.migrateRef},observedAt:'2026-10-03T12:01:00Z'}))
+    artifactDigest,deploymentCapsuleRef:deployment.ref,migrationAdmissionRef:migration.ref,
+    migrationReceiptRef:applied.binding.migrateRef},observedAt:'2026-10-03T12:01:00Z'}))
   const entrypoint=h.put(paths.entrypoint,stageReceipt({profile:h.profile,intent,stage:'entrypoint',previousReceiptRef:candidate.ref,
-    facts:{changed:false},observedAt:'2026-10-03T12:02:00Z'}))
-  const rollbackFacts={result:'PRE_ACTIVATION_ABORTED',previousRevision:intent.principalOnlyRecovery.revision,
+    facts:{changed:false,canonicalOrigin:h.profile.target.canonicalOrigin},observedAt:'2026-10-03T12:02:00Z'}))
+  const verify=h.put(paths.verify,stageReceipt({profile:h.profile,intent,stage:'verify',previousReceiptRef:entrypoint.ref,
+    facts:{candidateReceiptRef:candidate.ref,entrypointReceiptRef:entrypoint.ref,candidateRevision:discarded,
+      artifactDigest,smoke:{status:'PASS'}},observedAt:'2026-10-03T12:02:10Z'}))
+  const decision=h.put(paths.decision,stageReceipt({profile:h.profile,intent,stage:'decision',previousReceiptRef:verify.ref,
+    facts:{verifyReceiptRef:verify.ref,decision:'GO',remainingHumanAction:0,candidateRevision:discarded,
+      artifactDigest},observedAt:'2026-10-03T12:02:20Z'}))
+  const rollbackFacts={result:'ROLLED_BACK',previousRevision:intent.previousRevision,
     recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{changed:false,result:'BASELINE_ALREADY_ACTIVE'},
     databaseDisposition:'HISTORICAL_EVIDENCE_REUSED',migrationAdmissionRef:migration.ref,migrationEvidenceRef:applied.binding.migrateRef,
     failureSignal:{code:'PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED',family:'PRINCIPAL'}}
@@ -423,14 +435,11 @@ test('applied continuation retry accepts one rolled-back candidate abort without
   const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:intent.releaseId,
     sourceRevision:intent.sourceRevision,releaseIntentSha256:failed.capsule.ref.sha256})),ownerApplicationId:'ai-pdm',service:'ai-pdm-prod',controlBucket:bucket,
     releaseId:intent.releaseId,sourceRevision:intent.sourceRevision,sourceLockSha256:intent.sourceLockRef.sha256,candidateRevision:discarded,
-    previousRevision:intent.principalOnlyRecovery.revision,ownerRunRef:`https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${failed.input.environment.GITHUB_RUN_ID}`,
-    leaseExpiresAt:'2026-10-03T11:59:00Z',deadlineAt:intent.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
+    previousRevision:intent.previousRevision,ownerRunRef:`https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${failed.input.environment.GITHUB_RUN_ID}`,
+    leaseExpiresAt:'2026-10-03T11:59:00Z',deadlineAt:intent.deadlineAt,state:'FINALIZED',result:'ROLLED_BACK'}
   h.put(`gs://${bucket}/control/active.json`,{...controlCore,controlSha256:sha256(canonicalize(controlCore))})
   h.ownerRun.id=failed.input.environment.GITHUB_RUN_ID
   h.ownerRun.headSha=intent.sourceRevision
-  h.objects.delete(paths.candidate)
-  h.objects.delete(paths.entrypoint)
-
   const retryInput={profile:h.profile,transport:h.transport,baselineIntentRef:failed.capsule.ref,verifyProvider:true,...continuation}
   const readsOnlyPuts=h.calls.puts
   const result=await readPreActivationAbortContinuation(retryInput)
@@ -441,6 +450,31 @@ test('applied continuation retry accepts one rolled-back candidate abort without
   assert.deepEqual(result.authorityBasis.migrationAdmissionRef,migration.ref)
   assert.deepEqual(result.authorityBasis.failureSignal,rollbackFacts.failureSignal)
   assert.equal(h.calls.puts,readsOnlyPuts)
+
+  const controlUri=`gs://${bucket}/control/active.json`
+  const savedControl=structuredClone(h.objects.get(controlUri).value)
+  const savedRollback=structuredClone(h.objects.get(paths.rollback).value)
+  const savedTerminal=structuredClone(h.objects.get(paths.terminal).value)
+  const rewritePreviousRevision=(uri,value,revision)=>{
+    const {receiptSha256:_receiptSha256,...core}=structuredClone(value)
+    core.facts.previousRevision=revision
+    h.put(uri,{...core,receiptSha256:sha256(canonicalize(core))})
+  }
+  rewritePreviousRevision(paths.rollback,savedRollback,intent.principalOnlyRecovery.revision)
+  rewritePreviousRevision(paths.terminal,savedTerminal,intent.principalOnlyRecovery.revision)
+  const {controlSha256:_controlSha256,...legacyControl}=savedControl
+  legacyControl.previousRevision=intent.principalOnlyRecovery.revision
+  h.put(controlUri,{...legacyControl,controlSha256:sha256(canonicalize(legacyControl))})
+  await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  h.put(paths.rollback,savedRollback);h.put(paths.terminal,savedTerminal);h.put(controlUri,savedControl)
+
+  const retry=await ordinaryNextRelease(h,h.continuation,{releaseId:'DEV122-RD-POST-ROLLBACK-RETRY',source:'e'.repeat(40),authorityContinuation:continuation})
+  retry.capsule=h.put(retry.capsule.ref.uri,{...retry.capsule.value,appliedMigrationContinuation:applied.binding})
+  retry.input.capsuleSha256=retry.capsule.ref.sha256
+  assert.deepEqual(retry.authority.baselineIntentRef,failed.capsule.ref)
+  assert.equal(retry.authority.value.preActivationAbortBasis.previousRevision,intent.previousRevision)
+  assert.equal(requiresPrincipalOnlyForwardRepair(retry.capsule.value,result),false)
+  assert.equal(requiresPrincipalOnlyForwardRepair(retry.capsule.value,{kind:'PRINCIPAL_FENCED_ABORT_RECONCILED'}),true)
 
   const terminal=h.objects.get(paths.terminal), {receiptSha256:_seal,...tampered}=structuredClone(terminal.value)
   tampered.facts.migrationEvidenceRef={...applied.binding.migrateRef,sha256:'0'.repeat(64)}
