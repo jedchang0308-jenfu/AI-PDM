@@ -68,7 +68,7 @@ function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHo
     'source-freeze': { ref: ref('new-source-lock') },
     'runtime-config': { ref: ref('new-runtime') },
     'infra-reuse': { ref: ref('new-infra') },
-    'routine-authority': { refs: { authorizationPolicyRef: ref('new-authorization'), readinessReceiptRef: ref('new-readiness') }, previousRevision: 'ai-pdm-prod-old' },
+    'routine-authority': { refs: { authorizationPolicyRef: ref('new-authorization'), readinessReceiptRef: ref('new-readiness') }, previousRevision: 'ai-pdm-prod-old', baselineIntentRef: ref('current-control-baseline') },
     'release-intent': { ref: { uri: `gs://${BUCKET}/receipts/releases/DEV122-RD-WIF-123456-2/release-intent.json`, sha256: HASH } },
   }
   const producePrerequisite = async value => {
@@ -188,6 +188,7 @@ test('expired applied continuation is normalized once into a fresh exact-main ca
   assert.deepEqual(f.stages.map(row => row.stage), ['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'release-intent'])
   assert.deepEqual(f.stages[1].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
   assert.deepEqual(f.stages[4].input.appliedMigrationContinuation, appliedTemplate().appliedMigrationContinuation)
+  assert.deepEqual(f.stages[4].input.baselineIntentRef, ref('current-control-baseline'))
   assert.equal(f.stages.some(row => /worker|build/u.test(row.stage)), false)
 })
 

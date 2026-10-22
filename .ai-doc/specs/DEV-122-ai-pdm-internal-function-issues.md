@@ -109,6 +109,8 @@ PR #440 合併 exact main `c93f250d004fadd14233b9c3b5be79501160f0c5` 且 require
 
 PR #442 merge main `0face9e870d600d38c0730fb5e5d2e71aa347361` 的PR／exact-main required CI均SUCCESS，且非本切片關卡確實skipped。續跑`39746767600`已證實whole-profile gate移除有效，下一個首敗`REPAIR_DATA_CUTOVER_BASIS_INVALID`來自另一個同族過度治理：`profileForReleaseMode`已把非one-time-cutover路徑設為`HISTORICAL_ONLY`，prepare/build的repair call site仍無條件要求`NEUTRAL_AUTHORITY_LIVE`。本修正只在權威gate mode仍為`CUTOVER_OR_LIVE_AUTHORITY`時保留該阻擋；一次性cutover安全不變，日常RD continuation不再重消費已完成的cutover歷史證據。該run recovery SUCCESS且正式mutation為0；專用測試actor驗收及原7／29仍未完成。
 
+PR #443 merge main `3d0e66bf95050b501f19a743c84f5be25d6acc3c` 的PR／exact-main required CI均SUCCESS。正式run `39752276582`未進入prepare或任何正式寫入，refresh首敗`DEV121_PREACTIVATION_CONTINUATION_INVALID`；直接原因是前次recovery已更新active control，C110模板baseline卻仍舊，且consumer要求跨attempt重播整段歷史。現行模型改以active control、failed owner run、live service／traffic、recovery proof及immutable applied-migration continuation組成唯一重試基線；prepare前失敗明確證明零build／零migration／零candidate，舊cutover、worker及receipt lineage不再成為後續consumer輸入。hash、source、service UID／image、rollback revision、unexpected stage與owner-run漂移仍拒絕。這是共用release state收斂，不是放寬RD授權或把其他功能缺陷改判PASS；專用測試actor驗收及原7／29仍未完成。
+
 ### Release source authority 與 artifact transport 分離
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app 與 worker 可由不同 OS、tar 或 gzip 實作產生來源物件；archive SHA、generation 與 CRC32C 只驗各自上傳物件，不得跨 build、attempt 或 descriptor 決定 source identity。worker artifact 另由逐檔 input manifest、effective recipe、provider build identity 與 image digest 驗證。

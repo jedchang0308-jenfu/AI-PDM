@@ -16,6 +16,7 @@ const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const STAGES = new Set(['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'dev013-transition-authority', 'release-intent'])
+const ROUTINE_ABORT_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -388,20 +389,26 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
   }
   if (stage === 'routine-authority') {
     if (input?.schemaVersion !== 'jenfu.dev012.routine-owner-authority-input.v1') fail('ROUTINE_AUTHORITY_INPUT_INVALID')
-    const [sourceLockResult, runtimeConfigResult, baselineIntentResult] = await Promise.all([
+    const [sourceLockResult, runtimeConfigResult] = await Promise.all([
       transport.readJson(exactRef(input.sourceLockRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.runtimeConfigRef, profile), profile.artifact.releaseBucket, ['receipts']),
-      transport.readJson(exactRef(input.baselineIntentRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
-    validateHistoricalBaselineIntent(baselineIntentResult.value, profile, validateIntent)
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'ROUTINE_BASELINE_UNSETTLED')
     const previousRevision = transport.effectiveRevision(service)
     const controlResult = await transport.readBytes(`gs://${profile.artifact.releaseBucket}/control/active.json`, { prefixes: ['control'] })
     let control
     try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
+    if (!RELEASE_ID.test(control?.releaseId ?? '')) fail('ROUTINE_CONTROL_INVALID')
+    const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
+    const baselineBytes = await transport.readBytes(expectedBaselineUri, { prefixes: ['receipts'] })
+    let baselineIntent
+    try { baselineIntent = JSON.parse(baselineBytes.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
+    if (baselineBytes.ref?.uri !== expectedBaselineUri || baselineBytes.ref.sha256 !== sha256(baselineBytes.bytes)) fail('ROUTINE_CONTROL_INVALID')
+    const activeBaselineRef = baselineBytes.ref
+    validateHistoricalBaselineIntent(baselineIntent, profile, validateIntent)
     const continuation = control?.result === 'PRE_ACTIVATION_ABORTED'
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control, verifyProvider: true,
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: activeBaselineRef, service, control, verifyProvider: true,
         postAbortLedgerReadbackRef: input.postAbortLedgerReadbackRef ?? null,
         principalOnlyFenceRef: input.principalOnlyFenceRef ?? null,
         principalOnlyRecovery: input.principalOnlyRecovery ?? null,
@@ -410,22 +417,20 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const { controlSha256, ...controlCore } = control ?? {}
     if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)
       || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
-      || control.releaseId !== baselineIntentResult.value.releaseId || control.sourceRevision !== baselineIntentResult.value.sourceRevision
+      || control.releaseId !== baselineIntent.releaseId || control.sourceRevision !== baselineIntent.sourceRevision
       || (control.result === 'RELEASED' && control.candidateRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     if (control.result === 'ROLLED_BACK') {
-      const repair = await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control })
+      const repair = await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: activeBaselineRef, service, control })
       if (!repair || repair.activeRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
     }
-    const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
-    if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
-    const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
-    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind)) {
+    const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: activeBaselineRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
+    if (ROUTINE_ABORT_CONTINUATIONS.has(continuation?.kind)) {
       values.authorization.preActivationAbortBasis = continuation.authorityBasis
       values.readiness.preActivationAbortBasis = continuation.authorityBasis
     }
     const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
-    return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision }
+    return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision, baselineIntentRef: activeBaselineRef }
   }
   if (stage === 'dev013-transition-authority') {
     if (input?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-input.v1') fail('DEV013_TRANSITION_INPUT_INVALID')

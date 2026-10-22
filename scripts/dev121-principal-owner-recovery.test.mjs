@@ -290,14 +290,15 @@ function ordinaryAbortFixture() {
   return { profile, transport, objects, put, service, revisions, calls, anchor, failed, controlCore, control, ownerRun,
     helperInput: { profile, transport, baselineIntentRef: failed.intentRow.ref }, h, runtime, modes, release }
 }
-async function ordinaryNextRelease(h, continuation = {}) {
-  const releaseId='DEV121-FRESH-CONTINUATION', source='d'.repeat(40)
+async function ordinaryNextRelease(h, continuation = {}, options = {}) {
+  const releaseId=options.releaseId ?? 'DEV121-FRESH-CONTINUATION', source=options.source ?? 'd'.repeat(40)
+  const authorityContinuation=options.authorityContinuation ?? continuation
   const lock=h.put(`gs://${bucket}/receipts/releases/${releaseId}/source-lock.json`,buildSourceFreeze({profile:h.profile,releaseId,observedAt:'2026-10-03T12:00:00Z',git:{clean:true,branch:'main',sourceRevision:source,sourceTree:'f'.repeat(40),remoteRevision:source},sourceIdentityBytes:h.h.sourceIdentityBytes,migrationBundle:{bundle:{manifestSha256:h.h.migrationManifestSha256}}}))
   const runtime=h.put(`gs://${bucket}/receipts/releases/${releaseId}/runtime-config.json`,buildRuntimeConfigReceipt({profile:h.profile,releaseId,sourceLock:lock.value,plainEnvironment:h.modes,secretVersions:{SESSION_SECRET:'1'},observedAt:'2026-10-03T12:00:00Z'}))
-  const authority=await executePrerequisiteProducer({stage:'routine-authority',releaseId,input:{schemaVersion:'jenfu.dev012.routine-owner-authority-input.v1',sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,baselineIntentRef:h.failed.intentRow.ref,expiresAt:'2999-01-01T00:00:00Z',...continuation},profile:h.profile,transport:h.transport,validateIntent:()=>true,observedAt:'2026-10-03T12:00:00Z'})
+  const authority=await executePrerequisiteProducer({stage:'routine-authority',releaseId,input:{schemaVersion:'jenfu.dev012.routine-owner-authority-input.v1',sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,baselineIntentRef:h.failed.intentRow.ref,expiresAt:'2999-01-01T00:00:00Z',...authorityContinuation},profile:h.profile,transport:h.transport,validateIntent:()=>true,observedAt:'2026-10-03T12:00:00Z'})
   const foundation=h.put(`gs://${bucket}/receipts/releases/${releaseId}/foundation.json`,{status:'APPLIED',projectId:'jenfu-platform-prod',releaseAuthority:true,evidenceScope:'PRODUCTION_BOUND'})
   const infra=h.put(`gs://${bucket}/receipts/releases/${releaseId}/infra.json`,{status:'APPLIED',projectId:'jenfu-platform-prod',releaseAuthority:true,evidenceScope:'PRODUCTION_BOUND',migrationRunnerDigest})
-  const input={sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,...authority.refs,foundationReceiptRef:foundation.ref,infraReceiptRef:infra.ref,baselineIntentRef:h.failed.intentRow.ref,previousRevision,deadlineAt:'2999-01-01T00:00:00Z',...continuation}
+  const input={sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,...authority.refs,foundationReceiptRef:foundation.ref,infraReceiptRef:infra.ref,baselineIntentRef:authority.baselineIntentRef,previousRevision,deadlineAt:'2999-01-01T00:00:00Z',...continuation}
   const values={sourceLock:lock.value,runtimeConfig:runtime.value,authorization:h.objects.get(authority.refs.authorizationPolicyRef.uri).value,readiness:authority.value,foundation:foundation.value,infra:infra.value}
   const intent=buildReleaseIntent({profile:h.profile,releaseId,input,sourceLock:lock.value,prerequisiteValues:values,validateIntent:()=>true})
   const capsule=h.put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`,intent)
@@ -332,6 +333,53 @@ test('applied-continuation refresh facade carries the exact owner run through re
   assert.equal(result.authority.value.preActivationAbortBasis.schemaVersion,'ai-pdm.principal-ordinary-abort-basis.v1')
   assert.deepEqual(result.authority.value.preActivationAbortBasis.failedIntentRef,h.failed.intentRow.ref)
   assert.deepEqual(result.values.authorization.preActivationAbortBasis,result.values.readiness.preActivationAbortBasis)
+})
+
+test('applied continuation retry follows the active control after a later pre-execution abort without replaying older history',async()=>{
+  const h=await reconciledMigrationAbortFixture({principalOnly:true})
+  const applied=addAppliedMigrationExecution(h)
+  const continuation={...h.continuation,appliedMigrationContinuation:applied.binding}
+  const second=await ordinaryNextRelease(h,h.continuation,{releaseId:'DEV122-RD-SECOND-ATTEMPT',source:'d'.repeat(40),authorityContinuation:continuation})
+  second.capsule=h.put(second.capsule.ref.uri,{...second.capsule.value,appliedMigrationContinuation:applied.binding})
+  second.input.capsuleSha256=second.capsule.ref.sha256
+  const paths=releasePaths(h.profile,second.capsule.value,second.capsule.ref.sha256)
+  const rollbackFacts={result:'PRE_ACTIVATION_ABORTED',previousRevision:second.capsule.value.principalOnlyRecovery.revision,
+    recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{changed:false,result:'NOT_REQUIRED'},
+    databaseDisposition:'NOT_APPLIED',failureSignal:'REPAIR_DATA_CUTOVER_BASIS_INVALID'}
+  const rollback=h.put(paths.rollback,stageReceipt({profile:h.profile,intent:second.capsule.value,stage:'rollback',previousReceiptRef:null,facts:rollbackFacts,observedAt:'2026-10-03T12:00:00Z'}))
+  const {recoveryOrder,...terminalFacts}=rollbackFacts
+  h.put(paths.terminal,stageReceipt({profile:h.profile,intent:second.capsule.value,stage:'terminal',previousReceiptRef:rollback.ref,facts:terminalFacts,observedAt:'2026-10-03T12:00:00Z'}))
+  const controlUri=`gs://${bucket}/control/active.json`
+  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:second.capsule.value.releaseId,
+    sourceRevision:second.capsule.value.sourceRevision,releaseIntentSha256:second.capsule.ref.sha256})),ownerApplicationId:'ai-pdm',service:'ai-pdm-prod',controlBucket:bucket,
+    releaseId:second.capsule.value.releaseId,sourceRevision:second.capsule.value.sourceRevision,sourceLockSha256:second.capsule.value.sourceLockRef.sha256,candidateRevision:null,
+    previousRevision:second.capsule.value.principalOnlyRecovery.revision,ownerRunRef:`https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${second.input.environment.GITHUB_RUN_ID}`,
+    leaseExpiresAt:'2026-10-03T11:59:00Z',deadlineAt:second.capsule.value.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
+  h.put(controlUri,{...controlCore,controlSha256:sha256(canonicalize(controlCore))})
+  h.ownerRun.id=second.input.environment.GITHUB_RUN_ID
+  h.ownerRun.headSha=second.capsule.value.sourceRevision
+
+  const third=await ordinaryNextRelease(h,h.continuation,{releaseId:'DEV122-RD-THIRD-ATTEMPT',source:'e'.repeat(40),authorityContinuation:continuation})
+  third.capsule=h.put(third.capsule.ref.uri,{...third.capsule.value,appliedMigrationContinuation:applied.binding})
+  third.input.capsuleSha256=third.capsule.ref.sha256
+  assert.deepEqual(third.authority.baselineIntentRef,second.capsule.ref)
+  assert.deepEqual(third.capsule.value.baselineIntentRef,second.capsule.ref)
+  assert.equal(third.authority.value.preActivationAbortBasis.schemaVersion,'aipdm.applied-migration-preexecution-abort-basis.v1')
+  assert.equal(third.authority.value.preActivationAbortBasis.failureSignal,'REPAIR_DATA_CUTOVER_BASIS_INVALID')
+  assert.deepEqual(third.values.authorization.preActivationAbortBasis,third.values.readiness.preActivationAbortBasis)
+  const retryInput={profile:h.profile,transport:h.transport,baselineIntentRef:second.capsule.ref,verifyProvider:true,...continuation}
+  await assert.rejects(readPreActivationAbortContinuation({...retryInput,appliedMigrationContinuation:{...applied.binding,migrateRef:{...applied.binding.migrateRef,sha256:'0'.repeat(64)}}}),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  const traffic=structuredClone(h.service.traffic)
+  h.service.traffic=[{revision:'ai-pdm-prod-unexpected',percent:100}]
+  await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  h.service.traffic=traffic
+  h.put(paths.prepare,{unexpected:true})
+  await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  h.objects.delete(paths.prepare)
+  h.ownerRun.headSha='f'.repeat(40)
+  await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  h.ownerRun.headSha=second.capsule.value.sourceRevision
+  assert.equal(h.calls.puts > 0,true)
 })
 
 test('ordinary abort rejects non-Principal or incomplete native chain and current control/run/traffic/entry drift',async()=>{
