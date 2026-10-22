@@ -53,7 +53,12 @@ function appliedTemplate(overrides = {}) {
 }
 
 function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHook = null) {
-  const runtime = { runtimeConfig: { plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' } } }
+  const runtimeConfig = { plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: template.openswxWorkerRef ? '1' : '0' },
+    secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' } }
+  if (template.openswxWorkerRef) runtimeConfig.openswxWorker = {
+    descriptorRef: template.openswxWorkerRef, purpose: 'full', sourceRevision: OLD, workerProfileSha256: HASH,
+  }
+  const runtime = { runtimeConfig }
   const reads = []
   const transport = {
     async readJson(actual) {
@@ -168,7 +173,7 @@ test('production-shaped refresh reads use verifier and exact migration identitie
   ])
 })
 
-test('expired applied continuation is normalized once into a fresh exact-main capsule without rebuilding its worker', async () => {
+test('expired applied continuation retains runtime binding without replaying worker evidence', async () => {
   const f = fixture()
   const now = new Date('2026-10-22T02:00:00.000Z')
   const result = await refreshAppliedContinuationCapsule({
@@ -187,9 +192,32 @@ test('expired applied continuation is normalized once into a fresh exact-main ca
   assert.equal(result.releaseDeadlineAt, '2026-10-22T04:00:00.000Z')
   assert.deepEqual(f.stages.map(row => row.stage), ['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'release-intent'])
   assert.deepEqual(f.stages[1].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
+  assert.deepEqual(f.stages[1].input.retainedOpenswxWorker,
+    { descriptorRef: appliedTemplate().openswxWorkerRef, purpose: 'full', sourceRevision: OLD, workerProfileSha256: HASH })
   assert.deepEqual(f.stages[4].input.appliedMigrationContinuation, appliedTemplate().appliedMigrationContinuation)
+  assert.deepEqual(f.stages[4].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
   assert.deepEqual(f.stages[4].input.baselineIntentRef, ref('current-control-baseline'))
   assert.equal(f.stages.some(row => /worker|build/u.test(row.stage)), false)
+  assert.equal(f.reads.some(row => row.uri?.includes('/openswx-worker/')), false)
+  assert.deepEqual(result.retainedWorkerDescriptorRef, appliedTemplate().openswxWorkerRef)
+})
+
+test('workerless applied continuation refresh remains valid and does not invent a worker gate', async () => {
+  const template = appliedTemplate()
+  delete template.openswxWorkerRef
+  const f = fixture(template)
+  const result = await refreshAppliedContinuationCapsule({
+    templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    createSourceIdentity: async () => Buffer.from('source'), buildMigrationBundle: async () => ({ bundle: { manifestSha256: HASH } }),
+    producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z'),
+  })
+  assert.equal(result.refreshed, true)
+  assert.equal(Object.hasOwn(result, 'retainedWorkerDescriptorRef'), false)
+  assert.equal(Object.hasOwn(f.stages[1].input, 'openswxWorkerRef'), false)
+  assert.equal(Object.hasOwn(f.stages[1].input, 'retainedOpenswxWorker'), false)
+  assert.equal(Object.hasOwn(f.stages[4].input, 'openswxWorkerRef'), false)
+  assert.equal(f.reads.some(row => row.uri?.includes('/openswx-worker/')), false)
 })
 
 test('C110-shaped refresh routes the exact pre-activation owner run through verifier before authority publication', async () => {

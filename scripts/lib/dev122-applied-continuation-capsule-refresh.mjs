@@ -77,7 +77,7 @@ export async function refreshAppliedContinuationCapsule({
   if (template.sourceRevision === git.sourceRevision && remaining >= 30 * 60 * 1000) {
     return { ref: templateRef, refreshed: false, releaseId: template.releaseId, sourceRevision: git.sourceRevision }
   }
-  if (!template.appliedMigrationContinuation || !template.openswxWorkerRef || !template.postAbortLedgerReadbackRef
+  if (!template.appliedMigrationContinuation || !template.postAbortLedgerReadbackRef
     || !template.principalOnlyFenceRef || !template.principalOnlyRecovery) fail('APPLIED_CONTINUATION_REFRESH_TEMPLATE_INVALID')
   if (!H40.test(template.sourceRevision ?? '') || !H40.test(git.sourceRevision ?? '') || !readWorkerSource.isAncestor?.(template.sourceRevision, git.sourceRevision)) fail('APPLIED_CONTINUATION_REFRESH_SOURCE_DIVERGED')
   const releaseDeadlineAt = new Date(now().getTime() + 2 * 60 * 60 * 1000).toISOString()
@@ -97,11 +97,15 @@ export async function refreshAppliedContinuationCapsule({
   const sourceLock = await producer('source-freeze', null)
   const templateRuntime = await transport.readJson(template.runtimeConfigRef, BUCKET, ['receipts'])
   const runtimeConfig = templateRuntime.value?.runtimeConfig ?? templateRuntime.value
+  const retainedWorker = template.openswxWorkerRef ? {
+    openswxWorkerRef: template.openswxWorkerRef,
+    retainedOpenswxWorker: runtimeConfig.openswxWorker,
+  } : {}
   const runtime = await producer('runtime-config', {
     sourceLockRef: sourceLock.ref,
     plainEnvironment: runtimeConfig.plainEnvironment,
     secretVersions: runtimeConfig.secretVersions,
-    openswxWorkerRef: template.openswxWorkerRef,
+    ...retainedWorker,
   })
   const infra = await producer('infra-reuse', {
     schemaVersion: 'jenfu.dev012.app-infra-reuse-input.v1',
@@ -131,12 +135,12 @@ export async function refreshAppliedContinuationCapsule({
     foundationReceiptRef: template.foundationReceiptRef,
     infraReceiptRef: infra.ref,
     baselineIntentRef: authority.baselineIntentRef,
-    openswxWorkerRef: template.openswxWorkerRef,
+    ...(template.openswxWorkerRef ? { openswxWorkerRef: template.openswxWorkerRef } : {}),
     previousRevision: authority.previousRevision,
     deadlineAt: releaseDeadlineAt,
     ...continuation,
   })
   if (!H64.test(intent.ref?.sha256 ?? '')) fail('APPLIED_CONTINUATION_REFRESH_RESULT_INVALID')
   return { ref: intent.ref, refreshed: true, releaseId, sourceRevision: git.sourceRevision, releaseDeadlineAt,
-    reusedWorkerDescriptorRef: template.openswxWorkerRef, templateRef }
+    ...(template.openswxWorkerRef ? { retainedWorkerDescriptorRef: template.openswxWorkerRef } : {}), templateRef }
 }

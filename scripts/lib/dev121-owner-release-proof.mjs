@@ -1725,7 +1725,7 @@ export function assertStage(value, owner, revision, releaseId, stage) {
   try { assertStageReceipt(value, { ownerApplicationId: owner, releaseId, sourceRevision: revision, stage }) }
   catch { fail('STAGE_INVALID') }
 }
-function assertSourceLock(value, owner, config, revision, releaseId) {
+export function assertSourceLock(value, owner, config, revision, releaseId) {
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'repository',
     'branch', 'releaseId', 'sourceRevision', 'sourceTree', 'sourceSha256',
     'migrationManifestSha256', 'clean', 'remoteRef', 'remoteRevision',

@@ -1,3 +1,15 @@
+## DEV-121#rd-capabilities — 2026-10-22 applied migration 證據隔離（本地 affected-slice PASS，待受保護交付）
+
+PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通過 required CI。正式 run `39756624774` 建立 fresh intent `DEV122-RD-WIF-39756624774-1` 後，prepare 以 `DEV121_OWNER_RELEASE_PROOF_REF_INVALID` 停止；build／migration／candidate／traffic 均未執行，recovery 成功。直接根因是已套用 migration continuation 仍呼叫完整 owner source proof；C95 歷史 intent 恰好包含 OpenSWX worker，reader 遂遞迴重播 worker descriptor／profile／deadline／provider history，讓與 RD migration 無關的 worker 證據成為正式阻擋。
+
+本切片把已套用 migration 的權威讀取收斂為 source lock、prepare／migrate、migration bundle、runner identity、ledger35／085及既有 recovery 的單一路徑；不再讀取 worker descriptor、profile、deadline、IAM continuation 或 provider history。C110 現存 worker runtime binding僅 byte-equivalent 被動帶過，不重建、不執行、不驗收；未綁 worker 的 applied continuation 亦可成立。worker 自身錯誤移至 `DEV-124`，不得阻擋或被本 RD 結果改判 PASS。
+
+實際 planner=`AFFECTED_SLICES(documentation, database, release-control)`；worker／app／authorization／preview／recognition／infrastructure／abort／lint／isolated build均未選。fresh planner 17／17、release-core 214／214、database 27／27與 `DEV010_DB_RULESET_V1` PASS；evidence SHA `c89e25edcd3d8534eceabc3f91e5f786591981b086a850d524df22c3672ddb37`。本地唯讀 production-shaped C95 replay亦以 ledger35／terminal `ai-pdm-085` PASS，且 OpenSWX 讀取數為0。正式重試、candidate／activate及專用測試 RD actor UI／API 正負驗收須待 protected PR／required CI 後執行；DEV-122原7 issues／29 groups維持`NOT_ACCEPTED`。
+
+## DEV-124 — OpenSWX worker 獨立修復（DEFERRED／NOT_STARTED／不阻擋 RD）
+
+責任只涵蓋 worker descriptor、historical/current reader、profile／deadline、Secret IAM continuation、artifact reuse與worker recovery。它使用 planner 的 `worker` slice及自身 producer／provider evidence驗收；不得重新成為 catalog→migration085→grant→API→UI 的前置條件。RD切片只保留既有runtime binding，不聲稱worker功能通過；開始DEV-124前另核對當時實際worker需求與正式狀態，避免重播已無用途的歷史相容鏈。
+
 ## DEV-121#rd-capabilities — 2026-10-22 RD readback relevance 與關卡解耦（本地驗證中，正式服務未變更）
 
 C110與其後的唯讀 diagnostics 已確認085套用、catalog v7/hash及專用測試RD grant一致。PR #435／#436後的正式run `39723589561`在capsule refresh以`DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED`停止；AI-COO review查明builder WIF token未綁入verifier transport的secondary provider-proof讀取。PR #437（head `1c569cdccfc4c489e4250d62b4b42418cfb7265e`）已以merge commit `1614054e08fbe6274c6a76070c9ef1f0a07516ff`合併，exact-main CI run `39726772045`兩項required checks均SUCCESS。接續正式run `39727734796`通過上述provider proof後，在同一refresh的真實pre-activation continuation路徑以`transport.readOwnerRun is not a function`停止；effective capsule selection與prepare／build／migrate／ledger readback／candidate／traffic等owner stages均未執行，沒有Job、DB、service或traffic mutation。依同步呼叫順序，refresh先前已成功返回的immutable source/runtime/infra receipts屬部分證據發布，不改寫舊receipt，也不等同正式發布完成。

@@ -5,8 +5,8 @@ import test from 'node:test'
 import { assertAppliedMigrationContinuation } from './lib/dev122-applied-migration-continuation.mjs'
 import { readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory } from './lib/dev121-owner-release-proof.mjs'
+import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
+import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
 import { buildRdLedgerProbeBundles, buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProfileSha256, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 
 const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -40,9 +40,6 @@ function fixture(activeProfile = profile) {
     ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
   const content = assertAiPdmMigrationContent({ files, bundle: full.bundle, sourceRevision: appliedSource, deadlineAt: '2999-01-01T00:00:00.000Z' })
   const releaseId = 'DEV122-RD-APPLIED-TEST'
-  const rootHash = '1'.repeat(64)
-  const root = `gs://${bucket}/receipts/releases/${releaseId}/${rootHash}`
-  const prepareRef = ref(`${root}/prepare.json`), migrateRef = ref(`${root}/migrate.json`)
   const fenceRef = { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${'f'.repeat(40)}/fence-214.json`, sha256: '2'.repeat(64) }
   const recovery = { revision: 'ai-pdm-prod-recovery-fixture', imageDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'3'.repeat(64)}`,
     serviceUid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', receiptRef: { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${'f'.repeat(40)}.json`, sha256: '4'.repeat(64) } }
@@ -59,16 +56,33 @@ function fixture(activeProfile = profile) {
   const migration = { ...migrationCore, receiptSha256: sha256(canonicalize(migrationCore)) }
   const bundleBytes = Buffer.from(canonicalize(full.bundle))
   const bundleRef = { uri: `gs://${bucket}/source/migration-bundles/${appliedSource}/${full.bundle.manifestSha256}.json`, sha256: sha256(bundleBytes) }
-  const intentRef = ref(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`)
-  const deploymentRef = ref(`${root}/deployment-capsule.json`)
-  const history = createAiPdmMigrationHistory({ sourceRevision: appliedSource, intentRef, deploymentRef, candidateRef: null, content,
-    receiptRef: migrateRef, receipt: migration, bundleRef, bundle: full.bundle, bundleBytes })
-  const appliedIntent = { sourceRevision: appliedSource, previousRevision: fence.oldRevision, postAbortLedgerReadbackRef: postAbort, principalOnlyFenceRef: fenceRef,
-    principalOnlyRecovery: recovery }
-  const graph = { terminal: null, migrate: { ref: migrateRef, value: migration }, prepare: { ref: prepareRef }, migrationMode: 'FORWARD_APPLIED',
-    migrationHistory: history, intent: appliedIntent, chain: { deployment: { ref: deploymentRef, value: {
-      migrationRunnerDigest: digest, migrationRunnerSourceRevision: runnerSource,
-    } } } }
+  const sourceLock = { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: profile.application.repository,
+    branch: profile.application.branch, releaseId, sourceRevision: appliedSource, sourceTree: '9'.repeat(40), sourceSha256: '8'.repeat(64),
+    migrationManifestSha256: full.bundle.manifestSha256, clean: true, remoteRef: `refs/heads/${profile.application.branch}`,
+    remoteRevision: appliedSource, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: '2026-10-20T22:20:00.000Z' }
+  const sourceLockRef = ref(`gs://${bucket}/receipts/releases/${releaseId}/source-lock.json`, sourceLock)
+  const prerequisiteRefs = { sourceLock: sourceLockRef,
+    authorization: ref(`gs://${bucket}/receipts/releases/${releaseId}/owner-authorization.json`),
+    readiness: ref(`gs://${bucket}/receipts/releases/${releaseId}/owner-readiness.json`),
+    foundation: ref(`gs://${bucket}/receipts/releases/DEV121-FOUNDATION/foundation-infra.json`),
+    infra: ref(`gs://${bucket}/receipts/releases/${releaseId}/app-infra-reuse.json`),
+    runtimeConfig: ref(`gs://${bucket}/receipts/releases/${releaseId}/runtime-config.json`) }
+  const historicalIntent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: appliedSource,
+    sourceSha256: sourceLock.sourceSha256, sourceLockRef, authorizationPolicyRef: prerequisiteRefs.authorization,
+    readinessReceiptRef: prerequisiteRefs.readiness, foundationReceiptRef: prerequisiteRefs.foundation,
+    infraReceiptRef: prerequisiteRefs.infra, runtimeConfigRef: prerequisiteRefs.runtimeConfig,
+    migrationManifestSha256: full.bundle.manifestSha256, previousRevision: fence.oldRevision, deadlineAt: '2026-10-21T03:37:38.641Z',
+    openswxWorkerRef: ref(`gs://${bucket}/receipts/dev-122/openswx-worker/UNREAD-BY-APPLIED-MIGRATION.json`),
+    postAbortLedgerReadbackRef: postAbort, principalOnlyFenceRef: fenceRef, principalOnlyRecovery: recovery }
+  const intentRef = ref(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, historicalIntent)
+  const root = `gs://${bucket}/receipts/releases/${releaseId}/${intentRef.sha256}`
+  const prepare = stageReceipt({ profile, intent: historicalIntent, stage: 'prepare', previousReceiptRef: null,
+    facts: { prerequisiteRefs }, observedAt: '2026-10-20T22:21:00.000Z' })
+  const prepareRef = ref(`${root}/prepare.json`, prepare), migrateRef = ref(`${root}/migrate.json`, migration)
+  const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: 'ai-pdm', releaseIntentRef: intentRef,
+    releaseIntentSha256: intentRef.sha256, sourceRevision: appliedSource, deadlineAt: historicalIntent.deadlineAt,
+    migrationBundleRef: bundleRef, migrationRunnerDigest: digest, migrationRunnerSourceRevision: runnerSource }
+  const deploymentRef = ref(`${root}/deployment-capsule.json`, deployment)
 
   const runnerFull = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
   const probes = buildRdLedgerProbeBundles(runnerFull)
@@ -102,34 +116,46 @@ function fixture(activeProfile = profile) {
   const resultRef = ref(`${rdRoot}/ledger-readback-result.json`, result)
   const binding = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: appliedSource,
     prepareRef, migrateRef, ledgerReadbackResultRef: resultRef }
-  const currentIntent = { sourceRevision: currentSource, previousRevision: fence.oldRevision, appliedMigrationContinuation: binding, postAbortLedgerReadbackRef: postAbort,
+  const currentIntent = { sourceRevision: currentSource, previousRevision: fence.oldRevision, deadlineAt: '2999-01-01T00:00:00.000Z', appliedMigrationContinuation: binding, postAbortLedgerReadbackRef: postAbort,
     principalOnlyFenceRef: fenceRef, principalOnlyRecovery: recovery }
-  const objects = new Map([[resultRef.uri, result], [rdIntentRef.uri, rdIntent], [jobRef.uri, jobReceipt],
-    [executionRef.uri, execution], [nativeRef.uri, native]])
-  const proof = { disposition: 'migration_only', sourceRevision: appliedSource }
+  const objects = new Map([[intentRef.uri, historicalIntent], [sourceLockRef.uri, sourceLock], [prepareRef.uri, prepare],
+    [migrateRef.uri, migration], [deploymentRef.uri, deployment], [bundleRef.uri, full.bundle],
+    [resultRef.uri, result], [rdIntentRef.uri, rdIntent], [jobRef.uri, jobReceipt], [executionRef.uri, execution], [nativeRef.uri, native]])
+  const reads = []
   const transport = {
-    async readOwnerSourceProof(args) {
-      assert.equal(args.profile, activeProfile); assert.equal(args.sourceRevision, appliedSource); assert.equal(args.verifyProvider, true)
-      assert.deepEqual(args.refs, { prepare: prepareRef, migrate: migrateRef, terminal: null })
-      return { proof, provider: { status: 'BUILD_IMAGE_VERIFIED' } }
+    async readBytes(uri, { expectedSha256 } = {}) {
+      reads.push(uri)
+      const value = objects.get(uri)
+      if (!value) { const error = new Error('MISSING'); error.code = 'MISSING'; throw error }
+      const bytes = uri === bundleRef.uri ? bundleBytes : Buffer.from(`${canonicalize(value)}\n`)
+      const actual = sha256(bytes)
+      if (expectedSha256 !== null && expectedSha256 !== undefined && actual !== expectedSha256) throw new Error('HASH_MISMATCH')
+      return { bytes, ref: { uri, sha256: actual }, generation: '1', crc32c: 'fixture' }
     },
     async readJson(actualRef, actualBucket, prefixes) {
       assert.equal(actualBucket, bucket); assert.deepEqual(prefixes, ['receipts'])
       const value = objects.get(actualRef.uri); if (!value) throw new Error('MISSING'); return { value }
     },
   }
-  return { binding, currentIntent, graph, history, content, transport, proof, resultRef, objects, runnerFull, executionRef, activeProfile }
+  const readSource = (path, sourceRevision) => {
+    assert.equal(sourceRevision, currentSource)
+    const value = files.get(path)
+    if (!value) throw new Error('MISSING_SOURCE')
+    return value
+  }
+  return { binding, currentIntent, content, transport, readSource, reads, resultRef, objects, runnerFull, executionRef, activeProfile }
 }
 
 test('C96 production-shaped applied migration continuation selects ledger35 and classifies unchanged full35 as no-job reuse', async () => {
   const f = fixture()
   assert.equal(assertAppliedMigrationContinuation(f.binding), f.binding)
   const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async proof => { assert.equal(proof, f.proof); return f.graph },
+    readSource: f.readSource,
     buildMigrationBundle: async sourceRevision => { assert.equal(sourceRevision, runnerSource); return f.runnerFull },
     ancestorRunner: () => true, compatibilityRunner: () => true })
-  assert.equal(selected, f.history)
+  assert.equal(selected.sourceRevision, appliedSource)
   assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
 })
 
 test('applied migration continuation ignores unrelated current release-profile drift while preserving ledger35 evidence', async () => {
@@ -138,10 +164,10 @@ test('applied migration continuation ignores unrelated current release-profile d
   activeProfile.dataCutover.gateMode = 'HISTORICAL_ONLY'
   const f = fixture(activeProfile)
   const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: activeProfile, transport: f.transport,
-    readObservationInputs: async () => f.graph,
+    readSource: f.readSource,
     buildMigrationBundle: async sourceRevision => { assert.equal(sourceRevision, runnerSource); return f.runnerFull },
     ancestorRunner: () => true, compatibilityRunner: () => true })
-  assert.equal(selected, f.history)
+  assert.equal(selected.sourceRevision, appliedSource)
   assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
 })
 
@@ -149,7 +175,7 @@ test('applied migration continuation still rejects a changed migration probe pro
   const f = fixture()
   const changed = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), currentSource)
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => changed,
+    readSource: f.readSource, buildMigrationBundle: async () => changed,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /RD_READBACK_PROFILE_DRIFT/u)
 })
 
@@ -160,7 +186,7 @@ test('applied migration continuation rejects a native receipt completed after it
   f.objects.set(f.executionRef.uri, sealed({ ...executionCore,
     completionTime: '2026-10-20T22:36:18.400Z', observedAt: '2026-10-20T22:36:18.400Z' }))
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
 })
@@ -176,18 +202,18 @@ test('C96 continuation rejects aliases, source divergence, recovery drift and le
     assert.throws(() => assertAppliedMigrationContinuation(changed), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
   }
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => false, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_SOURCE_INVALID/u)
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: { ...f.currentIntent,
     principalOnlyRecovery: { ...f.currentIntent.principalOnlyRecovery, revision: 'ai-pdm-prod-recovery-other' } }, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_RECOVERY_INVALID/u)
   const original = f.objects.get(f.resultRef.uri)
   f.objects.set(f.resultRef.uri, { ...original, migrationRunnerDigest: original.migrationRunnerDigest.replace(/.$/u, '0') })
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /RD_READBACK_RESULT_INVALID/u)
 
   f.objects.set(f.resultRef.uri, original)
@@ -196,6 +222,6 @@ test('C96 continuation rejects aliases, source divergence, recovery drift and le
   f.objects.set(f.executionRef.uri, sealed({ ...executionCore, status: 'EXPECTED_READ_ONLY_PROBE_FAILURE',
     completedState: 'CONDITION_FAILED', succeededCount: 0, failedCount: 1 }))
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
-    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
 })
