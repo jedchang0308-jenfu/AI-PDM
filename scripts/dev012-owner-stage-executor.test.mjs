@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
-import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -24,6 +24,15 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
+
+test('repair stages do not re-consume one-time cutover evidence after the policy becomes historical', () => {
+  const repair = { migrationMode: 'HISTORICAL_EVIDENCE_REUSED' }
+  assert.equal(assertRepairDataCutoverBasis({ profile: { dataCutover: { gateMode: 'HISTORICAL_ONLY' } }, repair, dataCutover: null }), true)
+  assert.equal(assertRepairDataCutoverBasis({ profile: { dataCutover: { gateMode: 'CUTOVER_OR_LIVE_AUTHORITY' } }, repair,
+    dataCutover: { status: 'NEUTRAL_AUTHORITY_LIVE' } }), true)
+  assert.throws(() => assertRepairDataCutoverBasis({ profile: { dataCutover: { gateMode: 'CUTOVER_OR_LIVE_AUTHORITY' } }, repair, dataCutover: null }),
+    /REPAIR_DATA_CUTOVER_BASIS_INVALID/u)
+})
 
 test('owner source archive uses the worker reader canonical LF recipe', () => {
   const root = fileURLToPath(new URL('..', import.meta.url))

@@ -333,6 +333,12 @@ function dataCutoverGateEnabled(profile) {
   return profile.dataCutover?.gateMode === 'CUTOVER_OR_LIVE_AUTHORITY'
 }
 
+export function assertRepairDataCutoverBasis({ profile, repair, dataCutover }) {
+  if (!repair || !dataCutoverGateEnabled(profile)) return true
+  if (dataCutover?.status !== 'NEUTRAL_AUTHORITY_LIVE') fail('REPAIR_DATA_CUTOVER_BASIS_INVALID')
+  return true
+}
+
 export async function readDataCutoverEvidence({ transport, profile, intent, readiness, dataCutoverConfig }) {
   if (!dataCutoverGateEnabled(profile)) return null
   if (!dataCutoverConfig) fail('DATA_CUTOVER_CONFIG_REQUIRED')
@@ -777,7 +783,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     else assertWorkerRuntimeJoin(derived.runtimeConfig, intent)
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
-    if (repair && dataCutover?.status !== 'NEUTRAL_AUTHORITY_LIVE') fail('REPAIR_DATA_CUTOVER_BASIS_INVALID')
+    assertRepairDataCutoverBasis({ profile, repair, dataCutover })
     const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
     if (recovery) {
       const [proof, revision, fence] = await Promise.all([
@@ -827,7 +833,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const existing = await optionalNamedJson(transport, paths.deployment, profile)
     if (existing) assertDeployment(existing.value, profile, intent, intentRef, capsuleSha256)
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment, currentDeployment: existing, currentPrepare: prepare })
-    if (repair && prepare.value.facts.dataCutover?.status !== 'NEUTRAL_AUTHORITY_LIVE') fail('REPAIR_DATA_CUTOVER_BASIS_INVALID')
+    assertRepairDataCutoverBasis({ profile, repair, dataCutover: prepare.value.facts.dataCutover })
     const prerequisite = await repairPrerequisite({ basis: repair, transport, paths, profile, intent, intentRef })
     if (prerequisite && canonicalize(prepare.value.facts.migrationReusePrerequisiteRef) !== canonicalize(prerequisite.ref)) fail('REPAIR_PREREQUISITE_MISMATCH')
     if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(prepare.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
