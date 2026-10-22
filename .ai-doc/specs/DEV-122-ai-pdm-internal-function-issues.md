@@ -19,7 +19,7 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 | 能力 | 目標 | 現況 | 結案條件 |
 |---|---|---|---|
-| `identity_roles` | 正常登入；管理員可智慧辨識；RD 可讀寫及送審；RD 不可核准 | `LOCAL_RD_PERMISSION_PASS / PRODUCTION_PENDING` | 實際 actor 的 allow／deny 與拒絕零副作用 |
+| `identity_roles` | 正常登入；管理員可智慧辨識；RD 可讀寫及送審；RD 不可核准 | `RD_PERMISSION_TEST_ACTOR_VERIFIED / ADMIN_RECOGNITION_PENDING` | 實際 actor 的 allow／deny 與拒絕零副作用 |
 | `pdm_lifecycle` | Part 首次發行、Drawing major／minor、退回與重送保持一致 | `LOCAL_NATIVE_AND_UI_EVIDENCE_AVAILABLE` | 受影響交易、CAS、rollback／replay 通過 |
 | `drawing_preview` | 目前版本 PDF 可閱讀；預覽任務有限且有終態 | `LOCAL_QC_PASS / PRODUCTION_ACCEPTANCE_PENDING` | 正確版本 bytes、桌面可讀性、terminal／error 行為 |
 | `operations` | 正確來源建置、候選 smoke、切換讀回與 rollback-ready | `NO_RELEASE_IN_THIS_CHANGE` | 只有實際發布時驗 exact source／image／revision／traffic |
@@ -59,7 +59,17 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 |---|---|
 | `OPS-01` | 實際發布綁定確切 source SHA、image digest、revision、traffic 讀回與前一 revision rollback 目標。 |
 
-### RD 圖號工作台當前恢復點（2026-10-20）
+### RD 圖號工作台切片驗收（2026-10-23）
+
+依[專用測試帳號驗證計畫](../qa/DEV-122-RD-permission-test-account-verification-plan-2026-10-17.md)，本切片已完成指定測試 actor 的正式環境唯讀 UI／API 驗證，不要求真人業務簽收。PR #453 的 exact main `c549271ab2ad906f41f369cd514e100d92211c21` 與 required CI run `39808042618` 均通過；owner run `39808504957` 已 `RELEASED`，image digest `sha256:b6874c13d99106e0105d74d3f1cfbd6b93797af2fc55f92c6690c3d90f397e8f`、revision `ai-pdm-prod-aa547dcb1a9a`、100% traffic 及前一 revision `ai-pdm-prod-1be8986b68ce` 可追溯。085 已套用，續跑重用 C95 migration receipt，未重送 migration。
+
+發布後唯讀 run `39810618145` 證明 active catalog v7/hash 與唯一 `rd` grant（assignment v14）一致。同一 `DEV014 Free Google（JFS9014）` 經正常 Google popup／Platform SSO 登入；`/api/auth/me` 的 actor hashes 與該 readback 完全相符。圖號 UI／API 各讀取 50 筆，既有測試圖號 `A0061-M01` 明細可開啟；原始 `permission_not_granted` 不再出現在圖號頁。workspace view/create/update、review submit 為 true；review decide、approval batch decide、publish、admin matrix、approval inbox 為 false，審核 UI 與 GET API 均回 `permission_not_granted`。正式環境未執行核准、發行或 business mutation。
+
+建立／檔案上傳／送審及 update 權限投影、RD 核准拒絕與未授權 QA 圖號拒絕／零副作用，重用 native PostgreSQL run `cf1dfefee3a72b74` 的原始 PASS；其來源為 `d54788cfb004b003e7a1baacda80d662be8791b3`，1,082 個受測應用與 migration 檔案的 hashes 與發布版本完全相同。這些仍屬隔離 fixture 證據，不改標為正式寫入測試，也不宣稱另有欄位編輯案例。完整層級、hash 與截圖索引見 `output/qa/dev-122/rd-permission-repair/rd-permission-acceptance-2026-10-23.json`；immutable ref 為 `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-WIF-39808504957-1/post-release-acceptance/rd-permission-acceptance-2026-10-23.json#sha256=d098a6d9401b438ba9554bffae62f481f6618ceff3fd28dc2d20b30613e48ccb`。
+
+登入查證曾錯用 Firebase password provider，兩次 `INVALID_LOGIN_CREDENTIALS` 不代表使用者提供的 Google 帳密失效；同一授權檔密碼已於正常 Google popup 成功登入。該診斷更正不修改任何帳密、grant 或 IAM。測試圖號仍顯示預覽失敗，按既有 drawing-preview／native-CAD 待辦保留，未納入 RD 權限阻擋。本次只關閉優先項目 2 的權限切片；管理員辨識、PDF、supplier、完整原生 CAD 與原 7 issues／29 groups 仍未完成。
+
+### RD 圖號工作台歷史恢復點（2026-10-20 起）
 
 PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build與 Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d` 成功；migration 在任何新 Job execution 前以 `MIGRATION_JOB_READBACK_MISMATCH` 停止，terminal 為 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 revision／traffic 未變，worker 為 `PAUSED_RECOVERED`。provider readback 證明 reuse receipt 的 runner digest／source 與 live `ai-pdm-prod-migration-runner` 不同，而 producer 重發舊 receipt 時沒有讀取 live Job。
 
