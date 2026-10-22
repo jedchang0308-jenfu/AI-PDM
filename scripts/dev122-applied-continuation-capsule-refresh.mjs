@@ -12,6 +12,19 @@ import { bindAppliedContinuationTemplateRef, createAppliedContinuationRefreshTra
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+export function createWifAppliedContinuationRefreshTransport({
+  verifierToken,
+  builderToken,
+  deployerToken,
+  createTransport = createOwnerTransport,
+}) {
+  return createAppliedContinuationRefreshTransport({
+    verifier: createTransport({ token: verifierToken, builderReadbackToken: builderToken }),
+    builder: createTransport({ token: builderToken, builderReadbackToken: null }),
+    deployer: createTransport({ token: deployerToken, builderReadbackToken: null }),
+  })
+}
+
 async function main() {
   const value = process.argv.length === 4 && process.argv[2] === '--capsule-ref' ? process.argv[3] : null
   const templateRef = bindAppliedContinuationTemplateRef(value)
@@ -26,10 +39,10 @@ async function main() {
     if (!value) throw Object.assign(new Error('APPLIED_CONTINUATION_REFRESH_TOKEN_MISSING'), { code: 'APPLIED_CONTINUATION_REFRESH_TOKEN_MISSING' })
     return value
   }
-  const transport = createAppliedContinuationRefreshTransport({
-    verifier: createOwnerTransport({ token: token('GOOGLE_OAUTH_ACCESS_TOKEN') }),
-    builder: createOwnerTransport({ token: token('AIPDM_REFRESH_BUILDER_TOKEN') }),
-    deployer: createOwnerTransport({ token: token('AIPDM_REFRESH_DEPLOYER_TOKEN') }),
+  const transport = createWifAppliedContinuationRefreshTransport({
+    verifierToken: token('GOOGLE_OAUTH_ACCESS_TOKEN'),
+    builderToken: token('AIPDM_REFRESH_BUILDER_TOKEN'),
+    deployerToken: token('AIPDM_REFRESH_DEPLOYER_TOKEN'),
   })
   const readWorkerSource = createFrozenWorkerSourceReader(root)
   const result = await refreshAppliedContinuationCapsule({
@@ -46,6 +59,6 @@ async function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => {
-  process.stderr.write(`${error.code ?? error.message}\n`)
+  process.stderr.write(`${error.message ?? error.code}\n`)
   process.exitCode = 1
 })

@@ -1,6 +1,6 @@
-## DEV-121#rd-capabilities — 2026-10-22 WIF-owned applied-continuation refresh（本地驗證中，正式發布待 protected merge）
+## DEV-121#rd-capabilities — 2026-10-22 WIF provider-proof 身分收斂（本地驗證中，正式發布未寫入）
 
-C110與其後的唯讀 diagnostics 已確認085套用、catalog v7/hash及專用測試RD grant一致，卻因每個新app-only main SHA都由本機ADC重建attempt capsule而反覆要求人類登入。修正沿用既有 principal workflow、三個既有WIF身分、單一concurrency與單一capsule input，在workflow內只刷新attempt-owned source lock／runtime／infra-reuse／authority／intent；sealed C110 migration／worker／recovery lineage保留，不重送085、不另建worker artifact、workflow、IAM或第二writer。retained worker須同時通過ancestor與完整worker input byte等價，runtime與app各綁自己的source authority；分歧、bytes drift、缺漏continuation或provider不一致仍fail closed。正式發布與專用測試actor UI／API正負驗收須待本切片required CI／protected merge後完成；DEV-122原7 issues／29 groups不因本切片縮減。
+C110與其後的唯讀 diagnostics 已確認085套用、catalog v7/hash及專用測試RD grant一致。PR #435／#436及 exact-main required CI 已將attempt refresh移入既有WIF workflow並為共用provider GET加入bounded retry；正式run `39723589561`仍在capsule refresh、任何prepare／build／migrate／candidate／traffic前以`DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED`停止。第二次同類失敗已觸發既有AI-COO review而未重試。直接根因是refresh入口取得三個WIF token後，只把builder token交給receipt writer，卻未傳入verifier transport既有的`builderReadbackToken`欄位，導致精確Cloud Build／Artifact Registry proof GET仍使用verifier身分；CLI又只印stable code而隱藏既有`kind:status`診斷。當前修正只在WIF transport assembly綁定builder secondary readback，builder／deployer transport明確不繼承該能力，並保留單一workflow、concurrency、exact routes、source/hash及fail-closed；不改IAM、不重送085。正式發布與專用測試actor UI／API正負驗收仍待本切片protected merge後完成；DEV-122原7 issues／29 groups不因本切片縮減。
 
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
