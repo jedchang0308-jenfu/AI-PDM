@@ -2673,11 +2673,36 @@ test('provider readback rejects build or image drift and missing provider access
   await assert.rejects(verifyOwnerProviderReadback({ proof,
     token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
       imageStatus: 403 }) }),
-  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED/u)
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED:image:403/u)
   await assert.rejects(verifyOwnerProviderReadback({ proof,
     token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
       sourceBytes: Buffer.from('tampered owner source archive') }) }),
   /DEV121_OWNER_RELEASE_PROOF_PROVIDER_SOURCE_MISMATCH/u)
+})
+
+test('provider readback retries transient GET failures but never authorization denial', async () => {
+  const proof = await verify(fixture({ includeTerminal: true }))
+  const accepted = providerFetch(proof)
+  let transientCalls = 0
+  const transientFetch = async (url, options) => {
+    if (url.startsWith('https://artifactregistry.googleapis.com/v1/') && transientCalls++ < 2) {
+      return new Response('', { status: 503 })
+    }
+    return accepted(url, options)
+  }
+  const result = await verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: transientFetch })
+  assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
+  assert.equal(transientCalls, 3)
+
+  let deniedCalls = 0
+  const denied = providerFetch(proof, { imageStatus: 403 })
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: async (...args) => {
+      if (args[0].startsWith('https://artifactregistry.googleapis.com/v1/')) deniedCalls += 1
+      return denied(...args)
+    } }), /PROVIDER_READBACK_FAILED:image:403/u)
+  assert.equal(deniedCalls, 1)
 })
 
 test('provider readback rejects malformed claims before any provider request', async () => {

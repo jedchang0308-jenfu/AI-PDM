@@ -10,6 +10,7 @@ import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
 import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
+import { fetchProviderRead } from './dev012-read-retry.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -48,11 +49,11 @@ const OWNERS = Object.freeze({
     builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
 })
 
-function proofError(code) {
-  const message = `DEV121_OWNER_RELEASE_PROOF_${code}`
-  return Object.assign(new Error(message), { code: message })
+function proofError(code, detail = null) {
+  const key = `DEV121_OWNER_RELEASE_PROOF_${code}`
+  return Object.assign(new Error(detail === null ? key : `${key}:${detail}`), { code: key })
 }
-function fail(code) { throw proofError(code) }
+function fail(code, detail = null) { throw proofError(code, detail) }
 function exactKeys(value, keys) {
   return value && typeof value === 'object' && !Array.isArray(value) &&
     canonicalize(Object.keys(value).sort()) === canonicalize([...keys].sort())
@@ -2045,14 +2046,20 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   const digest = proof.artifactDigest.slice(config.artifactUri.length + 1)
   const imageName = `projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${config.artifactName}@${digest}`
   const imageUrl = `https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${encodeURIComponent(`${config.artifactName}@${digest}`)}`
-  const request = async (url) => {
+  const request = async (url, kind) => {
     if (builderReadback !== null && url !== buildUrl && url !== imageUrl) fail('SECONDARY_READBACK_ROUTE_INVALID')
-    const response = await scopeFetch(fetchImpl)(url, { method: 'GET', redirect: 'error',
-      headers: { authorization: `Bearer ${builderReadback?.token ?? token}` }, signal: AbortSignal.timeout(20_000) })
-    if (!response.ok || response.redirected || response.headers.get('location')) fail('PROVIDER_READBACK_FAILED')
+    let response
+    try {
+      response = await fetchProviderRead(url, { method: 'GET', redirect: 'error',
+        headers: { authorization: `Bearer ${builderReadback?.token ?? token}` } },
+      { fetchImpl: scopeFetch(fetchImpl), timeoutMs: 20_000 })
+    } catch (error) {
+      fail('PROVIDER_READBACK_FAILED', `${kind}:${error?.cause?.code ?? error?.code ?? error?.name ?? 'network'}`)
+    }
+    if (!response.ok || response.redirected || response.headers.get('location')) fail('PROVIDER_READBACK_FAILED', `${kind}:${response.status}`)
     try { const value = await response.json(); activeEvidence(); return value } catch { fail('PROVIDER_READBACK_INVALID') }
   }
-  const build = await request(buildUrl)
+  const build = await request(buildUrl, 'build')
   const imageTag = `${config.artifactUri}:release-${proof.sourceRevision}`
   const storageSource = build?.sourceProvenance?.resolvedStorageSource
   if (!isTargetBuildName(build?.name, claim.buildId) ||
@@ -2066,7 +2073,7 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
       String(storageSource?.generation) !== source.generation ||
       !build.results?.images?.some((image) =>
         image.name === imageTag && image.digest === digest)) fail('PROVIDER_BUILD_MISMATCH')
-  const image = await request(imageUrl)
+  const image = await request(imageUrl, 'image')
   if (image?.name !== imageName || image?.uri !== proof.artifactDigest) {
     fail('PROVIDER_IMAGE_MISMATCH')
   }
