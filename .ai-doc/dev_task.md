@@ -1,3 +1,7 @@
+## DEV-122 優先項目 2 — 2026-10-23 RD 權限切片已完成專用測試帳號驗證
+
+PR #453／exact main `c549271ab2ad906f41f369cd514e100d92211c21` 的 required CI、正式 owner run `39808504957` 與發布後 readback `39810618145` 均成功。指定 `JFS9014` 經 Google popup 正常登入後，圖號 UI／API 正向與審核唯讀拒絕均成立；隔離負向保留原來源與重用依據。完整驗收、immutable 證據及未驗證項見 [DEV-122 當前契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台切片驗收2026-10-23)。只完成 RD 權限切片；其餘 DEV-122 與 DEV-124 繼續暫停，原 7 issues／29 groups 不宣告 PASS。
+
 ## DEV-121#rd-capabilities — 2026-10-22 applied migration 證據隔離（本地 affected-slice PASS，待受保護交付）
 
 PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通過 required CI。正式 run `39756624774` 建立 fresh intent `DEV122-RD-WIF-39756624774-1` 後，prepare 以 `DEV121_OWNER_RELEASE_PROOF_REF_INVALID` 停止；build／migration／candidate／traffic 均未執行，recovery 成功。直接根因是已套用 migration continuation 仍呼叫完整 owner source proof；C95 歷史 intent 恰好包含 OpenSWX worker，reader 遂遞迴重播 worker descriptor／profile／deadline／provider history，讓與 RD migration 無關的 worker 證據成為正式阻擋。

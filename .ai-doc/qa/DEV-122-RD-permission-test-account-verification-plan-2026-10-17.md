@@ -28,3 +28,19 @@
 
 測試帳號正向結果屬於「production-shaped synthetic actor verification」，可證明正式部署的共同 evaluator、資料契約與拒絕邊界；本輪不執行也不要求真實 RD 人員業務簽收。任何日後獨立的真人業務驗收都必須另開明確授權，不得回寫或改造本輪 evidence，也不影響本切片依測試帳號完成工程驗證的判定。
 
+## 實際結果（2026-10-23）
+
+指定測試 actor 已經正常 Google popup → Platform SSO → AI-PDM session 登入。使用者授權檔案中的密碼可用；先前 Firebase password-provider 的拒絕屬登入方式選錯，不作為帳密失效證據。
+
+| 範圍 | 實際證據與結果 |
+|---|---|
+| 正式發布 | PR #453／exact main `c549271ab2ad906f41f369cd514e100d92211c21`、required CI `39808042618`、owner run `39808504957` SUCCESS；`ai-pdm-prod-aa547dcb1a9a` 100% traffic。 |
+| 正式資料／actor | 唯讀 run `39810618145`：catalog v7/hash 一致、唯一 active `rd` grant／assignment v14；登入後 actor／issuer hashes 與 readback 相同。085 未重送。 |
+| 正式正向／共享入口 | 圖號 UI 與 `/api/numbering/drawings/workbench?limit=50` 各 50 筆、測試 `A0061-M01` 明細可讀；`/api/numbering/permissions` 的圖號與 RD workspace／submit 為 true。 |
+| 正式唯讀負向 | review decide、approval batch decide、publish、admin matrix、approval inbox 為 false；`/approvals` 與 GET `/api/approvals/inbox` 都呈現 `permission_not_granted`。未呼叫正式核准／發行 mutation。 |
+| 隔離負向／資料操作重用 | native PostgreSQL run `cf1dfefee3a72b74`：RD 建立／檔案上傳／送審及 update 權限投影、RD 核准 403 與 QA 圖號 403、拒絕零副作用；原來源 `d54788cf…` 的 1,082 個應用／migration 檔案 hashes 與發布版本相同。未重跑或把 fixture 結果改標成正式寫入，也不據此宣稱另有欄位編輯案例。 |
+
+精確來源、image、revision、traffic、actor／grant、route、原生證據 hashes 與兩張正式 UI 截圖記於 `output/qa/dev-122/rd-permission-repair/rd-permission-acceptance-2026-10-23.json`。該文件已以 create-only 保存於同一 release 的 `post-release-acceptance/`，SHA-256 為 `d098a6d9401b438ba9554bffae62f481f6618ceff3fd28dc2d20b30613e48ccb`；原始失敗與舊 blocked 記錄保留為歷史，Google SSO 成功已解除登入阻擋。
+
+優先項目 2 依本計畫完成專用測試 actor 工程驗證；真人簽收與其他 DEV-122 能力未執行，原 7 issues／29 groups 不宣告 PASS。預覽失敗屬既有 deferred 項目，不影響此權限切片的判定。
+
