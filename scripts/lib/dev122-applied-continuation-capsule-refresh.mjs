@@ -28,11 +28,15 @@ export function createAppliedContinuationRefreshTransport({ verifier, builder, d
   return Object.freeze({
     readBytes: (...args) => verifier.readBytes(...args),
     readJson: (...args) => verifier.readJson(...args),
+    readOwnerSourceProof: (...args) => verifier.readOwnerSourceProof(...args),
     putBytes: (...args) => builder.putBytes(...args),
     putJson: (...args) => builder.putJson(...args),
     request: (...args) => deployer.request(...args),
     getService: (...args) => verifier.getService(...args),
+    getRevision: (...args) => verifier.getRevision(...args),
     assertServiceSettled: (...args) => verifier.assertServiceSettled(...args),
+    assertRevisionReady: (...args) => verifier.assertRevisionReady(...args),
+    assertCanonicalEntrypoint: (...args) => verifier.assertCanonicalEntrypoint(...args),
     effectiveRevision: (...args) => verifier.effectiveRevision(...args),
     now: (...args) => verifier.now(...args),
   })
