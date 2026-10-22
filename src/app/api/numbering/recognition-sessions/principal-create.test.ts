@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
+import { NextRequest } from "next/server";
+import { middleware } from "@/middleware";
 
 const mocks = vi.hoisted(() => ({ access: vi.fn(), guard: vi.fn(), create: vi.fn() }));
 vi.mock("@/lib/platform-command-context", () => ({
@@ -24,7 +26,14 @@ function request() {
   });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+
+function dispatch(request: Request) {
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+  expect(middleware(new NextRequest(request.clone())).headers.get("x-middleware-next")).toBe("1");
+  return request;
+}
 
 function diagnostic(response: Response, stage: string, reason: string) {
   expect(console.warn).toHaveBeenCalledTimes(1);
@@ -50,7 +59,7 @@ describe("recognition queue entrypoint", () => {
   });
 
   it("queues in the same write snapshot that rechecked the verified Principal grant", async () => {
-    const response = await POST(request());
+    const response = await POST(dispatch(request()));
     expect(response.status).toBe(201);
     expect(mocks.guard).toHaveBeenCalledWith(expect.objectContaining({
       metadata, permissionCode: "numbering.recognition.run",
@@ -65,14 +74,14 @@ describe("recognition queue entrypoint", () => {
   it("does not queue after the grant is revoked in the write snapshot", async () => {
     mocks.guard.mockRejectedValueOnce(new DrawingRecognitionError(
       "RECOGNITION_PERMISSION_DENIED", "目前帳號沒有此辨識操作權限。", 403));
-    const response = await POST(request());
+    const response = await POST(dispatch(request()));
     expect(response.status).toBe(403);
     expect(mocks.create).not.toHaveBeenCalled();
   });
   it("emits one sanitized diagnosis for an initial run denial and preserves its response", async () => {
     mocks.access.mockResolvedValueOnce({response: Response.json({error:"permission_not_granted"},
       {status:403,headers:{"cache-control":"no-store"}}),company:null,actor:null,metadata:null});
-    const response=await POST(request());
+    const response=await POST(dispatch(request()));
     expect(response.status).toBe(403);expect(await response.json()).toEqual({error:"permission_not_granted"});
     expect(response.headers.get("cache-control")).toBe("no-store");
     diagnostic(response,"initial_guard","permission_not_granted");

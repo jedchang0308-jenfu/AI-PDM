@@ -1,11 +1,79 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
+import { resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
 import { isProductionSliceAllowedApiMutation, isProductionSliceOpenPagePath } from "@/lib/production-slice";
 import { POST as upload } from "@/app/api/parts/[partNumber]/attachments/route";
 import { DELETE as remove } from "@/app/api/parts/[partNumber]/attachments/[attachmentId]/route";
 import { POST as restore } from "@/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route";
 const active = { PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft" };
+const recognitionCollection = "/api/numbering/recognition-sessions";
+const recognitionSession = `${recognitionCollection}/recognition-fixture`;
+const recognitionCommands = [
+  ["POST", recognitionCollection, "numbering.recognition.run"],
+  ["POST", `${recognitionSession}/reruns`, "numbering.recognition.run"],
+  ["POST", `${recognitionSession}/client-adapter-results`, "numbering.recognition.run"],
+  ["PATCH", `${recognitionSession}/decisions`, "numbering.recognition.review"],
+  ["POST", `${recognitionSession}/amendments`, "numbering.recognition.review"],
+  ["POST", `${recognitionSession}/cancel-amendment`, "numbering.recognition.review"],
+  ["POST", `${recognitionSession}/write-impact`, "numbering.recognition.formalize"],
+  ["POST", `${recognitionSession}/commit`, "numbering.recognition.formalize"],
+  ["POST", `${recognitionSession}/formalize`, "numbering.recognition.formalize"],
+  ["POST", `${recognitionSession}/handoff`, "numbering.recognition.formalize"],
+] as const;
+
+describe("Principal recognition workflow dispatch in the production slice", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["GET", "HEAD"])("dispatches the existing Principal recognition navigation page for %s", method => {
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+    const path = "/numbering/recognition/recognition-fixture";
+    const response = middleware(new NextRequest("https://pdm.example" + path, { method }));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(isProductionSliceOpenPagePath(path, { PDM_PRODUCTION_SLICE_MODE: "unknown-mode" })).toBe(false);
+    for (const unrelated of ["/numbering/recognition", `${path}/extra`, "/numbering/recognition-extra/session-one"]) {
+      expect(isProductionSliceOpenPagePath(unrelated, active)).toBe(false);
+    }
+  });
+
+  it.each(recognitionCommands)("dispatches %s %s to its existing %s owner guard", (method, path, permission) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+    const request = new NextRequest("https://pdm.example" + path, { method });
+    expect(resolveJenfuRoutePolicyFromRequest(request, permission))
+      .toMatchObject({ authorizationMode: "permission", scopeResolver: "workspace" });
+    const response = middleware(request);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("x-ai-pdm-production-slice")).toBeNull();
+  });
+
+  it.each(recognitionCommands)("keeps %s %s closed in an unknown mode", async (method, path) => {
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "unknown-mode");
+    const response = middleware(new NextRequest("https://pdm.example" + path, { method }));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("x-ai-pdm-production-slice")).toBe("unknown-mode");
+    expect(await response.json()).toMatchObject({ error: "feature_not_open_in_production_slice" });
+  });
+
+  it.each([
+    ["PUT", recognitionCollection], ["PATCH", recognitionCollection], ["DELETE", recognitionCollection],
+    ["POST", `${recognitionCollection}-extra`], ["POST", recognitionSession],
+    ["POST", `${recognitionSession}/decisions`], ["DELETE", `${recognitionSession}/decisions`],
+    ["PATCH", `${recognitionSession}/formalize`], ["POST", `${recognitionSession}/formalize/extra`],
+    ["POST", `${recognitionSession}/unsupported`], ["POST", `${recognitionCollection}/reruns`],
+    ["POST", `${recognitionSession}/sources/source-one/content`],
+    ["PATCH", `${recognitionSession}/observations/observation-one`],
+    ["POST", "/api/numbering/recognition-sessions-import"],
+  ])("rejects unsupported %s %s before dispatch", async (method, path) => {
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+    const response = middleware(new NextRequest("https://pdm.example" + path, { method }));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("x-ai-pdm-production-slice")).toBe("blocked");
+    expect(await response.json()).toMatchObject({ error: "feature_not_open_in_production_slice" });
+  });
+});
+
 const commands: [string,string][] = [
  ["POST","/api/pdm/parts/part-one/change-works"], ["POST","/api/pdm/drawings/drawing-one/revision-works"],
  ["PATCH","/api/pdm/part-change-works/work-one"], ["PATCH","/api/pdm/drawing-revision-works/work-one"],
