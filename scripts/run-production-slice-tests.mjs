@@ -22,19 +22,20 @@ const plan = createProductionSlicePlanFromGit({ root, base: option('--base'), he
 
 const CORE_TESTS = [
   'scripts/dev117-ai-pdm-continuous-release.test.mjs',
-  'scripts/dev117-production-migration-runner.test.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs',
   'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev012-owner-prerequisite-producer.test.mjs',
+  'scripts/dev121-principal-owner-recovery.test.mjs',
   'scripts/dev117-owner-chain-preflight.test.mjs',
   'scripts/dev117-release-control-policy.test.mjs',
   'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev117-release-efficiency.test.mjs',
   'scripts/dev122-applied-migration-continuation.test.mjs',
   'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
-  'scripts/dev015-gcc-applicability.test.mjs',
-  'scripts/dev015-gcc-aligned-new-applicability.test.mjs',
-  'scripts/dev015-aligned-new-loader-inspection.test.mjs',
+]
+
+const DATABASE_TESTS = [
+  'scripts/dev117-production-migration-runner.test.mjs',
 ]
 
 const AUTHORIZATION_TESTS = [
@@ -55,7 +56,8 @@ const groups = [{ name: 'planner', tests: ['scripts/production-slice-plan.test.m
 if (plan.gates.full) {
   groups.push(...fullContinuousGroups(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']))
 } else {
-  if (profile === 'owner' || plan.gates.releaseCore) groups.push({ name: 'release-core', tests: CORE_TESTS })
+  if (plan.gates.releaseCore) groups.push({ name: 'release-core', tests: CORE_TESTS })
+  if (plan.gates.database) groups.push({ name: 'database', tests: DATABASE_TESTS })
   if (plan.gates.authorization) groups.push({ name: 'authorization', tests: AUTHORIZATION_TESTS })
   if (plan.gates.worker) groups.push({ name: 'worker', tests: WORKER_TESTS })
 }

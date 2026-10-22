@@ -563,7 +563,7 @@ Protected required checks、official-source review、single capsule、recovery�
 
 Owner prepare不再重跑相同 source test groups。`dev012-verify-official-source` 必須讀回 exact merged SHA 上由 GitHub Actions app `15368` 產生且 `completed/success` 的 `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` check runs；缺件、pending、failure、wrong SHA、wrong app 或重名皆 fail closed。其後 prepare只執行 protection/source binding 與 production-specific live readback。正式 migration、Cloud Run zero-traffic candidate、smoke、traffic與recovery仍在 protected merged-main owner workflow；PR branch isolated candidate不得取得或模擬這些正式權限。
 
-`.github/workflows`、package/build control、planner本身、DEV-012/117共同 release source及任何 unknown path一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous`與既有完整 QC。對產品與審查者只呈現 `preflight → build → migrate-if-needed → candidate-smoke → activate-readback` 五個邏輯階段；既有 executor 的內部 jobs 與收據仍可作為相容實作，不形成 DEV-122 的逐項人工驗收清單。
+任何 unknown path 一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous` 與既有完整 QC。已分類的 `.github/workflows`、planner、DEV-012/117共同 release source只選 release-control 自身的來源、receipt、續跑、provider routing與recovery契約；package/build、abort-controller、database、authorization、worker、application與infrastructure各自依 changed responsibility 選擇，不再因 release-control 變更自動載入。未被本次plan選中的產品功能若另有缺陷，保存真實失敗並轉入其獨立修復任務，不阻擋本切片，也不得改判PASS。對產品與審查者只呈現 `preflight → build → migrate-if-needed → candidate-smoke → activate-readback` 五個邏輯階段；既有 executor 的內部 jobs 與收據仍可作為相容實作，不形成 DEV-122 的逐項人工驗收清單。
 
 Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons、gates、release phases與依失效機制選出的 evidence requirements；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
 
@@ -575,7 +575,7 @@ Reviewed source revision、artifact build inputs與release attempt是三個責�
 
 `dev012-read-retry` 為 official-source 與 owner transport 的共同 GET 復原入口（GitHub run、Cloud Run/provider JSON、固定 generation 的 GCS bytes）。每個讀取最多三次，含退避共用 20 秒（official source）或 30 秒（owner）上限；已辨識暫時網路錯誤及 500/502/503/504 退避 500/1000 毫秒。429 必須有可遵守且不超過 5 秒的 Retry-After；剩餘期限不足也停止，不提前重送。401/403/404、JSON/契約錯誤與未知故障不重試；POST/PATCH/DELETE、token 刷新、IAM 擴張均不在自動重試範圍。未知寫入仍先 provider readback，沒有盲目 Job 重送或延長 capsule 期限。
 
-本機 `npm run test:production-slice:affected` 預設將每個完成群組立即寫入 `output/qa/release-efficiency/checkpoints/` 的 immutable receipt，失敗也保存並停止下游；重啟只重用 24 小時內相同 clean HEAD/tree、測試命令、依賴 lock、Node/OS、sparse scope 與環境 hash 的最近 PASS。dirty／不明輸入、較新 FAIL、損壞、過期、`--fresh` 都重跑；不寫入環境明文。完整 gate 從既有 continuous test manifest 展開，沒有刪減測試。CI/GitHub Actions 與 owner profile 禁止讀本機快取，provider required checks 不減免。本機 checkpoint 不作 production authority，也不聲稱驗證跨來源等價；無關文件依 §26.3 分流，真正與 Git HEAD 綁定的測試不任意跨 SHA 重用。Planner 包含刪除與 rename 的舊責任，避免錯判 docs-only。
+本機 `npm run test:production-slice:affected` 預設將每個完成群組立即寫入 `output/qa/release-efficiency/checkpoints/` 的 immutable receipt，失敗也保存並停止下游；重啟只重用 24 小時內相同 clean HEAD/tree、測試命令、依賴 lock、Node/OS、sparse scope 與環境 hash 的最近 PASS。dirty／不明輸入、較新 FAIL、損壞、過期、`--fresh` 都重跑；不寫入環境明文。只有 unknown-path `FULL` 從既有 continuous test manifest 展開；已知責任只執行 planner 的 affected groups。CI/GitHub Actions 與 owner profile 禁止讀本機快取，provider required checks 不減免。本機 checkpoint 不作 production authority，也不聲稱驗證跨來源等價；無關文件依 §26.3 分流，真正與 Git HEAD 綁定的測試不任意跨 SHA 重用。Planner 包含刪除與 rename 的舊責任，避免錯判 docs-only。
 
 Owner 產物沿用既有 immutable build／migration receipts 與 source/profile/live-state 驗證，不另建快取。RD readback submission 續跑保留原 observedAt，只比對相同 operation/source/digest/args 的 sealed intent；重啟先查回既有 execution，不因新時間誤拒或再次提交。原失敗收據保留。已終結或過期 capsule 仍走既有 recovery／重新準備。
 
@@ -583,9 +583,9 @@ Owner 產物沿用既有 immutable build／migration receipts 與 source/profile
 
 固定 `.github/workflows/read-ai-pdm-rd-permission-state-production.yml` 作為兩種 closed diagnostic operation 的共同入口，保留原 WIF filename、main/environment/source gate 與 concurrency。`source/rd-permission-readback` 沿用既有 RD operation 與 deployer；`source/production-diagnostics` 僅接受 `{schemaVersion:"aipdm.production-diagnostic-operation.v1",kind:"service-state",operationId,sourceRevision}`，由現有 verifier GET 固定 `jenfu-platform-prod/asia-east1/ai-pdm-prod`，只輸出 revision/generation/traffic，不讀 DB、執行 Job、輸出 env/Secret 或變更服務。兩者都接受 `gs://jenfu-platform-prod-aipdm-release/source/<namespace>/<name>.json#sha256=<hash>`，禁止任意 target/command/SQL。Current protected-main workflow source 與 immutable operation source 分別驗證：executor 必須是 exact clean main，operation source 必須是其已合併祖先；內容 hash、closed kind、固定 target、actor/runner、route 與 fixture 未變時，可在 WIF 下重用既有 operation，main 新增 commit 本身不要求本機 ADC 重新發布。來源不相容或無法證明 lineage 時，必須在 provider read 前拒絕。新的服務狀態快照以 content hash 寫入 own `receipts/diagnostics`，不覆寫舊 readback；沒有新增 IAM/WIF/Secret 資源。新增不同診斷能力仍須同一入口的 source review/CI，不是任意 workflow 放權。
 
-變更範圍仍由 §26.3 planner 決定；不取消 required CI、不跳過共享 release-control 的 full gate。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
+變更範圍仍由 §26.3 planner 決定；不取消 required CI，release-control 只執行其自身 gate，unknown path才使用 full fallback。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
 
-continuous／QC／affected-slice runner 共用 `scripts/dev117-test-environment.mjs`，在啟動選定測試前實測其 temporary Git/config、shared Git metadata 寫入及 loopback listen/read 能力。任何需求不可用都以 `BLOCKED / tests=NOT_RUN`、exit 2 結束；不再等完整套件逐案回報同一 sandbox 限制。既有失敗仍保留；執行端可在已核准的 host／CI 重跑相同命令，預檢不得自行提升權限、跳測或將環境不足視為 PASS。純 planner 測試不取得無關能力；既有 required gate 與 full manifest 不減免。
+continuous／QC／affected-slice runner 共用 `scripts/dev117-test-environment.mjs`，在啟動選定測試前實測其 temporary Git/config、shared Git metadata 寫入及 loopback listen/read 能力。任何需求不可用都以 `BLOCKED / tests=NOT_RUN`、exit 2 結束；不再等完整套件逐案回報同一 sandbox 限制。既有失敗仍保留；執行端可在已核准的 host／CI 重跑相同命令，預檢不得自行提升權限、跳測或將環境不足視為 PASS。純 planner 測試不取得無關能力；required checks不減免，full manifest僅由unknown-path fallback選用。
 
 ### 26.5 Source authority and artifact transport separation（2026-10-19）
 

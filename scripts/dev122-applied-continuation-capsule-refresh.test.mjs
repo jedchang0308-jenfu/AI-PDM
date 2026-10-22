@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createWifAppliedContinuationRefreshTransport } from './dev122-applied-continuation-capsule-refresh.mjs'
+import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 
 import {
   APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES,
@@ -92,19 +93,22 @@ test('template ref and workflow identity are exact and traversal-safe', () => {
 test('WIF transport routes its complete contract through one role map', async () => {
   const calls = []
   const role = name => new Proxy({}, { get: (_target, method) => (...args) => { calls.push([name, method, args]); return `${name}:${String(method)}` } })
-  const transport = createAppliedContinuationRefreshTransport({ verifier: role('verifier'), builder: role('builder'), deployer: role('deployer') })
+  const transport = createAppliedContinuationRefreshTransport({ verifier: role('verifier'), builder: role('builder') })
   assert.deepEqual(Object.keys(transport), Object.keys(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES))
   for (const [method, expectedRole] of Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES)) {
-    assert.equal(transport[method]('production-shaped-input'), `${expectedRole}:${method}`)
+    const input = method === 'request'
+      ? 'https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds?filter=tags%3Ddev122-rd-full35-c110&pageSize=2'
+      : 'production-shaped-input'
+    assert.equal(transport[method](input), `${expectedRole}:${method}`)
   }
   assert.deepEqual(calls.map(([roleName, method]) => [roleName, method]), Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES).map(([method, roleName]) => [roleName, method]))
-  assert.throws(() => createAppliedContinuationRefreshTransport({ verifier: {}, builder: role('builder'), deployer: role('deployer') }), /APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID/u)
+  assert.throws(() => createAppliedContinuationRefreshTransport({ verifier: {}, builder: role('builder') }), /APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID/u)
 })
 
-test('WIF assembly gives exact provider proof GETs the builder token without widening other transports', () => {
+test('WIF assembly reuses the verifier-primary provider routing contract without a redundant deployer transport', () => {
   const created = []
   const createTransport = options => {
-    const role = created.length === 0 ? 'verifier' : created.length === 1 ? 'builder' : 'deployer'
+    const role = created.length === 0 ? 'verifier' : 'builder'
     created.push({ role, options })
     return new Proxy({}, { get: (_target, method) => (...args) => ({ role, method, args }) })
   }
@@ -116,14 +120,46 @@ test('WIF assembly gives exact provider proof GETs the builder token without wid
   })
 
   assert.deepEqual(created, [
-    { role: 'verifier', options: { token: 'verifier-token', builderReadbackToken: 'builder-token' } },
+    { role: 'verifier', options: { token: 'verifier-token', builderReadbackToken: 'builder-token', migrationExecutionReadbackToken: 'deployer-token' } },
     { role: 'builder', options: { token: 'builder-token', builderReadbackToken: null } },
-    { role: 'deployer', options: { token: 'deployer-token', builderReadbackToken: null } },
   ])
   assert.equal(transport.readOwnerSourceProof('proof').role, 'verifier')
   assert.equal(transport.readOwnerRun('run').role, 'verifier')
   assert.equal(transport.putJson('receipt').role, 'builder')
-  assert.equal(transport.request('provider').role, 'deployer')
+  assert.equal(transport.request('https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds?filter=tags%3Ddev122-rd-full35-c110&pageSize=2').role, 'verifier')
+})
+
+test('production-shaped refresh reads use verifier and exact migration identities without a Google bearer on GitHub', async () => {
+  const verifierToken = 'verifier-token-000000000000'
+  const builderToken = 'builder-token-0000000000000'
+  const deployerToken = 'deployer-token-000000000000'
+  const calls = []
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, authorization: options.headers?.authorization ?? null })
+    if (url.startsWith('https://api.github.com/')) {
+      return new Response(JSON.stringify({ id: 39723589561, status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', head_sha: OLD,
+        created_at: '2026-10-22T00:00:00.000Z', updated_at: '2026-10-22T00:01:00.000Z' }), { status: 200 })
+    }
+    return new Response('{}', { status: 200 })
+  }
+  const createTransport = options => createOwnerTransport({ ...options, fetchImpl, sleep: async () => {} })
+  const transport = createWifAppliedContinuationRefreshTransport({ verifierToken, builderToken, deployerToken, createTransport })
+  const buildList = 'https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds?filter=tags%3Ddev122-rd-full35-c110&pageSize=2'
+  const migrationJob = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
+  const migrationList = `${migrationJob}/executions?pageSize=100`
+  const migrationExecution = `${migrationJob}/executions/ai-pdm-prod-migration-runner-c110`
+  await transport.request(buildList)
+  await transport.request(migrationJob)
+  await transport.request(migrationList)
+  await transport.request(migrationExecution)
+  await transport.readOwnerRun({ application: { repository: 'jedchang0308-jenfu/AI-PDM' } }, 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561')
+  assert.deepEqual(calls.map(({ url, authorization }) => [url, authorization]), [
+    [buildList, `Bearer ${verifierToken}`],
+    [migrationJob, `Bearer ${deployerToken}`],
+    [migrationList, `Bearer ${deployerToken}`],
+    [migrationExecution, `Bearer ${deployerToken}`],
+    ['https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561', null],
+  ])
 })
 
 test('expired applied continuation is normalized once into a fresh exact-main capsule without rebuilding its worker', async () => {
@@ -169,7 +205,7 @@ test('C110-shaped refresh routes the exact pre-activation owner run through veri
     },
   }, { get: (target, method) => target[method] ?? (() => undefined) })
   const inert = new Proxy({}, { get: () => () => undefined })
-  const transport = createAppliedContinuationRefreshTransport({ verifier, builder: inert, deployer: inert })
+  const transport = createAppliedContinuationRefreshTransport({ verifier, builder: inert })
   const result = await refreshAppliedContinuationCapsule({
     templateRef, profile, root: 'C:/fixture', transport, environment,
     validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,

@@ -71,12 +71,45 @@ test('worker source selects worker evidence without unrelated app build', () => 
   assert.equal(plan.gates.database, false)
 })
 
-test('shared release control and unknown paths fail closed to the full gate', () => {
-  for (const file of ['.github/workflows/ci.yml', 'scripts/plan-production-slice.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.mjs', 'scripts/unclassified-new-control.mjs']) {
+test('shared release control selects its own safety boundary without unrelated product gates', () => {
+  for (const file of ['.github/workflows/ci.yml', 'scripts/plan-production-slice.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.mjs']) {
     const plan = createProductionSlicePlan([file])
-    assert.equal(plan.classification, 'FULL', file)
-    assert.ok(Object.entries(plan.gates).filter(([gate]) => gate !== 'documentation').every(([, enabled]) => enabled), file)
+    assert.equal(plan.classification, 'AFFECTED_SLICES', file)
+    assert.equal(plan.gates.releaseCore, true, file)
+    for (const gate of ['application', 'authorization', 'database', 'preview', 'recognition', 'worker', 'infrastructure', 'abortController', 'dependencyAudit', 'lint', 'dbBoundary', 'nativePostgres', 'migration', 'isolatedBuild', 'desktopUi']) {
+      assert.equal(plan.gates[gate], false, `${file}:${gate}`)
+    }
   }
+})
+
+test('only unknown paths retain the cross-product full fallback', () => {
+  const plan = createProductionSlicePlan(['scripts/unclassified-new-control.mjs'])
+  assert.equal(plan.classification, 'FULL')
+  assert.ok(Object.entries(plan.gates).filter(([gate]) => gate !== 'documentation').every(([, enabled]) => enabled))
+})
+
+test('abort, dependency and build gates follow their own changed responsibility', () => {
+  const abort = createProductionSlicePlan(['tools/dev-117/abort-controller/server.mjs'])
+  assert.equal(abort.gates.releaseCore, true)
+  assert.equal(abort.gates.abortController, true)
+  assert.equal(abort.gates.application, false)
+  const dependency = createProductionSlicePlan(['package-lock.json'])
+  assert.equal(dependency.gates.releaseCore, true)
+  assert.equal(dependency.gates.application, true)
+  assert.equal(dependency.gates.dependencyAudit, true)
+  assert.equal(dependency.gates.isolatedBuild, true)
+})
+
+test('required CI does not couple release control to unrelated product gates', () => {
+  const source = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8')
+  assert.match(source, /Reject high or critical production dependency findings[\s\S]*?if: steps\.slice\.outputs\.dependency_audit == 'true'/u)
+  assert.match(source, /- name: Lint\s+if: steps\.slice\.outputs\.lint == 'true'/u)
+  assert.match(source, /- name: Verify release and infrastructure slice\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
+  assert.match(source, /- name: Verify shared release package contracts\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
+  assert.match(source, /- name: Verify abort controller\s+if: steps\.slice\.outputs\.abort_controller == 'true'/u)
+  const runner = fs.readFileSync(path.join(root, 'scripts/run-production-slice-tests.mjs'), 'utf8')
+  assert.match(runner, /if \(plan\.gates\.releaseCore\) groups\.push/u)
+  assert.doesNotMatch(runner, /profile === 'owner' \|\| plan\.gates\.releaseCore/u)
 })
 
 test('historical worker fixtures stay in the worker responsibility', () => {

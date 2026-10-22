@@ -115,11 +115,11 @@ jobs:
         run: npx playwright install chromium
 
       - name: Reject high or critical production dependency findings
-        if: steps.slice.outputs.docs_only != 'true'
+        if: steps.slice.outputs.dependency_audit == 'true'
         run: npm run audit:production
 
       - name: Lint
-        if: steps.slice.outputs.docs_only != 'true'
+        if: steps.slice.outputs.lint == 'true'
         run: npm run lint
 
       - name: Verify affected release, authorization, database, and worker contracts
@@ -131,7 +131,7 @@ jobs:
         run: npm run test:production-slice:affected -- --profile ci
 
       - name: Verify release and infrastructure slice
-        if: steps.slice.outputs.release_core == 'true' || steps.slice.outputs.infrastructure == 'true'
+        if: steps.slice.outputs.infrastructure == 'true'
         env:
           CI: true
           PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT: "true"
@@ -180,7 +180,7 @@ jobs:
           npm run qc:dev-079:owner-invariant
 
       - name: Verify shared release package contracts
-        if: steps.slice.outputs.release_core == 'true' || steps.slice.outputs.infrastructure == 'true'
+        if: steps.slice.outputs.infrastructure == 'true'
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
@@ -188,6 +188,10 @@ jobs:
           npm run qc:dev-101:package
           npm run qc:dev-101:qa-integrity
           npm run qc:production-deployment-pipeline
+
+      - name: Verify abort controller
+        if: steps.slice.outputs.abort_controller == 'true'
+        run: npm run test:dev-117:abort
 
       - name: Verify affected database boundary
         if: steps.slice.outputs.full != 'true' && steps.slice.outputs.db_boundary == 'true'
