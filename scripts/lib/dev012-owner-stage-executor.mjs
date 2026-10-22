@@ -16,7 +16,7 @@ import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRele
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
 import { appliedRdPermissionSmokeSuite, assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
-import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode } from './dev117-release-control-policy.mjs'
+import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode, requiresPrincipalOnlyMigrationFence } from './dev117-release-control-policy.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -139,6 +139,30 @@ function assertIntentBase(intent, profile, intentRef, intentSha256) {
 
 function acceptedStatus(value, statuses) {
   return value && statuses.includes(value.status) && value.releaseAuthority === true && value.evidenceScope !== 'LOCAL_SYNTHETIC'
+}
+
+export async function validatePrincipalRecoveryForPrepare({ intent, profile, transport, service }) {
+  const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+  if (!recovery) return null
+  const [proof, revision] = await Promise.all([
+    transport.readJson(recovery.receiptRef, profile.artifact.releaseBucket, ['receipts']),
+    transport.getRevision(profile, recovery.revision),
+  ])
+  assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
+  if (!requiresPrincipalOnlyMigrationFence(intent)) return recovery
+  const fence = await transport.readBytes(intent.principalOnlyFenceRef.uri, {
+    prefixes: ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'],
+    expectedSha256: intent.principalOnlyFenceRef.sha256,
+  })
+  let fenceProof
+  try { fenceProof = JSON.parse(fence.bytes.toString('utf8')) } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
+  try {
+    assertPrincipalOnlyMigrationFence({ proof: fenceProof, bytes: fence.bytes,
+      expectedSha256: intent.principalOnlyFenceRef.sha256,
+      expectedFenceSourceRevision: proof.value.sourceRevision,
+      service, observedAt: transport.now() })
+  } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
+  return recovery
 }
 
 function assertInfraEvidence(value, profile, sourceRevision, foundation) {
@@ -889,26 +913,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
     assertRepairDataCutoverBasis({ profile, repair, dataCutover })
-    const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
-    if (recovery) {
-      const [proof, revision, fence] = await Promise.all([
-        transport.readJson(recovery.receiptRef, profile.artifact.releaseBucket, ['receipts']),
-        transport.getRevision(profile, recovery.revision),
-        transport.readBytes(intent.principalOnlyFenceRef.uri, {
-          prefixes: ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'],
-          expectedSha256: intent.principalOnlyFenceRef.sha256,
-        }),
-      ])
-      assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
-      let fenceProof
-      try { fenceProof = JSON.parse(fence.bytes.toString('utf8')) } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
-      try {
-        assertPrincipalOnlyMigrationFence({ proof: fenceProof, bytes: fence.bytes,
-          expectedSha256: intent.principalOnlyFenceRef.sha256,
-          expectedFenceSourceRevision: proof.value.sourceRevision,
-          service, observedAt: transport.now() })
-      } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
-    }
+    const recovery = await validatePrincipalRecoveryForPrepare({ intent, profile, transport, service })
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
       const repair = intent.baselineIntentRef
         ? await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null

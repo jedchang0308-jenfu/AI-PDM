@@ -27,6 +27,11 @@ function fail(code, detail = '') {
 
 export function classifyReleaseMode({ intent = {}, executionMode = 'full_release', cutover = false } = {}) {
   if (intent.programOnlyBaseline) return 'program_only'
+  // An applied-migration continuation is a routine forward release that
+  // reuses an already provider-verified database result.  Its retained
+  // principal-only fields describe the safe rollback revision; they do not
+  // turn this attempt back into the one-time migration-073 operation.
+  if (intent.appliedMigrationContinuation) return 'special_recovery'
   if (intent.principalOnlyRecovery || intent.principalOnlyFenceRef) return 'principal_only'
   // baselineIntentRef is ordinary provenance for the currently serving
   // revision; only continuation/abort/cleanup bindings are special paths.
@@ -35,6 +40,11 @@ export function classifyReleaseMode({ intent = {}, executionMode = 'full_release
   if (executionMode === 'build_only') return 'build_only'
   if (executionMode !== 'full_release') fail('RELEASE_EXECUTION_MODE_INVALID')
   return 'full_release'
+}
+
+export function requiresPrincipalOnlyMigrationFence(intent = {}) {
+  return Boolean(intent.principalOnlyRecovery || intent.principalOnlyFenceRef) &&
+    !Object.hasOwn(intent, 'appliedMigrationContinuation')
 }
 
 export function assertDailyReleaseMode({ mode, workflowRef = '', requiredWorkflowRef = null } = {}) {

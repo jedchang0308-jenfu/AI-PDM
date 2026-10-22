@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildRuntimeConfig, canonicalize, createOwnerTransport, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
-import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { executeOwnerStage, validatePrincipalRecoveryForPrepare } from './lib/dev012-owner-stage-executor.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
@@ -168,6 +168,15 @@ for (const watchdogRecovered of [false, true]) test(`owner Principal-only releas
     { ...original, principalOnlyRecovery, principalOnlyFenceRef: fence.ref }, { bucket, prefix: 'receipts' })
   const input = { ...a.input, capsuleRef: result.ref.uri, capsuleSha256: result.ref.sha256,
     verifyRoutineRelease: async () => ({ migrationDisposition: 'UNCHANGED_VERIFIED' }) }
+  await assert.doesNotReject(validatePrincipalRecoveryForPrepare({
+    intent: { ...original, principalOnlyRecovery, principalOnlyFenceRef: fence.ref, appliedMigrationContinuation: {} },
+    profile: h.profile,
+    transport: { ...h.transport, readBytes: async uri => {
+      if (uri === fence.ref.uri) throw new Error('APPLIED_CONTINUATION_MUST_NOT_READ_HISTORICAL_FENCE')
+      return h.transport.readBytes(uri)
+    } },
+    service: await h.transport.getService(h.profile),
+  }))
   const setTraffic = h.transport.setTraffic
   const trafficCalls = []
   h.transport.setTraffic = async (args) => { trafficCalls.push(args.revision); return setTraffic(args) }
