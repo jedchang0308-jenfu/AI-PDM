@@ -24,6 +24,8 @@ const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const STAGES = new Set(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
 const CONTROL_STATES = new Set(['CANDIDATE_CREATED', 'ENTRYPOINT_CONFIGURED', 'CANDIDATE_VERIFIED', 'GO', 'ACTIVE', 'CANONICAL_VERIFIED', 'ABORT_REQUESTED', 'FINALIZED'])
+const PREPARABLE_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
+const PRINCIPAL_RECOVERY_CONTINUATIONS = new Set(['PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -734,7 +736,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
         principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null,
         principalOnlyRecovery: intent.principalOnlyRecovery ?? null,
         appliedMigrationContinuation: intent.appliedMigrationContinuation ?? null }) : null
-    if (continuation && ((!['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation.kind) && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
+    if (continuation && ((!PREPARABLE_CONTINUATIONS.has(continuation.kind)
+      || (PRINCIPAL_RECOVERY_CONTINUATIONS.has(continuation.kind) && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)))
       || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
     if (existing) {
@@ -744,10 +747,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
     const values = Object.fromEntries(entries)
-    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind)) {
-      const reconciled = continuation.kind === 'PRINCIPAL_FENCED_ABORT_RECONCILED'
-      if ((!reconciled && (Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')))
-        || (reconciled && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
+    if (PREPARABLE_CONTINUATIONS.has(continuation?.kind)) {
+      const principalRecovery = PRINCIPAL_RECOVERY_CONTINUATIONS.has(continuation.kind)
+      if ((!principalRecovery && (Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')))
+        || (principalRecovery && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
         || canonicalize(values.authorization.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
         || canonicalize(values.readiness.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
         || (existing && canonicalize(existing.value.facts.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis))) fail('PREPARE_BASELINE_MISMATCH')
@@ -824,7 +827,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(existing.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       return existing
     }
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, releaseEvidence, ...(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, releaseEvidence, ...(PREPARABLE_CONTINUATIONS.has(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {

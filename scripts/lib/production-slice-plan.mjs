@@ -29,6 +29,15 @@ const RELEASE_CONTROL = [
   /^scripts\/(?:plan|run)-production-slice(?:-|\.)/u,
 ]
 
+// These modules implement release-state continuation. Their historical names
+// contain "principal", but they do not define product principals, grants, or
+// authorization behavior. Keep this narrow and explicit so filename keywords
+// cannot pull unrelated product gates into a release-control change.
+const RELEASE_CONTROL_ONLY = [
+  /^scripts\/(?:lib\/)?dev121-preactivation-abort-continuation(?:\.|-)/u,
+  /^scripts\/dev121-principal-owner-recovery(?:\.|-)/u,
+]
+
 const WORKER = [
   /^config\/release\/dev122-openswx-worker\.json$/u,
   /^infra\/google-cloud\/dev-122-openswx-/u,
@@ -99,6 +108,8 @@ export function classifyProductionPath(value) {
   const path = normalizeChangedPath(value)
   const slices = new Set()
   if (!path) return ['unknown']
+
+  if (matches(path, RELEASE_CONTROL_ONLY)) return ['release-control']
 
   // This one document is copied into the production image and is therefore
   // application input, unlike the rest of .ai-doc which Docker excludes.

@@ -130,7 +130,7 @@ export async function refreshAppliedContinuationCapsule({
     readinessReceiptRef: authority.refs.readinessReceiptRef,
     foundationReceiptRef: template.foundationReceiptRef,
     infraReceiptRef: infra.ref,
-    baselineIntentRef: template.baselineIntentRef,
+    baselineIntentRef: authority.baselineIntentRef,
     openswxWorkerRef: template.openswxWorkerRef,
     previousRevision: authority.previousRevision,
     deadlineAt: releaseDeadlineAt,

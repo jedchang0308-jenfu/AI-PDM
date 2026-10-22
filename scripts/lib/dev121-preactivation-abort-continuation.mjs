@@ -59,6 +59,11 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
   if (terminalFacts.result !== 'PRE_ACTIVATION_ABORTED') fail()
   if (!control) control = JSON.parse((await transport.readBytes(`gs://${bucket}/control/active.json`, { prefixes: ['control'] })).bytes)
   if (control.result !== 'PRE_ACTIVATION_ABORTED') fail()
+  if (appliedMigrationContinuation && terminalFacts.databaseDisposition === 'NOT_APPLIED') {
+    return readAppliedContinuationPreexecutionAbort({ profile, transport, baselineIntentRef, intent, paths, terminal,
+      terminalFacts, control, service, read, seal, postAbortLedgerReadbackRef, principalOnlyFenceRef,
+      principalOnlyRecovery, appliedMigrationContinuation })
+  }
   if (intent.programOnlyBaseline) {
     if (postAbortLedgerReadbackRef || principalOnlyFenceRef || principalOnlyRecovery || appliedMigrationContinuation) fail()
     return readProgramOnlyAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
@@ -145,6 +150,91 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
     const failedContext = descendAiPdmEvidenceContext(root, baselineIntentRef, true)
     return runAiPdmEvidenceContext(failedContext, readContinuation)
   })
+}
+
+// Once the RD catalog migration is sealed as applied, a later release attempt
+// can still fail before prepare writes anything.  That retry is governed by the
+// current control head, live rollback baseline and the immutable applied-
+// migration binding.  Replaying every older abort/cutover/worker branch here
+// creates another interpretation of those historical facts and makes a clean
+// pre-execution failure impossible to continue from.
+async function readAppliedContinuationPreexecutionAbort({ profile, transport, baselineIntentRef, intent, paths, terminal,
+  terminalFacts, control, service, read, seal, postAbortLedgerReadbackRef, principalOnlyFenceRef,
+  principalOnlyRecovery, appliedMigrationContinuation }) {
+  const bucket = profile.artifact.releaseBucket
+  try { assertAppliedMigrationContinuation(appliedMigrationContinuation, bucket) } catch { fail() }
+  const recovery = assertPrincipalOnlyRecoveryBinding(intent, bucket)
+  if (!recovery || !same(intent.appliedMigrationContinuation, appliedMigrationContinuation)
+    || !same(intent.postAbortLedgerReadbackRef, postAbortLedgerReadbackRef)
+    || !same(intent.principalOnlyFenceRef, principalOnlyFenceRef)
+    || !same(intent.principalOnlyRecovery, principalOnlyRecovery)) fail()
+
+  const [rollback, source, proof, recoveryRevision, retainedRevision] = await Promise.all([
+    read(paths.rollback), transport.readJson(intent.sourceLockRef, bucket, ['receipts']),
+    transport.readJson(recovery.receiptRef, bucket, ['receipts']), transport.getRevision(profile, recovery.revision),
+    transport.getRevision(profile, intent.previousRevision),
+  ])
+  const rollbackFacts = seal(rollback, 'rollback')
+  const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId,
+    sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
+  const keys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision',
+    'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256']
+  const { controlSha256, ...controlCore } = control
+  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+  const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
+  if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
+    || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
+    || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
+    || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
+    || control.controlBucket !== bucket || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision
+    || control.sourceLockSha256 !== intent.sourceLockRef.sha256 || control.previousRevision !== recovery.revision
+    || control.candidateRevision !== null || !/^[1-9][0-9]*$/u.test(runId) || control.deadlineAt !== intent.deadlineAt
+    || !Number.isFinite(Date.parse(control.deadlineAt)) || !Number.isFinite(Date.parse(control.leaseExpiresAt))
+    || Date.parse(control.leaseExpiresAt) >= Date.now() || !same(terminal.value.previousReceiptRef, rollback.ref)
+    || terminalFacts.result !== 'PRE_ACTIVATION_ABORTED' || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
+    || terminalFacts.previousRevision !== recovery.revision || rollbackFacts.previousRevision !== recovery.revision
+    || terminalFacts.databaseDisposition !== 'NOT_APPLIED' || rollbackFacts.databaseDisposition !== 'NOT_APPLIED'
+    || Object.hasOwn(terminalFacts, 'migrationSubmissionIntentRef') || Object.hasOwn(rollbackFacts, 'migrationSubmissionIntentRef')
+    || !same(terminalFacts.entrypointRecovery, { changed: false, result: 'NOT_REQUIRED' })
+    || !same(rollbackFacts.entrypointRecovery, terminalFacts.entrypointRecovery)
+    || !same(rollbackFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])
+    || source.ref.sha256 !== intent.sourceLockRef.sha256 || source.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1'
+    || source.value.ownerApplicationId !== profile.application.id || source.value.releaseId !== intent.releaseId
+    || source.value.sourceRevision !== intent.sourceRevision || source.value.sourceSha256 !== intent.sourceSha256
+    || source.value.migrationManifestSha256 !== intent.migrationManifestSha256 || source.value.status !== 'SOURCE_FROZEN'
+    || source.value.releaseAuthority !== true || source.value.clean !== true) fail()
+
+  const absentStages = ['prepare', 'build', 'provenance', 'sbom', 'scan', 'deployment', 'migrate', 'candidate', 'entrypoint',
+    'verify', 'decision', 'activate', 'canonical', 'finalize']
+  await assertAbsentStages(read, paths, absentStages)
+  await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate))
+  await assertZeroBuilds(profile, transport, intent)
+  const run = await transport.readOwnerRun(profile, control.ownerRunRef)
+  if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
+    || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
+
+  service ??= await transport.getService(profile)
+  transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
+  const scalingSafe = (service.scaling?.scalingMode === 'MANUAL' && [0, '0'].includes(service.scaling?.manualInstanceCount))
+    || (service.scaling?.scalingMode === 'AUTOMATIC' && Number(service.scaling?.maxInstanceCount) >= 1)
+  const retainedApp = retainedRevision?.containers?.filter(row => row.name === profile.runtime.containerName)
+  if (!scalingSafe || recovery.serviceUid !== service.uid
+    || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)
+    || retainedRevision?.name !== `${service.name}/revisions/${intent.previousRevision}`
+    || retainedRevision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
+    || retainedApp?.length !== 1 || !retainedApp[0].image?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
+  transport.assertCanonicalEntrypoint(profile, service)
+  assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision, oldRevision: intent.previousRevision, binding: recovery,
+    profile, proof: proof.value, service, revision: recoveryRevision, activeRevision: intent.previousRevision })
+
+  return { kind: 'APPLIED_MIGRATION_PREEXECUTION_ABORT', currentActiveRevision: intent.previousRevision,
+    result: 'PRE_ACTIVATION_ABORTED', authorityBasis: {
+      schemaVersion: 'aipdm.applied-migration-preexecution-abort-basis.v1', failedIntentRef: baselineIntentRef,
+      appliedMigrationContinuation, postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery,
+      failedSourceLockRef: source.ref, previousRevision: intent.previousRevision, serviceUid: service.uid,
+      retainedArtifactDigest: retainedApp[0].image, controlSha256, ownerRunRef: control.ownerRunRef,
+      databaseDisposition: 'NOT_APPLIED', absentStages, failureSignal: terminalFacts.failureSignal ?? null,
+    } }
 }
 
 /** One closed program-only abort, immediately anchored to a genuine released app. */
