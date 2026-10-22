@@ -19,9 +19,12 @@ env:
   WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
 
 jobs:
-  readback:
+  inspect:
     runs-on: ubuntu-latest
-    environment: production
+    outputs:
+      kind: ${{ steps.bind.outputs.kind }}
+      operation_uri: ${{ steps.bind.outputs.operation_uri }}
+      operation_sha256: ${{ steps.bind.outputs.operation_sha256 }}
     permissions: { contents: read, checks: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +39,7 @@ jobs:
         env: { OPERATION_REF: "${{ inputs.operationRef }}" }
         run: node scripts/dev117-production-diagnostics.mjs --bind
       - id: deployer_auth
-        if: steps.bind.outputs.kind == 'rd-permission-state' || steps.bind.outputs.kind == 'openswx-dispatch-recovery'
+        if: steps.bind.outputs.kind == 'rd-permission-state'
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -56,15 +59,37 @@ jobs:
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
         run: node scripts/dev122-rd-permission-state-readback.mjs --stage readback --permission-operation-ref "${{ steps.bind.outputs.operation_uri }}" --permission-operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --permission-output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-PERMISSION-READBACK/${{ steps.bind.outputs.operation_sha256 }}/state.json"
-      - name: Recover exact terminal OpenSWX dispatch
-        if: steps.bind.outputs.kind == 'openswx-dispatch-recovery'
-        env:
-          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
-        run: node scripts/dev122-openswx-dispatch-recovery.mjs --stage recovery --openswx-dispatch-recovery-operation-ref "${{ steps.bind.outputs.operation_uri }}" --openswx-dispatch-recovery-operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --openswx-dispatch-recovery-output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-DISPATCH-RECOVERY/${{ steps.bind.outputs.operation_sha256 }}/recovery.json"
       - name: Read fixed AI-PDM service state
         if: steps.bind.outputs.kind == 'service-state'
         env:
           OPERATION_REF: "${{ inputs.operationRef }}"
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
         run: node scripts/dev117-production-diagnostics.mjs --service-state
+
+  recovery:
+    needs: inspect
+    if: needs.inspect.outputs.kind == 'openswx-dispatch-recovery'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, checks: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - name: Verify exact merged source and required CI results
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+        run: node scripts/dev012-verify-official-source.mjs
+      - id: deployer_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Recover exact terminal OpenSWX dispatch
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev122-openswx-dispatch-recovery.mjs --stage recovery --openswx-dispatch-recovery-operation-ref "${{ needs.inspect.outputs.operation_uri }}" --openswx-dispatch-recovery-operation-sha256 "${{ needs.inspect.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --openswx-dispatch-recovery-output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-DISPATCH-RECOVERY/${{ needs.inspect.outputs.operation_sha256 }}/recovery.json"
 
