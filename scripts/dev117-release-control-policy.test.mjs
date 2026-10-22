@@ -8,6 +8,7 @@ import {
   evaluateRepeatedFailure,
   normalizeReleaseEvidence,
   profileForReleaseMode,
+  requiresPrincipalOnlyMigrationFence,
 } from './lib/dev117-release-control-policy.mjs'
 
 const intent = {
@@ -25,6 +26,10 @@ test('daily full release accepts only ordinary modes and classifies special path
   assert.equal(classifyReleaseMode({ intent }), 'full_release')
   assert.equal(classifyReleaseMode({ intent: { ...intent, programOnlyBaseline: {} } }), 'program_only')
   assert.equal(classifyReleaseMode({ intent: { ...intent, principalOnlyRecovery: {} } }), 'principal_only')
+  const applied = { ...intent, principalOnlyRecovery: {}, principalOnlyFenceRef: {}, appliedMigrationContinuation: {} }
+  assert.equal(classifyReleaseMode({ intent: applied }), 'special_recovery')
+  assert.equal(requiresPrincipalOnlyMigrationFence(applied), false)
+  assert.equal(requiresPrincipalOnlyMigrationFence({ ...intent, principalOnlyRecovery: {}, principalOnlyFenceRef: {} }), true)
   assert.equal(classifyReleaseMode({ intent, executionMode: 'build_only' }), 'build_only')
   assert.throws(() => assertDailyReleaseMode({ mode: 'program_only', workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main' }), /SPECIAL_RELEASE_MODE_OUTSIDE_DAILY_PATH/u)
   const requiredWorkflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main'
