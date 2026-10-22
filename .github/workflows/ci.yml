@@ -61,17 +61,19 @@ jobs:
         run: node scripts/plan-production-slice.mjs --github-output "$GITHUB_OUTPUT"
 
       - name: Verify slice routing contract
+        id: routing
         run: node --test scripts/production-slice-plan.test.mjs
 
       - name: Build isolated runtime candidate
-        if: steps.slice.outputs.full == 'true'
+        if: ${{ !cancelled() && steps.routing.outcome == 'success' && steps.slice.outputs.full == 'true' }}
         run: docker build --target runtime-smoke --progress=plain .
       - name: Install dependencies without lifecycle scripts
-        if: steps.slice.outputs.database == 'true'
+        id: dependencies
+        if: ${{ !cancelled() && steps.routing.outcome == 'success' && steps.slice.outputs.database == 'true' }}
         run: npm ci --ignore-scripts
 
       - name: Verify provider and DEV-012 cutover against disposable PostgreSQL
-        if: steps.slice.outputs.database == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.database == 'true' }}
         env:
           DEV012_ISOLATED_POSTGRES: "1"
           PDM_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
@@ -104,26 +106,29 @@ jobs:
         run: node scripts/plan-production-slice.mjs --github-output "$env:GITHUB_OUTPUT"
 
       - name: Verify slice routing contract
+        id: routing
         run: node --test scripts/production-slice-plan.test.mjs
 
       - name: Install dependencies
-        if: steps.slice.outputs.docs_only != 'true'
+        id: dependencies
+        if: ${{ !cancelled() && steps.routing.outcome == 'success' && steps.slice.outputs.docs_only != 'true' }}
         run: npm ci
 
       - name: Install Playwright browser
-        if: steps.slice.outputs.application == 'true'
+        id: browser
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.application == 'true' }}
         run: npx playwright install chromium
 
       - name: Reject high or critical production dependency findings
-        if: steps.slice.outputs.dependency_audit == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.dependency_audit == 'true' }}
         run: npm run audit:production
 
       - name: Lint
-        if: steps.slice.outputs.lint == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.lint == 'true' }}
         run: npm run lint
 
       - name: Verify affected release, authorization, database, and worker contracts
-        if: steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.worker == 'true')
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.worker == 'true') }}
         env:
           CI: true
           PDM_SLICE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -131,7 +136,7 @@ jobs:
         run: npm run test:production-slice:affected -- --profile ci
 
       - name: Verify release and infrastructure slice
-        if: steps.slice.outputs.infrastructure == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.infrastructure == 'true' }}
         env:
           CI: true
           PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT: "true"
@@ -147,7 +152,7 @@ jobs:
           npm run qc:dev-046-phase2b
 
       - name: Verify application and authorization slice
-        if: steps.slice.outputs.application == 'true' || steps.slice.outputs.authorization == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.browser.outcome == 'success' && (steps.slice.outputs.application == 'true' || steps.slice.outputs.authorization == 'true') }}
         env:
           CI: true
         run: |
@@ -164,14 +169,14 @@ jobs:
           npm run qc:pdm-production-slice-numbering-draft
 
       - name: Verify infrastructure package slice
-        if: steps.slice.outputs.infrastructure == 'true' || steps.slice.outputs.full == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && (steps.slice.outputs.infrastructure == 'true' || steps.slice.outputs.full == 'true') }}
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
           npm run qc:dev-032-production-iac-package
 
       - name: Verify preview and recognition slice
-        if: steps.slice.outputs.preview == 'true' || steps.slice.outputs.recognition == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && (steps.slice.outputs.preview == 'true' || steps.slice.outputs.recognition == 'true') }}
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
@@ -180,7 +185,7 @@ jobs:
           npm run qc:dev-079:owner-invariant
 
       - name: Verify shared release package contracts
-        if: steps.slice.outputs.infrastructure == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.infrastructure == 'true' }}
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
@@ -190,19 +195,27 @@ jobs:
           npm run qc:production-deployment-pipeline
 
       - name: Verify abort controller
-        if: steps.slice.outputs.abort_controller == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.abort_controller == 'true' }}
         run: npm run test:dev-117:abort
 
       - name: Verify affected database boundary
-        if: steps.slice.outputs.full != 'true' && steps.slice.outputs.db_boundary == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.full != 'true' && steps.slice.outputs.db_boundary == 'true' }}
         run: npm run check:db-boundary
 
       - name: Verify isolated application candidate
-        if: steps.slice.outputs.full != 'true' && steps.slice.outputs.isolated_build == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.slice.outputs.full != 'true' && steps.slice.outputs.isolated_build == 'true' }}
         run: |
           npm run typecheck:app
           npm run build:isolated
 
       - name: Verify full isolated release candidate
-        if: steps.slice.outputs.full == 'true'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.browser.outcome == 'success' && steps.slice.outputs.full == 'true' }}
         run: npm run qc:dev-117:continuous
+
+      - name: Preserve slice results including failures
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-slice-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/qa/release-efficiency/
+          if-no-files-found: ignore
