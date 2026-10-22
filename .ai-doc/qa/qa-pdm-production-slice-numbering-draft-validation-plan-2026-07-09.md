@@ -1,5 +1,17 @@
 # QA-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice validation plan
 
+## DEV-122 Part 附件正常入口（2026-10-23）
+
+本 amendment 對下列精確入口取代本文件舊 no-file 全面拒絕案例；其餘歷史 QA／QC 不改判。沿用 [SPEC matrix](../specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md#phase-1-route--api-boundary-matrix) 與 [DEV-122 原範圍](../specs/DEV-122-ai-pdm-internal-function-issues.md#part-附件正常入口2026-10-23修正待正式驗收)，不新增驗收分母。
+
+- Active slice：正常料號抽屜 → `/parts/[partId]/attachments`（GET/HEAD，保留 `returnTo`）可到達附件管理；collection POST、item DELETE（soft delete）、item restore POST 僅可到達既有 owner。
+- 身分／能力：未登入及缺少已發布 `numbering.attachments.manage` 者依既有 owner 拒絕，且不得呼叫 mutation owner；保留公司／binding／parent-lock／撤銷拒絕。頁面或 middleware 放行不得代替授權。
+- 邊界：未知 slice mode、錯誤方法、額外子路徑、Drive sync、手動 preview regeneration、legacy Drawing 附件／revision-files 寫入及其他未開放路徑繼續拒絕；現行 Drawing work file 流程不在本次變更內。
+- 本地證據：沿用 `src/lib/production-slice.principal-workbench.test.ts` 的實際 middleware／route gate 回歸、既有 `master-attachment-principal-command` owner 測試及 `scripts/qc-pdm-production-slice-numbering-draft.mjs`；未知 checker 路徑仍由 planner 選 FULL。這些證據不能代替正式附件操作。
+- 正式驗收：受保護發布後，以既有專用 RD 測試帳號從 Platform → PDM 正常料號入口上傳本任務已授權檔案，核對帳號、served source、Part／attachment／file binding，重新整理後同一 binding 仍存在，並驗證預覽／下載的內容、長度及 hash。只讀 GET、頁面可開或管理員身分不能代替 RD 寫入結果；刪除／還原測試僅限原已授權可回復資料及範圍。
+
+PR #455 的本地與 required CI 證據已成立；本 amendment 不宣稱正式發布、正常上傳、預覽／下載或原 7 issues／29 groups 已通過。實際驗收狀態仍以 DEV-122 當前證據為準。
+
 > 2026-09-04 DEV-116 QA Local Closure Amendment：本文件既有`SLICE-SMOKE-001..005`只保留product-slice baseline語意；future production write smoke的current authority是DEV-116 focused QA、machine registry的`QA-116-001..031`與release-only`QA-116-R01..R04`。Current已依116-A→B→C完成固定`31/31 PASS`，aggregate claim僅為`local-foundation`；只有R02可宣告`production-candidate-level4`。R04仍是release前cost upper-bound，10 runs／30日實際成本為啟用後`OBS-116-01`；舊local PASS或歷史production Level 4不得重用為R02。
 
 Date: 2026-07-10

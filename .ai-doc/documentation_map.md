@@ -1,3 +1,7 @@
+## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
+
+正常料號附件頁及 collection POST、item DELETE（soft delete）、item restore POST 的現行精確邊界見 [SPEC matrix](specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md#phase-1-route--api-boundary-matrix)、[ADR amendment](decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md)、[QA amendment](qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md#dev-122-part-附件正常入口2026-10-23) 及 [DEV-122 當前契約](specs/DEV-122-ai-pdm-internal-function-issues.md#part-附件正常入口2026-10-23修正待正式驗收)。較舊 no-file／numbering-only 敘述對這些精確入口已被取代；其餘 default-deny、owner 授權及受保護發布保留。PR #455 修正已合併，正式部署及正常附件操作驗收仍須取得各自證據；本入口不宣告整體 7／29 PASS。
+
 ## DEV-121#rd-capabilities — 2026-10-22 applied migration 證據隔離
 
 PR #444 exact main的正式續跑在prepare因完整owner proof遞迴進入無關OpenSWX歷史而停止；corrective以migration-only source／receipt／runner／ledger／recovery reader取代該依賴，existing worker binding只被動帶過，workerless continuation亦可成立。planner僅選documentation＋database＋release-control；fresh 17／17、214／214、27／27與DB boundary PASS。OpenSWX自身修復改由DEV-124獨立追蹤，不阻擋RD，也不被RD結果改判PASS。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-22-applied-migration-證據隔離本地-affected-slice-pass待受保護交付)。
