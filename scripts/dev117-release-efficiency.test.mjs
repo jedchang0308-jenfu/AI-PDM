@@ -4,14 +4,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { fetchProviderBytes, fetchProviderRead } from './lib/dev012-read-retry.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
 import { buildPermissionStateOperation } from './lib/dev122-rd-permission-state-readback.mjs'
 import { bindDiagnosticRef, readServiceDiagnostic, runMain as runProductionDiagnosticMain } from './dev117-production-diagnostics.mjs'
-import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
-import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
+import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups, summarizeCheckResults } from './lib/production-slice-checkpoints.mjs'
+import { createProductionSlicePlan, createProductionSlicePlanFromGit, createProductionSliceTestGroups } from './lib/production-slice-plan.mjs'
 import { bindPermissionReadbackSources, executionMatches as permissionExecutionMatches, jobMatches as permissionJobMatches, sourceAuthority as assertPermissionReadbackSourceAuthority, submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -278,17 +278,108 @@ test('tool tracing changes do not invalidate identical checks; execution inputs 
   assert.notEqual(checkEnvironmentFingerprint({ ...first, LOCALAPPDATA: 'environment-two' }), key)
 })
 
-test('interrupted groups persist first failure and resume only unfinished checks', t => {
+test('failed prerequisites block dependents while independent results finish and remain reusable', t => {
   const fixture = checkpointFixture(t)
-  const groups = [{ name: 'A' }, { name: 'B' }, { name: 'C' }]
-  const first = runCheckpointedGroups({ ...fixture, groups, execute: group => ({ status: group.name === 'B' ? 'FAIL' : 'PASS' }) })
-  assert.deepEqual(first.map(row => row.status), ['PASS', 'FAIL'])
+  const groups = [{ name: 'A' }, { name: 'B' }, { name: 'C', dependsOn: ['B'] }, { name: 'D' }, { name: 'E' }]
+  const firstCalls = []
+  const first = runCheckpointedGroups({ ...fixture, groups, execute: group => {
+    firstCalls.push(group.name)
+    return ['B', 'E'].includes(group.name) ? { status: 'FAIL', exitCode: group.name === 'B' ? 7 : 9 } : { status: 'PASS' }
+  } })
+  assert.deepEqual(first.map(row => row.status), ['PASS', 'FAIL', 'BLOCKED', 'PASS', 'FAIL'])
+  assert.deepEqual(firstCalls, ['A', 'B', 'D', 'E'])
+  assert.deepEqual(first[2].blockedBy, ['B'])
+  const summary = summarizeCheckResults(first)
+  assert.equal(summary.result, 'FAIL'); assert.equal(summary.exitCode, 7)
+  assert.equal(summary.firstFailure.name, 'B')
+  assert.deepEqual(summary.failures.map(row => row.name), ['B', 'E'])
   const failureBytes = fs.readFileSync(first[1].evidence, 'utf8')
   const called = []
   const second = runCheckpointedGroups({ ...fixture, groups, execute: group => { called.push(group.name); return { status: 'PASS' } } })
-  assert.deepEqual(second.map(row => row.status), ['REUSED', 'PASS', 'PASS'])
-  assert.deepEqual(called, ['B', 'C'])
+  assert.deepEqual(second.map(row => row.status), ['REUSED', 'PASS', 'PASS', 'REUSED', 'PASS'])
+  assert.deepEqual(called, ['B', 'C', 'E'])
+  assert.equal(summarizeCheckResults(second).result, 'PASS')
   assert.equal(fs.readFileSync(first[1].evidence, 'utf8'), failureBytes)
+})
+
+test('missing group capability blocks its dependents without hiding independent failures', t => {
+  const fixture = checkpointFixture(t), groups = [{ name: 'git-required' }, { name: 'dependent', dependsOn: ['git-required'] }, { name: 'pure' }]
+  const calls = []
+  const results = runCheckpointedGroups({ ...fixture, groups,
+    preflight: group => group.name === 'git-required' ? { status: 'BLOCKED', reason: 'TEST_ENVIRONMENT_UNAVAILABLE' } : null,
+    execute: group => { calls.push(group.name); return { status: 'PASS' } },
+  })
+  assert.deepEqual(calls, ['pure'])
+  assert.deepEqual(results.map(row => row.status), ['BLOCKED', 'BLOCKED', 'PASS'])
+  assert.equal(summarizeCheckResults(results).result, 'BLOCKED')
+  assert.equal(summarizeCheckResults(results).exitCode, 2)
+  const retry = runCheckpointedGroups({ ...fixture, groups, preflight: () => { throw new Error('capability unknown') }, execute: () => { assert.fail('must not run') } })
+  assert.ok(retry.every(row => row.status === 'BLOCKED'))
+})
+
+test('execution exceptions and inconsistent PASS exit codes stay failures while independent checks run', t => {
+  const fixture = checkpointFixture(t), groups = [{ name: 'throw' }, { name: 'bad-exit' }, { name: 'independent' }]
+  const results = runCheckpointedGroups({ ...fixture, groups, execute: group => {
+    if (group.name === 'throw') throw new Error('execution failed')
+    return { status: 'PASS', exitCode: group.name === 'bad-exit' ? 3 : 0 }
+  } })
+  assert.deepEqual(results.map(row => row.status), ['FAIL', 'FAIL', 'PASS'])
+  assert.equal(summarizeCheckResults(results).exitCode, 1)
+})
+
+test('invalid dependency plans fail before any execution or evidence reuse', t => {
+  const fixture = checkpointFixture(t)
+  for (const groups of [
+    [],
+    [{ name: 'A', dependsOn: ['missing'] }], [{ name: 'A', dependsOn: ['A'] }],
+    [{ name: 'A' }, { name: 'A' }], [{ name: 'A', dependsOn: 'not-an-array' }],
+  ]) assert.throws(() => runCheckpointedGroups({ ...fixture, groups, execute: () => assert.fail('must not execute') }), /DEPENDENCY_INVALID/u)
+})
+
+test('real slice CLI collects independent child-process failures and returns a nonzero aggregate', t => {
+  const { directory } = checkpointFixture(t)
+  const write = (file, content) => { const target = path.join(directory, file); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, content) }
+  write('.gitignore', 'output/\n')
+  for (const file of ['scripts/run-production-slice-tests.mjs', 'scripts/dev117-test-environment.mjs',
+    'scripts/lib/production-slice-plan.mjs', 'scripts/lib/production-slice-checkpoints.mjs', 'scripts/lib/dev117-release-control-policy.mjs']) {
+    write(file, fs.readFileSync(path.join(root, file)))
+  }
+  // Prepare every known affected test name; these finite fixtures exercise the
+  // actual CLI scheduling/exit contract, not RD or provider acceptance.
+  const groups = createProductionSliceTestGroups(createProductionSlicePlan(['scripts/dev012-example.mjs', 'config/access-control/test.json', 'scripts/lib/openswx-reader/test.cc']))
+  for (const file of new Set(groups.flatMap(group => group.tests))) {
+    const fail = ['scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs'].includes(file)
+    write(file, `import test from 'node:test'; test('finite fixture', () => { console.log(${JSON.stringify(file)}); ${fail ? "throw new Error('EXPECTED_FIXTURE_FAILURE')" : ''} });\n`)
+  }
+  const fixtureGit = (...args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8', windowsHide: true })
+  fixtureGit('init', '--quiet'); fixtureGit('add', '.')
+  fixtureGit('-c', 'user.name=Local Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'fixture')
+  write('scripts/dev012-example.mjs', '// release-control input\n')
+  write('config/access-control/test.json', '{}\n')
+  write('scripts/lib/openswx-reader/test.cc', '// worker input\n')
+  const run = spawnSync(process.execPath, ['scripts/run-production-slice-tests.mjs', '--base', 'HEAD', '--fresh'], {
+    cwd: directory, encoding: 'utf8', windowsHide: true, timeout: 60000,
+    env: { ...process.env, CI: 'true', PDM_SLICE_HEAD_SHA: '', PDM_SLICE_BASE_SHA: '' },
+  })
+  assert.equal(run.error, undefined); assert.equal(run.status, 1, run.stderr)
+  const evidenceLine = run.stdout.split(/\r?\n/u).find(line => line.startsWith('PRODUCTION_SLICE_EVIDENCE='))
+  assert.ok(evidenceLine, run.stdout)
+  const evidence = JSON.parse(fs.readFileSync(path.join(directory, evidenceLine.slice('PRODUCTION_SLICE_EVIDENCE='.length)), 'utf8'))
+  assert.equal(evidence.result, 'FAIL'); assert.equal(evidence.firstFailure.name, 'release-core')
+  assert.deepEqual(evidence.groups.map(row => row.status), ['PASS', 'FAIL', 'FAIL', 'PASS'])
+  assert.deepEqual(evidence.failures.map(row => row.name), ['release-core', 'authorization'])
+  assert.match(run.stdout, /scripts\/dev122-openswx-bootstrap\.test\.mjs/u)
+  write('scripts/production-slice-plan.test.mjs', "import test from 'node:test'; test('invalid routing', () => { throw new Error('EXPECTED_ROUTING_FAILURE') });\n")
+  const rejected = spawnSync(process.execPath, ['scripts/run-production-slice-tests.mjs', '--base', 'HEAD', '--fresh'], {
+    cwd: directory, encoding: 'utf8', windowsHide: true, timeout: 60000,
+    env: { ...process.env, CI: 'true', PDM_SLICE_HEAD_SHA: '', PDM_SLICE_BASE_SHA: '' },
+  })
+  assert.equal(rejected.status, 1, rejected.stderr)
+  const rejectedLine = rejected.stdout.split(/\r?\n/u).find(line => line.startsWith('PRODUCTION_SLICE_EVIDENCE='))
+  assert.ok(rejectedLine, `${rejected.stdout}\n${rejected.stderr}`)
+  const blocked = JSON.parse(fs.readFileSync(path.join(directory, rejectedLine.slice('PRODUCTION_SLICE_EVIDENCE='.length)), 'utf8'))
+  assert.deepEqual(blocked.groups.map(row => row.status), ['FAIL', 'BLOCKED', 'BLOCKED', 'BLOCKED'])
+  assert.doesNotMatch(rejected.stdout, /EXPECTED_FIXTURE_FAILURE/u)
 })
 
 test('changed context, dirty tree, forced fresh, expiry and corruption invalidate local reuse', t => {

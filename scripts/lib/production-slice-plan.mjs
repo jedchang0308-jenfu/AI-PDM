@@ -1,5 +1,47 @@
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import { evaluateRepeatedFailure } from './dev117-release-control-policy.mjs'
+import { fullContinuousGroups } from './production-slice-checkpoints.mjs'
+
+const SLICE_TESTS = {
+  releaseCore: { name: 'release-core', tests: [
+    'scripts/dev117-ai-pdm-continuous-release.test.mjs',
+    'scripts/dev012-owner-release-runtime.test.mjs',
+    'scripts/dev012-owner-stage-executor.test.mjs',
+    'scripts/dev012-owner-prerequisite-producer.test.mjs',
+    'scripts/dev121-principal-owner-recovery.test.mjs',
+    'scripts/dev117-owner-chain-preflight.test.mjs',
+    'scripts/dev117-release-control-policy.test.mjs',
+    'scripts/dev012-official-source-review.test.mjs',
+    'scripts/dev117-release-efficiency.test.mjs',
+    'scripts/dev122-applied-migration-continuation.test.mjs',
+    'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
+  ] },
+  database: { name: 'database', tests: ['scripts/dev117-production-migration-runner.test.mjs'] },
+  authorization: { name: 'authorization', tests: [
+    'scripts/lib/dev121-principal-fence-operator.test.mjs',
+    'scripts/dev122-rd-permission-ledger-readback.test.mjs',
+    'scripts/lib/dev122-rd-permission-state-readback.test.mjs',
+  ] },
+  worker: { name: 'worker', tests: [
+    'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
+    'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
+    'scripts/dev122-openswx-owner-release.test.mjs',
+    'scripts/dev122-openswx-bootstrap.test.mjs',
+    'scripts/lib/dev121-unlinked-profile-cleanup.test.mjs',
+  ] },
+}
+
+export function createProductionSliceTestGroups(plan, continuousScript) {
+  const selected = plan.gates.full
+    ? fullContinuousGroups(continuousScript)
+    : Object.entries(SLICE_TESTS).filter(([gate]) => plan.gates[gate]).map(([, group]) => group)
+  return [
+    { name: 'planner', tests: ['scripts/production-slice-plan.test.mjs'], dependsOn: [] },
+    ...selected.map(group => ({ ...group, tests: [...group.tests], dependsOn: ['planner'] })),
+  ]
+}
 
 const SLICE_ORDER = Object.freeze([
   'documentation',
@@ -205,7 +247,11 @@ export function createProductionSlicePlanFromGit({ root = process.cwd(), base = 
   if (includeWorkingTree) {
     changed.push(...git(root, ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/u).filter(Boolean))
   }
-  return createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead })
+  const plan = createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead })
+  const continuousScript = plan.gates.full
+    ? JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']
+    : null
+  return { ...plan, testGroups: createProductionSliceTestGroups(plan, continuousScript) }
 }
 
 export const productionSliceOrder = SLICE_ORDER

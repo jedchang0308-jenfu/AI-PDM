@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyProductionPath, createProductionSlicePlan, normalizeChangedPath } from './lib/production-slice-plan.mjs'
+import { classifyProductionPath, createProductionSlicePlan, createProductionSliceTestGroups, normalizeChangedPath } from './lib/production-slice-plan.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -101,15 +101,39 @@ test('abort, dependency and build gates follow their own changed responsibility'
 })
 
 test('required CI does not couple release control to unrelated product gates', () => {
-  const source = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8')
-  assert.match(source, /Reject high or critical production dependency findings[\s\S]*?if: steps\.slice\.outputs\.dependency_audit == 'true'/u)
-  assert.match(source, /- name: Lint\s+if: steps\.slice\.outputs\.lint == 'true'/u)
-  assert.match(source, /- name: Verify release and infrastructure slice\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
-  assert.match(source, /- name: Verify shared release package contracts\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
-  assert.match(source, /- name: Verify abort controller\s+if: steps\.slice\.outputs\.abort_controller == 'true'/u)
+  const source = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8').replaceAll('\r\n', '\n')
+  for (const [name, gate] of [
+    ['Reject high or critical production dependency findings', 'dependency_audit'], ['Lint', 'lint'],
+    ['Verify release and infrastructure slice', 'infrastructure'], ['Verify shared release package contracts', 'infrastructure'],
+    ['Verify abort controller', 'abort_controller'],
+  ]) assert.ok(source.split(`- name: ${name}\n`)[1]?.split('\n')[0].includes(`steps.slice.outputs.${gate} == 'true'`), name)
   const runner = fs.readFileSync(path.join(root, 'scripts/run-production-slice-tests.mjs'), 'utf8')
-  assert.match(runner, /if \(plan\.gates\.releaseCore\) groups\.push/u)
+  assert.match(runner, /const groups = plan\.testGroups/u)
   assert.doesNotMatch(runner, /profile === 'owner' \|\| plan\.gates\.releaseCore/u)
+})
+
+test('CI continues selected independent checks after a test failure but requires successful setup', () => {
+  const source = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8').replaceAll('\r\n', '\n')
+  const checks = [...source.matchAll(/- name: ([^\n]+)\n(.*?)(?=\n      - name:|$)/gsu)]
+  for (const [, name, body] of checks.filter(([, name]) => name.startsWith('Verify ') && !name.includes('routing'))) {
+    const condition = body.match(/^        if: (.+)$/mu)?.[1]
+    assert.ok(condition?.includes('!cancelled()'), name)
+    assert.ok(condition.includes("steps.dependencies.outcome == 'success'"), name)
+    assert.doesNotMatch(condition, /\bsuccess\(\)/u, name)
+    assert.doesNotMatch(body, /continue-on-error:/u, name)
+  }
+  assert.match(source, /Preserve slice results including failures\n        if: \$\{\{ !cancelled\(\) \}\}/u)
+})
+
+test('planner selects explicit independent test groups with only the routing prerequisite', () => {
+  const plan = createProductionSlicePlan(['scripts/dev012-example.mjs', 'config/access-control/test.json', 'db/postgres/999_test.sql'])
+  const groups = createProductionSliceTestGroups(plan)
+  assert.deepEqual(groups.map(group => group.name), ['planner', 'release-core', 'database', 'authorization'])
+  assert.deepEqual(groups[0].dependsOn, [])
+  assert.ok(groups.slice(1).every(group => JSON.stringify(group.dependsOn) === JSON.stringify(['planner'])))
+  assert.deepEqual(createProductionSliceTestGroups(createProductionSlicePlan(['README.md'])).map(group => group.name), ['planner'])
+  const full = createProductionSliceTestGroups(createProductionSlicePlan(['unclassified-input']), 'node --test scripts/first.test.mjs scripts/second.test.mjs')
+  assert.deepEqual(full.map(group => group.tests), [['scripts/production-slice-plan.test.mjs'], ['scripts/first.test.mjs'], ['scripts/second.test.mjs']])
 })
 
 test('historical worker fixtures stay in the worker responsibility', () => {
