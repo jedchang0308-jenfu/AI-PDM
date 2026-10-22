@@ -23,23 +23,32 @@ export function assertAppliedContinuationRefreshEnvironment(environment, sourceR
   return `DEV122-RD-WIF-${environment.GITHUB_RUN_ID}-${environment.GITHUB_RUN_ATTEMPT}`
 }
 
+export const APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES = Object.freeze({
+  readBytes: 'verifier',
+  readJson: 'verifier',
+  readOwnerSourceProof: 'verifier',
+  readOwnerRun: 'verifier',
+  getService: 'verifier',
+  getRevision: 'verifier',
+  assertServiceSettled: 'verifier',
+  assertRevisionReady: 'verifier',
+  assertCanonicalEntrypoint: 'verifier',
+  effectiveRevision: 'verifier',
+  now: 'verifier',
+  putBytes: 'builder',
+  putJson: 'builder',
+  request: 'deployer',
+})
+
 export function createAppliedContinuationRefreshTransport({ verifier, builder, deployer }) {
-  if (!verifier || !builder || !deployer) fail('APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID')
-  return Object.freeze({
-    readBytes: (...args) => verifier.readBytes(...args),
-    readJson: (...args) => verifier.readJson(...args),
-    readOwnerSourceProof: (...args) => verifier.readOwnerSourceProof(...args),
-    putBytes: (...args) => builder.putBytes(...args),
-    putJson: (...args) => builder.putJson(...args),
-    request: (...args) => deployer.request(...args),
-    getService: (...args) => verifier.getService(...args),
-    getRevision: (...args) => verifier.getRevision(...args),
-    assertServiceSettled: (...args) => verifier.assertServiceSettled(...args),
-    assertRevisionReady: (...args) => verifier.assertRevisionReady(...args),
-    assertCanonicalEntrypoint: (...args) => verifier.assertCanonicalEntrypoint(...args),
-    effectiveRevision: (...args) => verifier.effectiveRevision(...args),
-    now: (...args) => verifier.now(...args),
+  const roles = { verifier, builder, deployer }
+  if (Object.values(roles).some(value => !value)) fail('APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID')
+  const routes = Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES).map(([method, role]) => {
+    const source = roles[role]
+    if (typeof source[method] !== 'function') throw Object.assign(new Error(`APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID:${role}:${method}`), { code: 'APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID' })
+    return [method, (...args) => source[method](...args)]
   })
+  return Object.freeze(Object.fromEntries(routes))
 }
 
 export async function refreshAppliedContinuationCapsule({

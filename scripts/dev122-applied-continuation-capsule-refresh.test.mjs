@@ -4,6 +4,7 @@ import test from 'node:test'
 import { createWifAppliedContinuationRefreshTransport } from './dev122-applied-continuation-capsule-refresh.mjs'
 
 import {
+  APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES,
   assertAppliedContinuationRefreshEnvironment,
   bindAppliedContinuationTemplateRef,
   createAppliedContinuationRefreshTransport,
@@ -48,7 +49,7 @@ function appliedTemplate(overrides = {}) {
   }
 }
 
-function fixture(template = appliedTemplate(), capsuleRef = templateRef) {
+function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHook = null) {
   const runtime = { runtimeConfig: { plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' } } }
   const reads = []
   const transport = {
@@ -68,6 +69,7 @@ function fixture(template = appliedTemplate(), capsuleRef = templateRef) {
     'release-intent': { ref: { uri: `gs://${BUCKET}/receipts/releases/DEV122-RD-WIF-123456-2/release-intent.json`, sha256: HASH } },
   }
   const producePrerequisite = async value => {
+    await stageHook?.(value)
     stages.push({ stage: value.stage, releaseId: value.releaseId, input: structuredClone(value.input) })
     return stageResult[value.stage]
   }
@@ -87,34 +89,16 @@ test('template ref and workflow identity are exact and traversal-safe', () => {
   assert.throws(() => assertAppliedContinuationRefreshEnvironment({ ...environment, GITHUB_REF: 'refs/heads/feature' }, CURRENT), /APPLIED_CONTINUATION_REFRESH_WORKFLOW_REQUIRED/u)
 })
 
-test('WIF transport keeps verifier reads, builder immutable writes and deployer provider reads separated', async () => {
+test('WIF transport routes its complete contract through one role map', async () => {
   const calls = []
   const role = name => new Proxy({}, { get: (_target, method) => (...args) => { calls.push([name, method, args]); return `${name}:${String(method)}` } })
   const transport = createAppliedContinuationRefreshTransport({ verifier: role('verifier'), builder: role('builder'), deployer: role('deployer') })
-  assert.equal(transport.readJson('ref'), 'verifier:readJson')
-  assert.equal(transport.readOwnerSourceProof('proof'), 'verifier:readOwnerSourceProof')
-  assert.equal(transport.getService('service'), 'verifier:getService')
-  assert.equal(transport.getRevision('revision'), 'verifier:getRevision')
-  assert.equal(transport.assertServiceSettled('service'), 'verifier:assertServiceSettled')
-  assert.equal(transport.assertRevisionReady('revision'), 'verifier:assertRevisionReady')
-  assert.equal(transport.assertCanonicalEntrypoint('profile', 'service'), 'verifier:assertCanonicalEntrypoint')
-  assert.equal(transport.effectiveRevision('service'), 'verifier:effectiveRevision')
-  assert.equal(transport.now(), 'verifier:now')
-  assert.equal(transport.putJson('uri'), 'builder:putJson')
-  assert.equal(transport.request('url'), 'deployer:request')
-  assert.deepEqual(calls.map(row => row.slice(0, 2)), [
-    ['verifier', 'readJson'],
-    ['verifier', 'readOwnerSourceProof'],
-    ['verifier', 'getService'],
-    ['verifier', 'getRevision'],
-    ['verifier', 'assertServiceSettled'],
-    ['verifier', 'assertRevisionReady'],
-    ['verifier', 'assertCanonicalEntrypoint'],
-    ['verifier', 'effectiveRevision'],
-    ['verifier', 'now'],
-    ['builder', 'putJson'],
-    ['deployer', 'request'],
-  ])
+  assert.deepEqual(Object.keys(transport), Object.keys(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES))
+  for (const [method, expectedRole] of Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES)) {
+    assert.equal(transport[method]('production-shaped-input'), `${expectedRole}:${method}`)
+  }
+  assert.deepEqual(calls.map(([roleName, method]) => [roleName, method]), Object.entries(APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES).map(([method, roleName]) => [roleName, method]))
+  assert.throws(() => createAppliedContinuationRefreshTransport({ verifier: {}, builder: role('builder'), deployer: role('deployer') }), /APPLIED_CONTINUATION_REFRESH_TRANSPORT_INVALID/u)
 })
 
 test('WIF assembly gives exact provider proof GETs the builder token without widening other transports', () => {
@@ -137,6 +121,7 @@ test('WIF assembly gives exact provider proof GETs the builder token without wid
     { role: 'deployer', options: { token: 'deployer-token', builderReadbackToken: null } },
   ])
   assert.equal(transport.readOwnerSourceProof('proof').role, 'verifier')
+  assert.equal(transport.readOwnerRun('run').role, 'verifier')
   assert.equal(transport.putJson('receipt').role, 'builder')
   assert.equal(transport.request('provider').role, 'deployer')
 })
@@ -162,6 +147,38 @@ test('expired applied continuation is normalized once into a fresh exact-main ca
   assert.deepEqual(f.stages[1].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
   assert.deepEqual(f.stages[4].input.appliedMigrationContinuation, appliedTemplate().appliedMigrationContinuation)
   assert.equal(f.stages.some(row => /worker|build/u.test(row.stage)), false)
+})
+
+test('C110-shaped refresh routes the exact pre-activation owner run through verifier before authority publication', async () => {
+  const ownerRunRef = 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561'
+  const events = []
+  let f
+  f = fixture(appliedTemplate(), templateRef, async value => {
+    if (value.stage !== 'routine-authority') return
+    assert.equal(f.stages.some(row => row.stage === 'routine-authority'), false)
+    const run = await value.transport.readOwnerRun(profile, ownerRunRef)
+    assert.deepEqual(run, { id: '39723589561', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: OLD })
+    events.push('routine-authority-owner-run-verified')
+  })
+  const verifier = new Proxy({
+    readJson: (...args) => f.transport.readJson(...args),
+    readOwnerRun: async (_profile, actualRef) => {
+      assert.equal(actualRef, ownerRunRef)
+      events.push('verifier-read-owner-run')
+      return { id: '39723589561', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: OLD }
+    },
+  }, { get: (target, method) => target[method] ?? (() => undefined) })
+  const inert = new Proxy({}, { get: () => () => undefined })
+  const transport = createAppliedContinuationRefreshTransport({ verifier, builder: inert, deployer: inert })
+  const result = await refreshAppliedContinuationCapsule({
+    templateRef, profile, root: 'C:/fixture', transport, environment,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    createSourceIdentity: async () => Buffer.from('source'), buildMigrationBundle: async () => ({ bundle: { manifestSha256: HASH } }),
+    producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z'),
+  })
+  assert.equal(result.refreshed, true)
+  assert.deepEqual(events, ['verifier-read-owner-run', 'routine-authority-owner-run-verified'])
+  assert.deepEqual(f.stages.map(row => row.stage), ['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'release-intent'])
 })
 
 test('fresh exact-source capsules and non-release diagnostics are reused without writes', async () => {

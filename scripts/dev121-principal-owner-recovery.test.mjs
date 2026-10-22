@@ -9,6 +9,7 @@ import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 import { RD_PERMISSION_STATE_PGOPTIONS, RD_PERMISSION_STATE_RECEIPT_PREFIX, buildPermissionStateOperation, buildPermissionStateReceipt } from './lib/dev122-rd-permission-state-readback.mjs'
 import { assertWorkerReuseInput, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { createAppliedContinuationRefreshTransport } from './lib/dev122-applied-continuation-capsule-refresh.mjs'
 import { assertReconciledRepairContinuation } from './lib/dev121-principal-only-release.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -315,6 +316,22 @@ test('ordinary abort producer and prepare certify the native released Principal 
   assert.equal(h.calls.provider,4,'prepare must use only GCS/Run and not ask verifier for Build/Registry')
   h.service.uid='e65f379b-a342-4eb3-ba22-109aa5f368c5'
   await assert.rejects(executeOwnerStage(result.input),/PREPARE_BASELINE_MISMATCH/)
+})
+
+test('applied-continuation refresh facade carries the exact owner run through real routine-authority validation',async()=>{
+  const h=ordinaryAbortFixture(), originalReadOwnerRun=h.transport.readOwnerRun
+  let ownerRunReads=0
+  const verifier={...h.transport,readOwnerRun:async(profile,ownerRunRef)=>{
+    ownerRunReads+=1
+    assert.equal(ownerRunRef,h.controlCore.ownerRunRef)
+    return originalReadOwnerRun(profile,ownerRunRef)
+  }}
+  h.transport=createAppliedContinuationRefreshTransport({verifier,builder:h.transport,deployer:h.transport})
+  const result=await ordinaryNextRelease(h)
+  assert.equal(ownerRunReads,1)
+  assert.equal(result.authority.value.preActivationAbortBasis.schemaVersion,'ai-pdm.principal-ordinary-abort-basis.v1')
+  assert.deepEqual(result.authority.value.preActivationAbortBasis.failedIntentRef,h.failed.intentRow.ref)
+  assert.deepEqual(result.values.authorization.preActivationAbortBasis,result.values.readiness.preActivationAbortBasis)
 })
 
 test('ordinary abort rejects non-Principal or incomplete native chain and current control/run/traffic/entry drift',async()=>{
