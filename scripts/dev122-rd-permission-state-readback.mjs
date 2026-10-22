@@ -2,7 +2,6 @@
 
 import path from 'node:path'
 import process from 'node:process'
-import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
@@ -15,7 +14,7 @@ import {
   assertPermissionStateReceipt,
   parsePermissionStateArgs,
 } from './lib/dev122-rd-permission-state-readback.mjs'
-import { assertDev122GitSourceAuthority } from './lib/dev122-source-authority.mjs'
+import { assertDev122OperationSourceAuthority } from './lib/dev122-source-authority.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
@@ -49,16 +48,9 @@ export function readbackObjectGeneration(value) {
 }
 
 export function sourceAuthority(environment, workflowSourceRevision, operationSourceRevision, { gitRunner = null, workflowAncestorRunner = null, operationAncestorRunner = null } = {}) {
-  if (workflowSourceRevision !== environment?.GITHUB_SHA) fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
-  assertDev122GitSourceAuthority({ environment, sourceRevision: workflowSourceRevision,
+  return assertDev122OperationSourceAuthority({ environment, workflowSourceRevision, operationSourceRevision,
     workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
-    root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH', gitRunner, ancestorRunner: workflowAncestorRunner })
-  const isAncestor = operationAncestorRunner ?? ((ancestor, descendant) => {
-    const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { cwd: root, encoding: 'utf8', windowsHide: true })
-    return !result.error && result.status === 0
-  })
-  if (!/^[a-f0-9]{40}$/u.test(operationSourceRevision ?? '') || !isAncestor(operationSourceRevision, workflowSourceRevision)) fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
-  return { workflowSourceRevision, operationSourceRevision }
+    root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH', gitRunner, workflowAncestorRunner, operationAncestorRunner })
 }
 
 export function bindPermissionReadbackSources({ environment, workflowSourceRevision, operation, operationBytes, operationSha256 }, options = {}) {

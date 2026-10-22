@@ -49,3 +49,25 @@ export function assertDev122GitSourceAuthority({ environment, sourceRevision, so
   }
   return true
 }
+
+/**
+ * Bind an immutable operation produced by an admitted ancestor to the exact
+ * protected-main workflow source executing it now. The current checkout stays
+ * authoritative for executable code; the operation hash stays authoritative
+ * for the closed input. A new main commit alone does not require republishing
+ * identical input, while a divergent or unknown lineage fails before provider
+ * access.
+ */
+export function assertDev122OperationSourceAuthority({ environment, workflowSourceRevision, operationSourceRevision,
+  workflowRef, root, code, gitRunner = null, workflowAncestorRunner = null, operationAncestorRunner = null }) {
+  const mismatch = () => fail(code)
+  if (workflowSourceRevision !== environment?.GITHUB_SHA) mismatch()
+  assertDev122GitSourceAuthority({ environment, sourceRevision: workflowSourceRevision, workflowRef, root, code,
+    gitRunner, ancestorRunner: workflowAncestorRunner })
+  const isAncestor = operationAncestorRunner ?? ((ancestor, descendant) => {
+    const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { cwd: root, encoding: 'utf8', windowsHide: true })
+    return !result.error && result.status === 0
+  })
+  if (!H40.test(operationSourceRevision ?? '') || !isAncestor(operationSourceRevision, workflowSourceRevision)) mismatch()
+  return { workflowSourceRevision, operationSourceRevision }
+}
