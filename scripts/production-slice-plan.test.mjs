@@ -80,14 +80,42 @@ test('worker source selects worker evidence without unrelated app build', () => 
 })
 
 test('shared release control selects its own safety boundary without unrelated product gates', () => {
-  for (const file of ['.github/workflows/ci.yml', 'scripts/plan-production-slice.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.mjs']) {
+  for (const file of [
+    '.github/workflows/ci.yml',
+    'scripts/plan-production-slice.mjs',
+    'scripts/lib/dev121-owner-release-proof.mjs',
+    'scripts/lib/dev121-preactivation-abort-continuation.mjs',
+    'scripts/dev121-principal-owner-recovery.test.mjs',
+    'scripts/dev122-applied-continuation-capsule-refresh.mjs',
+  ]) {
     const plan = createProductionSlicePlan([file])
     assert.equal(plan.classification, 'AFFECTED_SLICES', file)
+    assert.deepEqual(plan.slices, ['release-control'], file)
     assert.equal(plan.gates.releaseCore, true, file)
     for (const gate of ['application', 'authorization', 'database', 'preview', 'recognition', 'worker', 'infrastructure', 'abortController', 'dependencyAudit', 'lint', 'dbBoundary', 'nativePostgres', 'migration', 'isolatedBuild', 'desktopUi']) {
       assert.equal(plan.gates[gate], false, `${file}:${gate}`)
     }
   }
+})
+
+test('RD retry release-state changes do not inherit unrelated product gates', () => {
+  const plan = createProductionSlicePlan([
+    '.ai-doc/dev_task.md',
+    '.ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md',
+    'scripts/dev121-principal-owner-recovery.test.mjs',
+    'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
+    'scripts/lib/dev012-owner-prerequisite-producer.mjs',
+    'scripts/lib/dev012-owner-stage-executor.mjs',
+    'scripts/lib/dev121-preactivation-abort-continuation.mjs',
+    'scripts/lib/dev122-applied-continuation-capsule-refresh.mjs',
+  ])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.deepEqual(plan.slices, ['documentation', 'release-control'])
+  assert.equal(plan.gates.releaseCore, true)
+  for (const gate of ['full', 'application', 'authorization', 'database', 'preview', 'recognition', 'worker', 'infrastructure', 'abortController', 'dependencyAudit', 'lint', 'dbBoundary', 'nativePostgres', 'migration', 'isolatedBuild', 'desktopUi']) {
+    assert.equal(plan.gates[gate], false, gate)
+  }
+  assert.deepEqual(plan.evidenceRequirements, ['source-image-revision-traffic-rollback'])
 })
 
 test('only unknown paths retain the cross-product full fallback', () => {

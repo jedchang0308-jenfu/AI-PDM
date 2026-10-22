@@ -111,6 +111,8 @@ PR #442 merge main `0face9e870d600d38c0730fb5e5d2e71aa347361` 的PR／exact-main
 
 PR #443 merge main `3d0e66bf95050b501f19a743c84f5be25d6acc3c` 的PR／exact-main required CI均SUCCESS。正式run `39752276582`未進入prepare或任何正式寫入，refresh首敗`DEV121_PREACTIVATION_CONTINUATION_INVALID`；直接原因是前次recovery已更新active control，C110模板baseline卻仍舊，且consumer要求跨attempt重播整段歷史。現行模型改以active control、failed owner run、live service／traffic、recovery proof及immutable applied-migration continuation組成唯一重試基線；prepare前失敗明確證明零build／零migration／零candidate，舊cutover、worker及receipt lineage不再成為後續consumer輸入。hash、source、service UID／image、rollback revision、unexpected stage與owner-run漂移仍拒絕。這是共用release state收斂，不是放寬RD授權或把其他功能缺陷改判PASS；專用測試actor驗收及原7／29仍未完成。
 
+同一修正首次由 planner 誤判成 `FULL`：`preactivation-abort-continuation` 落入 unknown，`principal-owner-recovery` 因歷史檔名落入產品 authorization，導致 30 組全套檢查；完整真實 PASS 與 evidence SHA `17da2fb671b5089951cd7bfa7355013de3c8d443d3d0f6a8620707d2936ea6d5` 保留，未受影響 OpenSWX worker 單組約耗時 327.5 秒。分類器改以明確 release-state responsibility 優先，只選 planner＋release-core；catalog／grant／085／API／UI 的真正授權路徑仍依各自 changed path 選關卡，其他產品功能缺陷另立任務且不阻擋本 RD 切片。
+
 ### Release source authority 與 artifact transport 分離
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app 與 worker 可由不同 OS、tar 或 gzip 實作產生來源物件；archive SHA、generation 與 CRC32C 只驗各自上傳物件，不得跨 build、attempt 或 descriptor 決定 source identity。worker artifact 另由逐檔 input manifest、effective recipe、provider build identity 與 image digest 驗證。
