@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { createWifAppliedContinuationRefreshTransport } from './dev122-applied-continuation-capsule-refresh.mjs'
+
 import {
   assertAppliedContinuationRefreshEnvironment,
   bindAppliedContinuationTemplateRef,
@@ -113,6 +115,30 @@ test('WIF transport keeps verifier reads, builder immutable writes and deployer 
     ['builder', 'putJson'],
     ['deployer', 'request'],
   ])
+})
+
+test('WIF assembly gives exact provider proof GETs the builder token without widening other transports', () => {
+  const created = []
+  const createTransport = options => {
+    const role = created.length === 0 ? 'verifier' : created.length === 1 ? 'builder' : 'deployer'
+    created.push({ role, options })
+    return new Proxy({}, { get: (_target, method) => (...args) => ({ role, method, args }) })
+  }
+  const transport = createWifAppliedContinuationRefreshTransport({
+    verifierToken: 'verifier-token',
+    builderToken: 'builder-token',
+    deployerToken: 'deployer-token',
+    createTransport,
+  })
+
+  assert.deepEqual(created, [
+    { role: 'verifier', options: { token: 'verifier-token', builderReadbackToken: 'builder-token' } },
+    { role: 'builder', options: { token: 'builder-token', builderReadbackToken: null } },
+    { role: 'deployer', options: { token: 'deployer-token', builderReadbackToken: null } },
+  ])
+  assert.equal(transport.readOwnerSourceProof('proof').role, 'verifier')
+  assert.equal(transport.putJson('receipt').role, 'builder')
+  assert.equal(transport.request('provider').role, 'deployer')
 })
 
 test('expired applied continuation is normalized once into a fresh exact-main capsule without rebuilding its worker', async () => {
