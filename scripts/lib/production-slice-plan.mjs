@@ -22,6 +22,7 @@ const RELEASE_CONTROL = [
   /^infra\/google-cloud\/dev-117-production-release\//u,
   /^scripts\/(?:lib\/)?dev0?12-/u,
   /^scripts\/(?:lib\/)?dev117-/u,
+  /^scripts\/(?:lib\/)?dev122-applied-continuation-capsule-refresh(?:\.|-)/u,
   /^scripts\/lib\/dev121-owner-release-proof\.mjs$/u,
   /^scripts\/qc-dev-117-/u,
   /^scripts\/(?:lib\/)?production-slice-/u,

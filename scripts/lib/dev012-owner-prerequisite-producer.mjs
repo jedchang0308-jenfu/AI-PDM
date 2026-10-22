@@ -9,7 +9,7 @@ import path from 'node:path'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
-import { WORKER_PROFILE_PATH, assertWorkerRuntimeJoin, readWorkerDescriptor, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
+import { assertWorkerRuntimeJoin, readWorkerDescriptorForIntent, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
@@ -357,7 +357,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     let openswxWorker = null, enabled = '0'
     if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
-      const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, sourceLock.sourceRevision), sourceRevision: sourceLock.sourceRevision })
+      const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: sourceLock.sourceRevision })
       if (descriptor.value.purpose === 'full') {
         if (input.programOnlyBaseline) {
           assertProgramOnlyPolicy(input.programOnlyBaseline, { profile, sourceLock })
@@ -365,10 +365,10 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
             sourceLockRef: input.sourceLockRef, migrationManifestSha256: sourceLock.migrationManifestSha256,
             baselineIntentRef: input.programOnlyBaseline.baselineIntentRef, openswxWorkerRef: input.openswxWorkerRef, programOnlyBaseline: input.programOnlyBaseline }
           await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource: readWorkerSource, currentReadback: true })
-        } else await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
+        } else await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
         enabled = '1'
       }
-      openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: sourceLock.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
+      openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: descriptor.value.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
     }
     if (input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null && input.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED !== enabled) fail('OPENSWX_RUNTIME_BINDING_INVALID')
     const plainEnvironment = profile.environment.optionalExtensions ? { ...input.plainEnvironment, PDM_OPENSWX_DISPATCH_ENABLED: enabled } : input.plainEnvironment
@@ -458,9 +458,9 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     let workerDescriptor = null, workerProfile = null, workerEvidence = null
     if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
-      const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, prerequisiteValues.sourceLock.sourceRevision), sourceRevision: prerequisiteValues.sourceLock.sourceRevision })
+      const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: prerequisiteValues.sourceLock.sourceRevision })
       workerDescriptor = descriptor.value; workerProfile = descriptor.profile
-      if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') workerEvidence = await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource)
+      if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') workerEvidence = await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
     }
     if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR') {
       try { assertReconciledRepairContinuation(input, workerEvidence?.artifact?.input, profile.artifact.releaseBucket) }

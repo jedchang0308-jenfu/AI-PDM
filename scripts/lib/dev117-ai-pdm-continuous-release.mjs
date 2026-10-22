@@ -262,8 +262,8 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const inputBlock = source.match(/workflow_dispatch:[^\S\r\n]*\r?\n\s*inputs:[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\s*concurrency:/)?.[1] || ''
   const inputs = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
   const jobs = [...source.matchAll(/^  ([a-z][a-z-]+):\s*$/gm)].map((match) => match[1])
-  const stages = [...source.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
-  const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
+  const stages = [...source.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.effective\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.effective\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
+  const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
   const releaseOrApplied = "if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}"
   const appliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
   const rollbackOnly = "if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}"
@@ -280,11 +280,14 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       !source.includes('cancel-in-progress: false') ||
       !source.includes('PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: "true"') ||
       !source.includes("if: ${{ steps.classify.outputs.kind == 'rd_readback' }}") ||
-      source.split(releaseOrApplied).length - 1 !== 4 ||
+      source.split(releaseOrApplied).length - 1 !== 5 ||
       source.split(appliedOnly).length - 1 !== 13 ||
       source.split(rollbackOnly).length - 1 !== 3 ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"') ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
+      !source.includes('node scripts/dev122-applied-continuation-capsule-refresh.mjs --capsule-ref "${{ inputs.releaseCapsuleRef }}"') ||
+      !source.includes('AIPDM_REFRESH_BUILDER_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"') ||
+      !source.includes('AIPDM_REFRESH_DEPLOYER_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
       /dev122-rd-permission-ledger-readback\.mjs --stage publish|--release-id|--deadline-at/iu.test(source) ||
       source.includes('continue-on-error:') ||
       /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Special workflow route drifted')

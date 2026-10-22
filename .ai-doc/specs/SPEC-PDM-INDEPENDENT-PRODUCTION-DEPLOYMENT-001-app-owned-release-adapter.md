@@ -603,6 +603,12 @@ Reader 能否讀已准入 revision、該次 profile 應採 current 或 historica
 
 owner CLI 將實際 stage error code寫入 GitHub job output；failure recovery 只把本次 code／family 訊號封入 rollback／terminal receipt，不接受操作人員提供的 ambient history JSON，也不在 rollback 或下一次 `prepare` 前追讀歷史 terminal。Planner 的純函式依既有 CI／attempt evidence辨識同一 failure family，再發兩次時輸出 machine-readable 的 `TRIGGER_AI_COO_REVIEW`／`ai_coo_review_requested`，喚醒一次規則合理性與共同機制審視；它是停止逐點補丁的開發訊號，不是 production prepare／rollback gate、人工簽核或 provider gate，也不得阻斷下一次 `prepare`。來源、權限、資料一致性及復原等既有安全檢查仍各自 fail closed。daily mode boundary 在 app-specific continuation 深度解析之前執行，且啟用時 workflow ref 必須精確等於 protected daily workflow；rollback 亦須通過 protected GitHub context。原有 required CI、source／permission／data safety 與 rollback/recovery 邊界不變。
 
+### 26.7 WIF-owned applied-continuation capsule refresh（2026-10-22）
+
+已套用 migration 的 continuation 不再要求操作者以本機 ADC 為每個新 app-only main SHA 重建 diagnostics operation、worker artifact 或完整歷史證據包。既有 protected principal workflow 先以 verifier WIF 分類輸入；RD readback capsule維持原唯讀路徑且不取得 builder token。對合法 `appliedMigrationContinuation`，同一 workflow 才以既有 verifier／builder／deployer WIF 建立 fresh exact-main source lock、runtime、infra-reuse、routine authority與release intent，並輸出單一 effective capsule供後續既有 stages使用；不新增 workflow、IAM、Secret、operator input或第二個 writer。
+
+App source與 retained finite-worker source是分離的 artifact identity。舊 worker descriptor只有在其 revision 是 current exact main 的祖先，且已驗 manifest 中每個 worker input在 current main的bytes／size／SHA-256完全相同時才可沿用；runtime binding保留descriptor自己的source revision，app intent則綁current source lock。來源分歧、worker bytes漂移、profile不相容、缺 continuation、過期／畸形 ref或 provider readback不一致均須在新receipt或正式mutation前fail closed。新attempt只刷新attempt-owned deadline與receipts；不改寫舊receipt、不重建相同worker、不重送已套用migration，candidate／traffic與rollback仍走原executor。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。
