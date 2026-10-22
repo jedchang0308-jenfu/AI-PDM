@@ -45,8 +45,7 @@ export async function runReleaseSmoke({ phase, transport, profile, intent, origi
   if (!['candidate', 'canonical'].includes(phase)) fail('RELEASE_SMOKE_PHASE_INVALID')
   if (Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')) {
     if (profile?.application?.id !== 'ai-pdm' || typeof transport?.runHttpSuite !== 'function') fail('RD_PERMISSION_SMOKE_INVALID')
-    return transport.runHttpSuite({ origin, suite: appliedRdPermissionSmokeSuite(), expectedRevision: candidateRevision,
-      expectedArtifactDigest: artifactDigest, environment })
+    return transport.runHttpSuite({ origin, suite: appliedRdPermissionSmokeSuite(), environment })
   }
   if (phase === 'candidate') {
     return transport.runInternalCandidateSmoke({ profile, origin, candidateTag, candidateRevision, artifactDigest, deadlineAt, environment })

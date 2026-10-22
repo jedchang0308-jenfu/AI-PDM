@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
+import { buildRuntimeConfig, canonicalize, createOwnerTransport, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor, runReleaseSmoke } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
@@ -25,7 +25,7 @@ const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.a
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
 
-test('applied RD continuation checks only candidate provenance and unauthenticated permission denial', async () => {
+test('applied RD continuation keeps provider provenance authoritative and checks only RD HTTP behaviour', async () => {
   const calls = []
   const transport = {
     async runHttpSuite(input) { calls.push(input); return { status: 'PASS', observations: input.suite.probes } },
@@ -42,13 +42,33 @@ test('applied RD continuation checks only candidate provenance and unauthenticat
   }
   assert.equal(calls.length, 2)
   for (const call of calls) {
-    assert.equal(call.expectedRevision, candidateRevision)
-    assert.equal(call.expectedArtifactDigest, migrationRunnerDigest)
+    assert.equal(Object.hasOwn(call, 'expectedRevision'), false)
+    assert.equal(Object.hasOwn(call, 'expectedArtifactDigest'), false)
     assert.deepEqual(call.suite.probes.map(row => [row.id, row.expectedStatus, row.requireProvenance ?? true]), [
-      ['rd-candidate-ready', 200, true],
+      ['rd-candidate-ready', 200, false],
       ['rd-permission-unauthenticated-denied', 401, false],
     ])
   }
+})
+
+test('applied RD HTTP smoke accepts provider-proven candidate responses without duplicate provenance headers', async () => {
+  const paths = []
+  const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async (url) => {
+    const path = new URL(url).pathname
+    paths.push(path)
+    if (path === '/api/health/ready') return new Response('{}', { status: 200 })
+    if (path === '/api/numbering/permissions') return new Response('{}', { status: 401 })
+    throw new Error(`unexpected path ${path}`)
+  } })
+  const result = await runReleaseSmoke({ phase: 'candidate', transport, profile: { application: { id: 'ai-pdm' } },
+    intent: { appliedMigrationContinuation: { schemaVersion: 'fixture' } }, origin: 'https://candidate.example.test',
+    candidateRevision, artifactDigest: migrationRunnerDigest, deadlineAt: '2999-01-01T00:00:00.000Z', environment: {} })
+  assert.equal(result.status, 'PASS')
+  assert.deepEqual(paths, ['/api/health/ready', '/api/numbering/permissions'])
+  assert.deepEqual(result.observations.map(row => [row.id, row.status, row.revision, row.artifactDigest]), [
+    ['rd-candidate-ready', 200, null, null],
+    ['rd-permission-unauthenticated-denied', 401, null, null],
+  ])
 })
 
 test('ordinary releases retain the full candidate and authenticated smoke paths', async () => {
