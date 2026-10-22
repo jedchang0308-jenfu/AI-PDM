@@ -33,6 +33,7 @@ export const APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES = Object.freeze({
   assertServiceSettled: 'verifier',
   assertRevisionReady: 'verifier',
   assertCanonicalEntrypoint: 'verifier',
+  entrypointSnapshot: 'verifier',
   effectiveRevision: 'verifier',
   now: 'verifier',
   putBytes: 'builder',

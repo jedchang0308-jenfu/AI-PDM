@@ -135,6 +135,7 @@ test('WIF assembly reuses the verifier-primary provider routing contract without
   ])
   assert.equal(transport.readOwnerSourceProof('proof').role, 'verifier')
   assert.equal(transport.readOwnerRun('run').role, 'verifier')
+  assert.equal(transport.entrypointSnapshot('service').role, 'verifier')
   assert.equal(transport.putJson('receipt').role, 'builder')
   assert.equal(transport.request('https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds?filter=tags%3Ddev122-rd-full35-c110&pageSize=2').role, 'verifier')
 })
