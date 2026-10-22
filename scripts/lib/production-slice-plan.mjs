@@ -45,6 +45,11 @@ const DATABASE = [
   /^src\/lib\/.*(?:postgres|migration|schema)/u,
 ]
 
+const RD_PERMISSION_DATABASE = [
+  /^db\/postgres\/085_/u,
+  /^scripts\/(?:lib\/)?dev122-(?:rd-permission-ledger-readback|applied-migration-continuation)(?:\.|-)/u,
+]
+
 const AUTHORIZATION = [
   /^config\/access-control\//u,
   /^scripts\/.*(?:role-catalog|rd-permission|principal|permission|grant|session|sso|acl)/u,
@@ -112,6 +117,10 @@ export function classifyProductionPath(value) {
   return SLICE_ORDER.filter(slice => slices.has(slice))
 }
 
+export function isRdPermissionDatabasePath(value) {
+  return matches(normalizeChangedPath(value), RD_PERMISSION_DATABASE)
+}
+
 export function createProductionSlicePlan(paths, { baseRevision = null, headRevision = null, failureHistory = [], currentFailureCode = null } = {}) {
   const files = [...new Set(paths.map(normalizeChangedPath).filter(Boolean))].sort()
   const reasons = Object.fromEntries(SLICE_ORDER.map(slice => [slice, []]))
@@ -139,7 +148,11 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
     recognition: full || has('recognition'),
     worker: full || has('worker'),
     infrastructure: full || has('infrastructure'),
-    releaseCore: full || releaseControlAffected || databaseAffected || has('worker') || has('infrastructure'),
+    // Product slices own their focused contracts. They do not inherit the
+    // shared release-control suite merely because the release workflow will
+    // eventually carry them. Exact-source CI and the protected owner workflow
+    // remain mandatory at release time.
+    releaseCore: full || releaseControlAffected,
     abortController: abortControllerAffected,
     dependencyAudit: full || files.some(file => /^(?:Dockerfile|package(?:-lock)?\.json)$/u.test(file)),
     lint: full || applicationAffected,

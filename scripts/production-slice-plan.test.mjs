@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyProductionPath, createProductionSlicePlan, normalizeChangedPath } from './lib/production-slice-plan.mjs'
+import { classifyProductionPath, createProductionSlicePlan, isRdPermissionDatabasePath, normalizeChangedPath } from './lib/production-slice-plan.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -36,7 +36,15 @@ test('RD catalog and migration route their explicit responsibilities without wor
   assert.equal(plan.gates.application, true)
   assert.equal(plan.gates.worker, false)
   assert.equal(plan.gates.preview, false)
+  assert.equal(plan.gates.releaseCore, false)
   assert.ok(plan.releasePhases.includes('migrate-if-needed'))
+})
+
+test('RD database regressions are selected only for the RD permission evidence boundary', () => {
+  assert.equal(isRdPermissionDatabasePath('db/postgres/085_dev121_principal_role_catalog_v7.sql'), true)
+  assert.equal(isRdPermissionDatabasePath('scripts/lib/dev122-applied-migration-continuation.mjs'), true)
+  assert.equal(isRdPermissionDatabasePath('scripts/dev122-rd-permission-ledger-readback.test.mjs'), true)
+  assert.equal(isRdPermissionDatabasePath('db/postgres/086_unrelated_business_feature.sql'), false)
 })
 
 test('authorization-only changes do not imply database or migration work', () => {
@@ -66,7 +74,7 @@ test('PDF preview remains independent from worker and authorization gates', () =
 test('worker source selects worker evidence without unrelated app build', () => {
   const plan = createProductionSlicePlan(['scripts/lib/openswx-reader/reader.cc'])
   assert.equal(plan.gates.worker, true)
-  assert.equal(plan.gates.releaseCore, true)
+  assert.equal(plan.gates.releaseCore, false)
   assert.equal(plan.gates.application, false)
   assert.equal(plan.gates.database, false)
 })
@@ -110,6 +118,9 @@ test('required CI does not couple release control to unrelated product gates', (
   const runner = fs.readFileSync(path.join(root, 'scripts/run-production-slice-tests.mjs'), 'utf8')
   assert.match(runner, /if \(plan\.gates\.releaseCore\) groups\.push/u)
   assert.doesNotMatch(runner, /profile === 'owner' \|\| plan\.gates\.releaseCore/u)
+  assert.match(source, /steps\.slice\.outputs\.database == 'true'/u)
+  assert.match(runner, /const RD_PERMISSION_DATABASE_TESTS = \[[\s\S]*dev122-rd-permission-ledger-readback\.test\.mjs[\s\S]*dev122-applied-migration-continuation\.test\.mjs/u)
+  assert.match(runner, /plan\.files\.some\(isRdPermissionDatabasePath\)/u)
 })
 
 test('historical worker fixtures stay in the worker responsibility', () => {

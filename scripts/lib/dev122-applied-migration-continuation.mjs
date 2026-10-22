@@ -8,7 +8,6 @@ import {
   assertRdReadbackResultRef,
   assertRdReadbackSourceCompatibility,
   buildRdLedgerProbeBundles,
-  rdReadbackProfileSha256,
 } from './dev122-rd-permission-ledger-readback.mjs'
 
 const DEFAULT_BUCKET = 'jenfu-platform-prod-aipdm-release'
@@ -67,7 +66,13 @@ export function assertAppliedMigrationReadbackSource({ readbackIntent, profile, 
     runnerSourceRevision: readbackIntent?.runnerSourceRevision,
     ancestorRunner, compatibilityRunner })
   const probes = buildRdLedgerProbeBundles(fullMigration)
-  assertRdLedgerReadbackIntent(readbackIntent, { profileSha256: rdReadbackProfileSha256(profile), probes })
+  // The readback intent already seals the exact historical profile used by its
+  // producer. A later release may change unrelated runtime or workflow fields;
+  // those fields are not evidence about whether migrations 083-085 are
+  // installed. Re-validate only the current migration projection here. The
+  // provider Job, runner digest and immutable receipt chain are checked by the
+  // readback consumer below.
+  assertRdLedgerReadbackIntent(readbackIntent, { probes })
   return { probes }
 }
 

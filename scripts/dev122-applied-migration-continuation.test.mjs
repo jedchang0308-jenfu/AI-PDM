@@ -33,7 +33,7 @@ function providerJob() {
   }
 }
 
-function fixture() {
+function fixture(activeProfile = profile) {
   const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), appliedSource)
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
   const files = new Map([[profilePath, Buffer.from(`${canonicalize(profile)}\n`)],
@@ -109,7 +109,7 @@ function fixture() {
   const proof = { disposition: 'migration_only', sourceRevision: appliedSource }
   const transport = {
     async readOwnerSourceProof(args) {
-      assert.equal(args.profile, profile); assert.equal(args.sourceRevision, appliedSource); assert.equal(args.verifyProvider, true)
+      assert.equal(args.profile, activeProfile); assert.equal(args.sourceRevision, appliedSource); assert.equal(args.verifyProvider, true)
       assert.deepEqual(args.refs, { prepare: prepareRef, migrate: migrateRef, terminal: null })
       return { proof, provider: { status: 'BUILD_IMAGE_VERIFIED' } }
     },
@@ -118,7 +118,7 @@ function fixture() {
       const value = objects.get(actualRef.uri); if (!value) throw new Error('MISSING'); return { value }
     },
   }
-  return { binding, currentIntent, graph, history, content, transport, proof, resultRef, objects, runnerFull, executionRef }
+  return { binding, currentIntent, graph, history, content, transport, proof, resultRef, objects, runnerFull, executionRef, activeProfile }
 }
 
 test('C96 production-shaped applied migration continuation selects ledger35 and classifies unchanged full35 as no-job reuse', async () => {
@@ -130,6 +130,27 @@ test('C96 production-shaped applied migration continuation selects ledger35 and 
     ancestorRunner: () => true, compatibilityRunner: () => true })
   assert.equal(selected, f.history)
   assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
+})
+
+test('applied migration continuation ignores unrelated current release-profile drift while preserving ledger35 evidence', async () => {
+  const activeProfile = structuredClone(profile)
+  activeProfile.workflow.jobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback']
+  activeProfile.dataCutover.gateMode = 'HISTORICAL_ONLY'
+  const f = fixture(activeProfile)
+  const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: activeProfile, transport: f.transport,
+    readObservationInputs: async () => f.graph,
+    buildMigrationBundle: async sourceRevision => { assert.equal(sourceRevision, runnerSource); return f.runnerFull },
+    ancestorRunner: () => true, compatibilityRunner: () => true })
+  assert.equal(selected, f.history)
+  assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
+})
+
+test('applied migration continuation still rejects a changed migration probe projection', async () => {
+  const f = fixture()
+  const changed = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), currentSource)
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => changed,
+    ancestorRunner: () => true, compatibilityRunner: () => true }), /RD_READBACK_PROFILE_DRIFT/u)
 })
 
 test('applied migration continuation rejects a native receipt completed after its provider execution', async () => {
