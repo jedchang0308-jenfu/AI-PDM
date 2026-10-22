@@ -69,6 +69,21 @@ export function assertAppliedContinuationRuntimeBinding(runtimeConfig, intent) {
     || canonicalize(binding.descriptorRef) !== canonicalize(intent.openswxWorkerRef)) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
 }
 
+// The RD permission continuation has one release-time responsibility: prove
+// that the exact candidate is ready and that the API still rejects an
+// unauthenticated permission read. Positive/negative RD authorization is
+// verified after activation with the dedicated RD test actor. A generic
+// principal refresh token is neither that actor nor evidence about catalog,
+// grant or permission enforcement, so it must not gate this continuation.
+export function appliedRdPermissionSmokeSuite() {
+  return {
+    probes: [
+      { id: 'rd-candidate-ready', method: 'GET', path: '/api/health/ready', expectedStatus: 200 },
+      { id: 'rd-permission-unauthenticated-denied', method: 'GET', path: '/api/numbering/permissions', expectedStatus: 401, requireProvenance: false },
+    ],
+  }
+}
+
 export function assertAppliedMigrationSource(binding, currentSourceRevision, isAncestor) {
   assertAppliedMigrationContinuation(binding)
   if (!H40.test(currentSourceRevision ?? '') || typeof isAncestor !== 'function' ||

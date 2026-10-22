@@ -364,7 +364,7 @@ test('applied continuation retry follows the active control after a later pre-ex
   third.input.capsuleSha256=third.capsule.ref.sha256
   assert.deepEqual(third.authority.baselineIntentRef,second.capsule.ref)
   assert.deepEqual(third.capsule.value.baselineIntentRef,second.capsule.ref)
-  assert.equal(third.authority.value.preActivationAbortBasis.schemaVersion,'aipdm.applied-migration-preexecution-abort-basis.v1')
+  assert.equal(third.authority.value.preActivationAbortBasis.schemaVersion,'aipdm.applied-migration-abort-basis.v1')
   assert.equal(third.authority.value.preActivationAbortBasis.failureSignal,'REPAIR_DATA_CUTOVER_BASIS_INVALID')
   assert.deepEqual(third.values.authorization.preActivationAbortBasis,third.values.readiness.preActivationAbortBasis)
   const retryInput={profile:h.profile,transport:h.transport,baselineIntentRef:second.capsule.ref,verifyProvider:true,...continuation}
@@ -380,6 +380,65 @@ test('applied continuation retry follows the active control after a later pre-ex
   await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
   h.ownerRun.headSha=second.capsule.value.sourceRevision
   assert.equal(h.calls.puts > 0,true)
+})
+
+test('applied continuation retry accepts one rolled-back candidate abort without reopening historical release evidence',async()=>{
+  const h=await reconciledMigrationAbortFixture({principalOnly:true})
+  const applied=addAppliedMigrationExecution(h)
+  const continuation={...h.continuation,appliedMigrationContinuation:applied.binding}
+  const failed=await ordinaryNextRelease(h,h.continuation,{releaseId:'DEV122-RD-CANDIDATE-ABORT',source:'d'.repeat(40),authorityContinuation:continuation})
+  failed.capsule=h.put(failed.capsule.ref.uri,{...failed.capsule.value,appliedMigrationContinuation:applied.binding})
+  failed.input.capsuleSha256=failed.capsule.ref.sha256
+  const intent=failed.capsule.value, paths=releasePaths(h.profile,intent,failed.capsule.ref.sha256)
+  const artifactDigest=`${h.profile.artifact.uri}@sha256:${'8'.repeat(64)}`
+  const discarded='ai-pdm-prod-candidate-aborted'
+  const migration=h.put(paths.migrationAdmission,stageReceipt({profile:h.profile,intent,stage:'migrate',previousReceiptRef:{uri:paths.deployment,sha256:'7'.repeat(64)},facts:{
+    disposition:'HISTORICAL_EVIDENCE_REUSED',manifestSha256:intent.migrationManifestSha256,
+    migrationReceiptRef:applied.binding.migrateRef,sourceRevision:intent.sourceRevision},observedAt:'2026-10-03T12:00:00Z'}))
+  const candidate=h.put(paths.candidate,stageReceipt({profile:h.profile,intent,stage:'candidate',previousReceiptRef:migration.ref,facts:{
+    previousRevision:intent.previousRevision,beforeTraffic:[{revision:intent.previousRevision,percent:100}],candidateRevision:discarded,
+    artifactDigest,migrationAdmissionRef:migration.ref,migrationReceiptRef:applied.binding.migrateRef},observedAt:'2026-10-03T12:01:00Z'}))
+  const entrypoint=h.put(paths.entrypoint,stageReceipt({profile:h.profile,intent,stage:'entrypoint',previousReceiptRef:candidate.ref,
+    facts:{changed:false},observedAt:'2026-10-03T12:02:00Z'}))
+  const rollbackFacts={result:'PRE_ACTIVATION_ABORTED',previousRevision:intent.principalOnlyRecovery.revision,
+    recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{changed:false,result:'BASELINE_ALREADY_ACTIVE'},
+    databaseDisposition:'HISTORICAL_EVIDENCE_REUSED',migrationAdmissionRef:migration.ref,migrationEvidenceRef:applied.binding.migrateRef,
+    failureSignal:{code:'PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED',family:'PRINCIPAL'}}
+  const rollback=h.put(paths.rollback,stageReceipt({profile:h.profile,intent,stage:'rollback',previousReceiptRef:entrypoint.ref,
+    facts:rollbackFacts,observedAt:'2026-10-03T12:03:00Z'}))
+  const {recoveryOrder,...terminalFacts}=rollbackFacts
+  h.put(paths.terminal,stageReceipt({profile:h.profile,intent,stage:'terminal',previousReceiptRef:rollback.ref,
+    facts:terminalFacts,observedAt:'2026-10-03T12:03:00Z'}))
+  h.revisions.set(discarded,{name:`${h.service.name}/revisions/${discarded}`,containers:[{name:h.profile.runtime.containerName,image:artifactDigest}],
+    conditions:[{type:'Ready',state:'CONDITION_SUCCEEDED'}]})
+  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:intent.releaseId,
+    sourceRevision:intent.sourceRevision,releaseIntentSha256:failed.capsule.ref.sha256})),ownerApplicationId:'ai-pdm',service:'ai-pdm-prod',controlBucket:bucket,
+    releaseId:intent.releaseId,sourceRevision:intent.sourceRevision,sourceLockSha256:intent.sourceLockRef.sha256,candidateRevision:discarded,
+    previousRevision:intent.principalOnlyRecovery.revision,ownerRunRef:`https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${failed.input.environment.GITHUB_RUN_ID}`,
+    leaseExpiresAt:'2026-10-03T11:59:00Z',deadlineAt:intent.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
+  h.put(`gs://${bucket}/control/active.json`,{...controlCore,controlSha256:sha256(canonicalize(controlCore))})
+  h.ownerRun.id=failed.input.environment.GITHUB_RUN_ID
+  h.ownerRun.headSha=intent.sourceRevision
+  h.objects.delete(paths.candidate)
+  h.objects.delete(paths.entrypoint)
+
+  const retryInput={profile:h.profile,transport:h.transport,baselineIntentRef:failed.capsule.ref,verifyProvider:true,...continuation}
+  const readsOnlyPuts=h.calls.puts
+  const result=await readPreActivationAbortContinuation(retryInput)
+  assert.equal(result.kind,'APPLIED_MIGRATION_ABORT')
+  assert.equal(result.authorityBasis.schemaVersion,'aipdm.applied-migration-abort-basis.v1')
+  assert.equal(result.authorityBasis.databaseDisposition,'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(result.authorityBasis.discardedCandidateRevision,discarded)
+  assert.deepEqual(result.authorityBasis.migrationAdmissionRef,migration.ref)
+  assert.deepEqual(result.authorityBasis.failureSignal,rollbackFacts.failureSignal)
+  assert.equal(h.calls.puts,readsOnlyPuts)
+
+  const terminal=h.objects.get(paths.terminal), {receiptSha256:_seal,...tampered}=structuredClone(terminal.value)
+  tampered.facts.migrationEvidenceRef={...applied.binding.migrateRef,sha256:'0'.repeat(64)}
+  h.put(paths.terminal,{...tampered,receiptSha256:sha256(canonicalize(tampered))})
+  const negativeReadsOnlyPuts=h.calls.puts
+  await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(h.calls.puts,negativeReadsOnlyPuts)
 })
 
 test('ordinary abort rejects non-Principal or incomplete native chain and current control/run/traffic/entry drift',async()=>{
