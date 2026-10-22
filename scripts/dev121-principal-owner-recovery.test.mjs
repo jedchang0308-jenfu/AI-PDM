@@ -105,7 +105,9 @@ function recordedHarness() {
     runtime: { containerName: 'ai-pdm', cloudSqlProxyContainer: 'cloud-sql-proxy', cloudSqlProxyImage: `proxy@sha256:${'f'.repeat(64)}`, cloudSqlProxyPort: 5432, cloudSqlProxyMaximumConnections: 24, cloudSqlConnectionName: 'p:r:i', network: 'runtime-vpc', subnet: 'runtime-subnet', port: 8080, startupProbePath: '/ready', cpu: '1', memory: '512Mi', concurrency: 20, timeoutSeconds: 60, maxInstances: 1, poolMax: 4 },
     schemas: { releaseIntent: 'owner.intent.v2', deploymentCapsule: 'owner.deployment.v2' },
     artifact: { releaseBucket: bucket, repository: 'aipdm-release', uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm', migrationRunnerUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner', migrationBundlePrefix: 'source/migration-bundles' },
-    identities: { builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }, build: { maximumAllowedSeverity: 'MEDIUM' }, workflow: { path: '.github/workflows/deploy.yml' }, environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'aipdm-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' }, sideEffects: { notification: 'DISABLED' },
+    identities: { builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' },
+    build: { maximumAllowedSeverity: 'MEDIUM', dockerBuilderImage: 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c', dockerfile: 'Dockerfile', dockerTarget: 'runner' },
+    workflow: { path: '.github/workflows/deploy.yml' }, environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'aipdm-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' }, sideEffects: { notification: 'DISABLED' },
   }
   const sourceIdentityBytes = Buffer.from('recorded-source-tree-manifest')
   const sourceArchiveBytes = Buffer.from('recorded-source-archive')
@@ -317,6 +319,93 @@ async function ordinaryNextRelease(h, continuation = {}, options = {}) {
   return { input:{stage:'prepare',capsuleRef:capsule.ref.uri,capsuleSha256:capsule.ref.sha256,profile:h.profile,transport:h.transport,environment,validateIntent:()=>true},capsule,authority,values }
 }
 
+async function preparedArtifactPolicyAbortFixture() {
+  const h = await reconciledMigrationAbortFixture({ principalOnly: true })
+  const applied = addAppliedMigrationExecution(h)
+  const continuation = { ...h.continuation, appliedMigrationContinuation: applied.binding }
+  const failed = await ordinaryNextRelease(h, h.continuation, {
+    releaseId: 'DEV122-RD-PREPARED-BUILD-ABORT', source: '4'.repeat(40), authorityContinuation: continuation,
+  })
+  failed.capsule = h.put(failed.capsule.ref.uri, { ...failed.capsule.value, appliedMigrationContinuation: applied.binding })
+  failed.input.capsuleSha256 = failed.capsule.ref.sha256
+  const intent = failed.capsule.value, paths = releasePaths(h.profile, intent, failed.capsule.ref.sha256)
+  const prerequisiteRefs = {
+    sourceLock: intent.sourceLockRef, authorization: intent.authorizationPolicyRef,
+    readiness: intent.readinessReceiptRef, foundation: intent.foundationReceiptRef,
+    infra: intent.infraReceiptRef, runtimeConfig: intent.runtimeConfigRef,
+  }
+  const live = await h.transport.getService(h.profile)
+  const prepareFacts = {
+    prerequisiteRefs, previousRevision: intent.previousRevision,
+    preActivationAbortBasis: failed.values.authorization.preActivationAbortBasis,
+    entrypointBaseline: h.transport.entrypointSnapshot(live), migrationRunnerDigest,
+    migrationRunnerSourceRevision: h.runnerSourceRevision,
+  }
+  const putPrepare = (facts = prepareFacts) => h.put(paths.prepare, stageReceipt({
+    profile: h.profile, intent, stage: 'prepare', previousReceiptRef: null, facts,
+    observedAt: '2026-10-03T12:01:00Z',
+  }))
+  const prepare = putPrepare()
+  const sourceUri = `gs://${bucket}/source/releases/${intent.releaseId}/${failed.capsule.ref.sha256}/source.tar.gz`
+  const sourceBytes = Buffer.from('prepared build source archive')
+  const sourceSha256 = sha256(sourceBytes), sourceGeneration = '19', sourceCrc32c = crc32cBase64(sourceBytes)
+  h.objects.set(sourceUri, { bytes: sourceBytes, metadata: { generation: sourceGeneration, crc32c: sourceCrc32c },
+    ref: { uri: sourceUri, sha256: sourceSha256 } })
+  const tag = `${h.profile.artifact.uri}:release-${intent.sourceRevision}`
+  const storageSource = { bucket, object: sourceUri.slice(`gs://${bucket}/`.length), generation: sourceGeneration }
+  const build = {
+    name: 'projects/jenfu-platform-prod/locations/asia-east1/builds/110fa1d3-b991-41b6-b80b-3f2d86494b4c',
+    id: '110fa1d3-b991-41b6-b80b-3f2d86494b4c', projectId: 'jenfu-platform-prod', status: 'SUCCESS',
+    createTime: '2026-10-03T12:02:00Z', startTime: '2026-10-03T12:02:10Z', finishTime: '2026-10-03T12:05:00Z',
+    source: { storageSource },
+    sourceProvenance: { resolvedStorageSource: storageSource,
+      fileHashes: { [`${sourceUri}#${sourceGeneration}`]: { fileHash: [{ type: 'SHA256', value: Buffer.from(sourceSha256, 'hex').toString('base64') }] } } },
+    steps: [{ name: h.profile.build.dockerBuilderImage, dir: 'source', args: ['build', '--pull=false', '--no-cache', '--file', h.profile.build.dockerfile,
+      '--target', h.profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`,
+      '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z',
+      '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.'] }],
+    images: [tag], results: { images: [{ name: tag, digest: `sha256:${'1'.repeat(64)}` }] },
+    timeout: '1800s', queueTtl: '300s', logsBucket: `gs://${bucket}/logs/cloud-build`,
+    serviceAccount: `projects/${h.profile.target.projectId}/serviceAccounts/${h.profile.identities.builder}`,
+    options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', pool: {}, requestedVerifyOption: 'VERIFIED', workerRelease: 'legacy' },
+    tags: ['dev-012', 'ai-pdm', intent.releaseId.toLowerCase()],
+  }
+  const buildInventories = [[build], [build]]
+  let buildRead = 0
+  const priorRequest = h.transport.request.bind(h.transport)
+  h.transport.request = async (url, ...args) => {
+    if (url.startsWith('https://cloudbuild.googleapis.com/') && url.includes('/builds?filter=')) {
+      const rows = buildInventories[Math.min(buildRead, buildInventories.length - 1)]
+      buildRead += 1
+      return { builds: structuredClone(rows) }
+    }
+    return priorRequest(url, ...args)
+  }
+  const failureSignal = { code: 'ARTIFACT_POLICY_FAILED', family: 'ARTIFACT' }
+  const rollbackFacts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: intent.previousRevision,
+    recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'],
+    entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, databaseDisposition: 'NOT_APPLIED', failureSignal }
+  const rollback = h.put(paths.rollback, stageReceipt({ profile: h.profile, intent, stage: 'rollback', previousReceiptRef: null,
+    facts: rollbackFacts, observedAt: '2026-10-03T12:06:00Z' }))
+  const { recoveryOrder, ...terminalFacts } = rollbackFacts
+  const terminal = h.put(paths.terminal, stageReceipt({ profile: h.profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref,
+    facts: terminalFacts, observedAt: '2026-10-03T12:06:10Z' }))
+  const controlCore = { schemaVersion: 'jenfu.dev012.owner-control-head.v1', inputFingerprint: sha256(canonicalize({
+    ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision,
+    releaseIntentSha256: failed.capsule.ref.sha256 })), ownerApplicationId: 'ai-pdm', service: 'ai-pdm-prod', controlBucket: bucket,
+    releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, sourceLockSha256: intent.sourceLockRef.sha256,
+    candidateRevision: null, previousRevision: intent.previousRevision,
+    ownerRunRef: `https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${failed.input.environment.GITHUB_RUN_ID}`,
+    leaseExpiresAt: '2026-10-03T11:59:00Z', deadlineAt: intent.deadlineAt, state: 'FINALIZED', result: 'PRE_ACTIVATION_ABORTED' }
+  h.put(`gs://${bucket}/control/active.json`, { ...controlCore, controlSha256: sha256(canonicalize(controlCore)) })
+  Object.assign(h.ownerRun, { id: failed.input.environment.GITHUB_RUN_ID, headSha: intent.sourceRevision,
+    createdAt: '2026-10-03T12:00:00Z', updatedAt: '2026-10-03T12:07:00Z' })
+  const retryInput = { profile: h.profile, transport: h.transport, baselineIntentRef: failed.capsule.ref,
+    verifyProvider: true, ...continuation }
+  return { h, applied, continuation, failed, intent, paths, prepare, prepareFacts, putPrepare, sourceUri, sourceBytes,
+    sourceSha256, sourceGeneration, build, buildInventories, rollback, terminal, retryInput }
+}
+
 test('ordinary abort producer and prepare certify the native released Principal chain, preserve control, and recheck cached prepare',async()=>{
   const h=ordinaryAbortFixture(), result=await ordinaryNextRelease(h), priorControl=h.objects.get('gs://'+bucket+'/control/active.json').bytes
   assert.equal(h.calls.provider,4)
@@ -391,6 +480,93 @@ test('applied continuation retry follows the active control after a later pre-ex
   await assert.rejects(readPreActivationAbortContinuation(retryInput),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
   h.ownerRun.headSha=second.capsule.value.sourceRevision
   assert.equal(h.calls.puts > 0,true)
+})
+
+test('applied continuation admits one prepared artifact-policy abort without promoting its provider build', async () => {
+  const f = await preparedArtifactPolicyAbortFixture(), writes = f.h.calls.puts
+  const result = await readPreActivationAbortContinuation(f.retryInput)
+  assert.equal(result.kind, 'APPLIED_MIGRATION_ABORT')
+  assert.equal(result.authorityBasis.failureSignal.code, 'ARTIFACT_POLICY_FAILED')
+  assert.equal(result.authorityBasis.preparedBuild.evidenceScope, 'QUIESCENT_UNSEALED_PROVIDER_BUILD_NOT_REUSED')
+  assert.equal(result.authorityBasis.preparedBuild.releaseAuthority, false)
+  assert.equal(result.authorityBasis.preparedBuild.artifactPolicyPassed, false)
+  assert.equal(result.authorityBasis.preparedBuild.migrationVerified, false)
+  assert.equal(result.authorityBasis.preparedBuild.buildId, f.build.id)
+  assert.equal(result.authorityBasis.preparedBuild.sourceObject.sha256, f.sourceSha256)
+  assert.equal(result.authorityBasis.absentStages.includes('prepare'), false)
+  assert.equal(result.authorityBasis.absentStages.includes('build'), true)
+  assert.deepEqual(result.authorityBasis.stageRefs.prepare, f.prepare.ref)
+  assert.equal(f.h.calls.puts, writes, 'continuation readback must stay read-only')
+
+  const next = await ordinaryNextRelease(f.h, f.h.continuation, {
+    releaseId: 'DEV122-RD-AFTER-POLICY-ABORT', source: 'e'.repeat(40), authorityContinuation: f.continuation,
+  })
+  assert.deepEqual(next.authority.baselineIntentRef, f.failed.capsule.ref)
+  assert.deepEqual(next.authority.value.preActivationAbortBasis, result.authorityBasis)
+  assert.equal(next.authority.value.preActivationAbortBasis.preparedBuild.releaseAuthority, false)
+})
+
+test('prepared artifact-policy abort rejects missing authority, bad joins, unstable provider state and any mutation evidence', async () => {
+  const cases = [
+    async f => f.h.objects.delete(f.paths.prepare),
+    async f => f.putPrepare({ ...f.prepareFacts, prerequisiteRefs: { ...f.prepareFacts.prerequisiteRefs, sourceLock: f.h.failed.lock.ref } }),
+    async f => { f.build.status = 'WORKING' },
+    async f => { f.build.steps[0].args[6] = `SOURCE_REVISION=${'f'.repeat(40)}` },
+    async f => { f.build.steps[0].entrypoint = 'bash' },
+    async f => { f.build.steps[0].env = ['UNEXPECTED=1'] },
+    async f => { f.build.steps[0].secretEnv = ['TOKEN'] },
+    async f => { f.build.steps[0].volumes = [{ name: 'unexpected', path: '/workspace/extra' }] },
+    async f => { f.build.steps[0].script = 'echo unexpected' },
+    async f => { f.build.steps[0].allowFailure = true },
+    async f => { f.build.steps[0].waitFor = ['-'] },
+    async f => { f.build.availableSecrets = { secretManager: [{ versionName: 'projects/p/secrets/s/versions/1', env: 'TOKEN' }] } },
+    async f => { f.build.secrets = [{ kmsKeyName: 'projects/p/locations/l/keyRings/r/cryptoKeys/k', secretEnv: { TOKEN: 'AA==' } }] },
+    async f => { f.build.artifacts = { images: f.build.images, objects: { location: 'gs://other/output', paths: ['unexpected'] } } },
+    async f => { f.build.dependencies = [{ gitSource: { repository: { url: 'https://example.invalid/repo.git' }, revision: 'main', destPath: 'dependency' } }] },
+    async f => { f.build.dependencies = [{ genericArtifact: { uri: 'gs://other/dependency.tgz', destPath: 'dependency' } }] },
+    async f => { f.build.gitConfig = { http: { proxySecretVersionName: 'projects/p/secrets/s/versions/1' } } },
+    async f => { f.build.source.sourceFetcher = 'unexpected' },
+    async f => { f.build.source.storageSource.generation = '20' },
+    async f => { f.build.sourceProvenance.fileHashes[`${f.sourceUri}#${f.sourceGeneration}`].fileHash[0].value = Buffer.alloc(32).toString('base64') },
+    async f => { f.build.options.pool = { name: 'projects/jenfu-platform-prod/locations/asia-east1/workerPools/unapproved' } },
+    async f => { f.build.options.workerRelease = 'preview' },
+    async f => {
+      const duplicate = structuredClone(f.build)
+      duplicate.id = '210fa1d3-b991-41b6-b80b-3f2d86494b4c'
+      duplicate.name = duplicate.name.replace(f.build.id, duplicate.id)
+      f.buildInventories[0].push(duplicate); f.buildInventories[1].push(duplicate)
+    },
+    async f => { f.buildInventories[1] = [{ ...structuredClone(f.build), finishTime: '2026-10-03T12:05:01Z' }] },
+    async f => f.h.put(f.paths.provenance, { unexpected: true }),
+    async f => f.h.put(f.paths.migrationAdmission, { unexpected: true }),
+    async f => f.h.put(migrationSubmissionIntentUri(f.h.profile, f.paths.migrate), { unexpected: true }),
+    async f => {
+      const execution = structuredClone(f.h.providerExecutions[0])
+      execution.name = `${f.h.jobName}/executions/ai-pdm-prod-migration-runner-current-source`
+      execution.createTime = '2026-10-03T12:03:00Z'; execution.startTime = '2026-10-03T12:03:01Z'; execution.completionTime = '2026-10-03T12:04:00Z'
+      execution.reconciling = false; execution.runningCount = 0
+      execution.conditions = [{ type: 'Completed', state: 'CONDITION_FAILED' }]
+      execution.template.containers[0].args = ['--source-revision', f.intent.sourceRevision]
+      f.h.providerExecutions.push(execution)
+    },
+    async f => { f.h.providerExecutions[0].runningCount = 1 },
+    async f => { f.h.providerExecutions[0].conditions.push({ type: 'Completed', state: 'CONDITION_FAILED' }) },
+    async f => { delete f.h.providerExecutions[0].template },
+    async f => { delete f.h.providerExecutions[0].template.containers },
+    async f => { delete f.h.providerExecutions[0].template.containers[0].args },
+    async f => {
+      const readBytes = f.h.transport.readBytes.bind(f.h.transport)
+      f.h.transport.readBytes = async (uri, options) => {
+        if (uri === f.paths.build) throw Object.assign(new Error('DENIED'), { code: 'DENIED' })
+        return readBytes(uri, options)
+      }
+    },
+  ]
+  for (const mutate of cases) {
+    const f = await preparedArtifactPolicyAbortFixture()
+    await mutate(f)
+    await assert.rejects(readPreActivationAbortContinuation(f.retryInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID|DENIED/u)
+  }
 })
 
 test('applied continuation retry accepts one current-baseline rollback after activation starts without reopening historical release evidence',async()=>{
@@ -1488,7 +1664,8 @@ test('B28 partial abort rejects unknown/cardinality/source/image/build and submi
 
 test('B28 partial abort rechecks migration execution pages and rejects active, new, unknown, matching, duplicate and incomplete results', async () => {
   const old = { name: 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/old',
-    createTime: '2026-09-30T00:00:00Z', completionTime: '2026-09-30T00:01:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+    createTime: '2026-09-30T00:00:00Z', completionTime: '2026-09-30T00:01:00Z',
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: { containers: [{ args: [] }] } }
   for (const response of [null, { executions: {} }, { executions: [{ ...old, completionTime: null }] },
     { executions: [{ ...old, createTime: '2026-10-01T00:01:00Z' }] }, { executions: [old,old] },
     { executions: [old], nextPageToken: 'loop' }, { executions: [{ ...old, name: 'sibling' }] },
