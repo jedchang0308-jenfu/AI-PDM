@@ -72,7 +72,7 @@ test('worker source selects worker evidence without unrelated app build', () => 
 })
 
 test('shared release control and unknown paths fail closed to the full gate', () => {
-  for (const file of ['.github/workflows/ci.yml', 'scripts/plan-production-slice.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/unclassified-new-control.mjs']) {
+  for (const file of ['.github/workflows/ci.yml', 'scripts/plan-production-slice.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.mjs', 'scripts/unclassified-new-control.mjs']) {
     const plan = createProductionSlicePlan([file])
     assert.equal(plan.classification, 'FULL', file)
     assert.ok(Object.entries(plan.gates).filter(([gate]) => gate !== 'documentation').every(([, enabled]) => enabled), file)
