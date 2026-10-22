@@ -137,8 +137,8 @@ test('RD submission resumes hours later with original receipt and zero duplicate
   assert.equal(submissions, 1)
 })
 
-function diagnosticFixture() {
-  const operation = { schemaVersion: 'aipdm.production-diagnostic-operation.v1', kind: 'service-state', operationId: 'TEST-SERVICE-STATE', sourceRevision: 'a'.repeat(40) }
+function diagnosticFixture({ workflowSourceRevision = 'a'.repeat(40), operationSourceRevision = 'a'.repeat(40), operationAncestor = true } = {}) {
+  const operation = { schemaVersion: 'aipdm.production-diagnostic-operation.v1', kind: 'service-state', operationId: 'TEST-SERVICE-STATE', sourceRevision: operationSourceRevision }
   const bytes = Buffer.from(canonicalize(operation))
   const binding = bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/production-diagnostics/service.json#sha256=${sha256(bytes)}`)
   const service = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
@@ -148,7 +148,15 @@ function diagnosticFixture() {
     async request(url, options) { calls.push({ url, options }); return { name: service, generation: '5', latestReadyRevision: `${service}/revisions/ai-pdm-prod-001`, latestCreatedRevision: `${service}/revisions/ai-pdm-prod-001`, trafficStatuses: [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: 'ai-pdm-prod-001', percent: 100 }], template: { env: { SECRET: 'must-not-leak' } } } },
     async putJson(uri, value, options) { reports.push({ uri, value, options }) },
   }
-  return { binding, sourceRevision: operation.sourceRevision, transport, calls, reports }
+  const environment = {
+    GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: workflowSourceRevision,
+    GITHUB_WORKFLOW_SHA: workflowSourceRevision,
+    GITHUB_WORKFLOW_REF: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
+    GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch',
+  }
+  const sourceAuthorityOptions = { gitRunner: args => args[0] === 'rev-parse' ? workflowSourceRevision : '', workflowAncestorRunner: () => true,
+    operationAncestorRunner: (ancestor, descendant) => operationAncestor && ancestor === operationSourceRevision && descendant === workflowSourceRevision }
+  return { binding, workflowSourceRevision, environment, sourceAuthorityOptions, transport, calls, reports }
 }
 
 test('stable diagnostic entry performs one fixed service GET and immutable sanitized evidence only', async () => {
@@ -162,21 +170,24 @@ test('stable diagnostic entry performs one fixed service GET and immutable sanit
   assert.doesNotMatch(JSON.stringify(input.reports), /must-not-leak|SECRET|template/u)
 })
 
-test('service diagnostic main binds the workflow and operation to the same exact current source', async () => {
-  const input = diagnosticFixture()
-  const environment = {
-    OPERATION_REF: `${input.binding.operation_uri}#sha256=${input.binding.operation_sha256}`,
-    GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: input.sourceRevision,
-    GITHUB_WORKFLOW_SHA: input.sourceRevision,
-    GITHUB_WORKFLOW_REF: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
-    GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch',
-  }
+test('service diagnostic reuses an immutable admitted ancestor operation under the exact current protected workflow', async () => {
+  const input = diagnosticFixture({ workflowSourceRevision: 'b'.repeat(40), operationSourceRevision: 'a'.repeat(40) })
+  const environment = { ...input.environment, OPERATION_REF: `${input.binding.operation_uri}#sha256=${input.binding.operation_sha256}` }
   const result = await runProductionDiagnosticMain({ argv: ['--service-state'], environment, transport: input.transport,
-    sourceAuthorityOptions: { gitRunner: args => args[0] === 'rev-parse' ? input.sourceRevision : '', workflowAncestorRunner: () => true,
-      operationAncestorRunner: (ancestor, descendant) => ancestor === input.sourceRevision && descendant === input.sourceRevision } })
+    sourceAuthorityOptions: input.sourceAuthorityOptions })
   assert.equal(result.status, 'READBACK_COMPLETE')
+  assert.equal(result.sourceRevision, 'b'.repeat(40))
+  assert.equal(result.operationSourceRevision, 'a'.repeat(40))
+  assert.equal(input.reports[0].value.sourceRevision, 'b'.repeat(40))
+  assert.equal(input.reports[0].value.operationSourceRevision, 'a'.repeat(40))
   assert.equal(input.calls.length, 1)
   assert.equal(input.reports.length, 1)
+})
+
+test('service diagnostic rejects a divergent or unknown operation source before provider service reads', async () => {
+  const input = diagnosticFixture({ workflowSourceRevision: 'b'.repeat(40), operationSourceRevision: 'a'.repeat(40), operationAncestor: false })
+  await assert.rejects(readServiceDiagnostic(input), /PRODUCTION_DIAGNOSTIC_SOURCE_AUTHORITY_MISMATCH/u)
+  assert.equal(input.calls.length, 0); assert.equal(input.reports.length, 0)
 })
 
 test('permission diagnostic separates current reviewed workflow source from installed runner ancestor', () => {
@@ -220,7 +231,7 @@ test('diagnostic refuses arbitrary targets, namespace, source and content hash b
   for (const ref of ['https://example.invalid', 'gs://other/source/production-diagnostics/x.json', `gs://jenfu-platform-prod-aipdm-release/source/production-diagnostics/../bad.json#sha256=${'a'.repeat(64)}`]) assert.throws(() => bindDiagnosticRef(ref), /REF_INVALID/u)
   for (const change of ['source', 'hash', 'kind', 'target']) {
     const input = diagnosticFixture()
-    if (change === 'source') input.sourceRevision = 'b'.repeat(40)
+    if (change === 'source') input.sourceAuthorityOptions.operationAncestorRunner = () => false
     if (change === 'hash') input.binding.operation_sha256 = '0'.repeat(64)
     if (change === 'kind') input.binding.kind = 'arbitrary-command'
     if (change === 'target') {
