@@ -372,6 +372,13 @@ record("PROD-PIPE-014 traffic mutation requires exact target and approval enviro
 });
 
 record("PROD-PIPE-015 package exposes release and QC commands", () => {
+  assert.equal(
+    packageJson.scripts?.["audit:production"],
+    "npm audit --omit=dev --audit-level=high --fetch-retries=2 --fetch-timeout=60000 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=30000"
+  );
+  assert.match(ciWorkflow, /run: npm run audit:production/u);
+  assert.match(workflow, /run: npm run audit:production/u);
+  assert.doesNotMatch(`${ciWorkflow}\n${workflow}`, /run: npm audit --omit=dev/iu);
   assert.equal(packageJson.scripts?.["production:release-traffic"], "node scripts/run-production-release-traffic.mjs");
   assert.equal(packageJson.scripts?.["production:release-smoke"], "node scripts/run-production-release-smoke.mjs");
   assert.equal(packageJson.scripts?.["production:smoke-cost-gate"], "node scripts/run-dev-116-release-cost-gate.mjs");

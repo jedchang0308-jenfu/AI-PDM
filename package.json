@@ -8,6 +8,7 @@
     "npm": ">=11 <12"
   },
   "scripts": {
+    "audit:production": "npm audit --omit=dev --audit-level=high --fetch-retries=2 --fetch-timeout=60000 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=30000",
     "check:db-boundary": "node scripts/check-shared-database-boundary.mjs",
     "dev-010:n2:freeze": "node scripts/dev010-n2-source-freeze.mjs",
     "test:dev-010:n2": "node --test scripts/dev010-n2-source-freeze.test.mjs scripts/dev010-n2-ai-pdm.test.mjs",

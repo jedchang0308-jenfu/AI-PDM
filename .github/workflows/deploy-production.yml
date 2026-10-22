@@ -117,7 +117,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Reject high or critical production dependency findings
-        run: npm audit --omit=dev --audit-level=high
+        run: npm run audit:production
 
       - name: Verify production release boundary
         run: |
