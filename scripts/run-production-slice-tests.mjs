@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
+import { createProductionSlicePlanFromGit, isRdPermissionDatabasePath } from './lib/production-slice-plan.mjs'
 import { fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 import { reportTestEnvironment } from './dev117-test-environment.mjs'
 
@@ -30,12 +30,16 @@ const CORE_TESTS = [
   'scripts/dev117-release-control-policy.test.mjs',
   'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev117-release-efficiency.test.mjs',
-  'scripts/dev122-applied-migration-continuation.test.mjs',
   'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
 ]
 
 const DATABASE_TESTS = [
   'scripts/dev117-production-migration-runner.test.mjs',
+]
+
+const RD_PERMISSION_DATABASE_TESTS = [
+  'scripts/dev122-rd-permission-ledger-readback.test.mjs',
+  'scripts/dev122-applied-migration-continuation.test.mjs',
 ]
 
 const AUTHORIZATION_TESTS = [
@@ -57,7 +61,10 @@ if (plan.gates.full) {
   groups.push(...fullContinuousGroups(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']))
 } else {
   if (plan.gates.releaseCore) groups.push({ name: 'release-core', tests: CORE_TESTS })
-  if (plan.gates.database) groups.push({ name: 'database', tests: DATABASE_TESTS })
+  if (plan.gates.database) groups.push({ name: 'database', tests: [
+    ...DATABASE_TESTS,
+    ...(plan.files.some(isRdPermissionDatabasePath) ? RD_PERMISSION_DATABASE_TESTS : []),
+  ] })
   if (plan.gates.authorization) groups.push({ name: 'authorization', tests: AUTHORIZATION_TESTS })
   if (plan.gates.worker) groups.push({ name: 'worker', tests: WORKER_TESTS })
 }

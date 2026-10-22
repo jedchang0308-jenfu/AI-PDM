@@ -123,7 +123,7 @@ jobs:
         run: npm run lint
 
       - name: Verify affected release, authorization, database, and worker contracts
-        if: steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.worker == 'true')
+        if: steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.database == 'true' || steps.slice.outputs.worker == 'true')
         env:
           CI: true
           PDM_SLICE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
