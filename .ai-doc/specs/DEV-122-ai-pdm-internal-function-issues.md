@@ -103,6 +103,8 @@ PR #438 已以 exact main `78cdd4da82cbce04042076ba3761bfb56f54ee78` 合併，ex
 
 同一切片的治理根因亦已收斂：舊 planner 將任何 release-control 變更視為跨產品 `FULL`，CI 再把 release-core 與 infrastructure、business storage、preview worker、Principal smoke、dependency audit、lint、DB與app build綁定。v3只有unknown path保留完整fail-closed；已分類release-control只驗source／receipt／續跑／provider routing／recovery，其他責任按實際changed path選擇。舊完整回歸466／466與abort 6／6保存為舊來源真實證據；新實際plan只選planner＋release-core，fresh 214／214 PASS（evidence SHA `ab1fd9c30d5740cb9201cf05ed7002d902960740f896ab5c39a90f2c8bcc3434`），未選gates不執行且其獨立缺陷改列各自修復，不阻擋或冒充本RD切片結果。required CI、來源保護、provider readback與正式rollback能力維持不變。
 
+PR #439 合併 main `5da8c5a76144209eeaf9f04a9f7af9e787aa1b72` 後，PR與exact-main required CI均SUCCESS，且v3確實只執行release-core。正式diagnostics `39738097353`／`39738279784` SUCCESS；續接 `39738441291` 在所有owner stages前以`CONTROL_OWNER_RUN_READBACK_FAILED:403`停止、正式mutation為0。這證明先前Google provider路由已修復，下一個獨立邊界是GitHub owner-run API：refresh共同transport未持有GitHub專用token，principal workflow也未宣告`actions: read`。本修正於共同transport加入separate GitHub token並只在owner-run GET使用，workflow只增加GitHub read-only permission與capsule step token assembly；Google verifier／builder／deployer bearer仍不跨域，IAM／Secret／DB／service／traffic不變。
+
 ### Release source authority 與 artifact transport 分離
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app 與 worker 可由不同 OS、tar 或 gzip 實作產生來源物件；archive SHA、generation 與 CRC32C 只驗各自上傳物件，不得跨 build、attempt 或 descriptor 決定 source identity。worker artifact 另由逐檔 input manifest、effective recipe、provider build identity 與 image digest 驗證。

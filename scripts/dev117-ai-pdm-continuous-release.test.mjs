@@ -374,6 +374,8 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   const duplicateSourceTest = source.replace('      - run: npm ci', '      - run: npm ci\n      - run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner')
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(duplicateSourceTest, wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, ', 'permissions: { '), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(/          GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\r?\n(?=          GOOGLE_OAUTH_ACCESS_TOKEN:)/u, ''), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })
 
