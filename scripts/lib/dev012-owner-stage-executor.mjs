@@ -15,7 +15,7 @@ import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
-import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode } from './dev117-release-control-policy.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
@@ -870,6 +870,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (derived.migrationRunnerDigest !== programPolicy.migrationRunnerDigest || baseline.migrationRunnerDigest !== programPolicy.migrationRunnerDigest) fail('PROGRAM_ONLY_BASELINE_INVALID')
     }
     if (worker) await worker.prepare({ intent, profile, runtimeConfig: derived.runtimeConfig })
+    else if (Object.hasOwn(intent, 'appliedMigrationContinuation')) assertAppliedContinuationRuntimeBinding(derived.runtimeConfig, intent)
     else assertWorkerRuntimeJoin(derived.runtimeConfig, intent, derived.runtimeConfig.openswxWorker ?? null)
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
@@ -1064,6 +1065,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
     const runtimeConfig = assertPreparedReleaseEvidence(prepare, profile, intent, releaseMode).runtimeConfig
     if (worker) assertWorkerRuntimeJoin(runtimeConfig, intent, (await worker.resolve(intent, profile)).value)
+    else if (Object.hasOwn(intent, 'appliedMigrationContinuation')) assertAppliedContinuationRuntimeBinding(runtimeConfig, intent)
     else assertWorkerRuntimeJoin(runtimeConfig, intent)
     if (worker) await worker.candidate({ intent, profile, deployment: deployment.value })
     const candidate = await transport.createCandidate({ profile, artifactDigest: deployment.value.artifactDigest, runtimeConfig, fingerprint, deadlineAt: intent.deadlineAt, principalOnly: Boolean(intent.principalOnlyRecovery) })

@@ -312,6 +312,11 @@ test('AI-PDM intent producer admits reconciled migration evidence independently 
     migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: '5'.repeat(64) },
     ledgerReadbackResultRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER35/${'6'.repeat(64)}/ledger-readback-result.json`, sha256: '7'.repeat(64) } }
   assert.deepEqual(produce({ appliedMigrationContinuation }).appliedMigrationContinuation, appliedMigrationContinuation)
+  const productionShaped = buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
+    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
+    workerDescriptor: runtimeConfig.runtimeConfig.openswxWorker })
+  assert.deepEqual(productionShaped.openswxWorkerRef, openswxWorkerRef)
+  assert.deepEqual(productionShaped.appliedMigrationContinuation, appliedMigrationContinuation)
   const aliased = structuredClone(appliedMigrationContinuation); aliased.migrateRef.uri = aliased.migrateRef.uri.replace('/migrate.json', '/../migrate.json')
   assert.throws(() => produce({ appliedMigrationContinuation: aliased }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
   assert.deepEqual(buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },

@@ -10,7 +10,7 @@ import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from '.
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
 import { assertWorkerRuntimeJoin, readWorkerDescriptorForIntent, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
-import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -313,7 +313,8 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
   }
   assertPreparePrerequisites({ intent, profile, values: prerequisiteValues })
   const runtime = prerequisiteValues.runtimeConfig.runtimeConfig ?? prerequisiteValues.runtimeConfig
-  assertWorkerRuntimeJoin(runtime, intent, workerDescriptor)
+  if (Object.hasOwn(intent, 'appliedMigrationContinuation')) assertAppliedContinuationRuntimeBinding(runtime, intent)
+  else assertWorkerRuntimeJoin(runtime, intent, workerDescriptor)
   validateIntent(intent, profile)
   return intent
 }
