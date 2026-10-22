@@ -16,7 +16,7 @@ const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const STAGES = new Set(['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'dev013-transition-authority', 'release-intent'])
-const ROUTINE_ABORT_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
+const ROUTINE_ABORT_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_ABORT'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)

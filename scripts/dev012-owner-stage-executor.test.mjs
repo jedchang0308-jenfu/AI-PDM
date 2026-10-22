@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
-import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor, runReleaseSmoke } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -24,6 +24,47 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
+
+test('applied RD continuation checks only candidate provenance and unauthenticated permission denial', async () => {
+  const calls = []
+  const transport = {
+    async runHttpSuite(input) { calls.push(input); return { status: 'PASS', observations: input.suite.probes } },
+    async runInternalCandidateSmoke() { throw new Error('generic candidate smoke must not run') },
+    async runAuthenticatedSmoke() { throw new Error('generic principal smoke must not run') },
+  }
+  const profile = { application: { id: 'ai-pdm' } }
+  const intent = { appliedMigrationContinuation: { schemaVersion: 'fixture' } }
+  for (const phase of ['candidate', 'canonical']) {
+    const result = await runReleaseSmoke({ phase, transport, profile, intent, origin: `https://${phase}.example.test`,
+      candidateTag: 'candidate-0123456789ab', candidateRevision, artifactDigest: migrationRunnerDigest,
+      deadlineAt: '2999-01-01T00:00:00.000Z', environment: {} })
+    assert.equal(result.status, 'PASS')
+  }
+  assert.equal(calls.length, 2)
+  for (const call of calls) {
+    assert.equal(call.expectedRevision, candidateRevision)
+    assert.equal(call.expectedArtifactDigest, migrationRunnerDigest)
+    assert.deepEqual(call.suite.probes.map(row => [row.id, row.expectedStatus, row.requireProvenance ?? true]), [
+      ['rd-candidate-ready', 200, true],
+      ['rd-permission-unauthenticated-denied', 401, false],
+    ])
+  }
+})
+
+test('ordinary releases retain the full candidate and authenticated smoke paths', async () => {
+  const calls = []
+  const transport = {
+    async runHttpSuite() { throw new Error('RD continuation suite must not run') },
+    async runInternalCandidateSmoke(input) { calls.push(['candidate', input]); return { status: 'PASS' } },
+    async runAuthenticatedSmoke(input) { calls.push(['canonical', input]); return { status: 'PASS' } },
+  }
+  const profile = { application: { id: 'ai-pdm' } }, intent = {}
+  await runReleaseSmoke({ phase: 'candidate', transport, profile, intent, origin: candidateOrigin,
+    candidateTag, candidateRevision, artifactDigest: migrationRunnerDigest, deadlineAt: '2999-01-01T00:00:00.000Z', environment: {} })
+  await runReleaseSmoke({ phase: 'canonical', transport, profile, intent, origin: canonicalOrigin,
+    candidateRevision, artifactDigest: migrationRunnerDigest, deadlineAt: '2999-01-01T00:00:00.000Z', environment: {} })
+  assert.deepEqual(calls.map(([name]) => name), ['candidate', 'canonical'])
+})
 
 test('repair stages do not re-consume one-time cutover evidence after the policy becomes historical', () => {
   const repair = { migrationMode: 'HISTORICAL_EVIDENCE_REUSED' }

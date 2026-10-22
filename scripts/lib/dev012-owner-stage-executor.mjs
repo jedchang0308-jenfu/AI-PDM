@@ -15,7 +15,7 @@ import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
-import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
+import { appliedRdPermissionSmokeSuite, assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode } from './dev117-release-control-policy.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
@@ -24,8 +24,8 @@ const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const STAGES = new Set(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
 const CONTROL_STATES = new Set(['CANDIDATE_CREATED', 'ENTRYPOINT_CONFIGURED', 'CANDIDATE_VERIFIED', 'GO', 'ACTIVE', 'CANONICAL_VERIFIED', 'ABORT_REQUESTED', 'FINALIZED'])
-const PREPARABLE_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
-const PRINCIPAL_RECOVERY_CONTINUATIONS = new Set(['PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_PREEXECUTION_ABORT'])
+const PREPARABLE_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_ABORT'])
+const PRINCIPAL_RECOVERY_CONTINUATIONS = new Set(['PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_ABORT'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -38,6 +38,20 @@ export function readGitBlob(root, repositoryPath, revision = 'HEAD') {
   const result = spawnSync('git', ['show', `${revision}:${repositoryPath}`], { cwd: root, encoding: null, maxBuffer: 32 * 1024 * 1024, windowsHide: true })
   if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout)) fail('GIT_SOURCE_INSPECTION_FAILED', repositoryPath)
   return result.stdout
+}
+
+export async function runReleaseSmoke({ phase, transport, profile, intent, origin, candidateTag = null,
+  candidateRevision, artifactDigest, deadlineAt, environment = process.env }) {
+  if (!['candidate', 'canonical'].includes(phase)) fail('RELEASE_SMOKE_PHASE_INVALID')
+  if (Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')) {
+    if (profile?.application?.id !== 'ai-pdm' || typeof transport?.runHttpSuite !== 'function') fail('RD_PERMISSION_SMOKE_INVALID')
+    return transport.runHttpSuite({ origin, suite: appliedRdPermissionSmokeSuite(), expectedRevision: candidateRevision,
+      expectedArtifactDigest: artifactDigest, environment })
+  }
+  if (phase === 'candidate') {
+    return transport.runInternalCandidateSmoke({ profile, origin, candidateTag, candidateRevision, artifactDigest, deadlineAt, environment })
+  }
+  return transport.runAuthenticatedSmoke({ profile, origin, environment })
 }
 
 export function parseOwnerStageArgs(argv, expectedBucket) {
@@ -779,7 +793,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   profile = profileForReleaseMode(profile, releaseMode)
   if (profile.application.id === 'ai-pdm') {
     const originalTransport = transport
-    const asyncMethods = ['readJson', 'readBytes', 'readOwnerSourceProof', 'readOwnerRun', 'getService', 'getRevision', 'request', 'putJson', 'putBytes', 'createBuild', 'readArtifactImage', 'waitArtifactEvidence', 'runMigrationJob', 'createCandidate', 'configureEntrypoint', 'runAuthenticatedSmoke', 'setTraffic', 'activatePrincipalOnly', 'removeCandidateTag', 'rollbackTraffic', 'restoreEntrypoint', 'prepareProductionStorage']
+    const asyncMethods = ['readJson', 'readBytes', 'readOwnerSourceProof', 'readOwnerRun', 'getService', 'getRevision', 'request', 'putJson', 'putBytes', 'createBuild', 'readArtifactImage', 'waitArtifactEvidence', 'runMigrationJob', 'createCandidate', 'configureEntrypoint', 'runHttpSuite', 'runAuthenticatedSmoke', 'runInternalCandidateSmoke', 'setTraffic', 'activatePrincipalOnly', 'removeCandidateTag', 'rollbackTraffic', 'restoreEntrypoint', 'prepareProductionStorage']
     const reads = new Set(['readJson', 'readBytes', 'readOwnerSourceProof', 'readOwnerRun', 'getService', 'getRevision'])
     transport = { ...originalTransport }
     for (const name of asyncMethods) if (typeof originalTransport[name] === 'function') transport[name] = async (...args) => {
@@ -1099,7 +1113,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const runtimeConfig = preparedEvidence.runtimeConfig
     transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage, { runtimeConfig, origin: candidate.value.facts.tagUri })
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: preparedEvidence.readiness, dataCutoverConfig })
-    const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
+    const smoke = await runReleaseSmoke({ phase: 'candidate', transport, profile, intent, origin: candidate.value.facts.tagUri,
+      candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision,
+      artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
     const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, providerTagUri: tag.uri, ...(dataCutover ? { dataCutover } : {}), smoke, sideEffects: profile.sideEffects })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANDIDATE_VERIFIED', environment })
     return result
@@ -1139,7 +1155,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
     const runtimeConfig = assertPreparedReleaseEvidence(prepare, profile, intent, releaseMode).runtimeConfig
     try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage, { runtimeConfig, origin: candidate.value.facts.tagUri }) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
-    const smoke = await transport.runAuthenticatedSmoke({ profile, origin: profile.target.canonicalOrigin, environment })
+    const smoke = await runReleaseSmoke({ phase: 'canonical', transport, profile, intent, origin: profile.target.canonicalOrigin,
+      candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest,
+      deadlineAt: intent.deadlineAt, environment })
     const result = await writeStage(transport, paths, profile, intent, 'canonical', activate.ref, { activationReceiptRef: activate.ref, origin: profile.target.canonicalOrigin, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, smoke })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANONICAL_VERIFIED', environment })
     return result
