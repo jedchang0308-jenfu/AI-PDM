@@ -31,6 +31,7 @@ const CORE_TESTS = [
   'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev117-release-efficiency.test.mjs',
   'scripts/dev122-applied-migration-continuation.test.mjs',
+  'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
   'scripts/dev015-gcc-applicability.test.mjs',
   'scripts/dev015-gcc-aligned-new-applicability.test.mjs',
   'scripts/dev015-aligned-new-loader-inspection.test.mjs',

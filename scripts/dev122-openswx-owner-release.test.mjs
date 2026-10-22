@@ -63,6 +63,28 @@ test('application source authority uses revision and source lock, never archive 
   assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor: reused, intent, artifact: null }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
 })
 
+test('application-only descendants reuse one historical worker authority only when every worker byte is unchanged', () => {
+  const historicalRevision = sourceRevision
+  const currentRevision = 'f'.repeat(40)
+  const sourceLockRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-SOURCE/historical-lock.json', sha256: 'a'.repeat(64) }
+  const descriptor = { ...workerDescriptor('full'), schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED' }
+  const entries = WORKER_SOURCE_PATHS.map((path, index) => {
+    const bytes = Buffer.from(`worker-input-${index}`)
+    return { path, size: bytes.length, sha256: sha256(bytes) }
+  })
+  const artifact = { currentAssociation: { sourceRevision: historicalRevision, sourceLockRef }, currentManifest: { sourceRevision: historicalRevision, entries } }
+  const bytesByPath = new Map(entries.map((row, index) => [row.path, Buffer.from(`worker-input-${index}`)]))
+  const readSource = path => bytesByPath.get(path)
+  readSource.isAncestor = (ancestor, descendant) => ancestor === historicalRevision && descendant === currentRevision
+  const intent = { sourceRevision: currentRevision, sourceLockRef: ref('current-lock') }
+  assert.equal(assertOpenSwxApplicationSourceAuthority({ descriptor, intent, artifact, readSource }), true)
+  bytesByPath.set(entries[0].path, Buffer.from('changed-worker-input'))
+  assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor, intent, artifact, readSource }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
+  bytesByPath.set(entries[0].path, Buffer.from('worker-input-0'))
+  readSource.isAncestor = () => false
+  assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor, intent, artifact, readSource }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
+})
+
 test('worker build transport still binds its own uploaded object and input hashes', () => {
   const descriptor = workerDescriptor()
   const sourceHashes = WORKER_SOURCE_PATHS.map(path => ({ path, sha256: 'a'.repeat(64) }))

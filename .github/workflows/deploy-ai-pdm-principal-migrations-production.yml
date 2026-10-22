@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseCapsuleRef:
-        description: Immutable AI-PDM release or RD-ledger-readback capsule with sha256 fragment
+        description: Immutable AI-PDM release, applied-continuation template, or RD-ledger-readback capsule with sha256 fragment
         required: true
         type: string
 
@@ -54,7 +54,7 @@ jobs:
           create_credentials_file: false
           export_environment_variables: false
       - id: classify
-        name: Classify immutable capsule
+        name: Classify immutable input capsule
         shell: bash
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
@@ -76,6 +76,25 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
+      - id: capsule
+        name: Reuse or refresh the immutable applied-continuation capsule
+        if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
+          AIPDM_REFRESH_BUILDER_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
+          AIPDM_REFRESH_DEPLOYER_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev122-applied-continuation-capsule-refresh.mjs --capsule-ref "${{ inputs.releaseCapsuleRef }}"
+      - id: effective
+        name: Select the verified effective capsule
+        shell: bash
+        env:
+          BOUND_URI: "${{ steps.bind.outputs.capsule_uri }}"
+          BOUND_SHA256: "${{ steps.bind.outputs.capsule_sha256 }}"
+          REFRESHED_URI: "${{ steps.capsule.outputs.capsule_uri }}"
+          REFRESHED_SHA256: "${{ steps.capsule.outputs.capsule_sha256 }}"
+        run: |
+          echo "capsule_uri=${REFRESHED_URI:-$BOUND_URI}" >> "$GITHUB_OUTPUT"
+          echo "capsule_sha256=${REFRESHED_SHA256:-$BOUND_SHA256}" >> "$GITHUB_OUTPUT"
       - id: prepare
         name: Execute prepare
         if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}
@@ -83,26 +102,26 @@ jobs:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: build
         name: Execute build
         if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: migrate
         name: Execute migrate
         if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - name: Execute RD ledger readback
         if: ${{ steps.classify.outputs.kind == 'rd_readback' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
-        run: node scripts/dev122-rd-permission-ledger-readback.mjs --stage readback --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev122-rd-permission-ledger-readback.mjs --stage readback --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: candidate_deployer_auth
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         uses: google-github-actions/auth@v3
@@ -127,13 +146,13 @@ jobs:
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: entrypoint
         name: Execute entrypoint
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_deployer_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: candidate_verifier_auth
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         uses: google-github-actions/auth@v3
@@ -151,13 +170,13 @@ jobs:
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: decision
         name: Execute decision
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_verifier_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: activation_deployer_auth
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         uses: google-github-actions/auth@v3
@@ -182,7 +201,7 @@ jobs:
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: activation_verifier_auth
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         uses: google-github-actions/auth@v3
@@ -199,14 +218,14 @@ jobs:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_verifier_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: finalize
         name: Execute finalize
         if: ${{ steps.classify.outputs.kind == 'applied_release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: rollback_deployer_auth
         if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}
         uses: google-github-actions/auth@v3
@@ -231,4 +250,4 @@ jobs:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.rollback_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.rollback_builder_read_auth.outputs.access_token }}"
           PDM_RELEASE_FAILURE_CODE: "${{ steps.prepare.outputs.failure_code || steps.build.outputs.failure_code || steps.migrate.outputs.failure_code || steps.candidate.outputs.failure_code || steps.entrypoint.outputs.failure_code || steps.verify.outputs.failure_code || steps.decision.outputs.failure_code || steps.activate.outputs.failure_code || steps.canonical.outputs.failure_code || steps.finalize.outputs.failure_code || 'WORKFLOW_JOB_FAILURE' }}"
-        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"

@@ -1,3 +1,7 @@
+## DEV-121#rd-capabilities — 2026-10-22 WIF-owned applied-continuation refresh（本地驗證中，正式發布待 protected merge）
+
+C110與其後的唯讀 diagnostics 已確認085套用、catalog v7/hash及專用測試RD grant一致，卻因每個新app-only main SHA都由本機ADC重建attempt capsule而反覆要求人類登入。修正沿用既有 principal workflow、三個既有WIF身分、單一concurrency與單一capsule input，在workflow內只刷新attempt-owned source lock／runtime／infra-reuse／authority／intent；sealed C110 migration／worker／recovery lineage保留，不重送085、不另建worker artifact、workflow、IAM或第二writer。retained worker須同時通過ancestor與完整worker input byte等價，runtime與app各綁自己的source authority；分歧、bytes drift、缺漏continuation或provider不一致仍fail closed。正式發布與專用測試actor UI／API正負驗收須待本切片required CI／protected merge後完成；DEV-122原7 issues／29 groups不因本切片縮減。
+
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
 C91 full35 run `39477631378` 的 prepare／build 成功，migration runner execution `ai-pdm-prod-migration-runner-85njg` 在 SQL 前以 `DEV121_MIGRATION_073_FENCE_INVALID` 停止；failure／recovery 完成，candidate／traffic 未執行。後續官方唯讀 run `39484845437` 證明 ledger count 33、084／085 `NOT_APPLIED`。根因是 runner 用本次 release source `02239aaeaac82702bbc8c4d58b38d47fca051afe` 比對 retained fence，而該 fence 正確保留 recovery proof source `753d90c9285a0e37966c13f47cfa1c4dfdef06be`。

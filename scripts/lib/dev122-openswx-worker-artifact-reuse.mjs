@@ -161,6 +161,11 @@ export function createWorkerGitReader(root, sourceRevision) {
     return Buffer.from(blobs.get(key))
   }
   readSource.sourceRevision = sourceRevision
+  readSource.isAncestor = (ancestor, descendant) => {
+    if (!H40.test(ancestor ?? '') || !H40.test(descendant ?? '')) return false
+    const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { cwd: root, windowsHide: true })
+    return result.status === 0 && !result.error
+  }
   readSource.authorizeOrigin = revision => { if (!H40.test(revision ?? '') || (!permitted.has(revision) && permitted.size >= 9)) fail('OPENSWX_REUSE_ORIGIN_DEPTH'); permitted.add(revision) }
   readSource.readTree = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['ls-tree', '-r', '-z', '--full-tree', revision]) }
   readSource.assertCurrentFrozen = () => {

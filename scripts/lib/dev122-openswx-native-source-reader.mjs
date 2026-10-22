@@ -4,15 +4,25 @@ import { createWorkerGitReader } from './dev122-openswx-worker-artifact-reuse.mj
 export function createFrozenWorkerSourceReader(root) {
   let frozenSource = null
   let reader = null
-  const readSource = (repositoryPath, sourceRevision) => {
+  const ensureReader = sourceRevision => {
     if (frozenSource === null) {
       createGitSourceIdentity(root, sourceRevision)
       reader = createWorkerGitReader(root, sourceRevision)
       frozenSource = sourceRevision
       Object.assign(readSource, reader)
     }
-    return reader(repositoryPath, sourceRevision)
+    return reader
   }
-  readSource.authorizeOrigin = sourceRevision => reader.authorizeOrigin(sourceRevision)
+  const readSource = (repositoryPath, sourceRevision) => {
+    return ensureReader(sourceRevision)(repositoryPath, sourceRevision)
+  }
+  // A lineage check is the first operation for applied-continuation refreshes.
+  // Freeze the reader at the descendant (the exact checked-out main source)
+  // instead of requiring every caller to perform a dummy profile read first.
+  readSource.isAncestor = (ancestor, descendant) => ensureReader(descendant).isAncestor(ancestor, descendant)
+  readSource.authorizeOrigin = sourceRevision => {
+    if (!reader) throw Object.assign(new Error('OPENSWX_FROZEN_SOURCE_READER_REQUIRED'), { code: 'OPENSWX_FROZEN_SOURCE_READER_REQUIRED' })
+    return reader.authorizeOrigin(sourceRevision)
+  }
   return readSource
 }

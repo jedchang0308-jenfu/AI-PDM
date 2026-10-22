@@ -284,7 +284,7 @@ test('AI-PDM intent producer admits reconciled abort evidence for the exact paus
   const lock = { ...sourceLock, ownerApplicationId: 'ai-pdm' }
   const ownRef = name => ({ uri: `gs://${bucket}/receipts/releases/REL-001/${name}.json`, sha256: H64 })
   const openswxWorkerRef = { uri: `gs://${bucket}/receipts/dev-122/openswx-worker/repair.json`, sha256: H64 }
-  const descriptor = { purpose: 'full', releaseVariant: 'PAUSED_APP_REPAIR', workerProfileSha256: H64,
+  const descriptor = { purpose: 'full', releaseVariant: 'PAUSED_APP_REPAIR', sourceRevision: lock.sourceRevision, workerProfileSha256: H64,
     registrySecretVersion: 'projects/9536592944/secrets/aipdm-prod-workload-auth-credentials/versions/9' }
   const input = { sourceLockRef: ownRef('source-lock'), authorizationPolicyRef: ownRef('authorization'), readinessReceiptRef: ownRef('readiness'),
     foundationReceiptRef: ownRef('foundation'), infraReceiptRef: ownRef('infra'), runtimeConfigRef: ownRef('runtime'), openswxWorkerRef,
