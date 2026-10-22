@@ -16,11 +16,13 @@ export function createWifAppliedContinuationRefreshTransport({
   verifierToken,
   builderToken,
   deployerToken,
+  githubToken,
   createTransport = createOwnerTransport,
 }) {
   return createAppliedContinuationRefreshTransport({
     verifier: createTransport({
       token: verifierToken,
+      githubToken,
       builderReadbackToken: builderToken,
       migrationExecutionReadbackToken: deployerToken,
     }),
@@ -46,6 +48,7 @@ async function main() {
     verifierToken: token('GOOGLE_OAUTH_ACCESS_TOKEN'),
     builderToken: token('AIPDM_REFRESH_BUILDER_TOKEN'),
     deployerToken: token('AIPDM_REFRESH_DEPLOYER_TOKEN'),
+    githubToken: token('GITHUB_TOKEN'),
   })
   const readWorkerSource = createFrozenWorkerSourceReader(root)
   const result = await refreshAppliedContinuationCapsule({

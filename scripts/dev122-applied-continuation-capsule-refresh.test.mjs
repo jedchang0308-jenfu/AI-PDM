@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 
 import { createWifAppliedContinuationRefreshTransport } from './dev122-applied-continuation-capsule-refresh.mjs'
@@ -19,6 +20,7 @@ const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const templateRef = { uri: `gs://${BUCKET}/receipts/releases/DEV122-RD-FULL35-C110/release-intent.json`, sha256: HASH }
 const ref = name => ({ uri: `gs://${BUCKET}/receipts/releases/DEV122-RD-FULL35-C110/${name}.json`, sha256: HASH })
 const profile = { schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2' }, artifact: { releaseBucket: BUCKET } }
+const workflow = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
 const environment = {
   GITHUB_ACTIONS: 'true',
   GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM',
@@ -88,6 +90,8 @@ test('template ref and workflow identity are exact and traversal-safe', () => {
     `${templateRef.uri}#sha256=latest`,
   ]) assert.throws(() => bindAppliedContinuationTemplateRef(value), /APPLIED_CONTINUATION_TEMPLATE_REF_INVALID/u)
   assert.throws(() => assertAppliedContinuationRefreshEnvironment({ ...environment, GITHUB_REF: 'refs/heads/feature' }, CURRENT), /APPLIED_CONTINUATION_REFRESH_WORKFLOW_REQUIRED/u)
+  assert.match(workflow, /permissions: \{ actions: read, contents: read, pull-requests: read, checks: read, id-token: write \}/u)
+  assert.match(workflow, /- id: capsule[\s\S]*?env:\s+GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\s+GOOGLE_OAUTH_ACCESS_TOKEN:/u)
 })
 
 test('WIF transport routes its complete contract through one role map', async () => {
@@ -116,11 +120,12 @@ test('WIF assembly reuses the verifier-primary provider routing contract without
     verifierToken: 'verifier-token',
     builderToken: 'builder-token',
     deployerToken: 'deployer-token',
+    githubToken: 'github-token-00000000000000',
     createTransport,
   })
 
   assert.deepEqual(created, [
-    { role: 'verifier', options: { token: 'verifier-token', builderReadbackToken: 'builder-token', migrationExecutionReadbackToken: 'deployer-token' } },
+    { role: 'verifier', options: { token: 'verifier-token', githubToken: 'github-token-00000000000000', builderReadbackToken: 'builder-token', migrationExecutionReadbackToken: 'deployer-token' } },
     { role: 'builder', options: { token: 'builder-token', builderReadbackToken: null } },
   ])
   assert.equal(transport.readOwnerSourceProof('proof').role, 'verifier')
@@ -133,6 +138,7 @@ test('production-shaped refresh reads use verifier and exact migration identitie
   const verifierToken = 'verifier-token-000000000000'
   const builderToken = 'builder-token-0000000000000'
   const deployerToken = 'deployer-token-000000000000'
+  const githubToken = 'github-token-00000000000000'
   const calls = []
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, authorization: options.headers?.authorization ?? null })
@@ -143,7 +149,7 @@ test('production-shaped refresh reads use verifier and exact migration identitie
     return new Response('{}', { status: 200 })
   }
   const createTransport = options => createOwnerTransport({ ...options, fetchImpl, sleep: async () => {} })
-  const transport = createWifAppliedContinuationRefreshTransport({ verifierToken, builderToken, deployerToken, createTransport })
+  const transport = createWifAppliedContinuationRefreshTransport({ verifierToken, builderToken, deployerToken, githubToken, createTransport })
   const buildList = 'https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds?filter=tags%3Ddev122-rd-full35-c110&pageSize=2'
   const migrationJob = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
   const migrationList = `${migrationJob}/executions?pageSize=100`
@@ -158,7 +164,7 @@ test('production-shaped refresh reads use verifier and exact migration identitie
     [migrationJob, `Bearer ${deployerToken}`],
     [migrationList, `Bearer ${deployerToken}`],
     [migrationExecution, `Bearer ${deployerToken}`],
-    ['https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561', null],
+    ['https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561', `Bearer ${githubToken}`],
   ])
 })
 

@@ -311,8 +311,9 @@ export function assertMigrationSubmissionIntent(value, { profile, deployment, ou
   return value
 }
 
-export function createOwnerTransport({ token, migrationExecutionReadbackToken = null, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
+export function createOwnerTransport({ token, githubToken = null, migrationExecutionReadbackToken = null, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
   if (typeof token !== 'string' || token.length < 20) fail('PROVIDER_TOKEN_INVALID')
+  if (githubToken !== null && (typeof githubToken !== 'string' || githubToken.length < 20)) fail('GITHUB_TOKEN_INVALID')
   if (migrationExecutionReadbackToken !== null && (typeof migrationExecutionReadbackToken !== 'string' || migrationExecutionReadbackToken.length < 20)) fail('MIGRATION_READBACK_TOKEN_INVALID')
   const authHeaders = { authorization: `Bearer ${token}` }
   const read = (url, options) => fetchProviderRead(url, options, { fetchImpl, sleep })
@@ -340,7 +341,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     let response
     try {
       response = await read(ownerRunRef, {
-        headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'jenfu-dev012-owner-control' },
+        headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'jenfu-dev012-owner-control', ...(githubToken === null ? {} : { authorization: `Bearer ${githubToken}` }) },
         signal: AbortSignal.timeout(30_000),
       })
     } catch (error) {

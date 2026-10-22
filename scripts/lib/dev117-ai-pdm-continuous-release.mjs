@@ -273,7 +273,7 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
       (source.match(/^      - run:/gm) ?? []).length !== 1 ||
       source.includes('test:production-slice:affected') ||
-      !source.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
+      !source.includes('permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }') ||
       !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||
@@ -288,6 +288,8 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       !source.includes('node scripts/dev122-applied-continuation-capsule-refresh.mjs --capsule-ref "${{ inputs.releaseCapsuleRef }}"') ||
       !source.includes('AIPDM_REFRESH_BUILDER_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"') ||
       !source.includes('AIPDM_REFRESH_DEPLOYER_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
+      (source.match(/GITHUB_TOKEN: "\$\{\{ github\.token \}\}"/gu) ?? []).length !== 2 ||
+      !/- id: capsule[\s\S]*?env:\s+GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\s+GOOGLE_OAUTH_ACCESS_TOKEN:/u.test(source) ||
       /dev122-rd-permission-ledger-readback\.mjs --stage publish|--release-id|--deadline-at/iu.test(source) ||
       source.includes('continue-on-error:') ||
       /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Special workflow route drifted')
