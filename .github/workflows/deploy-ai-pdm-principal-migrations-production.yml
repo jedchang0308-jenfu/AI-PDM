@@ -23,7 +23,7 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     environment: production
-    permissions: { contents: read, pull-requests: read, checks: read, id-token: write }
+    permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -80,6 +80,7 @@ jobs:
         name: Reuse or refresh the immutable applied-continuation capsule
         if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}
         env:
+          GITHUB_TOKEN: "${{ github.token }}"
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           AIPDM_REFRESH_BUILDER_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           AIPDM_REFRESH_DEPLOYER_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
