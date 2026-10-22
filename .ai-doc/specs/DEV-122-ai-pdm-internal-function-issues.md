@@ -26,6 +26,10 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 能力可獨立標記 `PASS`、`FAIL`、`PENDING` 或 `NOT_APPLICABLE`。一項能力未完成，不改寫其他能力已成立的證據；DEV-122 整體結案仍需原始 7／29 全部有可接受結果。
 
+### 辨識 Production dispatch 缺口（2026-10-23）
+
+B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 session GET 200／session null，隨後 create POST 403；原回應的 closed code／header 與同 snapshot effective grant 未擷取，不能把 catalog allow 當作 actor grant proof。Provider 確認該版本使用 `official-numbering-draft`，source 的 slice allowlist 卻沒有任何 recognition-session mutation；synthetic actual-middleware 回歸已在未修改實作時重現十個既有 command 均無法 dispatch。修正只補 [production slice amendment](SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md) 明列的 method／path，保留既有 Principal、有效授權、公司／資源、撤銷及交易守門；不修改角色指派或重送 085。此 source-level 根因不證明原 actor 通過後續 guard，也不證明 worker、辨識結果、CAD／PDF 預覽或管理員／RD 正式驗收成功。正式原失敗與 7／29 分母保留，部署與 actor 實測待各自取得證據。
+
 ## 3. 十一個核心案例
 
 ### 身分與角色

@@ -56,6 +56,11 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // Dispatch only the mounted recognition commands. Principal grants, resource
+  // ownership, revocation and same-snapshot write checks remain in their owners.
+  { method: "POST", pattern: /^\/api\/numbering\/recognition-sessions$/u },
+  { method: "POST", pattern: /^\/api\/numbering\/recognition-sessions\/[^/]+\/(?:reruns|client-adapter-results|amendments|cancel-amendment|write-impact|commit|formalize|handoff)$/u },
+  { method: "PATCH", pattern: /^\/api\/numbering\/recognition-sessions\/[^/]+\/decisions$/u },
   // Auxiliary-only purpose: the human Principal/worker/Scheduler guards remain authoritative.
   { method: "POST", pattern: /^\/api\/numbering\/openswx-metadata\/(?:drawing_number|drawing_revision|revision_package|candidate_revision)\/[^/]+(?:\/cancel)?$/u },
   { method: "POST", pattern: /^\/api\/openswx-metadata-jobs\/claim$/u },
@@ -218,6 +223,7 @@ export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = p
      /^\/parts\/[^/]+\/attachments$/u.test(normalizedPath) ||
      /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(normalizedPath) ||
+     /^\/numbering\/recognition\/[^/]+$/u.test(normalizedPath) ||
      /^\/approvals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(normalizedPath) ||
      /^\/transfer-packages\/(?:new|[^/]+)$/u.test(normalizedPath) ||
      (normalizedPath.startsWith("/approvals/") &&
