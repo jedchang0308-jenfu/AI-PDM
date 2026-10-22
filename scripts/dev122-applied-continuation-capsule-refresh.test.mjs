@@ -90,9 +90,29 @@ test('WIF transport keeps verifier reads, builder immutable writes and deployer 
   const role = name => new Proxy({}, { get: (_target, method) => (...args) => { calls.push([name, method, args]); return `${name}:${String(method)}` } })
   const transport = createAppliedContinuationRefreshTransport({ verifier: role('verifier'), builder: role('builder'), deployer: role('deployer') })
   assert.equal(transport.readJson('ref'), 'verifier:readJson')
+  assert.equal(transport.readOwnerSourceProof('proof'), 'verifier:readOwnerSourceProof')
+  assert.equal(transport.getService('service'), 'verifier:getService')
+  assert.equal(transport.getRevision('revision'), 'verifier:getRevision')
+  assert.equal(transport.assertServiceSettled('service'), 'verifier:assertServiceSettled')
+  assert.equal(transport.assertRevisionReady('revision'), 'verifier:assertRevisionReady')
+  assert.equal(transport.assertCanonicalEntrypoint('profile', 'service'), 'verifier:assertCanonicalEntrypoint')
+  assert.equal(transport.effectiveRevision('service'), 'verifier:effectiveRevision')
+  assert.equal(transport.now(), 'verifier:now')
   assert.equal(transport.putJson('uri'), 'builder:putJson')
   assert.equal(transport.request('url'), 'deployer:request')
-  assert.deepEqual(calls.map(row => row.slice(0, 2)), [['verifier', 'readJson'], ['builder', 'putJson'], ['deployer', 'request']])
+  assert.deepEqual(calls.map(row => row.slice(0, 2)), [
+    ['verifier', 'readJson'],
+    ['verifier', 'readOwnerSourceProof'],
+    ['verifier', 'getService'],
+    ['verifier', 'getRevision'],
+    ['verifier', 'assertServiceSettled'],
+    ['verifier', 'assertRevisionReady'],
+    ['verifier', 'assertCanonicalEntrypoint'],
+    ['verifier', 'effectiveRevision'],
+    ['verifier', 'now'],
+    ['builder', 'putJson'],
+    ['deployer', 'request'],
+  ])
 })
 
 test('expired applied continuation is normalized once into a fresh exact-main capsule without rebuilding its worker', async () => {

@@ -372,6 +372,17 @@ record("PROD-PIPE-014 traffic mutation requires exact target and approval enviro
 });
 
 record("PROD-PIPE-015 package exposes release and QC commands", () => {
+  assert.equal(
+    packageJson.scripts?.["audit:production"],
+    "node scripts/run-production-dependency-audit.mjs"
+  );
+  assert.equal(
+    packageJson.scripts?.["qc:production-deployment-pipeline"],
+    "node --test scripts/run-production-dependency-audit.test.mjs && node scripts/qc-production-deployment-pipeline.mjs"
+  );
+  assert.match(ciWorkflow, /run: npm run audit:production/u);
+  assert.match(workflow, /run: npm run audit:production/u);
+  assert.doesNotMatch(`${ciWorkflow}\n${workflow}`, /run: npm audit --omit=dev/iu);
   assert.equal(packageJson.scripts?.["production:release-traffic"], "node scripts/run-production-release-traffic.mjs");
   assert.equal(packageJson.scripts?.["production:release-smoke"], "node scripts/run-production-release-smoke.mjs");
   assert.equal(packageJson.scripts?.["production:smoke-cost-gate"], "node scripts/run-dev-116-release-cost-gate.mjs");
@@ -380,7 +391,6 @@ record("PROD-PIPE-015 package exposes release and QC commands", () => {
   assert.equal(packageJson.scripts?.["dev-116:r02-browser"], "node scripts/run-dev116-r02-authenticated-browser.mjs");
   assert.equal(packageJson.scripts?.["test:dev-116:r02-browser"], "node --test scripts/dev116-r02-browser-executor.test.mjs");
   assert.equal(packageJson.scripts?.["dev-116:r02-finalize"], "node scripts/dev116-r02-finalize.mjs");
-  assert.equal(packageJson.scripts?.["qc:production-deployment-pipeline"], "node scripts/qc-production-deployment-pipeline.mjs");
 });
 
 record("PROD-PIPE-016 tagged 100 percent revision remains the rollback baseline", () => {

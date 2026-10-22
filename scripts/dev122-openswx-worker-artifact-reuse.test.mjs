@@ -2,6 +2,7 @@ import { createContinuousReleaseSourceReader } from './dev117-ai-pdm-continuous-
 import { createPrerequisiteSourceReader } from './dev117-ai-pdm-prerequisite-producer.mjs'
 import { createBootstrapSourceReader } from './dev122-openswx-bootstrap.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { createAppliedContinuationRefreshTransport } from './lib/dev122-applied-continuation-capsule-refresh.mjs'
 import { executeOwnerStage, readRepairStageBasis } from './lib/dev012-owner-stage-executor.mjs'
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 
@@ -2238,6 +2239,7 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
 
 test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',{timeout:120_000},async()=>{
   const f=await rdProgramOnlyServingFixture({secretVersionIam:true,historicalOriginProfile:true})
+  const wifTransport=createAppliedContinuationRefreshTransport({verifier:f.h.transport,builder:f.h.transport,deployer:f.h.transport})
   f.h.controls.scheduler={state:'PAUSED'}
   assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
   const repairRevision='c'.repeat(40)
@@ -2258,7 +2260,7 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef,currentSourceObjectRef,
     priorActivationRef:f.h.priorActivationRef,servingCapsuleRef:f.wire.intentRef,predecessorBaselineRef:null,deadlineAt:deadline(),receiptId:'RD-PROGRAM-PAUSED-REPAIR'}
   const inputRef=f.h.seed('RD-PROGRAM-PAUSED-REPAIR-input',input),calls=f.h.calls.length
-  const saved=await executeWorkerArtifactReuse({transport:f.h.transport,inputRef,readSource})
+  const saved=await executeWorkerArtifactReuse({transport:wifTransport,inputRef,readSource})
   assert.equal(saved.value.schemaVersion,'aipdm.openswx-worker-build-association.v2')
   assert.equal(saved.value.resourceBasis,'PAUSED_APP_REPAIR')
   const root=profile.receiptRoot+'/'+input.receiptId+'-'+inputRef.sha256.slice(0,16)
@@ -2270,10 +2272,10 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   assert.ok(f.h.calls.slice(calls).some(row=>row.url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy?options.requestedPolicyVersion=3')))
   assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
   const descriptorRef=descriptorRow.ref,environment={GITHUB_RUN_ID:'456',OWNER_EXECUTION_MODE:'full_release',GITHUB_WORKFLOW_REF:`${currentAppProfile.application.repository}/${currentAppProfile.workflow.path}@refs/heads/main`}
-  const worker=createOpenSwxOwnerRelease({transport:f.h.transport,readSource,environment})
+  const worker=createOpenSwxOwnerRelease({transport:wifTransport,readSource,environment})
   const basis=await readRepairStageBasis({worker,intent:{releaseId:sourceLock.releaseId,sourceRevision:repairRevision,sourceLockRef,openswxWorkerRef:descriptorRef,
     migrationManifestSha256:full.bundle.manifestSha256,deadlineAt:input.deadlineAt},intentRef:{uri:`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${sourceLock.releaseId}/release-intent.json`,sha256:'9'.repeat(64)},
-    profile:currentAppProfile,transport:f.h.transport,readWorkerSource:readSource,buildMigrationBundle:revision=>{assert.equal(revision,repairRevision);return full},environment})
+    profile:currentAppProfile,transport:wifTransport,readWorkerSource:readSource,buildMigrationBundle:revision=>{assert.equal(revision,repairRevision);return full},environment})
   assert.equal(basis.migrationMode,'FORWARD_APPLIED')
   assert.equal(basis.history.source.content.migrations.entries.length,34)
   assert.equal(basis.history.installed.bundle.entries.length,33)

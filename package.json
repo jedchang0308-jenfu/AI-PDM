@@ -8,6 +8,7 @@
     "npm": ">=11 <12"
   },
   "scripts": {
+    "audit:production": "node scripts/run-production-dependency-audit.mjs",
     "check:db-boundary": "node scripts/check-shared-database-boundary.mjs",
     "dev-010:n2:freeze": "node scripts/dev010-n2-source-freeze.mjs",
     "test:dev-010:n2": "node --test scripts/dev010-n2-source-freeze.test.mjs scripts/dev010-n2-ai-pdm.test.mjs",
@@ -480,7 +481,7 @@
     "production:smoke-cost-gate": "node scripts/run-dev-116-release-cost-gate.mjs",
     "production:authority-repair": "node scripts/run-production-authority-control-repair.mjs",
     "qc:production-authority-repair": "node scripts/qc-production-authority-control-repair.mjs",
-    "qc:production-deployment-pipeline": "node scripts/qc-production-deployment-pipeline.mjs",
+    "qc:production-deployment-pipeline": "node --test scripts/run-production-dependency-audit.test.mjs && node scripts/qc-production-deployment-pipeline.mjs",
     "dev-117:release": "node scripts/dev117-ai-pdm-independent-release.mjs",
     "test:dev-117:release-adapter": "node --test scripts/dev117-ai-pdm-independent-release.test.mjs",
     "qc:dev-117:release-adapter": "node scripts/qc-dev-117-ai-pdm-independent-release.mjs",
