@@ -415,19 +415,22 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     if (baselineBytes.ref?.uri !== expectedBaselineUri || baselineBytes.ref.sha256 !== sha256(baselineBytes.bytes)) fail('ROUTINE_CONTROL_INVALID')
     const activeBaselineRef = baselineBytes.ref
     validateHistoricalBaselineIntent(baselineIntent, profile, validateIntent)
-    const continuation = control?.result === 'PRE_ACTIVATION_ABORTED'
+    const appliedRollback = control?.result === 'ROLLED_BACK'
+      && Object.hasOwn(baselineIntent ?? {}, 'appliedMigrationContinuation')
+    const continuation = control?.result === 'PRE_ACTIVATION_ABORTED' || appliedRollback
       ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: activeBaselineRef, service, control, verifyProvider: true,
         postAbortLedgerReadbackRef: input.postAbortLedgerReadbackRef ?? null,
         principalOnlyFenceRef: input.principalOnlyFenceRef ?? null,
         principalOnlyRecovery: input.principalOnlyRecovery ?? null,
         appliedMigrationContinuation: input.appliedMigrationContinuation ?? null }) : null
-    if (control?.result === 'PRE_ACTIVATION_ABORTED' && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
+    if ((control?.result === 'PRE_ACTIVATION_ABORTED' || appliedRollback)
+      && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     const { controlSha256, ...controlCore } = control ?? {}
     if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)
       || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
       || control.releaseId !== baselineIntent.releaseId || control.sourceRevision !== baselineIntent.sourceRevision
       || (control.result === 'RELEASED' && control.candidateRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
-    if (control.result === 'ROLLED_BACK') {
+    if (control.result === 'ROLLED_BACK' && !appliedRollback) {
       const repair = await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: activeBaselineRef, service, control })
       if (!repair || repair.activeRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
     }

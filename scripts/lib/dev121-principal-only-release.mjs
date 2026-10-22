@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { requiresPrincipalOnlyRuntimeAuthority } from './dev117-release-control-policy.mjs'
 
 const SERVICE = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
 const PRODUCTION_MAX_INSTANCES = 1
@@ -85,7 +86,9 @@ function assertRecoveryBindingShape(binding, bucket, oldRevision) {
 }
 
 export function principalOnlyRollbackRevision(intent) {
-  return intent.principalOnlyRecovery?.revision ?? intent.previousRevision
+  return requiresPrincipalOnlyRuntimeAuthority(intent)
+    ? intent.principalOnlyRecovery.revision
+    : intent.previousRevision
 }
 
 export function assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision }) {
@@ -95,10 +98,9 @@ export function assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, se
     oldRevision: intent.previousRevision, binding, profile, proof, service, revision })
 }
 
-export function assertRecoveryProofReadback({ sourceRevision, oldRevision, binding,
-  profile, proof, service, revision, activeRevision = oldRevision }) {
+function assertRecoveryArtifactReadback({ sourceRevision, oldRevision, binding,
+  profile, proof, service, revision }) {
   assertRecoveryBindingShape(binding, profile.artifact.releaseBucket, oldRevision)
-  if (![oldRevision, binding.revision].includes(activeRevision)) fail()
   if (!exactKeys(proof, ['schemaVersion', 'sourceRevision',
     'projectId', 'region', 'service', 'serviceUid', 'oldRevision',
     'recoveryRevision', 'imageDigest', 'status']) ||
@@ -116,12 +118,27 @@ export function assertRecoveryProofReadback({ sourceRevision, oldRevision, bindi
     service?.name !== SERVICE || service?.reconciling === true ||
     service?.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
     String(service?.observedGeneration) !== String(service?.generation) ||
-    !exactTraffic(service.traffic, activeRevision) ||
-    !exactTraffic(service.trafficStatuses, activeRevision) ||
     revision?.name !== `${SERVICE}/revisions/${binding.revision}` ||
     revision?.conditions?.find((row) => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
     revision?.containers?.find((row) => row.name === profile.runtime.containerName)?.image !== binding.imageDigest) fail()
   return binding
+}
+
+export function assertRecoveryProofReadback({ sourceRevision, oldRevision, binding,
+  profile, proof, service, revision, activeRevision = oldRevision }) {
+  assertRecoveryArtifactReadback({ sourceRevision, oldRevision, binding, profile, proof, service, revision })
+  if (![oldRevision, binding.revision].includes(activeRevision) ||
+    !exactTraffic(service.traffic, activeRevision) ||
+    !exactTraffic(service.trafficStatuses, activeRevision)) fail()
+  return binding
+}
+
+export function assertHistoricalPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision }) {
+  const binding = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+  if (!binding || !Object.hasOwn(intent, 'appliedMigrationContinuation') ||
+    requiresPrincipalOnlyRuntimeAuthority(intent)) fail()
+  return assertRecoveryArtifactReadback({ sourceRevision: intent.sourceRevision,
+    oldRevision: proof?.oldRevision, binding, profile, proof, service, revision })
 }
 
 export function principalOnlyActivationRequest({ service, oldRevision, candidateRevision,

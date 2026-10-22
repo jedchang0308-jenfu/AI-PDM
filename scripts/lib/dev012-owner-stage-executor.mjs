@@ -10,13 +10,13 @@ import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDa
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mjs'
-import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
+import { assertHistoricalPrincipalOnlyRecoveryReadback, assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
 import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
 import { appliedRdPermissionSmokeSuite, assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
-import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode, requiresPrincipalOnlyMigrationFence } from './dev117-release-control-policy.mjs'
+import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode, requiresPrincipalOnlyMigrationFence, requiresPrincipalOnlyRuntimeAuthority } from './dev117-release-control-policy.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -26,6 +26,10 @@ const STAGES = new Set(['prepare', 'build', 'migrate', 'candidate', 'entrypoint'
 const CONTROL_STATES = new Set(['CANDIDATE_CREATED', 'ENTRYPOINT_CONFIGURED', 'CANDIDATE_VERIFIED', 'GO', 'ACTIVE', 'CANONICAL_VERIFIED', 'ABORT_REQUESTED', 'FINALIZED'])
 const PREPARABLE_CONTINUATIONS = new Set(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_ABORT'])
 const PRINCIPAL_RECOVERY_CONTINUATIONS = new Set(['PRINCIPAL_FENCED_ABORT_RECONCILED', 'APPLIED_MIGRATION_ABORT'])
+
+export function requiresPrincipalOnlyForwardRepair(intent, continuation) {
+  return Boolean(intent?.baselineIntentRef) && continuation?.kind !== 'APPLIED_MIGRATION_ABORT'
+}
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -147,6 +151,10 @@ export async function validatePrincipalRecoveryForPrepare({ intent, profile, tra
     transport.readJson(recovery.receiptRef, profile.artifact.releaseBucket, ['receipts']),
     transport.getRevision(profile, recovery.revision),
   ])
+  if (!requiresPrincipalOnlyRuntimeAuthority(intent)) {
+    assertHistoricalPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
+    return null
+  }
   assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
   if (!requiresPrincipalOnlyMigrationFence(intent)) return recovery
   const fence = await transport.readBytes(intent.principalOnlyFenceRef.uri, {
@@ -914,7 +922,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     assertRepairDataCutoverBasis({ profile, repair, dataCutover })
     const recovery = await validatePrincipalRecoveryForPrepare({ intent, profile, transport, service })
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
-      const repair = intent.baselineIntentRef
+      const repair = requiresPrincipalOnlyForwardRepair(intent, continuation)
         ? await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
       if (repair && (!recovery || repair.activeRevision !== intent.previousRevision
         || service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount)
@@ -1086,7 +1094,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     else if (Object.hasOwn(intent, 'appliedMigrationContinuation')) assertAppliedContinuationRuntimeBinding(runtimeConfig, intent)
     else assertWorkerRuntimeJoin(runtimeConfig, intent)
     if (worker) await worker.candidate({ intent, profile, deployment: deployment.value })
-    const candidate = await transport.createCandidate({ profile, artifactDigest: deployment.value.artifactDigest, runtimeConfig, fingerprint, deadlineAt: intent.deadlineAt, principalOnly: Boolean(intent.principalOnlyRecovery) })
+    const candidate = await transport.createCandidate({ profile, artifactDigest: deployment.value.artifactDigest, runtimeConfig, fingerprint, deadlineAt: intent.deadlineAt, principalOnly: requiresPrincipalOnlyRuntimeAuthority(intent) })
     if (candidate.previousRevision !== intent.previousRevision) fail('CANDIDATE_BASELINE_MISMATCH')
     const result = await writeStage(transport, paths, profile, intent, 'candidate', migration.ref, { deploymentCapsuleRef: deployment.ref, migrationReceiptRef: migration.value.facts.migrationReceiptRef, migrationAdmissionRef: migration.ref, ...candidate })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate, state: 'CANDIDATE_CREATED', environment })
@@ -1108,7 +1116,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (entrypoint.value.previousReceiptRef?.uri !== candidate.ref.uri || entrypoint.value.previousReceiptRef?.sha256 !== candidate.ref.sha256 || entrypoint.value.facts.profileSha256 !== profileSha256) fail('ENTRYPOINT_RECEIPT_JOIN_INVALID')
     const service = await transport.getService(profile)
     transport.assertCanonicalEntrypoint(profile, service)
-    if (intent.principalOnlyRecovery && (service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount))) fail('PRINCIPAL_ONLY_QUIESCENCE_LOST')
+    if (requiresPrincipalOnlyRuntimeAuthority(intent) && (service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount))) fail('PRINCIPAL_ONLY_QUIESCENCE_LOST')
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
     if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || !candidateTagUriMatches(service, candidate.value.facts, tag.uri) || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
@@ -1138,7 +1146,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (decision.value.facts.decision !== 'GO') fail('MACHINE_DECISION_NO_GO')
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
     if (worker) await worker.beforeActivate({ intent, profile })
-    const service = intent.principalOnlyRecovery
+    const service = requiresPrincipalOnlyRuntimeAuthority(intent)
       ? await transport.activatePrincipalOnly({ profile, oldRevision: intent.previousRevision,
         recovery: intent.principalOnlyRecovery, candidateRevision: candidate.value.facts.candidateRevision,
         candidateTag: candidate.value.facts.tag, deadlineAt: intent.deadlineAt })
@@ -1231,7 +1239,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     }
     const activeRevision = transport.effectiveRevision(service)
     // The abort controller may have restored maintenance before this workflow.
-    if (intent.principalOnlyRecovery && activeRevision === rollbackRevision) disposition = 'ROLLED_BACK'
+    if (requiresPrincipalOnlyRuntimeAuthority(intent) && activeRevision === rollbackRevision) disposition = 'ROLLED_BACK'
     if (![intent.previousRevision, rollbackRevision].includes(activeRevision)) fail('PRINCIPAL_ONLY_ROLLBACK_BASELINE_INVALID')
     await transport.removeCandidateTag({ profile, tag: facts.tag, candidateRevision: facts.candidateRevision, expectedActiveRevision: activeRevision, deadlineAt: intent.deadlineAt })
     if (!prepare) fail('PREPARE_RECEIPT_MISSING')

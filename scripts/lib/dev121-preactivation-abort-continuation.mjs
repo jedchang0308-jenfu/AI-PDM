@@ -1,7 +1,7 @@
 import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyStaticJob, assertProgramOnlyNative, assertProgramOnlySubmission, readProgramOnlyBundles, programOnlyNativeUri, readProgramOnlyReleaseWindow, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { assertImmutableRef, assertMigrationSubmissionIntent, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
-import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
+import { assertHistoricalPrincipalOnlyRecoveryReadback, assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
 import { assertMigration, assertStage, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import {
   assertRdLedgerReadbackIntent,
@@ -55,10 +55,13 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
   }
   const terminal = await read(paths.terminal)
   const terminalFacts = seal(terminal, 'terminal')
-  if (['RELEASED', 'ROLLED_BACK'].includes(terminalFacts.result)) return null
-  if (terminalFacts.result !== 'PRE_ACTIVATION_ABORTED') fail()
+  if (terminalFacts.result === 'RELEASED') return null
+  const appliedRollback = terminalFacts.result === 'ROLLED_BACK'
+    && appliedMigrationContinuation && terminalFacts.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED'
+  if (terminalFacts.result === 'ROLLED_BACK' && !appliedRollback) return null
+  if (terminalFacts.result !== 'PRE_ACTIVATION_ABORTED' && !appliedRollback) fail()
   if (!control) control = JSON.parse((await transport.readBytes(`gs://${bucket}/control/active.json`, { prefixes: ['control'] })).bytes)
-  if (control.result !== 'PRE_ACTIVATION_ABORTED') fail()
+  if (control.result !== terminalFacts.result) fail()
   if (appliedMigrationContinuation && terminalFacts.databaseDisposition === 'NOT_APPLIED') {
     return readAppliedContinuationPreexecutionAbort({ profile, transport, baselineIntentRef, intent, paths, terminal,
       terminalFacts, control, service, read, seal, postAbortLedgerReadbackRef, principalOnlyFenceRef,
@@ -187,17 +190,22 @@ async function readAppliedContinuationPreexecutionAbort({ profile, transport, ba
   const { controlSha256, ...controlCore } = control
   const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
   const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
+  const recordedRollbackRevision = control.previousRevision
+  const currentWriterRollback = recordedRollbackRevision === intent.previousRevision
+  const legacySealedPreexecutionRollback = recordedRollbackRevision === recovery.revision
+    && recordedRollbackRevision !== intent.previousRevision
   if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
     || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
     || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
     || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
     || control.controlBucket !== bucket || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision
-    || control.sourceLockSha256 !== intent.sourceLockRef.sha256 || control.previousRevision !== recovery.revision
+    || control.sourceLockSha256 !== intent.sourceLockRef.sha256
+    || (!currentWriterRollback && !legacySealedPreexecutionRollback)
     || control.candidateRevision !== null || !/^[1-9][0-9]*$/u.test(runId) || control.deadlineAt !== intent.deadlineAt
     || !Number.isFinite(Date.parse(control.deadlineAt)) || !Number.isFinite(Date.parse(control.leaseExpiresAt))
     || Date.parse(control.leaseExpiresAt) >= Date.now() || !same(terminal.value.previousReceiptRef, rollback.ref)
     || terminalFacts.result !== 'PRE_ACTIVATION_ABORTED' || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
-    || terminalFacts.previousRevision !== recovery.revision || rollbackFacts.previousRevision !== recovery.revision
+    || terminalFacts.previousRevision !== recordedRollbackRevision || rollbackFacts.previousRevision !== recordedRollbackRevision
     || terminalFacts.databaseDisposition !== 'NOT_APPLIED' || rollbackFacts.databaseDisposition !== 'NOT_APPLIED'
     || Object.hasOwn(terminalFacts, 'migrationSubmissionIntentRef') || Object.hasOwn(rollbackFacts, 'migrationSubmissionIntentRef')
     || !same(terminalFacts.entrypointRecovery, { changed: false, result: 'NOT_REQUIRED' })
@@ -229,8 +237,8 @@ async function readAppliedContinuationPreexecutionAbort({ profile, transport, ba
     || retainedRevision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
     || retainedApp?.length !== 1 || !retainedApp[0].image?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
   transport.assertCanonicalEntrypoint(profile, service)
-  assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision, oldRevision: intent.previousRevision, binding: recovery,
-    profile, proof: proof.value, service, revision: recoveryRevision, activeRevision: intent.previousRevision })
+  assertHistoricalPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value,
+    service, revision: recoveryRevision })
 
   return { kind: 'APPLIED_MIGRATION_ABORT', currentActiveRevision: intent.previousRevision,
     result: 'PRE_ACTIVATION_ABORTED', authorityBasis: {
@@ -259,12 +267,14 @@ async function readAppliedContinuationCandidateAbort({ profile, transport, basel
     || !same(intent.principalOnlyFenceRef, principalOnlyFenceRef)
     || !same(intent.principalOnlyRecovery, principalOnlyRecovery)) fail()
 
-  const [rollback, source, proof, recoveryRevision, retainedRevision, migration] = await Promise.all([
+  const [rollback, source, proof, recoveryRevision, retainedRevision, migration, candidate, entrypoint, deployment] = await Promise.all([
     read(paths.rollback), transport.readJson(intent.sourceLockRef, bucket, ['receipts']),
     transport.readJson(recovery.receiptRef, bucket, ['receipts']), transport.getRevision(profile, recovery.revision),
-    transport.getRevision(profile, intent.previousRevision), read(paths.migrationAdmission),
+    transport.getRevision(profile, intent.previousRevision), read(paths.migrationAdmission), read(paths.candidate),
+    read(paths.entrypoint), read(paths.deployment),
   ])
   const rollbackFacts = seal(rollback, 'rollback'), migrationFacts = seal(migration, 'migrate')
+  const candidateFacts = seal(candidate, 'candidate'), entrypointFacts = seal(entrypoint, 'entrypoint')
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId,
     sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
   const keys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision',
@@ -272,19 +282,21 @@ async function readAppliedContinuationCandidateAbort({ profile, transport, basel
   const { controlSha256, ...controlCore } = control
   const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
   const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
+  const recordedRollbackRevision = control.previousRevision
   if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
     || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
-    || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
+    || !['PRE_ACTIVATION_ABORTED', 'ROLLED_BACK'].includes(control.result) || control.inputFingerprint !== fingerprint
     || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
     || control.controlBucket !== bucket || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision
-    || control.sourceLockSha256 !== intent.sourceLockRef.sha256 || control.previousRevision !== recovery.revision
+    || control.sourceLockSha256 !== intent.sourceLockRef.sha256
+    || recordedRollbackRevision !== intent.previousRevision
     || !new RegExp(`^${profile.target.serviceName}-[a-z0-9-]+$`, 'u').test(control.candidateRevision ?? '')
     || [intent.previousRevision, recovery.revision].includes(control.candidateRevision) || !/^[1-9][0-9]*$/u.test(runId)
     || control.deadlineAt !== intent.deadlineAt || !Number.isFinite(Date.parse(control.deadlineAt))
     || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()
     || !same(terminal.value.previousReceiptRef, rollback.ref)
-    || terminalFacts.result !== 'PRE_ACTIVATION_ABORTED' || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
-    || terminalFacts.previousRevision !== recovery.revision || rollbackFacts.previousRevision !== recovery.revision
+    || terminalFacts.result !== control.result || rollbackFacts.result !== control.result
+    || terminalFacts.previousRevision !== recordedRollbackRevision || rollbackFacts.previousRevision !== recordedRollbackRevision
     || terminalFacts.databaseDisposition !== 'HISTORICAL_EVIDENCE_REUSED'
     || rollbackFacts.databaseDisposition !== 'HISTORICAL_EVIDENCE_REUSED'
     || !same(terminalFacts.migrationAdmissionRef, migration.ref) || !same(rollbackFacts.migrationAdmissionRef, migration.ref)
@@ -293,14 +305,59 @@ async function readAppliedContinuationCandidateAbort({ profile, transport, basel
     || migrationFacts.disposition !== 'HISTORICAL_EVIDENCE_REUSED'
     || migrationFacts.manifestSha256 !== intent.migrationManifestSha256 || migrationFacts.sourceRevision !== intent.sourceRevision
     || !same(migrationFacts.migrationReceiptRef, appliedMigrationContinuation.migrateRef)
+    || !same(migration.value.previousReceiptRef, deployment.ref)
+    || !same(candidate.value.previousReceiptRef, migration.ref)
+    || !same(candidateFacts.migrationAdmissionRef, migration.ref)
+    || !same(candidateFacts.migrationReceiptRef, appliedMigrationContinuation.migrateRef)
+    || !same(candidateFacts.deploymentCapsuleRef, deployment.ref)
+    || candidateFacts.previousRevision !== intent.previousRevision || !traffic(candidateFacts.beforeTraffic, intent.previousRevision)
+    || deployment.value.releaseIntentRef?.uri !== baselineIntentRef.uri
+    || deployment.value.releaseIntentRef?.sha256 !== baselineIntentRef.sha256
+    || deployment.value.sourceRevision !== intent.sourceRevision
+    || candidateFacts.artifactDigest !== deployment.value.artifactDigest
+    || !same(entrypoint.value.previousReceiptRef, candidate.ref)
+    || entrypointFacts.canonicalOrigin !== profile.target.canonicalOrigin
+    || !same(rollback.value.previousReceiptRef, entrypoint.ref)
     || source.ref.sha256 !== intent.sourceLockRef.sha256 || source.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1'
     || source.value.ownerApplicationId !== profile.application.id || source.value.releaseId !== intent.releaseId
     || source.value.sourceRevision !== intent.sourceRevision || source.value.sourceSha256 !== intent.sourceSha256
     || source.value.migrationManifestSha256 !== intent.migrationManifestSha256 || source.value.status !== 'SOURCE_FROZEN'
     || source.value.releaseAuthority !== true || source.value.clean !== true) fail()
 
-  const absentStages = ['verify', 'decision', 'activate', 'canonical', 'finalize']
-  await assertAbsentStages(read, paths, absentStages)
+  const verify = await optionalOrdinaryStage(read, paths.verify)
+  const decision = await optionalOrdinaryStage(read, paths.decision)
+  const activate = await optionalOrdinaryStage(read, paths.activate)
+  const canonical = await optionalOrdinaryStage(read, paths.canonical)
+  await assertMissing(read, paths.finalize)
+  const postCandidate = { verify, decision, activate, canonical }
+  if ((decision && !verify) || (activate && !decision) || (canonical && !activate)) fail()
+  if (control.result === 'ROLLED_BACK' && (!verify || !decision)) fail()
+  if (control.result === 'PRE_ACTIVATION_ABORTED' && (activate || canonical)) fail()
+  if (verify) {
+    const facts = seal(verify, 'verify')
+    if (!same(verify.value.previousReceiptRef, entrypoint.ref) || !same(facts.entrypointReceiptRef, entrypoint.ref)
+      || !same(facts.candidateReceiptRef, candidate.ref) || facts.candidateRevision !== candidateFacts.candidateRevision
+      || facts.artifactDigest !== candidateFacts.artifactDigest || facts.smoke?.status !== 'PASS') fail()
+  }
+  if (decision) {
+    const facts = seal(decision, 'decision')
+    if (!same(decision.value.previousReceiptRef, verify.ref) || !same(facts.verifyReceiptRef, verify.ref)
+      || facts.decision !== 'GO' || facts.remainingHumanAction !== 0
+      || facts.candidateRevision !== candidateFacts.candidateRevision || facts.artifactDigest !== candidateFacts.artifactDigest) fail()
+  }
+  if (activate) {
+    const facts = seal(activate, 'activate')
+    if (!same(activate.value.previousReceiptRef, decision.ref) || !same(facts.decisionReceiptRef, decision.ref)
+      || facts.candidateRevision !== candidateFacts.candidateRevision || facts.artifactDigest !== candidateFacts.artifactDigest
+      || facts.effectiveRevision !== candidateFacts.candidateRevision) fail()
+  }
+  if (canonical) {
+    const facts = seal(canonical, 'canonical')
+    if (!same(canonical.value.previousReceiptRef, activate.ref) || !same(facts.activationReceiptRef, activate.ref)
+      || facts.candidateRevision !== candidateFacts.candidateRevision || facts.artifactDigest !== candidateFacts.artifactDigest
+      || facts.origin !== profile.target.canonicalOrigin || facts.smoke?.status !== 'PASS') fail()
+  }
+  const absentStages = ['verify', 'decision', 'activate', 'canonical', 'finalize'].filter(stage => stage === 'finalize' || !postCandidate[stage])
   const run = await transport.readOwnerRun(profile, control.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
@@ -316,11 +373,11 @@ async function readAppliedContinuationCandidateAbort({ profile, transport, basel
     || retainedRevision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
     || retainedApp?.length !== 1 || !retainedApp[0].image?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
   transport.assertCanonicalEntrypoint(profile, service)
-  assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision, oldRevision: intent.previousRevision, binding: recovery,
-    profile, proof: proof.value, service, revision: recoveryRevision, activeRevision: intent.previousRevision })
+  assertHistoricalPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value,
+    service, revision: recoveryRevision })
 
   return { kind: 'APPLIED_MIGRATION_ABORT', currentActiveRevision: intent.previousRevision,
-    result: 'PRE_ACTIVATION_ABORTED', authorityBasis: {
+    result: control.result, authorityBasis: {
       schemaVersion: 'aipdm.applied-migration-abort-basis.v1', failedIntentRef: baselineIntentRef,
       appliedMigrationContinuation, postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery,
       failedSourceLockRef: source.ref, previousRevision: intent.previousRevision, serviceUid: service.uid,
