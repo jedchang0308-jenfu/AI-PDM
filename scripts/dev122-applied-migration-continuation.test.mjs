@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { assertAppliedMigrationContinuation } from './lib/dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation } from './lib/dev122-applied-migration-continuation.mjs'
 import { readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
@@ -19,6 +19,20 @@ const profile = read('config/release/dev117-ai-pdm-independent-production-v3.jso
 const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
 const ref = (uri, value = null) => ({ uri, sha256: value === null ? 'e'.repeat(64) : sha256(Buffer.from(`${canonicalize(value)}\n`)) })
 const sealed = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
+
+test('applied continuation retains runtime identity without reopening worker evidence', () => {
+  const descriptorRef = ref(`gs://${bucket}/receipts/dev-122/openswx-worker/retained-descriptor.json`)
+  const binding = { descriptorRef, sourceRevision: appliedSource, workerProfileSha256: 'f'.repeat(64), purpose: 'full' }
+  const runtime = { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' },
+    secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, openswxWorker: binding }
+  assert.doesNotThrow(() => assertAppliedContinuationRuntimeBinding(runtime, { openswxWorkerRef: descriptorRef }))
+  for (const changed of [
+    { runtime, intent: { openswxWorkerRef: ref(`gs://${bucket}/receipts/dev-122/openswx-worker/wrong.json`) } },
+    { runtime: { ...runtime, plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, intent: { openswxWorkerRef: descriptorRef } },
+    { runtime: { ...runtime, openswxWorker: { ...binding, workerProfileSha256: 'invalid' } }, intent: { openswxWorkerRef: descriptorRef } },
+  ]) assert.throws(() => assertAppliedContinuationRuntimeBinding(changed.runtime, changed.intent), /APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID/u)
+  assert.doesNotThrow(() => assertAppliedContinuationRuntimeBinding({ plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, {}))
+})
 
 function providerJob() {
   return {
