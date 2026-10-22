@@ -71,6 +71,18 @@ test('PDF preview remains independent from worker and authorization gates', () =
   assert.deepEqual(plan.evidenceRequirements, ['version-bytes-desktop'])
 })
 
+test('the runtime slice checker selects application authorization without unrelated history', () => {
+  const plan = createProductionSlicePlan(['scripts/qc-pdm-production-slice-numbering-draft.mjs'])
+  assert.deepEqual(plan.slices, ['application', 'authorization'])
+  assert.equal(plan.gates.application, true)
+  assert.equal(plan.gates.authorization, true)
+  for (const gate of ['full', 'database', 'migration', 'worker', 'releaseCore']) {
+    assert.equal(plan.gates[gate], false, gate)
+  }
+  // This is one known product checker, not a wildcard exemption for scripts.
+  assert.equal(createProductionSlicePlan(['scripts/qc-pdm-production-slice-unknown.mjs']).gates.full, true)
+})
+
 test('worker source selects worker evidence without unrelated app build', () => {
   const plan = createProductionSlicePlan(['scripts/lib/openswx-reader/reader.cc'])
   assert.equal(plan.gates.worker, true)

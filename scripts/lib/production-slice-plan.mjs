@@ -60,6 +60,7 @@ const RD_PERMISSION_DATABASE = [
 ]
 
 const AUTHORIZATION = [
+  /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,
   /^config\/access-control\//u,
   /^scripts\/.*(?:role-catalog|rd-permission|principal|permission|grant|session|sso|acl)/u,
   /^src\/.*(?:principal|permission|authorization|access-control|role-catalog|grant|session|sso|acl)/u,
@@ -82,6 +83,7 @@ const INFRASTRUCTURE = [
 ]
 
 const APPLICATION = [
+  /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,
   /^src\//u,
   /^public\//u,
   /^next\.config\./u,

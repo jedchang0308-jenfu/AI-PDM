@@ -75,6 +75,8 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 修正只讓 active slice 的 `/parts/:id/attachments`、附件 collection POST、item DELETE 與 item restore POST 抵達既有 owner。Principal、published `numbering.attachments.manage`、公司範圍、交易、稽核與撤銷檢查不變；未知 slice mode、其他方法、額外子路徑、Drive sync 與手動 preview regeneration 仍拒絕。修前 middleware 回歸已重現封鎖；修後本地測試不代表正式上傳、預覽、下載或整體 7／29 已通過，仍須發布後以專用測試帳號正常操作驗證。
 
+Required CI 首次仍以舊靜態規則禁止附件 restore／DELETE；同一切片同步精確三條 owner 路由的靜態 allowlist，保留原失敗。該既有 runtime slice checker 歸 application／authorization 選測；未知腳本維持 FULL，不因修正正常入口重播無關 worker 或資料庫歷史。
+
 ### RD 圖號工作台歷史恢復點（2026-10-20 起）
 
 PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build與 Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d` 成功；migration 在任何新 Job execution 前以 `MIGRATION_JOB_READBACK_MISMATCH` 停止，terminal 為 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 revision／traffic 未變，worker 為 `PAUSED_RECOVERED`。provider readback 證明 reuse receipt 的 runner digest／source 與 live `ai-pdm-prod-migration-runner` 不同，而 producer 重發舊 receipt 時沒有讀取 live Job。
