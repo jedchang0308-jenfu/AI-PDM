@@ -69,16 +69,18 @@ export function assertAppliedContinuationRuntimeBinding(runtimeConfig, intent) {
     || canonicalize(binding.descriptorRef) !== canonicalize(intent.openswxWorkerRef)) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
 }
 
-// The RD permission continuation has one release-time responsibility: prove
-// that the exact candidate is ready and that the API still rejects an
-// unauthenticated permission read. Positive/negative RD authorization is
-// verified after activation with the dedicated RD test actor. A generic
-// principal refresh token is neither that actor nor evidence about catalog,
-// grant or permission enforcement, so it must not gate this continuation.
+// Candidate identity and artifact digest are already proven by the provider
+// readback sealed in the candidate receipt. HTTP probes verify only the RD
+// slice's observable behaviour; they must not create a second source of truth
+// by requiring the application to echo provider provenance headers.
+// Positive/negative RD authorization is verified after activation with the
+// dedicated RD test actor. A generic principal refresh token is neither that
+// actor nor evidence about catalog, grant or permission enforcement, so it
+// must not gate this continuation.
 export function appliedRdPermissionSmokeSuite() {
   return {
     probes: [
-      { id: 'rd-candidate-ready', method: 'GET', path: '/api/health/ready', expectedStatus: 200 },
+      { id: 'rd-candidate-ready', method: 'GET', path: '/api/health/ready', expectedStatus: 200, requireProvenance: false },
       { id: 'rd-permission-unauthenticated-denied', method: 'GET', path: '/api/numbering/permissions', expectedStatus: 401, requireProvenance: false },
     ],
   }
