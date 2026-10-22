@@ -52,6 +52,14 @@ const reviewedPrincipalTransferLines = new Set([
 const reviewedPrincipalTransferOnly = [...reviewedPrincipalTransferLines].every((line) => allowedMutationLines.includes(line))
   && allowedMutationLines.filter((line) => line.includes('transfer-packages'))
     .every((line) => reviewedPrincipalTransferLines.has(line));
+const reviewedPartAttachmentLines = new Set([
+  String.raw`{ method: "POST", pattern: /^\/api\/parts\/[^/]+\/attachments$/u },`,
+  String.raw`{ method: "DELETE", pattern: /^\/api\/parts\/[^/]+\/attachments\/[^/]+$/u },`,
+  String.raw`{ method: "POST", pattern: /^\/api\/parts\/[^/]+\/attachments\/[^/]+\/restore$/u },`
+]);
+const reviewedPartAttachmentsOnly = [...reviewedPartAttachmentLines].every((line) => allowedMutationLines.includes(line))
+  && allowedMutationLines.filter((line) => line.includes('attachments'))
+    .every((line) => reviewedPartAttachmentLines.has(line));
 
 record("SLICE-001 helper defines official numbering/draft mode", helper.includes('OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft"'));
 record("SLICE-002 helper uses stable unopened machine code", helper.includes("feature_not_open_in_production_slice"));
@@ -62,9 +70,9 @@ record("SLICE-004B official create page is open when its mutation contract is op
 record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\[\^\/\]\+\\\/drawings/.test(allowedSection) && /roots\\\/\[\^\/\]\+\\\/parts/.test(allowedSection) && /drawing-part/.test(allowedSection));
 record("SLICE-006 allowed mutation list opens provisional draft create/edit/void/recycle", /part-number-drafts/.test(allowedSection) && /void/.test(allowedSection) && /recycle/.test(allowedSection) && /method:\s*"PATCH"/.test(allowedSection));
 record(
-  "SLICE-007 allows only reviewed Principal transfer workflows alongside the draft slice",
-  reviewedPrincipalTransferOnly && allowedMutationLines
-    .filter((line) => !reviewedPrincipalTransferLines.has(line))
+  "SLICE-007 allows only reviewed Principal transfer and Part attachment workflows alongside the draft slice",
+  reviewedPrincipalTransferOnly && reviewedPartAttachmentsOnly && allowedMutationLines
+    .filter((line) => !reviewedPrincipalTransferLines.has(line) && !reviewedPartAttachmentLines.has(line))
     .every((line) => !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore)/.test(line)),
   allowedSection
 );
@@ -81,9 +89,9 @@ record("SLICE-021 restore route gates before domain mutation", restoreRoute.incl
 record("SLICE-022 void route continues to use change-control service", voidRoute.includes("voidPartNumberDraft"));
 record("SLICE-023 recycle route continues to use change-control service", recycleRoute.includes("recyclePartNumberDraft"));
 record("SLICE-024 void/recycle domain uses existing controlled-boundary predicate", changeControlDomain.includes("async assertPartNumberDraftIsRecyclable") && changeControlDomain.includes("const boundary = await this.assertPartNumberDraftIsRecyclable(input.draftId, input.actor);"));
-record("SLICE-025 only reviewed Principal transfer items or current work file bindings may be deleted", allowedMutationLines
+record("SLICE-025 only reviewed Principal transfer items, Part attachments or current work file bindings may be deleted", allowedMutationLines
   .filter((line) => line.includes('method: "DELETE"'))
-  .every((line) => reviewedPrincipalTransferLines.has(line) ||
+  .every((line) => reviewedPrincipalTransferLines.has(line) || reviewedPartAttachmentLines.has(line) ||
     line === String.raw`{ method: "DELETE", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files\/[^\/]+$/u },`)
   && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));

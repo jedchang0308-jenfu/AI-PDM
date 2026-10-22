@@ -69,6 +69,14 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 登入查證曾錯用 Firebase password provider，兩次 `INVALID_LOGIN_CREDENTIALS` 不代表使用者提供的 Google 帳密失效；同一授權檔密碼已於正常 Google popup 成功登入。該診斷更正不修改任何帳密、grant 或 IAM。測試圖號仍顯示預覽失敗，按既有 drawing-preview／native-CAD 待辦保留，未納入 RD 權限阻擋。本次只關閉優先項目 2 的權限切片；管理員辨識、PDF、supplier、完整原生 CAD 與原 7 issues／29 groups 仍未完成。
 
+### Part 附件正常入口（2026-10-23，修正待正式驗收）
+
+正式 RD 正常料號抽屜仍顯示「管理附件」，但附件頁被早期 production slice 改寫為「未開放」；一般附件 GET 可讀，頁面及後續寫入入口不一致。此為原 D05／F-01A／UI-01 正常附件上傳、重載與下載範圍，不能以隱藏入口刪除驗收。
+
+修正只讓 active slice 的 `/parts/:id/attachments`、附件 collection POST、item DELETE 與 item restore POST 抵達既有 owner。Principal、published `numbering.attachments.manage`、公司範圍、交易、稽核與撤銷檢查不變；未知 slice mode、其他方法、額外子路徑、Drive sync 與手動 preview regeneration 仍拒絕。修前 middleware 回歸已重現封鎖；修後本地測試不代表正式上傳、預覽、下載或整體 7／29 已通過，仍須發布後以專用測試帳號正常操作驗證。
+
+Required CI 首次仍以舊靜態規則禁止附件 restore／DELETE；同一切片同步精確三條 owner 路由的靜態 allowlist，保留原失敗。該既有 runtime slice checker 歸 application／authorization 選測；未知腳本維持 FULL，不因修正正常入口重播無關 worker 或資料庫歷史。
+
 ### RD 圖號工作台歷史恢復點（2026-10-20 起）
 
 PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build與 Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d` 成功；migration 在任何新 Job execution 前以 `MIGRATION_JOB_READBACK_MISMATCH` 停止，terminal 為 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 revision／traffic 未變，worker 為 `PAUSED_RECOVERED`。provider readback 證明 reuse receipt 的 runner digest／source 與 live `ai-pdm-prod-migration-runner` 不同，而 producer 重發舊 receipt 時沒有讀取 live Job。

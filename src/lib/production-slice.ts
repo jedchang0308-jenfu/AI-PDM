@@ -76,6 +76,11 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/pdm\/review-requests\/[^\/]+\/decisions$/u },
   { method: "POST", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files$/u },
   { method: "DELETE", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files\/[^\/]+$/u },
+  // Normal Part attachment management still requires the verified Principal,
+  // published manage capability and company-scoped transactional owner.
+  { method: "POST", pattern: /^\/api\/parts\/[^/]+\/attachments$/u },
+  { method: "DELETE", pattern: /^\/api\/parts\/[^/]+\/attachments\/[^/]+$/u },
+  { method: "POST", pattern: /^\/api\/parts\/[^/]+\/attachments\/[^/]+\/restore$/u },
   // These routes enforce a verified Principal and published capability inside
   // the owner command. The old slice gate must not make the workflow unreachable.
   { method: "POST", pattern: /^\/api\/transfer-packages$/ },
@@ -210,6 +215,7 @@ export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = p
   if (getProductionSliceState(env).active &&
     (normalizedPath === "/settings" || normalizedPath === "/settings/security" || normalizedPath === "/settings/workflow" ||
      normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
+     /^\/parts\/[^/]+\/attachments$/u.test(normalizedPath) ||
      /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/approvals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(normalizedPath) ||
