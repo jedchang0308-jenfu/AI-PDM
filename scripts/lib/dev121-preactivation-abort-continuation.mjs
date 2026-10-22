@@ -217,14 +217,42 @@ async function readAppliedContinuationPreexecutionAbort({ profile, transport, ba
     || source.value.migrationManifestSha256 !== intent.migrationManifestSha256 || source.value.status !== 'SOURCE_FROZEN'
     || source.value.releaseAuthority !== true || source.value.clean !== true) fail()
 
-  const absentStages = ['prepare', 'build', 'provenance', 'sbom', 'scan', 'deployment', 'migrate', 'candidate', 'entrypoint',
-    'verify', 'decision', 'activate', 'canonical', 'finalize']
-  await assertAbsentStages(read, paths, absentStages)
-  await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate))
-  await assertZeroBuilds(profile, transport, intent)
   const run = await transport.readOwnerRun(profile, control.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
+
+  let prepare = null
+  try { prepare = await read(paths.prepare) } catch (error) { if (error.code !== 'MISSING') throw error }
+  const absentStages = [
+    ...(!prepare ? ['prepare'] : []), 'build', 'provenance', 'sbom', 'scan', 'deployment', 'migrate', 'migrationAdmission', 'candidate', 'entrypoint',
+    'verify', 'decision', 'activate', 'canonical', 'finalize',
+  ]
+  await assertAbsentStages(read, paths, absentStages)
+  await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate))
+  let preparedBuild = null
+  if (!prepare) {
+    await assertZeroBuilds(profile, transport, intent)
+  } else {
+    const prepareFacts = seal(prepare, 'prepare')
+    const prerequisiteRefs = {
+      sourceLock: intent.sourceLockRef, authorization: intent.authorizationPolicyRef,
+      readiness: intent.readinessReceiptRef, foundation: intent.foundationReceiptRef,
+      infra: intent.infraReceiptRef, runtimeConfig: intent.runtimeConfigRef,
+    }
+    const [authorization, readiness] = await Promise.all([
+      transport.readJson(intent.authorizationPolicyRef, bucket, ['receipts']),
+      transport.readJson(intent.readinessReceiptRef, bucket, ['receipts']),
+    ])
+    if (prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
+      || !same(prepareFacts.prerequisiteRefs, prerequisiteRefs)
+      || !same(prepareFacts.preActivationAbortBasis, authorization.value.preActivationAbortBasis)
+      || !same(prepareFacts.preActivationAbortBasis, readiness.value.preActivationAbortBasis)
+      || !same(terminalFacts.failureSignal, { code: 'ARTIFACT_POLICY_FAILED', family: 'ARTIFACT' })) fail()
+    preparedBuild = await readPreparedUnsealedProviderBuild({
+      profile, transport, baselineIntentRef, intent, run,
+    })
+    await assertStableNoMigrationExecution(profile, transport, intent, paths, run)
+  }
 
   service ??= await transport.getService(profile)
   transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
@@ -237,6 +265,7 @@ async function readAppliedContinuationPreexecutionAbort({ profile, transport, ba
     || retainedRevision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
     || retainedApp?.length !== 1 || !retainedApp[0].image?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
   transport.assertCanonicalEntrypoint(profile, service)
+  if (prepare && !same(seal(prepare, 'prepare').entrypointBaseline, transport.entrypointSnapshot(service))) fail()
   assertHistoricalPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value,
     service, revision: recoveryRevision })
 
@@ -248,6 +277,7 @@ async function readAppliedContinuationPreexecutionAbort({ profile, transport, ba
       retainedArtifactDigest: retainedApp[0].image, controlSha256, ownerRunRef: control.ownerRunRef,
       databaseDisposition: 'NOT_APPLIED', migrationAdmissionRef: null, discardedCandidateRevision: null,
       absentStages, failureSignal: terminalFacts.failureSignal ?? null,
+      ...(prepare ? { stageRefs: { prepare: prepare.ref, rollback: rollback.ref, terminal: terminal.ref }, preparedBuild } : {}),
     } }
 }
 
@@ -1332,7 +1362,7 @@ function executionProjection(execution) {
     taskCount: execution.taskCount,
     parallelism: execution.parallelism,
     completedState: execution.conditions.find(row => row?.type === 'Completed')?.state,
-    templateSha256: sha256(canonicalize(execution.template)),
+    templateSha256: execution.template === undefined ? null : sha256(canonicalize(execution.template)),
   }
 }
 
@@ -1741,6 +1771,82 @@ async function assertZeroBuilds(profile, transport, intent) {
   if ((await readFailedBuilds(profile, transport, intent, 1)).length !== 0) fail()
 }
 
+// A provider build can complete before artifact policy rejects the image and
+// before any release-owned build/provenance receipt is sealed.  This proves
+// only a quiescent failed attempt.  The image and scan result never become
+// reusable release authority.
+async function readPreparedUnsealedProviderBuild({ profile, transport, baselineIntentRef, intent, run }) {
+  const first = await readFailedBuilds(profile, transport, intent, 2)
+  const second = await readFailedBuilds(profile, transport, intent, 2)
+  if (!same(first, second) || first.length !== 1) fail()
+  const build = first[0], project = profile.target.projectId, region = profile.target.region
+  const sourceUri = `gs://${profile.artifact.releaseBucket}/source/releases/${intent.releaseId}/${baselineIntentRef.sha256}/source.tar.gz`
+  const storage = build.source?.storageSource
+  if (storage?.bucket !== profile.artifact.releaseBucket
+    || storage.object !== sourceUri.slice(`gs://${profile.artifact.releaseBucket}/`.length)
+    || !/^[1-9][0-9]*$/u.test(String(storage.generation ?? ''))) fail()
+  const source = await transport.readBytes(sourceUri, { prefixes: ['source'], expectedGeneration: String(storage.generation) })
+  const sourceObject = { uri: sourceUri, sha256: sha256(source.bytes), generation: String(source.metadata?.generation ?? ''), crc32c: source.metadata?.crc32c }
+  const fileHashes = build.sourceProvenance?.fileHashes?.[`${sourceUri}#${sourceObject.generation}`]?.fileHash
+  if (source.ref?.uri !== sourceUri || source.ref?.sha256 !== sourceObject.sha256 || sourceObject.generation !== String(storage.generation)
+    || typeof sourceObject.crc32c !== 'string' || !sourceObject.crc32c
+    || !Array.isArray(fileHashes)
+    || fileHashes.filter(row => row?.type === 'SHA256'
+      && Buffer.from(row.value ?? '', 'base64').toString('hex') === sourceObject.sha256).length !== 1) fail()
+
+  const tag = `${profile.artifact.uri}:release-${intent.sourceRevision}`
+  const expectedArgs = ['build', '--pull=false', '--no-cache', '--file', profile.build?.dockerfile,
+    '--target', profile.build?.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`,
+    '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z',
+    '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.']
+  const expectedStorage = { bucket: storage.bucket, object: storage.object, generation: String(storage.generation) }
+  const names = [project, profile.target.projectNumber].map(id => `projects/${id}/locations/${region}/builds/${build.id}`)
+  const image = build.results?.images?.filter(row => row?.name === tag)
+  const step = build.steps?.[0]
+  const stepRecipe = {
+    name: step?.name, dir: step?.dir, args: step?.args,
+    entrypoint: step?.entrypoint ?? '', env: step?.env ?? [], secretEnv: step?.secretEnv ?? [],
+    volumes: step?.volumes ?? [], script: step?.script ?? '', allowFailure: step?.allowFailure ?? false,
+    waitFor: step?.waitFor ?? [], id: step?.id ?? '', timeout: step?.timeout ?? null,
+    automapSubstitutions: step?.automapSubstitutions ?? false, allowExitCodes: step?.allowExitCodes ?? [],
+  }
+  const expectedStepRecipe = {
+    name: profile.build?.dockerBuilderImage, dir: 'source', args: expectedArgs,
+    entrypoint: '', env: [], secretEnv: [], volumes: [], script: '', allowFailure: false,
+    waitFor: [], id: '', timeout: null, automapSubstitutions: false, allowExitCodes: [],
+  }
+  const buildRecipeExtensions = {
+    availableSecrets: build.availableSecrets ?? null, secrets: build.secrets ?? [],
+    substitutions: build.substitutions ?? {}, artifacts: build.artifacts ?? { images: build.images },
+    dependencies: build.dependencies ?? [], gitConfig: build.gitConfig ?? null,
+    sourceFetcher: build.sourceFetcher ?? null,
+  }
+  const window = closedOwnerWindow(run)
+  const created = Date.parse(build.createTime), started = Date.parse(build.startTime), finished = Date.parse(build.finishTime)
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(build.id ?? '') || !names.includes(build.name)
+    || build.projectId !== project || build.status !== 'SUCCESS'
+    || build.serviceAccount !== `projects/${project}/serviceAccounts/${profile.identities.builder}`
+    || !same(build.source, { storageSource: expectedStorage }) || !same(build.sourceProvenance?.resolvedStorageSource, expectedStorage)
+    || build.steps?.length !== 1 || !same(stepRecipe, expectedStepRecipe)
+    || !same(buildRecipeExtensions, { availableSecrets: null, secrets: [], substitutions: {}, artifacts: { images: [tag] },
+      dependencies: [], gitConfig: null, sourceFetcher: null })
+    || !same(build.images, [tag])
+    || build.timeout !== '1800s' || build.queueTtl !== '300s'
+    || build.logsBucket !== `gs://${profile.artifact.releaseBucket}/logs/cloud-build`
+    || !same(build.options, { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', pool: {},
+      requestedVerifyOption: 'VERIFIED', workerRelease: 'legacy' })
+    || !same(build.tags, ['dev-012', profile.application.id, intent.releaseId.toLowerCase()])
+    || image?.length !== 1 || !/^sha256:[a-f0-9]{64}$/u.test(image[0].digest ?? '')
+    || !Number.isFinite(created) || !Number.isFinite(started) || !Number.isFinite(finished)
+    || created < window.start || created > started || started > finished || finished > window.end) fail()
+  return {
+    evidenceScope: 'QUIESCENT_UNSEALED_PROVIDER_BUILD_NOT_REUSED', releaseAuthority: false,
+    artifactPolicyPassed: false, migrationVerified: false, buildId: build.id,
+    sourceObject, imageTag: tag, failedArtifactDigest: `${profile.artifact.uri}@${image[0].digest}`,
+    finishTime: build.finishTime,
+  }
+}
+
 async function readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
   build, provenance, deployment, read, seal, run, verifyMigrationAbsence = true }) {
   const facts = seal(build, 'build')
@@ -2139,7 +2245,7 @@ async function assertNoMigrationExecution(profile, transport, intent, paths, run
   if (!Number.isFinite(started) || !Number.isFinite(ended) || ended < started || ended > Date.now()
     || profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner') fail()
   const job = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
-  const names = new Set(), tokens = new Set()
+  const names = new Set(), tokens = new Set(), inventory = []
   let token = ''
   for (let page = 0; page < 10; page++) {
     const query = new URLSearchParams({ pageSize: '100' }); if (token) query.set('pageToken', token)
@@ -2149,20 +2255,31 @@ async function assertNoMigrationExecution(profile, transport, intent, paths, run
       || (Object.hasOwn(list, 'executions') && !Array.isArray(list.executions))
       || (Object.hasOwn(list, 'nextPageToken') && typeof list.nextPageToken !== 'string')) fail()
     for (const execution of list.executions ?? []) {
-      const created = Date.parse(execution.createTime), completed = Date.parse(execution.completionTime)
+      const { created, finished: completed } = executionTerminalFacts(execution)
+      const containers = execution.template?.containers
+      if (!execution.template || typeof execution.template !== 'object' || Array.isArray(execution.template)
+        || !Array.isArray(containers) || containers.length === 0
+        || containers.some(container => !container || typeof container !== 'object' || Array.isArray(container)
+          || !Array.isArray(container.args) || container.args.some(argument => typeof argument !== 'string'))) fail()
       const argumentsMatch = value => execution.template?.containers?.some(container => container.args?.some((argument, index, args) =>
         argument === value || argument === `--source-revision=${value}` || argument === `--output-ref=${value}`
         || (['--source-revision', '--output-ref'].includes(argument) && args[index + 1] === value)))
       if (typeof execution.name !== 'string' || !execution.name.startsWith(`${job}/executions/`)
-        || names.has(execution.name) || !Number.isFinite(created) || !Number.isFinite(completed) || completed < created
-        || completed > Date.now() || execution.reconciling === true
-        || !execution.conditions?.some(condition => condition.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state))
+        || names.has(execution.name) || completed > Date.now()
         || (created <= ended && completed >= started) || argumentsMatch(paths.migrate) || argumentsMatch(intent.sourceRevision)) fail()
       names.add(execution.name)
+      inventory.push(executionProjection(execution))
     }
     token = list.nextPageToken ?? ''
-    if (!token) return
+    if (!token) return inventory.sort((left, right) => left.name.localeCompare(right.name))
     if (tokens.has(token)) fail(); tokens.add(token)
   }
   fail()
+}
+
+async function assertStableNoMigrationExecution(profile, transport, intent, paths, run) {
+  const first = await assertNoMigrationExecution(profile, transport, intent, paths, run)
+  const second = await assertNoMigrationExecution(profile, transport, intent, paths, run)
+  if (!same(first, second)) fail()
+  return first
 }
