@@ -39,7 +39,7 @@ describe("principal drawing-work HTTP dispatch", () => {
     expect(response.status).toBe(200);
     expect(mocks.principalRoute).toHaveBeenCalledWith(request, "v2-token", {
       path: "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
-      method: "GET", permissionCode: "numbering.workspace.view", readOnly: true
+      method: "GET", permissionCode: "numbering.workspace.view", resourceGroup: "drawing", readOnly: true
     }, expect.any(Function));
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });

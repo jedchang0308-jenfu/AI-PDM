@@ -48,10 +48,12 @@ function providerJob() {
 }
 
 function fixture(activeProfile = profile) {
-  const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), appliedSource)
+  const historicalProfile = structuredClone(activeProfile)
+  historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 35)
+  const full = buildDev117MigrationBundle(historicalProfile, buildDev117MigrationPackage(historicalProfile, n1c), appliedSource)
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
-  const files = new Map([[profilePath, Buffer.from(`${canonicalize(profile)}\n`)],
-    ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
+  const files = new Map([[profilePath, Buffer.from(`${canonicalize(historicalProfile)}\n`)],
+    ...historicalProfile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
   const content = assertAiPdmMigrationContent({ files, bundle: full.bundle, sourceRevision: appliedSource, deadlineAt: '2999-01-01T00:00:00.000Z' })
   const releaseId = 'DEV122-RD-APPLIED-TEST'
   const fenceRef = { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${'f'.repeat(40)}/fence-214.json`, sha256: '2'.repeat(64) }
@@ -98,12 +100,12 @@ function fixture(activeProfile = profile) {
     migrationBundleRef: bundleRef, migrationRunnerDigest: digest, migrationRunnerSourceRevision: runnerSource }
   const deploymentRef = ref(`${root}/deployment-capsule.json`, deployment)
 
-  const runnerFull = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
+  const runnerFull = buildDev117MigrationBundle(historicalProfile, buildDev117MigrationPackage(historicalProfile, n1c), runnerSource)
   const probes = buildRdLedgerProbeBundles(runnerFull)
   const job = providerJob()
   const rdIntent = buildRdLedgerReadbackIntent({ releaseId: 'DEV122-RD-APPLIED-LEDGER', workflowSourceRevision: appliedSource,
     workflowSourceTree: '7'.repeat(40), workflowSourceIdentitySha256: '8'.repeat(64), runnerSourceRevision: runnerSource,
-    profileSha256: rdReadbackProfileSha256(profile), probes, job, observedAt: '2026-10-20T22:29:51.000Z', deadlineAt: '2026-10-21T01:29:48.000Z' })
+    profileSha256: rdReadbackProfileSha256(historicalProfile), probes, job, observedAt: '2026-10-20T22:29:51.000Z', deadlineAt: '2026-10-21T01:29:48.000Z' })
   const rdIntentRef = ref(`gs://${bucket}/receipts/releases/${rdIntent.releaseId}/rd-permission-ledger-readback-intent.json`, rdIntent)
   const rdRoot = `gs://${bucket}/receipts/releases/${rdIntent.releaseId}/${rdIntentRef.sha256}`
   const jobReceipt = sealed({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm',
@@ -157,13 +159,13 @@ function fixture(activeProfile = profile) {
     if (!value) throw new Error('MISSING_SOURCE')
     return value
   }
-  return { binding, currentIntent, content, transport, readSource, reads, resultRef, objects, runnerFull, executionRef, activeProfile }
+  return { binding, currentIntent, content, transport, readSource, reads, resultRef, objects, runnerFull, executionRef, activeProfile, historicalProfile }
 }
 
 test('C96 production-shaped applied migration continuation selects ledger35 and classifies unchanged full35 as no-job reuse', async () => {
   const f = fixture()
   assert.equal(assertAppliedMigrationContinuation(f.binding), f.binding)
-  const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource,
     buildMigrationBundle: async sourceRevision => { assert.equal(sourceRevision, runnerSource); return f.runnerFull },
     ancestorRunner: () => true, compatibilityRunner: () => true })
@@ -177,7 +179,7 @@ test('applied migration continuation ignores unrelated current release-profile d
   activeProfile.workflow.jobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback']
   activeProfile.dataCutover.gateMode = 'HISTORICAL_ONLY'
   const f = fixture(activeProfile)
-  const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: activeProfile, transport: f.transport,
+  const selected = await readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource,
     buildMigrationBundle: async sourceRevision => { assert.equal(sourceRevision, runnerSource); return f.runnerFull },
     ancestorRunner: () => true, compatibilityRunner: () => true })
@@ -187,8 +189,8 @@ test('applied migration continuation ignores unrelated current release-profile d
 
 test('applied migration continuation still rejects a changed migration probe projection', async () => {
   const f = fixture()
-  const changed = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), currentSource)
-  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  const changed = buildDev117MigrationBundle(f.historicalProfile, buildDev117MigrationPackage(f.historicalProfile, n1c), currentSource)
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => changed,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /RD_READBACK_PROFILE_DRIFT/u)
 })
@@ -199,7 +201,7 @@ test('applied migration continuation rejects a native receipt completed after it
   const { receiptSha256: _receiptSha256, ...executionCore } = execution
   f.objects.set(f.executionRef.uri, sealed({ ...executionCore,
     completionTime: '2026-10-20T22:36:18.400Z', observedAt: '2026-10-20T22:36:18.400Z' }))
-  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
@@ -215,18 +217,18 @@ test('C96 continuation rejects aliases, source divergence, recovery drift and le
     const changed = structuredClone(f.binding); mutate(changed)
     assert.throws(() => assertAppliedMigrationContinuation(changed), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
   }
-  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => false, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_SOURCE_INVALID/u)
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: { ...f.currentIntent,
-    principalOnlyRecovery: { ...f.currentIntent.principalOnlyRecovery, revision: 'ai-pdm-prod-recovery-other' } }, profile, transport: f.transport,
+    principalOnlyRecovery: { ...f.currentIntent.principalOnlyRecovery, revision: 'ai-pdm-prod-recovery-other' } }, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }),
   /APPLIED_MIGRATION_CONTINUATION_RECOVERY_INVALID/u)
   const original = f.objects.get(f.resultRef.uri)
   f.objects.set(f.resultRef.uri, { ...original, migrationRunnerDigest: original.migrationRunnerDigest.replace(/.$/u, '0') })
-  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /RD_READBACK_RESULT_INVALID/u)
 
@@ -235,7 +237,7 @@ test('C96 continuation rejects aliases, source divergence, recovery drift and le
   const { receiptSha256: _, ...executionCore } = execution
   f.objects.set(f.executionRef.uri, sealed({ ...executionCore, status: 'EXPECTED_READ_ONLY_PROBE_FAILURE',
     completedState: 'CONDITION_FAILED', succeededCount: 0, failedCount: 1 }))
-  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
 })

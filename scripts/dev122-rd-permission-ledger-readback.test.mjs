@@ -35,11 +35,13 @@ const profile = read('config/release/dev117-ai-pdm-independent-production-v3.jso
 const v1 = read('config/release/dev117-ai-pdm-independent-production.json')
 const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
 assertDev117V3Profile(profile, v1, n1c)
+const historicalProfile = structuredClone(profile)
+historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 35)
 
 const workflowSourceRevision = 'a'.repeat(40)
 const runnerSourceRevision = 'b'.repeat(40)
 const RUNNER_DIGEST = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'c'.repeat(64)}`
-const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSourceRevision)
+const full = buildDev117MigrationBundle(historicalProfile, buildDev117MigrationPackage(historicalProfile, n1c), runnerSourceRevision)
 const probes = buildRdLedgerProbeBundles(full)
 const ref = (name) => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-READBACK-TEST/${name}.json`, sha256: 'b'.repeat(64) })
 const seal = (value) => ({ ...value, receiptSha256: rdReadbackSha256(value) })
@@ -52,11 +54,11 @@ function job() {
       taskCount: 1,
       parallelism: 1,
       template: {
-        serviceAccount: profile.migrations.serviceAccount,
+        serviceAccount: historicalProfile.migrations.serviceAccount,
         maxRetries: 0,
         timeout: '1800s',
         volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }],
-        containers: [{ name: 'migration', image: RUNNER_DIGEST, args: ['--bundle-ref-required'], env: Object.entries(rdReadbackJobEnvironment(profile, runnerSourceRevision)).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
+        containers: [{ name: 'migration', image: RUNNER_DIGEST, args: ['--bundle-ref-required'], env: Object.entries(rdReadbackJobEnvironment(historicalProfile, runnerSourceRevision)).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
       },
     },
   }
@@ -98,7 +100,7 @@ test('RD02 intent binds exact source, provider Job etag/template, runner and thr
   assert.notEqual(rdReadbackSha256(Buffer.from(lfProfile)), rdReadbackSha256(Buffer.from(crlfProfile)))
   assert.equal(rdReadbackProfileSha256(JSON.parse(lfProfile)), rdReadbackProfileSha256(JSON.parse(crlfProfile)))
   assert.equal(assertRdLedgerReadbackIntent(value), value)
-  assert.equal(assertRdReadbackJob(job(), profile, value).etag, value.jobEtag)
+  assert.equal(assertRdReadbackJob(job(), historicalProfile, value).etag, value.jobEtag)
   assert.equal(rdReadbackJobSourceRevision(job()), runnerSourceRevision)
   assert.equal(classifyRdReadbackCapsule(value), 'rd_readback')
   assert.equal(classifyRdReadbackCapsule({ schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2' }), 'release')
@@ -126,7 +128,7 @@ test('RD03 readback Job contract rejects target, image, args, environment and te
     (row) => { row.template.parallelism = 2 },
   ]) {
     const changed = structuredClone(job()); mutate(changed)
-    assert.throws(() => assertRdReadbackJob(changed, profile, value), { code: 'RD_READBACK_JOB_MISMATCH' })
+    assert.throws(() => assertRdReadbackJob(changed, historicalProfile, value), { code: 'RD_READBACK_JOB_MISMATCH' })
   }
 })
 
@@ -192,7 +194,7 @@ test('RD06a immutable Job, execution and result receipts reject drift and retain
     runnerSourceRevision: value.runnerSourceRevision, readbackIntentRef: intentRef,
     projection: job(), observedAt: '2026-10-16T02:01:00.000Z', status: 'PASS',
   })
-  assert.equal(assertRdReadbackJobReceipt(jobReceipt, { intent: value, intentRef, profile }), jobReceipt)
+  assert.equal(assertRdReadbackJobReceipt(jobReceipt, { intent: value, intentRef, profile: historicalProfile }), jobReceipt)
 
   const receipt = (probe, pass) => seal({
     schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm',
@@ -224,7 +226,7 @@ test('RD06a immutable Job, execution and result receipts reject drift and retain
   const badJob = structuredClone(jobReceipt)
   badJob.projection.template.template.containers[0].image = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'d'.repeat(64)}`
   delete badJob.receiptSha256; Object.assign(badJob, seal(badJob))
-  assert.throws(() => assertRdReadbackJobReceipt(badJob, { intent: value, intentRef, profile }), { code: 'RD_READBACK_JOB_RECEIPT_INVALID' })
+  assert.throws(() => assertRdReadbackJobReceipt(badJob, { intent: value, intentRef, profile: historicalProfile }), { code: 'RD_READBACK_JOB_RECEIPT_INVALID' })
   const badExecution = structuredClone(passReceipt)
   badExecution.failedCount = 1; delete badExecution.receiptSha256; Object.assign(badExecution, seal(badExecution))
   assert.throws(() => assertRdReadbackExecutionReceipt(badExecution, { intent: value, intentRef, probe: value.probes[1] }), { code: 'RD_READBACK_EXECUTION_RECEIPT_INVALID' })
@@ -277,14 +279,14 @@ test('RD09 permits only production-slice evidence residue after the gate', () =>
 
 test('RD10 production-shaped source binding keeps exact workflow source separate from the installed runner source', () => {
   const value = intent()
-  const paths = rdReadbackCompatibilityPaths(profile)
+  const paths = rdReadbackCompatibilityPaths(historicalProfile)
   assert.equal(paths.length, 41)
   assert.ok(paths.includes('db/postgres/085_dev121_principal_role_catalog_v7.sql'))
   assert.ok(paths.includes('infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile'))
 
   const seen = []
   const compatible = assertRdReadbackSourceCompatibility({
-    profile,
+    profile: historicalProfile,
     root: '.',
     workflowSourceRevision,
     runnerSourceRevision,
@@ -297,7 +299,7 @@ test('RD10 production-shaped source binding keeps exact workflow source separate
   const workflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
   const environment = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: workflowSourceRevision, GITHUB_WORKFLOW_SHA: 'e'.repeat(40), GITHUB_WORKFLOW_REF: workflowRef, GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch' }
   const gitRunner = (args) => args.join(' ') === 'rev-parse HEAD' ? workflowSourceRevision : args.join(' ') === 'rev-parse HEAD^{tree}' ? value.workflowSourceTree : ''
-  const bound = assertRdReadbackGitHubContext(value, environment, '.', profile, {
+  const bound = assertRdReadbackGitHubContext(value, environment, '.', historicalProfile, {
     gitRunner,
     workflowAncestorRunner: () => true,
     runnerAncestorRunner: (ancestor, descendant) => ancestor === runnerSourceRevision && descendant === workflowSourceRevision,
@@ -309,7 +311,7 @@ test('RD10 production-shaped source binding keeps exact workflow source separate
     { runnerAncestorRunner: () => false, compatibilityRunner: () => true },
     { runnerAncestorRunner: () => true, compatibilityRunner: () => false },
   ]) {
-    assert.throws(() => assertRdReadbackGitHubContext(value, environment, '.', profile, { gitRunner, workflowAncestorRunner: () => true, ...mutation }), { code: 'RD_READBACK_SOURCE_AUTHORITY_MISMATCH' })
+    assert.throws(() => assertRdReadbackGitHubContext(value, environment, '.', historicalProfile, { gitRunner, workflowAncestorRunner: () => true, ...mutation }), { code: 'RD_READBACK_SOURCE_AUTHORITY_MISMATCH' })
   }
 })
 

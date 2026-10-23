@@ -20,12 +20,12 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — local implementation in progress / rollout disabled (2026-10-21)
+## DEV-123#role-permission-editor — implementation / PR and CI in progress (2026-10-23)
 
-本輪本機可整合實作目標完成；DEV整案仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash與commandId重用缺陷已修正，raw failures保留。OrgMaster targeted browser 8 checks／9 screenshots通過（actual component＋mock API）；受影響治理回歸另32 PASS。
-
-證據及責任：[DEV-123 §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)。目前native使用owner bootstrap／合成session／Platform stub，PDM targeted browser仍用mock API；正常登入HTTP/browser、CG、完整QA24/52及正式首次啟用尚未關閉。正式migration／資料／部署／traffic／IAM／Secret均未操作，source初始NOT_READY/DISABLED保持；不將本機PASS改稱正式或全案驗收。
-
+- [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
+- [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
+- [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
+- [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：required CI收斂中；PDM發布已授權，OrgMaster正式操作仍受原禁止，尚未宣稱正式驗收／啟用。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
