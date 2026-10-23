@@ -205,6 +205,16 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 - 最後guard版本的`provider-native38-read-r5.json`在程式來源`2b1068873a078ada22f888ef0ce1e72af67fe104`再次唯讀PASS，讀到同一native38原件；不賦予舊capsule新deadline或release authority。之後malformed-ref入口檢查只影響無效輸入，正常graph證據可重用。
 - `abort-r1.log`為6／6 PASS；`db-boundary-r1.log`為DEV010_DB_RULESET_V1 PASS。本地`qc:dev-117:continuous`包含isolated build，25GiB容量保留要求被governor判BLOCKED，因此未啟動，不記PASS；既有required CI依planner執行受影響契約、資料庫及isolated build，不改gate或放寬保護。
 
+
+新增caller來源已收斂於`813bd297e`（承接partner `f5d4a1397`，沒有local SSO或DDL）。新增與上一輪package／file-asset／formalize原件均留在`C:/VIBE CODING/.worktrees/AI_PDM/dev123-local-sso-20261024/output/qa/dev-123/`；本PR自身release回歸及來源等價核對留在rollout-evidence工作樹的`output/qa/dev-123-forward-continuation/`。
+
+| 追加證據 | 有效結果與保留範圍 |
+|---|---|
+| `dev123-native-export-delivery-http-20261024-r5.json`／`.log` | PASS：原POST201／completed、detail200；真apply撤download後detail及新增POST403，job IDs/count、audit、command/outbox不增；raw download=true但view=false時effective download=false；audit綁實際Principal／company／profile。PG error／async error皆0，cleanup PASS。r1為實際legacy principal入口503；r3/r4為reports list／effective-download測試oracle錯誤，原件保留。 |
+| `dev123-native-share-preview-http-20261024-r5.json`／`.log`及cases／child | 16／16 PASS：真share POST／PATCH後P1安全PNG70 bytes與hash相符；P2、原檔／ZIP、view撤權、scope／project漂移、到期／撤share皆拒絕；無derivative、hash變動、unsafe MIME及未交付檔404，無原檔fallback／StorageAccessed。r1–r4的fixture／oracle／parent PATCH／immutable ACL首敗保留。到期使用明示owner time fixture，不聲稱自然TTL／正常SSO；已有share r6 elapsed結果按未變輸入重用。 |
+| `dev123-native-model-live-http-20261024-r1.json`／`.log` | PASS_WITH_NOT_RUN：實際shared-model GET／POST、純模型Draft編輯／撤權、new Released先publish deny再允許、既有已發布reuse不重發布、part與model view撤權、foreign owner／asset、未知category／status均按原規則通過；denies下完整models／audits不變。review／multipleBindings／baseline明確NOT_RUN，QA123-50仍PARTIAL，沒有新增模型審核流程。 |
+| `native-source-equivalence-r2.json`、`final-contracts-r1.log`、`final-typecheck-r1.log` | 本工作樹核對上述native實際app inputs分別24／36／13份全部相同或僅canonical LF差異；每份另3個Org輸入hash未變，harness在原證據位置hash相符，沒有把缺少本地harness誤作app source漂移。合併來源Node契約通過、Vitest 60 files／577 tests PASS、typecheck PASS。最終database boundary亦PASS；兩輪Luna caller唯讀增量審查最後固定24檔diff無P1/P2 blocker；是工程自查／來源審查，不是獨立產品QC或正式驗收。 |
+
 正式收據根目錄為`gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-WIF-39988578179-1/`與`gs://jenfu-platform-prod-orgmaster-release/receipts/releases/ORGMASTER-REL-20261023172420327-66E8BFC/`；stage收據位於各自capsule hash子目錄。本次PDM capsule deadline為`2026-10-23T18:40:19.356Z`，現已過期，不再dispatch或延長原capsule。[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)正補齊fresh continuation：驗既有native38／source／provider收據後，新attempt只封存輸入等價關聯，明記沒有新Job、沒有當前DB讀取且live state UNKNOWN；schema-only workflow仍停止於migration，不提前啟用writer。該修正尚未通過最終required CI／合併／發布，不將工作碼唯讀PASS當成release GO。086–088與034–036已套用，後續SQL修正只能新增forward migration。
 
 401的現有證據只能定位到Platform session邊界：refresh與operator Firebase驗證成功，不足以證明正式runtime verifier或Principal revokedBefore通過。尚無可用的既有特定Principal epoch唯讀入口，未執行任意SQL／Job、新session、Secret輪替或IAM變更。Platform正式修改不在本輪授權內；不得把這個authentication失敗記作Org業務permission deny或已證根因。
@@ -212,3 +222,5 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的子斷言與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。
+
+本次補記封存於2026-10-23 19:40 UTC前；新source required CI／合併狀態以[PR #480 checks](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480/checks)及provider綁定的實際head為準，舊40a文件-only CI不支持本輪source。這是結果索引的live provider引用；沒有把先前待驗狀態改成正式發布或整體驗收。

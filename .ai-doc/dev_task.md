@@ -76,7 +76,7 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 下一步：釐清Platform session 401，完成OrgMaster reader發布及真實讀回，再沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)續接PDM writer與正式驗收；正常Google／SSO旅程仍待完成。PDM既有protected發布／驗收與OrgMaster相容migration／reader部署已授權，後者限jenfu-platform-prod／orgmaster-prod，不含人員指派改寫、IAM或Secrets，也不延伸為Platform正式修改。52 QA／17 AC／CG目的保留，尚未整體驗收或套用新矩陣。
 
-來源修正：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。新source最終required CI／合併／發布待完成，結果統一記QA §6。
+來源修正：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6；reader／writer與正常SSO尚未完成。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
