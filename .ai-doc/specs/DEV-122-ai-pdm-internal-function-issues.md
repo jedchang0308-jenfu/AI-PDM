@@ -38,6 +38,16 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 session GET 200／session null，隨後 create POST 403；原回應的 closed code／header 與同 snapshot effective grant 未擷取，不能把 catalog allow 當作 actor grant proof。Provider 確認該版本使用 `official-numbering-draft`，source 的 slice allowlist 卻沒有任何 recognition-session mutation；synthetic actual-middleware 回歸已在未修改實作時重現十個既有 command 均無法 dispatch。修正只補 [production slice amendment](SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md) 明列的 method／path，保留既有 Principal、有效授權、公司／資源、撤銷及交易守門；不修改角色指派或重送 085。此 source-level 根因不證明原 actor 通過後續 guard，也不證明 worker、辨識結果、CAD／PDF 預覽或管理員／RD 正式驗收成功。正式原失敗與 7／29 分母保留，部署與 actor 實測待各自取得證據。
 
+### 辨識 worker Production dispatch（2026-10-23）
+
+B68 綁定 serving source `ffb39b7ee4da1c8c8d88b655a8736aa8bfc51106`／revision `ai-pdm-prod-cd3221652faf`／100% traffic，實證專用 RD 測試帳號登入、有效 grant、圖號工作台與辨識讀取；現有 session 保持 queued、attempt 0，未重送／重排。指定 SDK 的正式 revision readback 確認 `PDM_PRODUCTION_SLICE_MODE=official-numbering-draft`；該 source 與後續 main 的 middleware 均拒絕 recognition worker 的 claim／heartbeat／complete。未改實作時的三個 actual-middleware 合成 red 均回 403，確立正式設定下的必經路徑缺口；但限定時段的 worker HTTP 日誌為零筆，不能聲稱已觀察該 worker 的 403、正式 host 停止，或單憑此點解釋所有 queued 原因。
+
+修正只放行 amendment 明列的三個 POST worker 入口，保留 technical workload purpose、身分與 label、holder、source fingerprint、transaction 及終態 replay 規則；既有人類 Principal、Email、Firebase、grant 與撤銷入口不變。回歸涵蓋精確 middleware→route、未知 slice、錯方法／鄰近路徑、無／錯用途／已撤銷 credential、冒用 label 與無 command 副作用，並納入 required CI。無 schema／migration、worker 啟停、Scheduler、IAM／Secret 或正式資料手改。
+
+已知舊有界線不作擴大主張：worker 以穩定 workerId 判 holder，沒有每次 claim 的 fencing token，不能把重疊同 ID 的舊 process 結果視為已防護；worker 不重驗 initiator Principal grant，該欄位保留為 provenance。正式 host、workload purposes、probe 前置請求、queue due/order 仍未知。source 修正、本地測試、正式發布與現有 session 的正常 claim→heartbeat→complete／內容品質各自記錄；未取得證據不得宣稱完整辨識或原 7 issues／29 groups 通過。
+
+本地 164／164 聚焦回歸、app 型別、增量 lint 與隔離 build（artifact／primary／cleanup）通過。新增 35 案使用真實 middleware、route 與 workload authentication，command boundary 以 mock 驗證拒絕不呼叫 owner；這不是 native PostgreSQL 交易、正式 worker 執行或辨識結果驗收。三個原始 red 與唯讀 provider 診斷保存於 `output/qa/dev122-worker-readonly-20261023/`。此次 required CI 納入新 regression 及既有 settings／workload-auth，發布前仍需 exact reviewed merged source 與 provider required checks。
+
 ## 3. 十一個核心案例
 
 ### 身分與角色

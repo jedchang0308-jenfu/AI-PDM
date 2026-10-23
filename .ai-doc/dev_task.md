@@ -1,3 +1,7 @@
+## DEV-122 — 辨識 worker Production dispatch（修正／受保護交付中）
+
+B68 已實證專用 RD 測試帳號正常登入、grant、工作台與辨識 GET；現有辨識 session 仍 queued／attempt 0。正式 revision 的 `official-numbering-draft` 與原始 middleware 三個合成 403 證明 worker 必經路徑未開通；尚無 worker 實際送出請求的證據。精確修正及安全界線見 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#辨識-worker-production-dispatch2026-10-23)。不重送／重排既有工作；部署、正常 claim→complete 與內容品質須分開驗證，原 7／29 不提升。
+
 ## DEV-122 R-01A — 辨識讀取錯誤禁止快取與 GET-only 復原
 
 共用錯誤回應補 private／no-store，保留安全 body、Principal 與撤銷規則；route red／22 項聚焦、型別、增量 lint、選定 planner／release-core、隔離 build 及 actual HTTP／1440×900 同頁重試已驗。詳見[既有 DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#r-01a-辨識讀取錯誤回應2026-10-23)。另保存 P-02C 與 Part reader 窄範圍本地證據；原 7／29 不提升、正式 RD 登入仍阻擋，無 migration／部署／切流。
