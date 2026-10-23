@@ -677,6 +677,13 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       if(variant==="heartbeat")expect(await currentFileJob(fixture)).toMatchObject({status:"queued",locked_by:null,attempt_count:1});
       else{expect(await currentFileJob(fixture)).toEqual(fresh);expect(fresh).toMatchObject({status:"running",locked_by:worker,attempt_count:2});}
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+".json"),JSON.stringify({variant,jobId,stale,fresh,selected,casRows,status:response.status,body,layer:"ACTUAL_SIGNED_CANONICAL_GET_AND_ACTUAL_WORKLOAD_ROUTE"}));
+      await fixtureMutation("F01 exact recovery-race fixture teardown after assertions and original evidence; not product recovery",
+        "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId",{id:fixture.assetId,companyId:"company-jenfu"});
+      const remainingSourceJobs=await db!.query<{id:string;company_id:string}>("SELECT id,company_id FROM preview_jobs WHERE source_file_asset_id=:id",{id:fixture.assetId});
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+"-fixture-teardown.json"),JSON.stringify({
+        layer:"ACTUAL_NATIVE_POSTGRES_LOCAL_FIXTURE_TEARDOWN",producerBoundary:"FIXTURE",variant,jobId,sourceFileAssetId:fixture.assetId,
+        deletionCompanyId:"company-jenfu",remainingSourceJobs,remainingSourceJobCount:remainingSourceJobs.length,exactSourceJobCountZero:remainingSourceJobs.length===0}));
+      expect(remainingSourceJobs).toHaveLength(0);
     }finally{restoreObserver?.();if(previous===undefined)delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=previous;}
   });
   it("B43 recognition Admin access uses real v4 pdm_admin grants for initial and write checks, with zero-queue negatives", async () => {
