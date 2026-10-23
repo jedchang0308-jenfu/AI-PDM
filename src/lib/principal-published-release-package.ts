@@ -21,8 +21,8 @@ const CURRENT_RELEASED_SUBMISSION_SQL = [
   "AND NOT EXISTS (SELECT 1 FROM ai_pdm_core.submissions newer",
   "WHERE newer.item_id=s.item_id AND newer.company_id=s.company_id",
   "AND newer.status='Released'",
-  "AND COALESCE(newer.released_at,newer.updated_at,newer.created_at) >",
-  "COALESCE(s.released_at,s.updated_at,s.created_at))"
+  "AND (COALESCE(newer.released_at,newer.updated_at,newer.created_at),newer.id) >",
+  "(COALESCE(s.released_at,s.updated_at,s.created_at),s.id))"
 ].join(" ");
 
 /** Permission, company, current published version and package ownership share one snapshot. */
