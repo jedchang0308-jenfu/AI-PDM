@@ -154,6 +154,10 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 | `output/qa/dev-123/release-compatibility-final-r1.log`；前置 `release-prefix-routing-r5.log`、`release-owner-compatibility-r1.log` | 最終337 PASS：35-prefix→38 forward、prefix/runner SQL漂移拒絕、historical reuse限定、closed35拒current38，以及full-owner精確daily-entry沿用sealed special prepare／migration-admission；缺證據與錯誤workflow先拒絕。前置48／286結果保留；新版provider CI另驗 |
 | Org `native-org-journey-20261023-r19.log`；PDM `nullable-submission-focused-20261023-r1.log` | 9 native cases PASS，包含真GET /api/submissions非空200→停止Org HTTP並證ECONNREFUSED→同PDM資料200→恢復Org；grants／audit不變，PG／port／temp清理PASS。r18真PG42P08由共用nullable submissionId加text CAST修正，既有兩測試檔10 PASS及DB boundary PASS；synthetic session，非正常SSO |
 
+最後唯讀審查另找出第二個normalize daily gate與另一proof caller未適配歷史prefix；修正共用readback boundary、補installed bundle join及受限daily admission後，`release-compatibility-second-boundary-r1.log` 228 PASS。正例通過第二normalize gate再由缺native proof拒絕，sealed prepare bytes與物件數不變；錯workflow、LOCAL_TEST、source、deadline、混用special均有拒絕斷言。`release-final-affected-r1.log` 的planner／release-core／database／authorization四組PASS支持cc79版本，後續改動仍由新版CI驗證。
+
+補充實際HTTP限制：`dev123-native-http-byte-range-oneoff.json`只證無session的完整／Range請求401與recognition PDF Range416；未有合法HTTP principal正例，不認列bytes／Range撤權旅程PASS。其task-owned Next runtime、port及生成的next-env差異已清理；既有native delivery/adopt bytes證據仍有效。
+
 發布相容首敗保留：`release-prefix-regression-r1.log`為current38誤用舊profile，r2為舊probe profile邊界；修正明確投影後r3通過。r4為舊workflow測試仍期待寬條件，更新相同權威契約後r5通過。沒有執行失敗producer或provider寫入。
 
 首敗與修正：PR 首輪 DEV012 fixture 缺 v2 projection／project 分享欄位；087 CRLF source hash 與 Git LF 不符，已統一 LF，SQL 語意及 applied hash 未改，`release-lf-final-r2.log` 51 PASS。`contracts-20261023-r1..r3.log`、早期 typecheck、native r1..r11、UI R1 及原 CI 失敗均保留。UI R1 缺 app CSS；R2 已補齊，產品採 plain CSS，無 Tailwind。上述 final CI 驗最終來源，不將舊失敗改為 PASS。

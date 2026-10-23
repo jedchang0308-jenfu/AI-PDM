@@ -1434,6 +1434,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         await readAppliedMigrationReadbackEvidence({ binding, profile: currentProfile, history: appliedHistory,
           deployment: applied.chain.deployment.value, readJson: ref => readRef(ref, AI_BUCKET, token, fetchImpl),
           sourceVerification: readbackIntent => assertAppliedMigrationReadbackSource({ readbackIntent, profile: currentProfile,
+            installedBundle: appliedHistory.installed.bundle,
             fullMigration: createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: currentProfile.migrations.ledger,
               baselineCount: currentProfile.migrations.baselineCount }, sourceRevision: readbackIntent.runnerSourceRevision,
             entries: structuredClone(sourceBundle.bundle.entries) }),

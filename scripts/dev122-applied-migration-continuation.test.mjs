@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation } from './lib/dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource } from './lib/dev122-applied-migration-continuation.mjs'
 import { readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
@@ -189,6 +189,25 @@ test('DEV-123 authenticates the installed35 prefix while current38 remains a rea
   assert.equal(selected.installed.bundle.entries.length, 35)
   assert.equal(assertAiPdmRepairMigrationMode(selected, currentContent), 'FORWARD_APPLIED')
   assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
+})
+
+test('both continuation consumers authenticate a current38 profile through the same closed35 readback boundary', () => {
+  const f = fixture()
+  const result = f.objects.get(f.resultRef.uri)
+  const readbackIntent = f.objects.get(result.readbackIntentRef.uri)
+  const fullMigration = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
+  const input = { readbackIntent, profile, fullMigration, installedBundle: f.runnerFull.bundle,
+    ancestorRunner: () => true, compatibilityRunner: () => true }
+  const validated = assertAppliedMigrationReadbackSource(input)
+  assert.deepEqual(validated.probes, buildRdLedgerProbeBundles(f.runnerFull))
+  assert.equal(fullMigration.bundle.entries.length, 38)
+  assert.equal(profile.migrations.entries.length, 38)
+  assert.throws(() => assertAppliedMigrationReadbackSource({ ...input, installedBundle: undefined }),
+    /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
+  const changed = structuredClone(profile)
+  changed.migrations.entries[34].sha256 = '0'.repeat(64)
+  assert.throws(() => assertAppliedMigrationReadbackSource({ ...input, profile: changed }),
+    /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
 })
 
 test('DEV-123 rejects a changed retained declaration or runner SQL before forward admission', async () => {

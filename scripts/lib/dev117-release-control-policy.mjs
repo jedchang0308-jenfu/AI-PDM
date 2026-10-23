@@ -79,9 +79,12 @@ function assertDate(value, code) {
  * consumers; source lineage, scope, deadline and migration disposition are
  * represented once here.
  */
-export function normalizeReleaseEvidence({ intent, source, receipts = {}, migration = null, runtimeConfig = null, readiness = null, executionMode = 'full_release', workflowRef = '', requiredWorkflowRef = null, cutover = false, now } = {}) {
+export function normalizeReleaseEvidence({ intent, source, receipts = {}, migration = null, runtimeConfig = null, readiness = null, executionMode = 'full_release', workflowRef = '', requiredWorkflowRef = null, dailyAdmissionMode = null, cutover = false, now } = {}) {
   const mode = classifyReleaseMode({ intent, executionMode, cutover })
-  if (requiredWorkflowRef !== null) assertDailyReleaseMode({ mode, workflowRef, requiredWorkflowRef })
+  if (dailyAdmissionMode !== null && (dailyAdmissionMode !== 'full_release' || executionMode !== 'full_release'
+    || mode !== 'special_recovery' || cutover || intent?.unlinkedProfileCleanupRef
+    || !Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation') || requiredWorkflowRef === null)) fail('RELEASE_EVIDENCE_DAILY_ADMISSION_INVALID')
+  if (requiredWorkflowRef !== null) assertDailyReleaseMode({ mode: dailyAdmissionMode ?? mode, workflowRef, requiredWorkflowRef })
   if (!intent || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '')) fail('RELEASE_EVIDENCE_SOURCE_INVALID')
   if (!source || source.sourceRevision !== intent.sourceRevision || source.sourceSha256 !== intent.sourceSha256) fail('RELEASE_EVIDENCE_SOURCE_JOIN_INVALID')
   assertHash(source.sourceSha256, 'RELEASE_EVIDENCE_SOURCE_INVALID')

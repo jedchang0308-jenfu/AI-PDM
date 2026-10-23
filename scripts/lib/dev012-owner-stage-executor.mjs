@@ -485,7 +485,7 @@ async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha25
     assertStage(prepared.value, profile, intent, 'prepare')
     assertPreparedReleaseEvidence(prepared, profile, intent, releaseMode)
   }
-  return { intent, intentRef, intentReadback: result, paths, releaseMode, workflowAuthority }
+  return { intent, intentRef, intentReadback: result, paths, releaseMode, workflowAuthority, fullOwnerAppliedContinuation }
 }
 
 export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now, candidate = null, nextState = null }) {
@@ -681,7 +681,7 @@ export async function readAppliedMigrationContinuationHistory({ intent, profile,
     readJson: ref => transport.readJson(ref, profile.artifact.releaseBucket, ['receipts']),
     sourceVerification: async readbackIntent => {
       if (typeof buildMigrationBundle !== 'function') fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
-      return assertAppliedMigrationReadbackSource({ readbackIntent, profile: { ...profile, migrations: history.source.content.migrations },
+      return assertAppliedMigrationReadbackSource({ readbackIntent, profile,
         fullMigration: await buildMigrationBundle(readbackIntent.runnerSourceRevision), installedBundle: history.installed.bundle, root: repositoryRoot,
         ancestorRunner: isAncestor, compatibilityRunner })
     } })
@@ -846,7 +846,7 @@ async function readCleanupMigrationBundle({ transport, deployment, intent, profi
 
 export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
-  const { intent, intentRef, paths, releaseMode, workflowAuthority } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
+  const { intent, intentRef, paths, releaseMode, workflowAuthority, fullOwnerAppliedContinuation } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
   // One-time cutover is an explicit workflow responsibility. Ordinary full,
   // build-only, program-only and recovery paths retain the historical fact but
   // do not re-parse its raw handoff receipts on every release stage.
@@ -933,6 +933,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       executionMode: workflowAuthority.executionMode,
       workflowRef: environment.GITHUB_WORKFLOW_REF,
       requiredWorkflowRef,
+      dailyAdmissionMode: fullOwnerAppliedContinuation ? 'full_release' : null,
       cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover',
       now: transport.now(),
     })

@@ -94,13 +94,17 @@ export function assertAppliedMigrationSource(binding, currentSourceRevision, isA
 }
 
 export function assertAppliedMigrationReadbackSource({ readbackIntent, profile, fullMigration, installedBundle, root, ancestorRunner = null, compatibilityRunner = null }) {
-  assertRdReadbackSourceCompatibility({ profile, root,
-    workflowSourceRevision: readbackIntent?.workflowSourceRevision,
-    runnerSourceRevision: readbackIntent?.runnerSourceRevision,
-    ancestorRunner, compatibilityRunner })
   // The sealed readback proves only the installed35 prefix. Newly reviewed
   // migrations must run through the normal forward migrator, never that probe.
   if (installedBundle?.entries?.length !== 35) fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
+  const retainedDeclarations = installedBundle.entries.map(({ order, path, sourceSha256 }) => ({ order, path, sha256: sourceSha256 }))
+  const declaredEntries = profile?.migrations?.entries
+  if (!Array.isArray(declaredEntries) || canonicalize(declaredEntries.slice(0, 35)) !== canonicalize(retainedDeclarations)) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
+  const historicalProfile = { ...profile, migrations: { ...profile.migrations, entries: declaredEntries.slice(0, 35) } }
+  assertRdReadbackSourceCompatibility({ profile: historicalProfile, root,
+    workflowSourceRevision: readbackIntent?.workflowSourceRevision,
+    runnerSourceRevision: readbackIntent?.runnerSourceRevision,
+    ancestorRunner, compatibilityRunner })
   const target = { ownerApplicationId: installedBundle.ownerApplicationId, ledger: installedBundle.ledger, baselineCount: installedBundle.baselineCount }
   assertMigrationBundle(fullMigration?.bundle, { target, sourceRevision: fullMigration?.bundle?.sourceRevision,
     bytes: fullMigration?.bytes, bundleSha256: fullMigration?.bundleSha256 })

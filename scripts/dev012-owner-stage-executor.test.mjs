@@ -470,7 +470,7 @@ test('principal-only migration intent refuses a fence without a safe recovery re
     /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
-async function appliedContinuationDailyInput(h, releaseId, mutate = value => value) {
+async function appliedContinuationDailyInput(h, releaseId, mutate = value => value, { seedPrerequisites = false } = {}) {
   const aiBucket = 'jenfu-platform-prod-aipdm-release'
   const profile = { ...h.profile,
     application: { ...h.profile.application, id: 'ai-pdm' },
@@ -485,11 +485,26 @@ async function appliedContinuationDailyInput(h, releaseId, mutate = value => val
     migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: 'c'.repeat(64) },
     ledgerReadbackResultRef: { uri: `${appliedRoot}/ledger-readback-result.json`, sha256: 'd'.repeat(64) },
   }
+  const sourceSha256 = 'e'.repeat(64)
+  const migrationManifestSha256 = 'f'.repeat(64)
+  const prerequisiteRefs = {
+    sourceLockRef: ref('source-lock'), authorizationPolicyRef: ref('authorization'), readinessReceiptRef: ref('readiness'),
+    foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'), runtimeConfigRef: ref('runtime'),
+  }
+  if (seedPrerequisites) {
+    const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
+    const save = async (name, value) => (await h.transport.putJson(`gs://${aiBucket}/receipts/prerequisites/${releaseId}-${name}.json`, value, { bucket: aiBucket, prefix: 'receipts' })).ref
+    prerequisiteRefs.sourceLockRef = await save('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, sourceSha256, migrationManifestSha256, clean: true })
+    prerequisiteRefs.authorizationPolicyRef = await save('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
+    prerequisiteRefs.readinessReceiptRef = await save('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: profile.target.projectId })
+    prerequisiteRefs.foundationReceiptRef = await save('foundation', { ...common, status: 'APPLIED', projectId: profile.target.projectId, foundationManifestSha256: '1'.repeat(64) })
+    prerequisiteRefs.infraReceiptRef = await save('infra', { ...common, status: 'APPLIED', projectId: profile.target.projectId, sourceRevision: H40, migrationRunnerDigest })
+    prerequisiteRefs.runtimeConfigRef = await save('runtime', { ...common, status: 'VERIFIED', projectId: profile.target.projectId,
+      ...buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
+  }
   const intent = mutate({
     schemaVersion: 'owner.intent.v2', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: H40,
-    sourceSha256: 'e'.repeat(64), sourceLockRef: ref('source-lock'), authorizationPolicyRef: ref('authorization'),
-    readinessReceiptRef: ref('readiness'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'),
-    runtimeConfigRef: ref('runtime'), migrationManifestSha256: 'f'.repeat(64), previousRevision: 'ai-pdm-prod-old',
+    sourceSha256, ...prerequisiteRefs, migrationManifestSha256, previousRevision: 'ai-pdm-prod-old',
     deadlineAt: '2999-01-01T00:00:00.000Z',
     postAbortLedgerReadbackRef: appliedMigrationContinuation.ledgerReadbackResultRef,
     principalOnlyFenceRef: { uri: `gs://${aiBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`, sha256: '1'.repeat(64) },
@@ -515,9 +530,9 @@ test('full owner applied continuation requires the sealed prior prepare and migr
   assert.equal(h.objects.size, objectCount)
 })
 
-test('full owner applied continuation reuses a sealed special prepare without changing its mode or bytes', async () => {
+test('full owner applied continuation revalidates sealed special prepare before native proof and preserves its mode and bytes', async () => {
   const h = recordedHarness()
-  const fixture = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-SEALED')
+  const fixture = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-SEALED', value => value, { seedPrerequisites: true })
   const runtimeConfig = buildRuntimeConfig(fixture.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
   const prepare = stageReceipt({ profile: fixture.profile, intent: fixture.intent, stage: 'prepare', facts: {
     releaseEvidence: { schemaVersion: 'jenfu.dev117.release-evidence.v1', mode: 'special_recovery',
@@ -532,8 +547,11 @@ test('full owner applied continuation reuses a sealed special prepare without ch
   await h.transport.putJson(fixture.paths.migrationAdmission, admission, { bucket: fixture.profile.artifact.releaseBucket, prefix: 'receipts' })
   const prepareBytes = Buffer.from(h.objects.get(fixture.paths.prepare).bytes)
   const objectCount = h.objects.size
-  const transport = { ...h.transport, async getService() { throw new Error('AFTER_PRIOR_EVIDENCE') } }
-  await assert.rejects(executeOwnerStage({ ...fixture.input, transport, stage: 'prepare' }), /AFTER_PRIOR_EVIDENCE/u)
+  const transport = { ...h.transport, async getService() {
+    const service = await h.transport.getService()
+    return { ...service, traffic: [{ ...service.traffic[0], revision: 'ai-pdm-prod-old' }], trafficStatuses: [{ ...service.trafficStatuses[0], revision: 'ai-pdm-prod-old' }] }
+  } }
+  await assert.rejects(executeOwnerStage({ ...fixture.input, transport, stage: 'prepare' }), /APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID/u)
   assert.deepEqual(h.objects.get(fixture.paths.prepare).bytes, prepareBytes)
   assert.equal(h.objects.size, objectCount)
 })
