@@ -37,6 +37,7 @@ const output=path.join(root,'output','playwright','dev122',path.basename(runtime
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
     processTreeOwner:process.pid,cleanupCondition:'finally close verified task-owned browser and contexts'},status:'RUNNING',cases:[],cleanup:false};
+if(partJourneys)receipt.selection.partGroup=partGroupSelection;
 const save=()=>fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));save();
 let browser,browserServer,browserIdentity,browserRegistered=false;
 function identity(pid){return JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',`$p=Get-Process -Id ${Number(pid)} -ErrorAction Stop; @{pid=$p.Id;executable=$p.Path;startToken=$p.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()}|ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','ignore']}));}
@@ -1319,7 +1320,7 @@ try {
   receipt.status=partJourneys&&receipt.cases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-  if(partJourneys)receipt.coverage={partial:['R-01A','P-02B','P-03A'],notRun:['other original29 groups','Production'],acceptanceComplete:false};
+  if(partJourneys)receipt.coverage={partial:[...new Set(selectedFixtures.map(item=>item.group))],notRun:['unselected original29 groups','Production'],acceptanceComplete:false};
 } catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||partJourneys){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{

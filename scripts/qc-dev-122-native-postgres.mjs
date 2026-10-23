@@ -750,8 +750,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.coverage={partial:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
-    if(['part-journeys-ui','part-reader-ui'].includes(nativeSelection))manifest.coverage={partial:['R-01A','P-02B','P-03A'],
-      notRun:['other original29 groups','Production'],acceptanceComplete:false,workerOutputBoundary:'NOT_APPLICABLE_PART_ONLY'};
+    if(['part-journeys-ui','part-reader-ui'].includes(nativeSelection))manifest.coverage={partial:nativeSelection==='part-reader-ui'?['R-01A']:['R-01A','P-02B','P-03A'],
+      notRun:['unselected original29 groups','Production'],acceptanceComplete:false,workerOutputBoundary:'NOT_APPLICABLE_PART_ONLY'};
     }
   } catch(error) {
     manifest.status='FAIL';manifest.runnerFailure={message:error.message,exitCode:error.exitCode??null};
