@@ -168,7 +168,6 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
         uploadedCount += 1;
       }
       setSelectedFiles([]);
-      setNotice(`已上傳 ${uploadedCount} 個附件。`);
     } catch (uploadError) {
       // Also retain only unfinished files after a network/response failure.
       // Successful earlier files must not become new commands on retry.
@@ -176,7 +175,22 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
       setError(uploadError instanceof Error ? uploadError.message : "附件上傳失敗。");
       if (uploadedCount > 0) setNotice(`已完成 ${uploadedCount} 個附件；尚未完成的檔案仍保留在選取清單。`);
     } finally {
-      await refreshAttachments(canManageAttachments, canReadAttachments).catch(() => undefined);
+      try {
+        await refreshAttachments(canManageAttachments, canReadAttachments);
+        if (uploadedCount === pendingFiles.length) setNotice(canReadAttachments
+          ? `已上傳 ${uploadedCount} 個附件。`
+          : "上傳已接收；目前沒有查看有效附件的權限，請公司管理員確認有效指派後重新整理。");
+      } catch {
+        setNotice("");
+        setAttachments([]);
+        setDeletedAttachments([]);
+        setPreviewAttachment(null);
+        setStatus("error");
+        const refreshMessage = uploadedCount > 0
+          ? "上傳已接收，但附件清單重新載入失敗，請重新整理後確認。"
+          : "附件清單重新載入失敗，請重新整理後確認。";
+        setError(current => current ? `${current} ${refreshMessage}` : refreshMessage);
+      }
       setProgress("");
       setBusy(false);
     }

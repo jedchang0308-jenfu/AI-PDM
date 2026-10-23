@@ -1,3 +1,7 @@
+## DEV-122 P-03B／F-01A — 決策拒絕與附件重載提示修正
+
+沿原 7／29 收斂兩項 exact deployed tree 缺陷：403 字串碼顯示可操作提示且留在原審核頁；附件上傳後清單重載失敗不得顯示已確認成功或舊清單。施工與未驗範圍見 [既有契約](specs/DEV-122-ai-pdm-internal-function-issues.md#p-03bf-01a-決策拒絕與附件重載提示2026-10-23)。本地聚焦回歸後交付 normal PR／required CI；不與現有 owner 競爭發布，不改正式資料／grant，不宣稱完整業務驗收通過。
+
 ## DEV-122 優先項目 2 — 2026-10-23 RD 權限切片已完成專用測試帳號驗證
 
 PR #453／exact main `c549271ab2ad906f41f369cd514e100d92211c21` 的 required CI、正式 owner run `39808504957` 與發布後 readback `39810618145` 均成功。指定 `JFS9014` 經 Google popup 正常登入後，圖號 UI／API 正向與審核唯讀拒絕均成立；隔離負向保留原來源與重用依據。完整驗收、immutable 證據及未驗證項見 [DEV-122 當前契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台切片驗收2026-10-23)。只完成 RD 權限切片；其餘 DEV-122 與 DEV-124 繼續暫停，原 7 issues／29 groups 不宣告 PASS。
