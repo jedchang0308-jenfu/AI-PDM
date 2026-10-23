@@ -2810,7 +2810,7 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
-    if (process.env.DEV122_NATIVE_SELECTION === "part-journeys-ui") {
+    if (["part-journeys-ui", "part-reader-ui"].includes(process.env.DEV122_NATIVE_SELECTION!)) {
       // Each original group and viewport owns a separate Draft/work lifecycle.
       // Review, return and release outcomes are produced later by the mounted UI.
       const fixtures: Array<{ group: string; width: number; height: number; setupStatus: "READY" | "FAILED";

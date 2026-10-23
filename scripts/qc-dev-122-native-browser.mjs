@@ -27,7 +27,8 @@ if(partJourneys) {
   }
 }else assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
-const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
+const partGroupSelection=process.env.DEV122_BROWSER_PART_GROUP??'all';assert.ok(['all','R-01A'].includes(partGroupSelection)&& (partJourneys||partGroupSelection==='all'),'DEV122_BROWSER_PART_GROUP_REJECTED');
+const selectedFixtures=fixtures.filter(item=>(viewportSelection==='all'||item.width===390)&&(partGroupSelection==='all'||item.group===partGroupSelection));
 const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer','part-journeys'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -390,9 +391,17 @@ try {
         };
         const before=await snapshot('before');await enterPart('initial');
         if(fixture.group==='R-01A') {
+          const rowKey=workbenchQueryState.at(-1).expectedDetail;
+          const listReady=waitResponse(response=>new URL(response.url()).pathname==='/api/parts/workbench'&&response.request().method()==='GET');
+          const detailReady=waitResponse(response=>new URL(response.url()).pathname==='/api/parts/workbench/'+encodeURIComponent(rowKey)&&response.request().method()==='GET');
           await page.getByRole('button',{name:'返回上一個工作清單',exact:true}).click();
           await page.waitForURL(location=>location.pathname==='/parts');await page.getByRole('textbox',{name:'搜尋',exact:true}).waitFor();
           await queryState('returned from matrix',fixture.partNumber);
+          await capture('returned-list',listReady);const detail=await capture('returned-detail',detailReady);
+          assert.equal(detail.data.row.rowKey,rowKey);assert.equal(detail.data.row.entityType,'part');
+          await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).waitFor({state:'visible'});
+          await page.getByRole('button',{name:'繼續編輯',exact:true}).waitFor({state:'visible'});
+          assert.equal(await page.getByText('正在載入明細…',{exact:true}).count(),0);
           await dom('returned');const after=await snapshot('after');assert.deepEqual(after,before,'READER_CHANGED_OWNED_ROWS');
           assert.deepEqual(requests.filter(item=>item.method&&!['GET','HEAD'].includes(item.method)),[],'READER_SENT_MUTATION');
           evidence.readOnly={allOwnedRowsUnchanged:true,tableCount:165,noMutationRequests:true};
