@@ -575,6 +575,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
         prerequisites:{expected:1,executed:setup.filter(test=>['passed','failed'].includes(test.status)).length,cases:setup},
         ui:{flow:'lifecycle',profile:'g-01-g-02',fixture:'Independent normal API setup; never native mutation fixtures',production:'NOT_ASSERTED'},
         totalReportExecutions:completed.length};
+      manifest.executionCountSemantics='TOTAL_VITEST_REPORT_EXECUTIONS_INCLUDING_NATIVE_AND_UI_PREREQUISITE';
+      manifest.nativeSelection.countAuthority='composite.native and composite.prerequisites';
       save();
       if(setup.length!==1||setup[0].status!=='passed'||completed.length!==18)throw new Error('DEV122_G_COMPOSITE_PREREQUISITE_OR_COUNT_INVALID');
     }

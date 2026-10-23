@@ -128,7 +128,7 @@ try {
     if(gLifecycle&&gSharedPrerequisiteFailure){receipt.cases.push({variant:fixture.variant,viewport:{width:fixture.width,height:fixture.height},status:'BLOCKED',failure:gSharedPrerequisiteFailure});save();continue;}
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
     if(gLifecycle){context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(60000);}
-    const gControl={deniedPaths:new Set(),allowedAlerts:new Set(),recoveryFailed:false};
+    const gControl={deniedPaths:new Set(),allowedAlerts:new Set(),previewBindings:new Set(),previewReadbacks:[],recoveryFailed:false};
     const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
     const workbenchQueryState=[];
     // Passive observation begins before any workbench input; no timer/response/click is changed.
@@ -210,7 +210,7 @@ try {
         receipt.apiErrorReadbacks??=[];receipt.apiErrorReadbacks.push(readback);save();
         if(bodyReadError){errors.push(`API_BODY_READ_FAILED:${response.status()}:${responseUrl.pathname}:${bodyReadError.message}`);return;}
         const assetId=decodeURIComponent(responseUrl.pathname.split('/').at(-1));
-        const expectedTerminal=response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
+        const expectedTerminal=!gLifecycle && response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
           && previewContexts.has(assetId) && responseUrl.searchParams.get('preview')==='1'
           && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.code==='PREVIEW_FAILED' && body.error.retryable===false;
         const expectedAuthFailure=expectedSaveFailure===responseUrl.pathname&&response.request().method()==='PATCH'
@@ -219,10 +219,15 @@ try {
           &&['/api/settings','/api/settings/secrets'].includes(responseUrl.pathname)&&response.status()===403
           &&(body?.error??body?.code)==='permission_not_granted'&&/no-store/u.test(readback.cacheControl??'');
         const expectedGDecision=gLifecycle&&gControl.deniedPaths.has(responseUrl.pathname)&&response.request().method()==='POST'&&response.status()===403&&body?.error==='permission_not_granted';
+        const gPreviewCandidate=gLifecycle&&response.request().method()==='GET'&&response.status()===409
+          &&responseUrl.pathname.startsWith('/api/pdm/file-assets/')&&responseUrl.searchParams.get('preview')==='1'
+          &&['drawing_revision_work','review_package'].includes(responseUrl.searchParams.get('context'))
+          &&body?.error?.code==='PREVIEW_FAILED'&&body.error.retryable===false&&body.error.jobErrorCode==='preview_worker_unavailable';
+        if(gPreviewCandidate)gControl.previewReadbacks.push(readback);
         readback.expectedClassification=expectedGDecision?'exact synthetic denied/expired Drawing decision with owned-row proof':expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
           expectedSettingsFailure?'exact lawful Principal missing settings permission':null;save();
         if(expectedAuthFailure)expectedSaveFailureReached+=1;
-        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure&&!expectedGDecision)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
+        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure&&!expectedGDecision&&!gPreviewCandidate)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
       })().catch(error=>{errors.push(`API_READBACK_FAILED:${error.message}`);receipt.apiReadbackFailures??=[];
         receipt.apiReadbackFailures.push({pathname:responseUrl.pathname,status:response.status(),message:error.message});save();}));
     }});
@@ -239,6 +244,12 @@ try {
     };
     const healthy=async()=>{
       await Promise.all(apiChecks);
+      for(const item of gControl.previewReadbacks) {
+        const url=new URL(item.pathname+item.query,origin),assetId=decodeURIComponent(url.pathname.split('/').at(-1));
+        const key=JSON.stringify([assetId,url.searchParams.get('context'),url.searchParams.get('contextId'),url.searchParams.get('bindingId'),url.searchParams.get('reviewRequestId')]);
+        assert.ok(gControl.previewBindings.has(key),'G_UNBOUND_PREVIEW_WORKER_FAILURE:'+key);
+        item.expectedClassification='exact fixture asset/context/binding; CAD preview NOT_ASSERTED; worker unavailable';
+      }
       if(flowSelection==='settings'&&settingsDeniedHeaders.length) {
         assert.ok(settingsDeniedProof,'SETTINGS_DENIED_DUAL_PROOF_MISSING');
         assert.equal(settingsDeniedProof.viewport,fixture.width);assert.equal(settingsDeniedProof.actor,'dev122-principal-denied');
@@ -294,10 +305,13 @@ try {
         const pathname=new URL(page.url()).pathname;
         const nativePartRoot=observedPartWorkspaceRoots.get(pathname);
         const partLoadingHeading=item.text==='料號資料總表'&&typeof nativePartRoot==='string'&&item.h1===nativePartRoot;
-        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text)||partLoadingHeading;
+        const gTransferLoading=gLifecycle&&pathname===`/transfer-packages/${fixture.packageId}`&&item.text==='讀取技轉包'
+          &&item.h1.startsWith(fixture.packageTitle+' ')
+          &&await page.getByRole('button',{name:'送交整包審核',exact:true}).isVisible();
+        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text)||partLoadingHeading||gTransferLoading;
         frameworkAnnouncements.push({...item,accepted});
         receipt.alertReadbacks??=[];receipt.alertReadbacks.push({viewport:fixture.width,pathname:new URL(page.url()).pathname,
-          item,accepted,partLoadingHeading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
+          item,accepted,partLoadingHeading,gTransferLoading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
         assert.ok(accepted,'UNEXPECTED_NEXT_ROUTE_ANNOUNCEMENT');
       }
       assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(gLifecycle&&gControl.allowedAlerts.has(item.text)&&item.text===drawingDecisionDeniedMessage)&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');

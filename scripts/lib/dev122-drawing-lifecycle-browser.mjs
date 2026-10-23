@@ -10,8 +10,13 @@ export const drawingDecisionDeniedMessage='目前帳號沒有此審核的決策�
 export async function runDrawingLifecycleUI({fixture,page,context,sessions,origin,runtime,output,
   navigate,waitResponse,healthy,screenshot,progress,control,evidence,save}) {
   const prefix=fixture.variant+'-'+fixture.width,hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-  let actor='owner',workId=fixture.drawingWorkId,expired=false;
+  let actor='owner',workId=fixture.drawingWorkId,expired=false,fffDirty=false;
   evidence.responses=[];evidence.snapshots=[];evidence.actors=[];evidence.decisions=[];
+  const registerPreview=(assetId,readContext,contextId,bindingId,proof,reviewRequestId=null)=>{
+    assert.ok(assetId&&contextId&&bindingId);const key=JSON.stringify([assetId,readContext,contextId,bindingId,reviewRequestId]);
+    control.previewBindings.add(key);evidence.previewBindings??=[];
+    if(!evidence.previewBindings.some(item=>item.key===key))evidence.previewBindings.push({key,proof,preview:'NOT_ASSERTED'});
+  };
   const capture=async(label,pending,status=200)=>{
     const response=await pending;await response.finished();const raw=await response.text(),body=JSON.parse(raw);
     const safe=raw.replace(/("(?:contractToken|candidateToken)"\s*:\s*)"[^"\\]*(?:\\.[^"\\]*)*"/gu,'$1"[REDACTED]"');
@@ -32,6 +37,10 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
     const result=await channel('owned-lifecycle-snapshot');assert.equal(result.readOnly,true);assert.equal(result.isolation,'repeatable read');assert.equal(result.tableCount,165);
     const rows=Object.fromEntries(Object.entries(result.rows).map(([table,items])=>[table,items.map(item=>{assert.deepEqual(Object.keys(item),['row']);return item.row;})]));
     const bytes=JSON.stringify(rows),file=path.join(output,prefix+'-'+label+'-owned.json');fs.writeFileSync(file,bytes);
+    for(const reference of rows.drawing_revision_work_files.filter(item=>item.work_id===workId)) {
+      const binding=rows.drawing_revision_files.find(item=>item.id===reference.file_binding_id);assert.ok(binding);
+      registerPreview(binding.source_file_asset_id,'drawing_revision_work',workId,binding.id,{snapshot:file,workFile:reference});
+    }
     evidence.snapshots.push({label,file,sha256:hash(bytes),tableCount:165,readOnly:true});save();return rows;
   };
   const asActor=async name=>{
@@ -78,25 +87,31 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
       const bytes=fs.readFileSync(file);assert.equal(hash(bytes),input.sha256);
       await page.locator('.dev079-workspace-file-upload input[type="file"]').setInputFiles({name:prefix+'.'+input.extension,mimeType:'application/octet-stream',buffer:bytes});
       const pending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/drawing-revision-works/${workId}/files`&&response.request().method()==='POST');
-      await page.getByRole('button',{name:'上傳所選檔案',exact:true}).click();await capture('upload-'+input.extension,pending);assert.equal(hash(fs.readFileSync(file)),input.sha256);
+      await page.getByRole('button',{name:'上傳所選檔案',exact:true}).click();const uploaded=await capture('upload-'+input.extension,pending);
+      assert.equal(uploaded.data.workId,workId);registerPreview(uploaded.data.file.sourceFileAssetId,'drawing_revision_work',workId,uploaded.data.file.id,{response:'upload-'+input.extension});
+      assert.equal(hash(fs.readFileSync(file)),input.sha256);
     }
     await page.getByText('本版次 2D 與 3D 主檔已齊備。',{exact:true}).waitFor();
+    evidence.uploads=sources.map(({extension,sha256})=>({extension,sha256,extractor:'NOT_ASSERTED'}));save();
+  };
+  const configureFff=async()=>{
     const axes=[];for(const axis of ['formState','fitState','functionState']) {
       const select=page.locator(`select[data-fff-axis="${axis}"]`);
       if(fixture.nextKind==='production')await select.waitFor({state:'visible'});
       if(await select.count()) {
         if(await select.inputValue()!=='no_impact') {
-          const pending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/drawing-revision-works/${workId}`&&response.request().method()==='PATCH');
-          await select.selectOption('no_impact');await capture('fff-'+axis,pending);
+          await select.selectOption('no_impact');fffDirty=true;
         }
         axes.push({axis,value:await select.inputValue()});
       }
     }
-    if(fixture.nextKind==='production')assert.equal(axes.length,3);evidence.uploads=sources.map(({extension,sha256})=>({extension,sha256,extractor:'NOT_ASSERTED'}));evidence.fff=axes;save();
+    if(fixture.nextKind==='production')assert.equal(axes.length,3);evidence.fff=axes;save();
   };
   const submit=async label=>{
     const pending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/drawing-revision-works/${workId}/submit`&&response.request().method()==='POST');
+    const saved=fffDirty?waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/drawing-revision-works/${workId}`&&response.request().method()==='PATCH'):null;
     const button=page.getByRole('button',{name:'送出審核',exact:true});await button.waitFor();assert.equal(await button.isEnabled(),true);await button.click();
+    if(saved){await capture(label+'-fff-persisted',saved);fffDirty=false;}
     const body=await capture(label,pending);await page.waitForURL(location=>location.pathname==='/numbering/drawings');assert.ok(body.data.requestId);return body.data.requestId;
   };
   const review=async(requestId,label)=>{
@@ -106,8 +121,11 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
     const target=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${requestId}/targets/drawing/${fixture.drawingId}`);
     await page.keyboard.press('Enter');await page.waitForURL(location=>location.pathname==='/approvals/'+requestId);const body=await capture(label+'-target',target);
     assert.equal(body.data.readonly,true);assert.equal(body.data.requestId,requestId);assert.equal(body.data.snapshot.targetKey,'drawing:'+fixture.drawingId);
+    for(const file of body.data.snapshot.workspace.files)registerPreview(file.sourceFileAssetId,'review_package',fixture.drawingId,file.bindingId||file.id,{response:label+'-target'},requestId);
+    await page.locator('.canonical-review-package .dev079-workspace-notice.is-readonly').waitFor({state:'visible'});
     const controls=await page.locator('.canonical-review-package input,.canonical-review-package select,.canonical-review-package textarea').evaluateAll(items=>items.map(item=>({disabled:item.disabled,readOnly:item.readOnly??false})));
-    assert.ok(controls.length&&controls.every(item=>item.disabled||item.readOnly),'G_EDITABLE_REVIEW_TARGET');
+    assert.ok(controls.every(item=>item.disabled||item.readOnly),'G_EDITABLE_REVIEW_TARGET');
+    assert.equal(await page.locator('.canonical-review-package input[type="file"],.canonical-review-package .dev079-workspace-file-upload').count(),0,'G_REVIEW_UPLOAD_CONTROL_PRESENT');
     const rows=await snapshot(label+'-target');const request=rows.pdm_work_review_requests.find(item=>item.id===requestId);assert.ok(request);assert.equal(request.reviewer_user_id,'dev122-profile-reviewer');
     const envelope=typeof request.snapshot_payload==='string'?JSON.parse(request.snapshot_payload):request.snapshot_payload;
     const frozen=envelope.targets.find(item=>item.targetKey==='drawing:'+fixture.drawingId);assert.equal(body.data.targetHash,frozen.evidenceHash);assert.deepEqual(body.data.snapshot,frozen);
@@ -151,11 +169,12 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
     const initial=await snapshot('initial');assertMapping(initial);evidence.initial={master:master(initial),pointer:pointer(initial),mapping:mapping(initial)};
     await readiness('before',fixture.variant.startsWith('Released'));
     await enterDrawing('owner',!workId);const created=await snapshot('created');assertMapping(created);assert.deepEqual(master(created),master(initial));assert.deepEqual(unrelated(created),unrelated(initial));
-    if(fixture.variant==='Released-minor') {
+    if(fixture.variant.startsWith('Released')) {
       const before=pointer(initial),after=pointer(created);assert.equal(before.length,1);assert.equal(after.length,1);
       assert.deepEqual(after[0],{...before[0],row_version:Number(before[0].row_version)+1,updated_at:after[0].updated_at});
     }else assert.deepEqual(pointer(created),pointer(initial));
     await uploadPair();await page.reload({waitUntil:'domcontentloaded'});await page.getByText('本版次 2D 與 3D 主檔已齊備。',{exact:true}).waitFor();await dom('owner-saved-reload');
+    await configureFff();await dom('owner-fff-before-submit');
     let requestId=await submit('submitted');await review(requestId,'initial-review');
     if(fixture.variant.endsWith('minor')) {
       const oldId=requestId;await decide(oldId,'return');const returned=await snapshot('returned');assert.deepEqual(master(returned),master(initial));assert.deepEqual(pointer(returned),pointer(created));
