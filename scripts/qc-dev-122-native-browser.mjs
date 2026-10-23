@@ -19,7 +19,12 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 const partJourneys=process.env.DEV122_BROWSER_FLOW==='part-journeys';
 if(partJourneys) {
   assert.deepEqual(fixtures.map(item=>[item.group,item.width]),['R-01A','P-02B','P-03A'].flatMap(group=>[1440,390].map(width=>[group,width])));
-  for(const key of ['partId','partWorkId','partNumber'])assert.equal(new Set(fixtures.map(item=>item[key])).size,6,'SHARED_PART_JOURNEY_FIXTURE');
+  for(const fixture of fixtures)assert.ok(['READY','FAILED'].includes(fixture.setupStatus),'PART_JOURNEY_SETUP_STATUS_MISSING');
+  const ready=fixtures.filter(item=>item.setupStatus==='READY');
+  for(const key of ['partId','partWorkId','partNumber']) {
+    assert.ok(ready.every(item=>typeof item[key]==='string'&&item[key]),'PART_JOURNEY_SETUP_ID_MISSING');
+    assert.equal(new Set(ready.map(item=>item[key])).size,ready.length,'SHARED_PART_JOURNEY_FIXTURE');
+  }
 }else assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
@@ -110,6 +115,10 @@ try {
   receipt.browserDeclaration.governorRegister=governor('register');browserRegistered=true;save();
   browser=await chromium.connect(browserServer.wsEndpoint());receipt.browserDeclaration.version=browser.version();save();
   for(const fixture of selectedFixtures) {
+    if(partJourneys&&fixture.setupStatus==='FAILED') {
+      const failure={group:fixture.group,viewport:fixture.width,stage:'fixture preparation',message:fixture.setupFailure};
+      receipt.firstFailure??=failure;receipt.cases.push({group:fixture.group,viewport:{width:fixture.width,height:fixture.height},status:'BLOCKED',failure});save();continue;
+    }
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
     // Bound cold development compilation without changing any response or UI timing.
     if(partJourneys){context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(60000);}
@@ -375,7 +384,9 @@ try {
           await page.getByRole('button',{name:'繼續編輯',exact:true}).click();await page.waitForURL(location=>location.pathname==='/parts/'+fixture.partId+'/workspace');
           const body=await capture(label+'-matrix',pending);assert.equal(typeof body.data.root.code,'string');assert.ok(body.data.root.code.trim());
           observedPartWorkspaceRoots.set('/parts/'+fixture.partId+'/workspace',body.data.root.code);
-          await page.getByRole('textbox',{name:fixture.partNumber+' partName',exact:true}).waitFor();await dom(label+'-workspace');return body;
+          const column=body.data.columns.find(item=>item.partId===fixture.partId);assert.ok(column);assert.equal(body.data.sourcePartId,fixture.partId);
+          const name=page.getByRole('textbox',{name:fixture.partNumber+' partName',exact:true});await name.waitFor();
+          assert.equal(await name.inputValue(),column.payload.partName,'MATRIX_DOM_PAYLOAD_MISMATCH');await dom(label+'-workspace');return body;
         };
         const before=await snapshot('before');await enterPart('initial');
         if(fixture.group==='R-01A') {
@@ -408,8 +419,15 @@ try {
           const decide=async(requestId,decision)=>{const pending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${requestId}/decisions`&&response.request().method()==='POST');
             await page.getByRole('button',{name:decision==='approve'?'核准':'退回修改',exact:true}).click();await capture(decision+'-'+requestId,pending);
             await page.waitForURL(location=>location.pathname==='/approvals');};
-          const oldId=await submit('initial-submit');await review(oldId,'initial-review');
+          const oldId=await submit('initial-submit'),initialTarget=await review(oldId,'initial-review');
           const submitted=await snapshot('submitted'),originalRequest=submitted.pdm_work_review_requests.find(item=>item.id===oldId);assert.ok(originalRequest);
+          const envelope=row=>typeof row.snapshot_payload==='string'?JSON.parse(row.snapshot_payload):row.snapshot_payload;
+          const bindTarget=(body,row)=>{
+            const target=envelope(row).targets.find(item=>item.targetKey==='part:'+fixture.partId);assert.ok(target);
+            assert.equal(body.data.targetHash,target.evidenceHash,'UI_TARGET_HASH_NOT_FROZEN_PACKAGE');
+            assert.deepEqual(body.data.snapshot,target,'UI_TARGET_BYTES_NOT_FROZEN_PACKAGE');
+          };
+          bindTarget(initialTarget,originalRequest);
           const originalBytes=JSON.stringify(originalRequest),oldFile=path.join(output,prefix+'-original-request.json');fs.writeFileSync(oldFile,originalBytes);
           let approvedId=oldId;
           if(fixture.group==='P-03A') {
@@ -426,9 +444,9 @@ try {
             const saved=waitResponse(response=>new URL(response.url()).pathname===workPath&&response.request().method()==='PATCH');
             await name.fill(corrected);await name.press('Tab');assert.equal((await capture('owner-correction',saved)).data.payload.partName,corrected);
             await page.reload({waitUntil:'domcontentloaded'});await name.waitFor();assert.equal(await name.inputValue(),corrected);assert.equal(await release.isChecked(),true);
-            approvedId=await submit('fresh-submit');assert.notEqual(approvedId,oldId);await review(approvedId,'fresh-review');
+            approvedId=await submit('fresh-submit');assert.notEqual(approvedId,oldId);const freshTarget=await review(approvedId,'fresh-review');
             const fresh=await snapshot('fresh'),nextRequest=fresh.pdm_work_review_requests.find(item=>item.id===approvedId);assert.ok(nextRequest);
-            const envelope=row=>typeof row.snapshot_payload==='string'?JSON.parse(row.snapshot_payload):row.snapshot_payload;
+            bindTarget(freshTarget,nextRequest);
             const oldPackage=envelope(originalRequest),nextPackage=envelope(nextRequest);
             assert.notEqual(nextRequest.snapshot_hash,originalRequest.snapshot_hash);assert.notEqual(nextPackage.decisionBasis.hash,oldPackage.decisionBasis.hash);
             assert.ok(nextPackage.decisionBasis.workRowVersion>oldPackage.decisionBasis.workRowVersion,'WORK_BASIS_VERSION_NOT_ADVANCED');
@@ -1289,7 +1307,7 @@ try {
       else await context.close();
     }
   }
-  receipt.status=partJourneys&&receipt.cases.some(item=>item.status==='FAIL')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
+  receipt.status=partJourneys&&receipt.cases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
   if(partJourneys)receipt.coverage={partial:['R-01A','P-02B','P-03A'],notRun:['other original29 groups','Production'],acceptanceComplete:false};
