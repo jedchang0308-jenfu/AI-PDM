@@ -101,6 +101,14 @@ B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 sessi
 
 共用 media-type normalization 只移除參數、trim 與轉小寫，套用於 PDF selector、slot、asset resolver、OCR source／response guard、上傳分類與檔案標籤；保留 extension priority、PDF bytes／content-hash、Principal／company、來源 hash 與 fake derivative 拒絕。內部受控 derivative MIME union 不擴張。原 red、預覽卡缺下載與 metadata caller red 保留於 `output/qa/dev122-files-ui/`；聚焦回歸 120／120 是純函式、合成 DOM／SSR、mocked HTTP 及只載入 adapter 的原生 Node 子程序證據，不是 Production mounted UI／真實 OCR、worker 啟動或 RD actor 驗收。原生 import red 證實 Node 入口無法解析新增的 app alias，僅改為既有 TypeScript 設定允許的相對 `.ts` import；未變更 worker 入口／程序。附件成功與 GET 恢復皆核對有效／已刪除兩個清單及 mutation 只送一次。第一輪缺 import 及測試把已刪除區誤當有效清單的失敗亦保留，未改標 PASS。本切片無 DDL／migration，不部署或修改正式資料，原 7／29 與正式登入阻擋不變。
 
+### 生命週期 runner 的選測與證據歸屬（2026-10-23，本地切片）
+
+未修改來源的 native baseline `311f3ad3ff4ec162` 實跑 64 PASS／0 FAIL，但跨公司拒絕案例被 skip，靜態 coverage 仍列 P-03B；第一次缺 runtime 登記而在測試前停止的 `5616ca24a04002d7` 保留為 setup failure，不當成產品失敗。一般 `lifecycle/all + selection=suite` 現在同步建立 other fixture 並執行必要拒絕，以 group 對應的 exact fullName 恰一筆 PASS 守門；missing、skip、pending、failed、duplicate 均拒絕。原始 report、case 結果與 gate mismatch 先保存，既有 firstFailure 不被覆蓋；其他 suite 的預期 skip 不構成失敗，UI prerequisites 不擴張。
+
+G-03B 原有 mapped-counter 案例確實已執行，原 object-each 名稱卻在 Vitest report 被截短；改用完整字串標題，保留 oracle，coverage 從實際 case 結果推導。窄 selector 只列真正執行的 partial attribution，不再照抄整套 lifecycle。P-02A 的保存失敗 UI 行為與 P-02C 的 Part readiness HTTP／mounted UI 均不由 native helper 證據冒稱完成。TX-01D 是既有 audit 的 bounded evidence attribution，沒有新增獨立契約 gate 的依據；原 Part rollback 案例仍由 TX-01A／B、Drawing rollback 由 TX-01A／C 保護，不新增分母或把稽核升格成整組 PASS。
+
+最終完整 native `f7d8adeb85bda9e9` 為 65／65、other-company 窄選 `359ba2bcf564fb05` 為 1／1；兩者 sourceUnchanged 與 cleanup 均 true，helper 及其 unit test 一併綁定。gate regression 10／10、typecheck、增量 lint、planner／release-core／database 與 DB boundary 通過；基準 report 的 gate red 及各輪原始證據保留在 `output/qa/dev122-lifecycle-coverage/`。runner 仍為 `PARTIAL_NOT_ACCEPTED`（包含既有非零退出），原 7 issues／29 groups、正式 RD actor 與其他未執行責任不變。本切片只改測試工具、fixture 選取及直接文件，無產品邏輯／DDL／migration／部署／正式資料操作。
+
 ### I-01A／I-01C 採購讀取一致性（2026-10-23，本地切片）
 
 以 protected main `06874f97` 為基準，隔離 PostgreSQL 重現同 item 的兩筆 Released 歷史在有效時間相等時同時進入 latest 清單；使用與既有排序相同的 `(COALESCE(released_at, updated_at, created_at), id)` 比較，時間相等只保留 ID 較大的一筆。公司、Released 狀態、submitter 與 200 筆上限不變。另以 route fixture 重現有效 `since=1970-01-01` 解析為 0 後被 truthiness 略過，改以 `since !== null` 套用原嚴格晚於語意；缺少／invalid since 的既有行為不變。

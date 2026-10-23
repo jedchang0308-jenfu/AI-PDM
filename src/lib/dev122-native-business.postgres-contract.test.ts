@@ -83,6 +83,7 @@ import type { ReviewPackageEnvelope } from "@/lib/pdm-review-package-contract";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 const enabled = Boolean(process.env.DEV122_NATIVE_SUITE);
 const lifecycleEnabled = enabled && ["lifecycle", "ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
+const fullLifecycleSelection = ["lifecycle", "all"].includes(process.env.DEV122_NATIVE_SUITE ?? "") && process.env.DEV122_NATIVE_SELECTION === "suite";
 const rdPermissionEnabled = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "rd-permission";
 const filesEnabled = enabled && ["files", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const procurementEnabled = enabled && ["procurement", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
@@ -137,7 +138,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope","openswx-work-cancel"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (fullLifecycleSelection||["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope","openswx-work-cancel"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -1760,7 +1761,7 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
     await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"part-authority-denials.jsonl"),JSON.stringify({variant:"self",status:response.status,body})+"\n");
     await completeReview(fixture.submission,"approve");
   });
-  it.runIf(["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??""))("rejects a legal other-company Principal at the workspace scope adapter with its own issuer fixture contract",async()=>{
+  it.runIf(fullLifecycleSelection||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??""))("rejects a legal other-company Principal at the workspace scope adapter with its own issuer fixture contract",async()=>{
     const fixture=await draftReleaseFixture("legal-other-company"),id=fixture.submission.data.requestId;
     const claims=verifyJenfuPrincipalSession(otherToken,getPlatformSessionKeyRing());expect(claims.companyId).toBe("company-dev122-other");
     expect(await new JenfuPrincipalSessionRegistry(db!).isActive(claims)).toBe(true);
@@ -1919,8 +1920,8 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
       freshCommandKey: "old-major-fresh-resubmit-" + missing, fresh, freshPackage, freshApproval: "ACTUAL_ROUTE_COMPLETED",
       originalArtifactHash: createHash("sha256").update(await fs.readFile(artifact)).digest("hex") }));
   }, 15_000);
-  it.each([{ unmapped: false, title: "freezes mapped Drawing work version and rejects independent drift" },
-    { unmapped: true, title: "rejects a malformed unmapped primary before submit without approval effects" }])("$title", async ({ unmapped }) => {
+  it.each([["freezes mapped Drawing work version and rejects independent drift", false],
+    ["rejects a malformed unmapped primary before submit without approval effects", true]] as const)("%s", async (_title, unmapped) => {
     const label = "drawing-counter-" + unmapped;
     const created = await ok<{ drawingNumber: { id: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
       { coreName: "DEV122 " + label, itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" },
