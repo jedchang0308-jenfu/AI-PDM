@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const entries = (await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId, limit: 200 }))
     .filter((submission) => {
       if (partNumber && submission.part_number.toLowerCase() !== partNumber) return false;
-      if (since && Date.parse(submission.released_at ?? submission.updated_at ?? submission.created_at) <= since) return false;
+      if (since !== null && Date.parse(submission.released_at ?? submission.updated_at ?? submission.created_at) <= since) return false;
       return true;
     })
     .slice(0, limit)

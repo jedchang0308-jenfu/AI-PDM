@@ -349,6 +349,34 @@ describe.runIf(procurementEnabled)("DEV122 I01 actual signed procurement route/s
     expect((await readProcurement(request(targetUrl, ""))).status).toBe(401);
     expect((await readProcurement(request(targetUrl, deniedToken))).status).toBe(403);
   });
+  it.each(["released_at", "updated_at"] as const)("selects one latest release with an equal %s and deterministic ID tie-break without read effects", async basis => {
+    const item = "dev122-i-tie-" + basis, number = "DEV122-I-TIE-" + basis;
+    await fixtureMutation("I01 equal-time historical item prerequisite", `INSERT INTO items(id,company_id,part_number,part_name)
+      VALUES(:item,'company-jenfu',:number,'Equal-time historical read input')`, { item, number });
+    const rows = [
+      { suffix: "a", time: "2030-09-03T00:00:00Z", company: "company-jenfu", status: "Released" },
+      { suffix: "b", time: "2030-09-03T00:00:00Z", company: "company-jenfu", status: "Released" },
+      { suffix: "z-older", time: "2030-09-02T00:00:00Z", company: "company-jenfu", status: "Released" },
+      { suffix: "z-pending", time: "2030-09-04T00:00:00Z", company: "company-jenfu", status: "Pending" },
+      { suffix: "z-other", time: "2030-09-05T00:00:00Z", company: "company-dev122-other", status: "Released" }
+    ];
+    try {
+      for (const [index, row] of rows.entries()) await fixtureMutation("I01 historical tie/company/status read input; not lifecycle outcome", `INSERT INTO submissions
+        (id,company_id,item_id,drawing_number,revision,material,surface_finish,document_type,change_description,status,submitted_by,released_at,updated_at)
+        VALUES(:id,:company,:item,:number,:revision,'SUS304','none','part','Historical read input',:status,'dev122-profile-owner',CAST(:released AS timestamptz),CAST(:updated AS timestamptz))`,
+        { id: item + "-" + row.suffix, company: row.company, item, number, revision: "1." + index, status: row.status,
+          released: basis === "released_at" ? row.time : null, updated: row.time });
+      const before = await ownedLifecycleSnapshot();
+      const ids = await new AsyncHandoffRepository(db!).listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", limit: 200 });
+      expect(ids.filter(id => id.startsWith(item + "-"))).toEqual([item + "-b"]);
+      const response = await readProcurement(request("/api/integrations/procurement/releases?partNumber=" + number));
+      expect(await ok<ProcurementBody>(response)).toMatchObject({ count: 1, entries: [{ submission_id: item + "-b" }] });
+      expect(await ownedLifecycleSnapshot()).toEqual(before);
+    } finally {
+      await fixtureMutation("I01 exact historical tie inputs cleanup", "DELETE FROM submissions WHERE item_id=:item", { item });
+      await fixtureMutation("I01 exact historical tie item cleanup", "DELETE FROM items WHERE id=:item", { item });
+    }
+  });
   it.each([
     ["list", SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL], ["detail", SELECT_ASYNC_SUBMISSION_DETAIL_SQL],
     ["files", SELECT_ASYNC_SUBMISSION_FILES_SQL], ["approvals", SELECT_ASYNC_SUBMISSION_APPROVALS_SQL],
