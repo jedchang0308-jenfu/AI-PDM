@@ -241,6 +241,7 @@ export const SELECT_SHARED_MODEL_OWNER_BY_PART_NUMBER_SQL = `
     pn.part_number AS owner_code
   FROM part_numbers pn
   WHERE pn.part_number = :partNumber
+    AND (CAST(:companyId AS text) IS NULL OR pn.company_id = CAST(:companyId AS text))
 `;
 
 export const SELECT_SHARED_MODEL_OWNER_BY_ROOT_CODE_SQL = `
@@ -253,6 +254,7 @@ export const SELECT_SHARED_MODEL_OWNER_BY_ROOT_CODE_SQL = `
     pr.root_code AS owner_code
   FROM part_roots pr
   WHERE pr.root_code = :rootCode
+    AND (CAST(:companyId AS text) IS NULL OR pr.company_id = CAST(:companyId AS text))
 `;
 
 export const SELECT_FILE_ASSET_FOR_SHARED_MODEL_SQL = `
@@ -559,13 +561,15 @@ function drawingIdsParams(drawingNumberIds: string[]) {
 export class AsyncShared3dBaselineRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
-  async getOwnerByPartNumber(partNumber: string): Promise<SharedModelOwner | null> {
-    const row = await this.client.queryOne<SharedModelOwnerRow>(SELECT_SHARED_MODEL_OWNER_BY_PART_NUMBER_SQL, { partNumber });
+  async getOwnerByPartNumber(partNumber: string, companyId?: string | null): Promise<SharedModelOwner | null> {
+    const row = await this.client.queryOne<SharedModelOwnerRow>(SELECT_SHARED_MODEL_OWNER_BY_PART_NUMBER_SQL,
+      { partNumber, companyId: companyId ?? null });
     return row ? mapOwner(row) : null;
   }
 
-  async getOwnerByRootCode(rootCode: string): Promise<SharedModelOwner | null> {
-    const row = await this.client.queryOne<SharedModelOwnerRow>(SELECT_SHARED_MODEL_OWNER_BY_ROOT_CODE_SQL, { rootCode });
+  async getOwnerByRootCode(rootCode: string, companyId?: string | null): Promise<SharedModelOwner | null> {
+    const row = await this.client.queryOne<SharedModelOwnerRow>(SELECT_SHARED_MODEL_OWNER_BY_ROOT_CODE_SQL,
+      { rootCode, companyId: companyId ?? null });
     return row ? mapOwner(row) : null;
   }
 

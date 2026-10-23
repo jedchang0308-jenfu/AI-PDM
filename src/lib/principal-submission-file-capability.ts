@@ -20,6 +20,19 @@ export function submissionFileCapabilityGroups(row: SubmissionFileCapabilitySour
   return [...new Set([...parent, ...(linked.length ? linked : legacy)])]
 }
 
+/** The delivered manifest, not a caller-selected file list, owns membership. */
+export function releaseManifestMatchesSubmissionFiles(manifestJson: unknown, submissionId: string,
+  rows: ReadonlyArray<{ id: string; sha256?: string; file_role: string }>): boolean {
+  try {
+    const manifest = typeof manifestJson === 'string' ? JSON.parse(manifestJson) : manifestJson
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return false
+    const files: unknown = manifest.files
+    return manifest.schema === 'ai-pdm-release-package.v1' && manifest.submission?.id === submissionId &&
+      Array.isArray(files) && files.length === rows.length && new Set(files.map(file => file?.id)).size === rows.length &&
+      rows.every(row => files.some(file => file?.id === row.id && file.sha256 === row.sha256 && file.file_role === row.file_role))
+  } catch { return false }
+}
+
 /** All actual members of a ZIP require download; no partial or filename-based
  * authorization. For a single original/inline PDF, constrain the exact file ID. */
 export async function authorizeSubmissionOriginalsInSnapshot(snapshot: AsyncDatabaseClient,
@@ -43,18 +56,7 @@ export async function authorizeSubmissionOriginalsInSnapshot(snapshot: AsyncData
       { status: 503, headers: { 'cache-control': 'private, no-store' } })
   }
   if (manifestJson !== undefined) {
-    let manifest: { schema?: string; submission?: { id?: string }; files?: Array<{ id?: string; sha256?: string; file_role?: string }> }
-    // PostgreSQL JSONB arrives decoded; SQLite JSON arrives as text. Both
-    // representations must pass the same exact membership checks below.
-    try {
-      const decoded: unknown = typeof manifestJson === 'string' ? JSON.parse(manifestJson) : manifestJson
-      manifest = decoded !== null && typeof decoded === 'object' && !Array.isArray(decoded)
-        ? decoded as typeof manifest : {}
-    } catch { manifest = {} }
-    const files = manifest?.files
-    if (manifest?.schema !== 'ai-pdm-release-package.v1' || manifest.submission?.id !== submissionId ||
-        !Array.isArray(files) || files.length !== rows.length || new Set(files.map(file => file?.id)).size !== rows.length ||
-        rows.some(row => !files.some(file => file?.id === row.id && file.sha256 === row.sha256 && file.file_role === row.file_role))) {
+    if (!releaseManifestMatchesSubmissionFiles(manifestJson, submissionId, rows)) {
       return Response.json({ code: 'principal_release_membership_unavailable' },
         { status: 503, headers: { 'cache-control': 'private, no-store' } })
     }

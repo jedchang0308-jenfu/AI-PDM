@@ -14,7 +14,10 @@ vi.mock("@/lib/principal-submission-access", () => ({
   authorizePrincipalSubmissionReadInSnapshot: mocks.authorize
 }));
 vi.mock("@/lib/readonly-share-async", () => ({ hashShareTokenAsync: () => "hash" }));
-vi.mock('@/lib/principal-submission-file-capability', () => ({ authorizeSubmissionOriginalsInSnapshot: vi.fn(async () => null) }));
+vi.mock('@/lib/principal-submission-file-capability', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/principal-submission-file-capability')>(),
+  authorizeSubmissionOriginalsInSnapshot: vi.fn(async () => null)
+}));
 
 vi.mock("@/lib/jenfu-principal-role-catalog", () => ({ requirePublishedPrincipalCatalog: mocks.catalog }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
@@ -45,12 +48,26 @@ describe("DEV-123 readonly share project binding", () => {
     const verified = { profile: { companyId: 'company-jenfu' }, session: { principalId: 'principal-one' } } as never;
     mocks.authorize.mockResolvedValue({ company_id: 'company-jenfu', project_code: 'P-001', externalAssignmentId: 'assignment-one' });
     mocks.getSubmission.mockResolvedValue({ id: 'submission-one', company_id: 'company-jenfu', status: 'Released',
-      release_package: { id: 'package-one', submission_id: 'submission-one', sha256: 'a'.repeat(64) } });
+      files: [{ id: 'file-one', sha256: 'b'.repeat(64), file_role: 'pdf' }],
+      release_package: { id: 'package-one', submission_id: 'submission-one', sha256: 'a'.repeat(64),
+        manifest_json: { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' },
+          files: [{ id: 'file-one', sha256: 'b'.repeat(64), file_role: 'pdf' }] } } });
     const snapshot = { queryOne: vi.fn(async () => ({ decision_at: '2026-10-21T00:00:00Z' })) } as never;
     const result = await getAuthorizedPublicShareInSnapshot(snapshot, verified, 'A'.repeat(24));
     expect(result).toMatchObject({ externalProjectContext: { principalId: 'principal-one', companyId: 'company-jenfu',
       originalAssignmentId: 'assignment-one', projectScopeKey: 'P-001', shareId: 'share-one', submissionId: 'submission-one',
       releasePackageId: 'package-one', releasePackageSha256: 'a'.repeat(64), decisionAt: '2026-10-21T00:00:00Z' } });
+  });
+
+  it('rejects external metadata from files outside the delivered manifest', async () => {
+    mocks.authorize.mockResolvedValue({ company_id: 'company-jenfu', project_code: 'P-001', externalAssignmentId: 'assignment-one' });
+    mocks.getSubmission.mockResolvedValue({ id: 'submission-one', company_id: 'company-jenfu', status: 'Released',
+      files: [{ id: 'not-delivered', sha256: 'b'.repeat(64), file_role: 'pdf' }],
+      release_package: { id: 'package-one', manifest_json: { schema: 'ai-pdm-release-package.v1',
+        submission: { id: 'submission-one' }, files: [] } } });
+    const result = await getAuthorizedPublicShareInSnapshot({} as never, {} as never, 'A'.repeat(24));
+    expect((result as Response).status).toBe(503);
+    expect(mocks.record).not.toHaveBeenCalled();
   });
 
   it("requires independent dynamic download permission before recording or returning a package", async () => {
