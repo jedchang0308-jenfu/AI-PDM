@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { drawingLifecycleVariants, drawingDecisionDeniedMessage, runDrawingLifecycleUI } from './lib/dev122-drawing-lifecycle-browser.mjs';
 
 const root=process.cwd(),runtime=path.resolve(process.env.DEV122_RUNTIME_ROOT||''),origin=process.env.DEV122_APP_ORIGIN;
 assert.equal(path.dirname(runtime),path.join(root,'.tmp','dev122'));
@@ -16,9 +17,29 @@ const url=new URL(origin);assert.equal(url.hostname,'127.0.0.1');assert.equal(ur
 const preflight=process.env.DEV122_BROWSER_PREFLIGHT==='1';
 const sessions=JSON.parse(fs.readFileSync(path.join(runtime,'signed-sessions.json'),'utf8'));
 const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.json'),'utf8'));
-assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
+const lifecycleProfile=process.env.DEV122_BROWSER_LIFECYCLE_PROFILE??'none';
+assert.ok(['none','g-01-g-02'].includes(lifecycleProfile),'DEV122_BROWSER_LIFECYCLE_PROFILE_REJECTED');
+const gLifecycle=lifecycleProfile==='g-01-g-02';
+if(gLifecycle) {
+  assert.equal(process.env.DEV122_BROWSER_FLOW,'lifecycle');assert.equal(preflight,false);
+  assert.deepEqual(fixtures.map(item=>[item.variant,item.width]),drawingLifecycleVariants.flatMap(variant=>[1440,390].map(width=>[variant,width])));
+  for(const item of fixtures)assert.ok(['READY','FAILED'].includes(item.setupStatus),'G_LIFECYCLE_SETUP_STATUS_MISSING');
+  const ready=fixtures.filter(item=>item.setupStatus==='READY');
+  for(const key of ['drawingId','drawingMasterId','packageId']) {
+    assert.ok(ready.every(item=>typeof item[key]==='string'&&item[key]),'G_LIFECYCLE_FIXTURE_ID_MISSING');
+    assert.equal(new Set(ready.map(item=>item[key])).size,ready.length,'SHARED_G_LIFECYCLE_FIXTURE');
+  }
+}else assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
-const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
+const gGroup=process.env.DEV122_BROWSER_G_GROUP??'all';
+assert.ok(['all','G-01','G-02'].includes(gGroup)&&(gLifecycle||gGroup==='all'),'DEV122_BROWSER_G_GROUP_REJECTED');
+const gCase=process.env.DEV122_BROWSER_G_CASE??'all';
+assert.ok(['all',...drawingLifecycleVariants.flatMap(variant=>[1440,390].map(width=>variant+':'+width))].includes(gCase)
+  &&(gLifecycle||gCase==='all'),'DEV122_BROWSER_G_CASE_REJECTED');
+const selectedFixtures=fixtures.filter(item=>(viewportSelection==='all'||item.width===390)
+  &&(gGroup==='all'||(item.variant.endsWith('major')?'G-01':'G-02')===gGroup)
+  &&(gCase==='all'||item.variant+':'+item.width===gCase));
+assert.ok(selectedFixtures.length,'DEV122_BROWSER_EMPTY_SELECTION');
 const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -27,6 +48,8 @@ const output=path.join(root,'output','playwright','dev122',path.basename(runtime
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
     processTreeOwner:process.pid,cleanupCondition:'finally close verified task-owned browser and contexts'},status:'RUNNING',cases:[],cleanup:false};
+if(gLifecycle){receipt.production='NOT_ASSERTED';receipt.selection.lifecycleProfile=lifecycleProfile;receipt.selection.gGroup=gGroup;receipt.selection.gCase=gCase;}
+let gSharedPrerequisiteFailure=null;
 const save=()=>fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));save();
 let browser,browserServer,browserIdentity,browserRegistered=false;
 function identity(pid){return JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',`$p=Get-Process -Id ${Number(pid)} -ErrorAction Stop; @{pid=$p.Id;executable=$p.Path;startToken=$p.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()}|ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','ignore']}));}
@@ -106,8 +129,19 @@ try {
   receipt.browserDeclaration.governorRegister=governor('register');browserRegistered=true;save();
   browser=await chromium.connect(browserServer.wsEndpoint());receipt.browserDeclaration.version=browser.version();save();
   for(const fixture of selectedFixtures) {
+    if(gLifecycle&&fixture.setupStatus==='FAILED') {
+      const failure={variant:fixture.variant,viewport:fixture.width,stage:'fixture preparation',message:fixture.setupFailure};receipt.firstFailure??=failure;
+      receipt.cases.push({variant:fixture.variant,viewport:{width:fixture.width,height:fixture.height},status:'BLOCKED',failure});save();continue;
+    }
+    if(gLifecycle&&gSharedPrerequisiteFailure){receipt.cases.push({variant:fixture.variant,viewport:{width:fixture.width,height:fixture.height},status:'BLOCKED',failure:gSharedPrerequisiteFailure});save();continue;}
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
+    if(gLifecycle){context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(60000);}
+    const gControl={deniedPaths:new Set(),allowedAlerts:new Set(),previewBindings:new Set(),previewReadbacks:[],denialWindow:null,deniedReadbacks:[],recoveryFailed:false};
+    const gDeniedRequests=new WeakMap();
     const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
+    if(gLifecycle)page.on('request',request=>{
+      if(gControl.denialWindow?.active&&new URL(request.url()).pathname.startsWith('/api/pdm/file-assets/'))gDeniedRequests.set(request,gControl.denialWindow);
+    });
     const workbenchQueryState=[];
     // Passive observation begins before any workbench input; no timer/response/click is changed.
     await page.addInitScript(()=>{
@@ -129,7 +163,7 @@ try {
     };
     const previewContexts=new Map(fixture.previewInputs?fixture.previewInputs.flatMap(input=>input.sourceReadbacks.map(source=>[source.fileAssetId,[input.drawingWorkId,input.drawingId]])):fixture.terminalAssetIds.map(id=>[id,[fixture.drawingWorkId]]));
     const observedPartWorkspaceRoots=new Map();
-    const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,step,data,navigationRoutes:[...navigationRoutes]});save();};
+    const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,...(gLifecycle?{variant:fixture.variant}:{}),step,data,navigationRoutes:[...navigationRoutes]});save();};
     const waitResponse=predicate=>{const pending=page.waitForResponse(predicate);void pending.catch(error=>{
       receipt.responseWaitFailures??=[];receipt.responseWaitFailures.push({observedAt:Date.now(),viewport:fixture.width,
         pathname:new URL(page.url()).pathname,predicate:String(predicate),message:error.message});
@@ -164,7 +198,7 @@ try {
     }});
     page.on('dialog',dialog=>{alerts.push(dialog.message());void dialog.dismiss();});
     page.on('response',response=>{if(response.url().startsWith(origin+'/api/')){
-      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status()});
+      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status(),...(gLifecycle?{method:response.request().method()}:{} )});
       if(response.status()>=400)apiChecks.push((async()=>{
         const headers=response.headers();
         if(flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
@@ -188,7 +222,7 @@ try {
         receipt.apiErrorReadbacks??=[];receipt.apiErrorReadbacks.push(readback);save();
         if(bodyReadError){errors.push(`API_BODY_READ_FAILED:${response.status()}:${responseUrl.pathname}:${bodyReadError.message}`);return;}
         const assetId=decodeURIComponent(responseUrl.pathname.split('/').at(-1));
-        const expectedTerminal=response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
+        const expectedTerminal=!gLifecycle && response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
           && previewContexts.has(assetId) && responseUrl.searchParams.get('preview')==='1'
           && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.code==='PREVIEW_FAILED' && body.error.retryable===false;
         const expectedAuthFailure=expectedSaveFailure===responseUrl.pathname&&response.request().method()==='PATCH'
@@ -196,10 +230,31 @@ try {
         const expectedSettingsFailure=flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
           &&['/api/settings','/api/settings/secrets'].includes(responseUrl.pathname)&&response.status()===403
           &&(body?.error??body?.code)==='permission_not_granted'&&/no-store/u.test(readback.cacheControl??'');
-        readback.expectedClassification=expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
+        const expectedGDecision=gLifecycle&&gControl.deniedPaths.has(responseUrl.pathname)&&response.request().method()==='POST'&&response.status()===403&&body?.error==='permission_not_granted';
+        const gPreviewCandidate=gLifecycle&&response.request().method()==='GET'&&response.status()===409
+          &&responseUrl.pathname.startsWith('/api/pdm/file-assets/')&&responseUrl.searchParams.get('preview')==='1'
+          &&['drawing_revision_work','review_package'].includes(responseUrl.searchParams.get('context'))
+          &&body?.error?.code==='PREVIEW_FAILED'&&body.error.retryable===false&&body.error.jobErrorCode==='preview_worker_unavailable';
+        if(gPreviewCandidate)gControl.previewReadbacks.push(readback);
+        const denialWindow=gDeniedRequests.get(response.request());
+        const readKey=JSON.stringify([assetId,responseUrl.searchParams.get('context'),responseUrl.searchParams.get('contextId'),responseUrl.searchParams.get('bindingId'),responseUrl.searchParams.get('reviewRequestId')]);
+        const maskedDeniedRead=response.status()===404&&denialWindow?.mode==='denied-actor'
+          &&body?.error?.code==='PDM_FILE_NOT_FOUND'&&body.error.message==='找不到這筆審核檔案。'&&body.error.retryable===false;
+        let expectedGDeniedRead=false;
+        if(gLifecycle&&denialWindow&&response.request().method()==='GET'
+          &&responseUrl.pathname==='/api/pdm/file-assets/'+encodeURIComponent(assetId)
+          &&((response.status()===403&&body?.error==='permission_not_granted')||maskedDeniedRead)
+          &&/\bprivate\b.*\bno-store\b/iu.test(readback.cacheControl??'')&&/^application\/json(?:;|$)/iu.test(readback.contentType??'')
+          &&responseUrl.searchParams.get('preview')==='1'&&responseUrl.searchParams.get('context')==='review_package'
+          &&responseUrl.searchParams.get('reviewRequestId')===denialWindow.requestId&&gControl.previewBindings.has(readKey)) {
+          const cookie=await response.request().headerValue('cookie');
+          expectedGDeniedRead=Boolean(cookie?.split(';').some(item=>item.trim()==='__session='+sessions[denialWindow.actor]));
+          if(expectedGDeniedRead)gControl.deniedReadbacks.push({readback,window:denialWindow,readKey,kind:maskedDeniedRead?'MASKED_RESOURCE_DENIAL':'CAPABILITY_DENIAL'});
+        }
+        readback.expectedClassification=expectedGDecision?'exact synthetic denied/expired Drawing decision with owned-row proof':expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
           expectedSettingsFailure?'exact lawful Principal missing settings permission':null;save();
         if(expectedAuthFailure)expectedSaveFailureReached+=1;
-        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
+        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure&&!expectedGDecision&&!gPreviewCandidate&&!expectedGDeniedRead)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
       })().catch(error=>{errors.push(`API_READBACK_FAILED:${error.message}`);receipt.apiReadbackFailures??=[];
         receipt.apiReadbackFailures.push({pathname:responseUrl.pathname,status:response.status(),message:error.message});save();}));
     }});
@@ -216,6 +271,18 @@ try {
     };
     const healthy=async()=>{
       await Promise.all(apiChecks);
+      for(const item of gControl.previewReadbacks) {
+        const url=new URL(item.pathname+item.query,origin),assetId=decodeURIComponent(url.pathname.split('/').at(-1));
+        const key=JSON.stringify([assetId,url.searchParams.get('context'),url.searchParams.get('contextId'),url.searchParams.get('bindingId'),url.searchParams.get('reviewRequestId')]);
+        assert.ok(gControl.previewBindings.has(key),'G_UNBOUND_PREVIEW_WORKER_FAILURE:'+key);
+        item.expectedClassification='exact fixture asset/context/binding; CAD preview NOT_ASSERTED; worker unavailable';
+      }
+      for(const {readback,window,readKey,kind} of gControl.deniedReadbacks) {
+        assert.ok(window.proof?.all165TablesUnchanged,'G_DENIED_PREVIEW_ZERO_EFFECT_PROOF_MISSING');
+        assert.ok(gControl.previewBindings.has(readKey),'G_DENIED_PREVIEW_BINDING_MISSING');
+        readback.expectedClassification='exact bound review preview refused under verified denied/expired session; no bytes; owned rows unchanged';
+        readback.deniedReadProof={kind,mode:window.mode,actor:window.actor,requestId:window.requestId,cookieMatchesSignedFixture:true,...window.proof};
+      }
       if(flowSelection==='settings'&&settingsDeniedHeaders.length) {
         assert.ok(settingsDeniedProof,'SETTINGS_DENIED_DUAL_PROOF_MISSING');
         assert.equal(settingsDeniedProof.viewport,fixture.width);assert.equal(settingsDeniedProof.actor,'dev122-principal-denied');
@@ -271,13 +338,16 @@ try {
         const pathname=new URL(page.url()).pathname;
         const nativePartRoot=observedPartWorkspaceRoots.get(pathname);
         const partLoadingHeading=item.text==='料號資料總表'&&typeof nativePartRoot==='string'&&item.h1===nativePartRoot;
-        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text)||partLoadingHeading;
+        const gTransferLoading=gLifecycle&&pathname===`/transfer-packages/${fixture.packageId}`&&item.text==='讀取技轉包'
+          &&item.h1.startsWith(fixture.packageTitle+' ')
+          &&await page.getByRole('button',{name:'送交整包審核',exact:true}).isVisible();
+        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text)||partLoadingHeading||gTransferLoading;
         frameworkAnnouncements.push({...item,accepted});
         receipt.alertReadbacks??=[];receipt.alertReadbacks.push({viewport:fixture.width,pathname:new URL(page.url()).pathname,
-          item,accepted,partLoadingHeading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
+          item,accepted,partLoadingHeading,gTransferLoading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
         assert.ok(accepted,'UNEXPECTED_NEXT_ROUTE_ANNOUNCEMENT');
       }
-      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
+      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(gLifecycle&&gControl.allowedAlerts.has(item.text)&&item.text===drawingDecisionDeniedMessage)&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
     };
     const screenshot=async name=>{await healthy();
       const metrics=await page.evaluate(()=>({viewport:window.innerWidth,documentWidth:document.documentElement.scrollWidth,
@@ -320,6 +390,13 @@ try {
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
       else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(gLifecycle) {
+        const evidence={variant:fixture.variant,viewport:{width:fixture.width,height:fixture.height},drawingId:fixture.drawingId,drawingMasterId:fixture.drawingMasterId,
+          group:fixture.variant.endsWith('major')?'G-01':'G-02',production:'NOT_ASSERTED',status:'RUNNING'};
+        receipt.gLifecycle??=[];receipt.gLifecycle.push(evidence);save();
+        await runDrawingLifecycleUI({fixture,page,context,sessions,origin,runtime,output,navigate,waitResponse,healthy,screenshot,progress,control:gControl,evidence,save});
+        receipt.cases.push({...evidence,normalNavigation:true,requests,navigationRoutes,overflowMetrics,frameworkAnnouncements,observedPageTitles});save();continue;
+      }
       if(flowSelection==='drawing-pdf-viewer') {
         assert.equal(fixture.flow,'drawing-pdf-viewer');
         const evidence={viewport:fixture.width,layer:'ACTUAL_NATIVE_NEXT_PG_AND_PDFJS_CANVAS',pdf:fixture.pdf,readability:fixture.readability,operations:[],status:'RUNNING'};
@@ -1126,6 +1203,17 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,workbenchQueryState,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
+      if(gLifecycle) {
+        const failure={message:error.message,stack:error.stack,variant:fixture.variant,viewport:fixture.width};receipt.firstFailure??=failure;
+        const evidence=receipt.gLifecycle?.find(item=>item.variant===fixture.variant&&item.viewport.width===fixture.width);if(evidence){evidence.status='FAIL';evidence.failure=failure;}
+        receipt.cases.push({variant:fixture.variant,viewport:{width:fixture.width,height:fixture.height},status:'FAIL',failure,requests,navigationRoutes});save();
+        for(const [suffix,capture] of [['dom.html',()=>page.content()],['accessibility.yml',()=>page.locator('body').ariaSnapshot()]]) {
+          try{fs.writeFileSync(path.join(output,`${fixture.variant}-${fixture.width}-first-failure-${suffix}`),await capture());}catch(caught){receipt.captureFailures??=[];receipt.captureFailures.push({variant:fixture.variant,width:fixture.width,message:caught.message});}
+        }
+        await page.screenshot({path:path.join(output,`${fixture.variant}-${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
+        if(gControl.recoveryFailed)gSharedPrerequisiteFailure={...failure,reason:'shared reviewer fixture recovery not proven; no dependent mutations'};
+        save();continue;
+      }
       if(boundedSettingsFlow) {
         receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
@@ -1150,10 +1238,12 @@ try {
       else await context.close();
     }
   }
-  receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
+  receipt.status=gLifecycle&&receipt.cases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+  if(gLifecycle)receipt.coverage={partial:gGroup==='all'?['G-01','G-02']:[gGroup],
+    notRun:[...(gGroup==='all'?[]:[gGroup==='G-01'?'G-02':'G-01']),'other original29 groups','Production'],acceptanceComplete:false};
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||gLifecycle){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
     if(boundedSettingsFlow) {

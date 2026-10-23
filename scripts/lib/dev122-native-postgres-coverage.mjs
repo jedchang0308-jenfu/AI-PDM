@@ -39,21 +39,70 @@ export const lifecycleCaseGroups = {
 
 export const lifecycleRequiredCaseNames = [...new Set(Object.values(lifecycleCaseGroups).flat())];
 
+const lifecycleProfileGroups = {
+  'g-01-g-02': ['G-01', 'G-02'],
+};
+
+// Profiles derive their exact case names from the authoritative group mapping above.
+export const lifecycleCaseProfiles = Object.fromEntries(
+  Object.entries(lifecycleProfileGroups).map(([profile, groupIds]) => [
+    profile,
+    {
+      groups: groupIds,
+      caseNames: [...new Set(groupIds.flatMap(groupId => lifecycleCaseGroups[groupId] ?? []))],
+    },
+  ]),
+);
+
 export function evaluateLifecycleCaseCoverage(assertions, { suite, selection }) {
-  const required = ['lifecycle', 'all'].includes(suite) && selection === 'suite';
+  const profile = suite === 'ui' && Object.hasOwn(lifecycleCaseProfiles, selection) ? selection : null;
+  const required = (['lifecycle', 'all'].includes(suite) && selection === 'suite') || profile !== null;
+  const requiredGroupIds = profile
+    ? lifecycleCaseProfiles[profile].groups
+    : required ? Object.keys(lifecycleCaseGroups) : [];
+  const requiredCaseNames = profile
+    ? lifecycleCaseProfiles[profile].caseNames
+    : required ? lifecycleRequiredCaseNames : [];
   const nameOf = test => test.fullName || [...(test.ancestorTitles || []), test.title].join(' ');
+  const assertionsByName = new Map();
+  for (const assertion of assertions) {
+    const name = nameOf(assertion);
+    const rows = assertionsByName.get(name) ?? [];
+    rows.push(assertion);
+    assertionsByName.set(name, rows);
+  }
   const groups = Object.entries(lifecycleCaseGroups).map(([id, names]) => {
     const cases = names.map(name => {
-      const statuses = assertions.filter(test => nameOf(test) === name).map(test => test.status);
+      const statuses = (assertionsByName.get(name) ?? []).map(test => test.status);
       return { name, statuses, passed: statuses.length === 1 && statuses[0] === 'passed' };
     });
     return { id, cases, status: cases.every(test => test.passed) ? 'PASS' : 'INCOMPLETE' };
   });
+  const selectedGroups = groups.filter(group => requiredGroupIds.includes(group.id));
+  const expectedNames = new Set(requiredCaseNames);
+  const unexpectedExecutedCases = profile
+    ? assertions
+      .filter(test => !expectedNames.has(nameOf(test)) && !['pending', 'skipped'].includes(test.status))
+      .map(test => ({ name: nameOf(test), status: test.status }))
+    : [];
+  const executedCaseCount = requiredCaseNames.filter(name =>
+    (assertionsByName.get(name) ?? []).some(test => !['pending', 'skipped'].includes(test.status)),
+  ).length;
+  const executedAssertionCount = requiredCaseNames.reduce((count, name) =>
+    count + (assertionsByName.get(name) ?? []).filter(test => !['pending', 'skipped'].includes(test.status)).length,
+  0);
+  const requiredGroupsPass = selectedGroups.every(group => group.status === 'PASS');
   return {
     required,
-    status: required ? groups.every(group => group.status === 'PASS') ? 'PASS' : 'FAIL' : 'NOT_REQUIRED',
+    profile,
+    status: required ? requiredGroupsPass && unexpectedExecutedCases.length === 0 ? 'PASS' : 'FAIL' : 'NOT_REQUIRED',
     evidenceScope: 'MINIMUM_NATIVE_PARTIAL_EVIDENCE_NOT_GROUP_ACCEPTANCE',
-    expectedCaseNames: required ? lifecycleRequiredCaseNames : [],
+    requiredGroupIds,
+    expectedCaseNames: requiredCaseNames,
+    expectedCaseCount: requiredCaseNames.length,
+    executedCaseCount,
+    executedAssertionCount,
+    unexpectedExecutedCases,
     groups,
     partial: groups.filter(group => group.cases.some(test => test.passed)).map(group => group.id),
     notRun: ['P-02A save-failure UI', 'P-02C Part readiness HTTP body and mounted UI', 'remaining exact variants in all 29 QA groups'],
@@ -63,7 +112,8 @@ export function evaluateLifecycleCaseCoverage(assertions, { suite, selection }) 
 export function assertLifecycleCaseCoverage(coverage) {
   if (coverage.required && coverage.status !== 'PASS') {
     throw Object.assign(new Error('DEV122_LIFECYCLE_REQUIRED_CASES_MISSING_SKIPPED_FAILED_OR_DUPLICATE'), {
-      mismatches: coverage.groups.filter(group => group.status !== 'PASS'),
+      mismatches: coverage.groups.filter(group => coverage.requiredGroupIds.includes(group.id) && group.status !== 'PASS'),
+      unexpectedExecutedCases: coverage.unexpectedExecutedCases,
     });
   }
 }

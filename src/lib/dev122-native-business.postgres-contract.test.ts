@@ -84,6 +84,7 @@ import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-
 const enabled = Boolean(process.env.DEV122_NATIVE_SUITE);
 const lifecycleEnabled = enabled && ["lifecycle", "ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const fullLifecycleSelection = ["lifecycle", "all"].includes(process.env.DEV122_NATIVE_SUITE ?? "") && process.env.DEV122_NATIVE_SELECTION === "suite";
+const drawingG01G02Observability = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "g-01-g-02";
 const rdPermissionEnabled = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "rd-permission";
 const filesEnabled = enabled && ["files", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const procurementEnabled = enabled && ["procurement", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
@@ -99,10 +100,14 @@ async function ok<T>(response:Response,status=200):Promise<T>{
 }
 type Work={data:{workId:string;rowVersion:number;payload:Record<string,unknown>};meta:{contractToken:string}};
 type Submission={data:{requestId:string;rowVersion:number}};
+type NativeReviewOutcome = { phase: "first" | "replay"; status: number; body: unknown };
+type NativeReviewObserver = (outcome: NativeReviewOutcome) => Promise<void>;
+type NativeSubmitOutcome = { status: number; body: unknown };
+type NativeSubmitObserver = (outcome: NativeSubmitOutcome) => Promise<void>;
 async function contract(actorId:string,companyId="company-jenfu"){
   return db!.transaction(tx=>issueCanonicalWorkbenchContract(tx,{companyId,actorId}),{readOnly:true});
 }
-async function completeReview(submission:Submission,decision:"approve"|"return_for_correction") {
+async function completeReview(submission:Submission,decision:"approve"|"return_for_correction",observe?:NativeReviewObserver) {
   const id=submission.data.requestId,params={params:Promise.resolve({requestId:id})};
   const pending=await ok<Record<string,unknown>>(await inbox(request("/api/approvals/inbox",reviewerToken)));
   expect(JSON.stringify(pending)).toContain(id);
@@ -114,7 +119,15 @@ async function completeReview(submission:Submission,decision:"approve"|"return_f
   const reviewerContract=await contract("dev122-profile-reviewer");
   const perform=()=>decideReview(request("/api/pdm/review-requests/"+id+"/decisions",reviewerToken,"POST",
     {decision},submission.data.rowVersion,reviewerContract),params);
-  await ok(await perform());await ok(await perform());
+  const applyAndObserve=async(phase:NativeReviewOutcome["phase"])=>{
+    const response=await perform();
+    if(observe){
+      const body=await response.clone().json().catch(()=>({unavailable:"response body was not JSON"}));
+      await observe({phase,status:response.status,body:sanitizeDrawingEvidenceBody(body)});
+    }
+    await ok(response);
+  };
+  await applyAndObserve("first");await applyAndObserve("replay");
   expect(await db!.queryOne("SELECT id FROM pdm_work_review_requests WHERE id=:id",{id})).toBeNull();
   const receipt=await db!.queryOne<{principal_id:string;actor_id:string;command_status:string}>(
     "SELECT principal_id,actor_id,command_status FROM platform_command_receipts WHERE effect_key=:effect AND command_name=:commandName",
@@ -1577,6 +1590,83 @@ async function preparedMajorFixture(label: string) {
   const fixture = await initialDrawingFixture(label); await completeReview(await submitNativeDrawing(fixture.workId), "approve");
   return { ...fixture, workId: await nextDrawingWork(fixture.drawingId, "production", label + "-major") };
 }
+function sanitizeDrawingEvidenceBody(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeDrawingEvidenceBody);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !/(?:token|secret|cookie|authorization|credential)/iu.test(key))
+    .map(([key, item]) => [key, sanitizeDrawingEvidenceBody(item)]));
+  if (typeof value === "string" && /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(value)) return "[REDACTED]";
+  return value;
+}
+function drawingEvidenceActor(token: string) {
+  const claims = verifyJenfuPrincipalSession(token, getPlatformSessionKeyRing());
+  return { principalId: claims.principalId, employeeId: claims.employeeId, companyId: claims.companyId,
+    identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject };
+}
+async function drawingG01G02Facts(fixture: { masterId: string; drawingId: string }, workId: string, requestId?: string) {
+  if (!drawingG01G02Observability) return null;
+  return db!.transaction(async tx => {
+    const drawing = await tx.queryOne("SELECT * FROM drawings WHERE id=:id AND company_id='company-jenfu'", { id: fixture.drawingId });
+    const master = await tx.queryOne("SELECT * FROM drawing_numbers WHERE id=:id AND company_id='company-jenfu'", { id: fixture.masterId });
+    const work = await tx.queryOne("SELECT * FROM drawing_revision_works WHERE id=:id AND company_id='company-jenfu'", { id: workId });
+    const revisions = await tx.query("SELECT * FROM drawing_revisions WHERE drawing_id=:id AND company_id='company-jenfu' ORDER BY id", { id: fixture.drawingId });
+    const pointers = await tx.query(`SELECT * FROM canonical_workbench_states WHERE company_id='company-jenfu'
+      AND canonical_entity_id=:id AND data_layer IN ('drawing_rd','drawing_production') ORDER BY data_layer,id`, { id: fixture.drawingId });
+    const reviewRequest = requestId ? await tx.queryOne("SELECT * FROM pdm_work_review_requests WHERE id=:id AND company_id='company-jenfu'", { id: requestId }) : null;
+    const terminalReceipt = requestId ? await tx.queryOne("SELECT * FROM pdm_work_review_terminal_receipts WHERE request_id=:id AND company_id='company-jenfu'", { id: requestId }) : null;
+    const assignedAccounts = reviewRequest ? await tx.query(`SELECT principal_id,pdm_user_id,company_id,employee_id,account_status,account_type
+      FROM principal_accounts WHERE pdm_user_id=:id AND company_id='company-jenfu' ORDER BY principal_id`,
+      { id: (reviewRequest as { reviewer_user_id: string }).reviewer_user_id }) : [];
+    const commandReceipts = requestId ? await tx.query(`SELECT * FROM platform_command_receipts
+      WHERE effect_key=:effect AND command_name=:command ORDER BY id`, { effect: "review:" + requestId, command: "dev087:review.decision" }) : [];
+    const unrelatedParts = await tx.query("SELECT * FROM part_numbers WHERE company_id='company-jenfu' ORDER BY id");
+    const unrelatedMasters = await tx.query("SELECT * FROM drawing_numbers WHERE company_id='company-jenfu' AND id<>:id ORDER BY id", { id: fixture.masterId });
+    expect(drawing).toBeTruthy(); expect((drawing as { formal_drawing_number_id: string }).formal_drawing_number_id).toBe(fixture.masterId);
+    expect(master).toBeTruthy();
+    if (terminalReceipt) expect(work).toBeNull();
+    else if (work) expect((work as { drawing_id: string }).drawing_id).toBe(fixture.drawingId);
+    return { drawing, exactFormalDrawingNumberId: (drawing as { formal_drawing_number_id: string }).formal_drawing_number_id,
+      master, work, revisions, canonicalPointers: pointers, reviewRequest,
+      assignedReviewer: reviewRequest ? { userId: (reviewRequest as { reviewer_user_id: string }).reviewer_user_id, principalAccounts: assignedAccounts } : null,
+      terminalReceipt,
+      decisionCommandReceipts: commandReceipts, unrelatedParts, unrelatedDrawingMasters: unrelatedMasters };
+  }, { readOnly: true, isolationLevel: "repeatable_read" });
+}
+async function recordDrawingG01G02(input: { caseId: string; stage: string; fixture: { masterId: string; drawingId: string };
+  workId: string; requestId?: string; actorRole: "owner" | "reviewer"; ownedRows?: Record<string, unknown[]>;
+  outcome?: NativeReviewOutcome | { status: number; body: unknown }; route?: string; drawingFacts?: Awaited<ReturnType<typeof drawingG01G02Facts>> }) {
+  if (!drawingG01G02Observability) return;
+  expect(input.caseId).toMatch(/^[A-Za-z0-9_-]+$/u); expect(input.stage).toMatch(/^[a-z0-9-]+$/u);
+  const evidenceRoot = path.resolve(process.env.DEV122_EVIDENCE_ROOT!);
+  const evidencePath = path.resolve(evidenceRoot, "drawing-g01-g02-native-observability.jsonl");
+  expect(path.dirname(evidencePath)).toBe(evidenceRoot);
+  const facts = input.drawingFacts ?? await drawingG01G02Facts(input.fixture, input.workId, input.requestId);
+  await fs.appendFile(evidencePath, JSON.stringify({ schemaVersion: "DEV122.G01G02.native.v1", source: "ACTUAL_NATIVE_POSTGRES_SIGNED_ROUTE",
+    caseId: input.caseId, stage: input.stage, route: input.route ?? null,
+    fixtureIds: { masterId: input.fixture.masterId, drawingId: input.fixture.drawingId, workId: input.workId, requestId: input.requestId ?? null,
+      formalDrawingNumberId: facts?.exactFormalDrawingNumberId ?? null },
+    actorRole: input.actorRole, actors: { owner: drawingEvidenceActor(ownerToken), reviewer: drawingEvidenceActor(reviewerToken), acting:
+      input.actorRole === "owner" ? drawingEvidenceActor(ownerToken) : drawingEvidenceActor(reviewerToken) },
+    outcome: input.outcome ? { status: input.outcome.status, body: sanitizeDrawingEvidenceBody(input.outcome.body) } : null,
+    ownedSnapshot: input.ownedRows ? { readOnly: true, isolation: "repeatable read", tableCount: Object.keys(input.ownedRows).length, rows: input.ownedRows } : null,
+    drawingFacts: facts }) + "\n", "utf8");
+}
+function drawingG01G02ReviewObserver(input: { caseId: string; step: string; fixture: { masterId: string; drawingId: string };
+  workId: string; requestId: string }): NativeReviewObserver | undefined {
+  if (!drawingG01G02Observability) return undefined;
+  return async outcome => recordDrawingG01G02({ ...input, stage: `${input.step}-${outcome.phase}`, actorRole: "reviewer", outcome,
+    route: `/api/pdm/review-requests/${input.requestId}/decisions`, ownedRows: await ownedLifecycleSnapshot() });
+}
+function drawingG01G02SubmitObserver(input: { caseId: string; step: string; fixture: { masterId: string; drawingId: string };
+  workId: string }): NativeSubmitObserver | undefined {
+  if (!drawingG01G02Observability) return undefined;
+  return async outcome => {
+    const body = outcome.body as { data?: { requestId?: unknown } };
+    const requestId = typeof body?.data?.requestId === "string" ? body.data.requestId : undefined;
+    await recordDrawingG01G02({ ...input, stage: input.step + "-response", requestId, actorRole: "owner", outcome,
+      route: "/api/pdm/drawing-revision-works/" + input.workId + "/submit", ownedRows: await ownedLifecycleSnapshot() });
+  };
+}
 async function nativeDrawingDecision(submission: Submission, label: string, decision = "approve") {
   const id = submission.data.requestId;
   return decideReview(request("/api/pdm/review-requests/" + id + "/decisions", reviewerToken, "POST", { decision },
@@ -1774,9 +1864,14 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
         'DEV122 pending responsibility conflict input',CAST(:payload AS JSONB),'dev122-profile-owner')`,
       { id: conflictId, masterId: fixture.masterId, state, payload: JSON.stringify({ fixtureBoundary: "historical pending numbering input" }) });
     const params = { params: Promise.resolve({ workId: fixture.workId }) }, work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + fixture.workId), params));
-    const before = await ownedLifecycleSnapshot(), response = await submitDrawing(request("/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", ownerToken, "POST", {},
+    const before = await ownedLifecycleSnapshot(), beforeFacts = await drawingG01G02Facts(fixture, fixture.workId);
+    await recordDrawingG01G02({ caseId: "minor-numbering-" + state, stage: "submit-conflict-before", fixture, workId: fixture.workId, actorRole: "owner",
+      route: "/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", ownedRows: before, drawingFacts: beforeFacts });
+    const response = await submitDrawing(request("/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", ownerToken, "POST", {},
       work.data.rowVersion, work.meta.contractToken, "minor-pending-submit-" + state), params), body = await response.json();
     const after = await ownedLifecycleSnapshot();
+    await recordDrawingG01G02({ caseId: "minor-numbering-" + state, stage: "submit-conflict-after", fixture, workId: fixture.workId, actorRole: "owner",
+      route: "/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", outcome: { status: response.status, body }, ownedRows: after });
     await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "drawing-basis-gap-readbacks.jsonl"), JSON.stringify({ variant: "minor-numbering-" + state,
       workId: fixture.workId, masterId: fixture.masterId, conflictId, status: response.status, body, allOwnedRowsUnchanged: JSON.stringify(after) === JSON.stringify(before) }) + "\n");
     expect(response.status).toBe(409); expect(body).toMatchObject({ error: { code: "WORKBENCH_SNAPSHOT_DRIFT" } });
@@ -1894,23 +1989,45 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
     await fixtureMutation("G03 legal historical master status negative input; not a release outcome", "UPDATE drawing_numbers SET record_status=:state WHERE id=:id", { id: fixture.masterId, state });
     const work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + fixture.workId), { params: Promise.resolve({ workId: fixture.workId }) }));
     const before = await ownedLifecycleSnapshot();
+    await recordDrawingG01G02({ caseId: "major-state-" + state, stage: "submit-before", fixture, workId: fixture.workId, actorRole: "owner",
+      route: "/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", ownedRows: before });
     const response = await submitDrawing(request("/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", ownerToken, "POST", {},
       work.data.rowVersion, work.meta.contractToken, "major-state-submit-" + state), { params: Promise.resolve({ workId: fixture.workId }) });
-    expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ error: { code: "WORKBENCH_SNAPSHOT_DRIFT" } });
-    expect(await ownedLifecycleSnapshot()).toEqual(before);
+    const body = await response.json(), after = await ownedLifecycleSnapshot();
+    await recordDrawingG01G02({ caseId: "major-state-" + state, stage: "submit-after", fixture, workId: fixture.workId, actorRole: "owner",
+      route: "/api/pdm/drawing-revision-works/" + fixture.workId + "/submit", outcome: { status: response.status, body }, ownedRows: after });
+    expect(response.status).toBe(409); expect(body).toMatchObject({ error: { code: "WORKBENCH_SNAPSHOT_DRIFT" } });
+    expect(after).toEqual(before);
   }, 15_000);
   it.each(["Draft", "NeedInfo", "Rejected", "Active", "PendingReview", "Released"])("approves minor with legal %s master without changing master or production pointer", async state => {
     const fixture = await initialDrawingFixture("minor-state-" + state); let workId = fixture.workId;
     if (state === "Released") {
-      await completeReview(await submitNativeDrawing(workId), "approve");
+      if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "minor-state-Released", stage: "released-input-first-release-before", fixture, workId,
+        actorRole: "owner", route: "/api/pdm/drawing-revision-works/" + workId + "/submit", ownedRows: await ownedLifecycleSnapshot() });
+      const firstRelease = await submitNativeDrawing(workId, workId + "-submit",
+        drawingG01G02SubmitObserver({ caseId: "minor-state-Released", step: "released-input-first-release-submit", fixture, workId }));
+      await completeReview(firstRelease, "approve", drawingG01G02ReviewObserver({ caseId: "minor-state-Released", step: "released-input-first-release", fixture, workId, requestId: firstRelease.data.requestId }));
       workId = await nextDrawingWork(fixture.drawingId, "production", "minor-released-first-major");
-      await completeReview(await submitNativeDrawing(workId), "approve");
+      if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "minor-state-Released", stage: "released-input-first-major-before", fixture, workId,
+        actorRole: "owner", route: "/api/pdm/drawing-revision-works/" + workId + "/submit", ownedRows: await ownedLifecycleSnapshot() });
+      const firstMajor = await submitNativeDrawing(workId, workId + "-submit",
+        drawingG01G02SubmitObserver({ caseId: "minor-state-Released", step: "released-input-first-major-submit", fixture, workId }));
+      await completeReview(firstMajor, "approve", drawingG01G02ReviewObserver({ caseId: "minor-state-Released", step: "released-input-first-major", fixture, workId, requestId: firstMajor.data.requestId }));
       workId = await nextDrawingWork(fixture.drawingId, "rd", "minor-on-released", "drawing_production");
     } else if (state !== "Draft") await fixtureMutation("G02 legal nonterminal historical master input, not an approved lifecycle result", "UPDATE drawing_numbers SET record_status=:state WHERE id=:id", { id: fixture.masterId, state });
+    if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "minor-state-" + state, stage: "minor-submit-before", fixture, workId, actorRole: "owner",
+      route: "/api/pdm/drawing-revision-works/" + workId + "/submit", ownedRows: await ownedLifecycleSnapshot() });
+    const submission = await submitNativeDrawing(workId, workId + "-submit",
+      drawingG01G02SubmitObserver({ caseId: "minor-state-" + state, step: "minor-submit", fixture, workId }));
     const masterBefore = await db!.queryOne("SELECT * FROM drawing_numbers WHERE id=:id", { id: fixture.masterId });
     const pointerBefore = await db!.query("SELECT * FROM canonical_workbench_states WHERE canonical_entity_id=:id AND data_layer='drawing_production' ORDER BY id", { id: fixture.drawingId });
     const unrelatedParts = await db!.query("SELECT * FROM part_numbers ORDER BY id");
-    await completeReview(await submitNativeDrawing(workId), "approve");
+    if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "minor-state-" + state, stage: "minor-approval-before", fixture, workId, requestId: submission.data.requestId,
+      actorRole: "reviewer", route: "/api/pdm/review-requests/" + submission.data.requestId + "/decisions", ownedRows: await ownedLifecycleSnapshot() });
+    await completeReview(submission, "approve", drawingG01G02ReviewObserver({ caseId: "minor-state-" + state, step: "minor-approval", fixture, workId,
+      requestId: submission.data.requestId }));
+    if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "minor-state-" + state, stage: "minor-approval-final", fixture, workId, requestId: submission.data.requestId,
+      actorRole: "reviewer", route: "/api/pdm/review-requests/" + submission.data.requestId + "/decisions", ownedRows: await ownedLifecycleSnapshot() });
     expect(await db!.queryOne("SELECT * FROM drawing_numbers WHERE id=:id", { id: fixture.masterId })).toEqual(masterBefore);
     expect(await db!.query("SELECT * FROM canonical_workbench_states WHERE canonical_entity_id=:id AND data_layer='drawing_production' ORDER BY id", { id: fixture.drawingId })).toEqual(pointerBefore);
     expect(await db!.query("SELECT * FROM part_numbers ORDER BY id")).toEqual(unrelatedParts);
@@ -2229,14 +2346,21 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
       { ...work.data.payload, changeImpact: { ...impact, formState: "no_impact", fitState: "no_impact", functionState: "no_impact" } },
       work.data.rowVersion, work.meta.contractToken, "major-fff"), params));
     work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + workId), params));
-    const submission = await submitNativeDrawing(workId);
+    const evidenceFixture = { masterId: created.drawingNumber.id, drawingId: initial!.drawing_id };
+    if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "major-post-formalize-rollback-replay", stage: "initial-submit-before", fixture: evidenceFixture, workId,
+      actorRole: "owner", route: "/api/pdm/drawing-revision-works/" + workId + "/submit", ownedRows: await ownedLifecycleSnapshot() });
+    const submission = await submitNativeDrawing(workId, workId + "-submit",
+      drawingG01G02SubmitObserver({ caseId: "major-post-formalize-rollback-replay", step: "initial-submit", fixture: evidenceFixture, workId }));
     const before = await ownedLifecycleSnapshot();
+    await recordDrawingG01G02({ caseId: "major-post-formalize-rollback-replay", stage: "fault-before", fixture: evidenceFixture, workId,
+      requestId: submission.data.requestId, actorRole: "reviewer", route: "/api/pdm/review-requests/" + submission.data.requestId + "/decisions", ownedRows: before });
     const original = DrawingRevisionWorkAsyncRepository.prototype.formalize;
     let completed = false;
     const fault = vi.spyOn(DrawingRevisionWorkAsyncRepository.prototype, "formalize").mockImplementationOnce(async function (this: DrawingRevisionWorkAsyncRepository, tx, input) {
       await original.call(this, tx, input); completed = true;
       throw new Error("DEV122_POST_DRAWING_FORMALIZE_FAULT");
     });
+    let afterFault: Record<string, unknown[]> | null = null;
     try {
       const id = submission.data.requestId;
       const response = await decideReview(request("/api/pdm/review-requests/" + id + "/decisions", reviewerToken, "POST", { decision: "approve" },
@@ -2245,11 +2369,17 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
       expect(response.status).toBe(500);
       expect(response.headers.get("cache-control")).toBe("private, no-store");
       const body = await response.json();
+      afterFault = await ownedLifecycleSnapshot();
+      await recordDrawingG01G02({ caseId: "major-post-formalize-rollback-replay", stage: "fault-500-after", fixture: evidenceFixture, workId,
+        requestId: id, actorRole: "reviewer", route: "/api/pdm/review-requests/" + id + "/decisions", outcome: { status: response.status, body }, ownedRows: afterFault });
       expect(body).toMatchObject({ error: { code: "WORKBENCH_INTERNAL_ERROR", message: "操作失敗，請稍後再試" } });
       expect(JSON.stringify(body)).not.toMatch(/POST_DRAWING|SQL|stack/u);
     } finally { fault.mockRestore(); }
-    expect(await ownedLifecycleSnapshot()).toEqual(before);
-    await completeReview(submission, "approve");
+    expect(afterFault).toEqual(before);
+    await completeReview(submission, "approve", drawingG01G02ReviewObserver({ caseId: "major-post-formalize-rollback-replay", step: "fresh-retry", fixture: evidenceFixture,
+      workId, requestId: submission.data.requestId }));
+    if (drawingG01G02Observability) await recordDrawingG01G02({ caseId: "major-post-formalize-rollback-replay", stage: "fresh-retry-final", fixture: evidenceFixture, workId,
+      requestId: submission.data.requestId, actorRole: "reviewer", route: "/api/pdm/review-requests/" + submission.data.requestId + "/decisions", ownedRows: await ownedLifecycleSnapshot() });
     expect(await db!.queryOne("SELECT record_status FROM drawing_numbers WHERE id=:id", { id: created.drawingNumber.id })).toMatchObject({ record_status: "Released" });
     expect(await db!.queryOne<{ count: number }>(`SELECT count(*)::int AS count FROM canonical_workbench_states state
       JOIN drawing_revisions revision ON revision.id=state.revision_id
@@ -2354,11 +2484,16 @@ async function uploadNativeProtocolPair(workId: string, label: string) {
   }
 }
 
-async function submitNativeDrawing(workId: string, commandKey = workId + "-submit") {
+async function submitNativeDrawing(workId: string, commandKey = workId + "-submit", observe?: NativeSubmitObserver) {
   const params = { params: Promise.resolve({ workId }) };
   const work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + workId), params));
-  return ok<Submission>(await submitDrawing(request("/api/pdm/drawing-revision-works/" + workId + "/submit", ownerToken, "POST", {},
-    work.data.rowVersion, work.meta.contractToken, commandKey), params));
+  const response = await submitDrawing(request("/api/pdm/drawing-revision-works/" + workId + "/submit", ownerToken, "POST", {},
+    work.data.rowVersion, work.meta.contractToken, commandKey), params);
+  if (observe) {
+    const body = await response.clone().json().catch(() => ({ unavailable: "response body was not JSON" }));
+    await observe({ status: response.status, body: sanitizeDrawingEvidenceBody(body) });
+  }
+  return ok<Submission>(response);
 }
 
 async function ownedLifecycleSnapshot() {
@@ -2810,6 +2945,52 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "g-01-g-02") {
+      const fixtures: Array<{ variant: string; width: number; height: number; setupStatus: "READY" | "FAILED";
+        drawingId?: string; drawingMasterId?: string; drawingNumber?: string; drawingWorkId?: string | null;
+        sourceLayer?: string; nextKind?: string; packageId?: string; packageTitle?: string; sentinelPartId?: string;
+        terminalAssetIds: string[]; setupFailure?: string }> = [];
+      for (const variant of ["Draft-minor", "Released-minor", "Draft-major", "Released-major"]) for (const width of [1440, 390]) {
+        const label = "G-UI-" + variant + "-" + width;
+        try {
+          // These are UI prerequisites with separate IDs, never the native
+          // state's mutation fixtures or the UI's future approval outcome.
+          const drawing = await initialDrawingFixture(label);
+          if (variant !== "Draft-minor") await completeReview(await submitNativeDrawing(drawing.workId), "approve");
+          if (variant.startsWith("Released")) {
+            const major = await nextDrawingWork(drawing.drawingId, "production", label + "-released-prerequisite");
+            await completeReview(await submitNativeDrawing(major), "approve");
+          }
+          const master = await db!.queryOne<{ drawing_number: string; record_status: string }>("SELECT drawing_number,record_status FROM drawing_numbers WHERE id=:id", { id: drawing.masterId });
+          expect(master!.record_status).toBe(variant.startsWith("Released") ? "Released" : "Draft");
+          expect(await db!.queryOne("SELECT formal_drawing_number_id FROM drawings WHERE id=:id", { id: drawing.drawingId }))
+            .toMatchObject({ formal_drawing_number_id: drawing.masterId });
+          const part = await ok<{ partNumber: { id: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+            { coreName: label + " unrelated Part", itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+          const title = "DEV122 " + label + " readiness";
+          const intake = await ok<{ workbench: { id: string; rowVersion: number } }>(await createTransfer(request("/api/transfer-packages", ownerToken, "POST",
+            { title, caseType: "development_case", caseReason: "G01/G02 isolated Drawing readiness",
+              sourceReferenceStatus: "not_available", sourceReferenceReason: "Synthetic local UI prerequisite" }, 1, "", label + "-intake")), 201);
+          await ok(await addTransferItem(request("/api/transfer-packages/" + intake.workbench.id + "/items", ownerToken, "POST",
+            { expectedRowVersion: intake.workbench.rowVersion, entityType: "drawing_number", entityId: drawing.masterId }, 1, "", label + "-item"),
+            { params: Promise.resolve({ id: intake.workbench.id }) }));
+          fixtures.push({ variant, width, height: width === 1440 ? 900 : 844, setupStatus: "READY", drawingId: drawing.drawingId,
+            drawingMasterId: drawing.masterId, drawingNumber: master!.drawing_number, drawingWorkId: variant === "Draft-minor" ? drawing.workId : null,
+            sourceLayer: variant.startsWith("Released") ? "drawing_production" : "drawing_rd", nextKind: variant.endsWith("major") ? "production" : "rd",
+            packageId: intake.workbench.id, packageTitle: title, sentinelPartId: part.partNumber.id, terminalAssetIds: [] });
+        } catch (error) {
+          fixtures.push({ variant, width, height: width === 1440 ? 900 : 844, setupStatus: "FAILED", terminalAssetIds: [],
+            setupFailure: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      const ready = fixtures.filter(item => item.setupStatus === "READY");
+      for (const key of ["drawingId", "drawingMasterId", "packageId"] as const) expect(new Set(ready.map(item => item[key])).size).toBe(ready.length);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "g-lifecycle-ui-prerequisites.json"), JSON.stringify({
+        scope: "normal API setup only; separate UI fixture per mode/viewport", nativeMutationFixturesReused: false,
+        actor: "dev122-profile-owner", reviewer: "dev122-profile-reviewer", production: "NOT_ASSERTED", fixtures }));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.
@@ -2975,7 +3156,7 @@ describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE
       await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!,"recognition-cli-inputs.json"),JSON.stringify(inputs));
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"recognition-cli-normal-input-ledger.json"),JSON.stringify(inputs));
     }
-  });
+  }, process.env.DEV122_NATIVE_SELECTION === "g-01-g-02" ? 120_000 : undefined);
 });
 
 describe.runIf(enabled && process.env.DEV122_NATIVE_SUITE === "settings")("DEV122 actual Next settings prerequisites", () => {
