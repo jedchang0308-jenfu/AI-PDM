@@ -14,7 +14,7 @@ import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { assertUnlinkedProfileCleanupRef } from './dev121-unlinked-profile-cleanup.mjs'
 import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
-import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
@@ -36,6 +36,11 @@ export function assertDev117ReleaseIntent(value, profile) {
     assertAppliedMigrationContinuation(value.appliedMigrationContinuation, profile.artifact.releaseBucket)
     if (!value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
         value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_INVALID', 'Applied migration continuation requires reconciled migration authority')
+  }
+  if (Object.hasOwn(value ?? {}, 'forwardAppliedMigrationContinuation')) {
+    expected.push('forwardAppliedMigrationContinuation')
+    assertForwardAppliedMigrationContinuation(value.forwardAppliedMigrationContinuation, profile.artifact.releaseBucket)
+    if (!value.appliedMigrationContinuation || !value.openswxWorkerRef) fail('RELEASE_INTENT_INVALID', 'Forward continuation requires existing migration and worker bindings')
   }
   if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
   if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) expected.push('programOnlyBaseline')
@@ -266,7 +271,7 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
   const releaseOrApplied = "if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}"
   const appliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
-  const historicalAppliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}"
+  const historicalAppliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}"
   const rollbackOnly = "if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}"
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||

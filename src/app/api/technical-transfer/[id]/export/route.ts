@@ -4,8 +4,9 @@ import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api
 
 export const runtime = "nodejs";
 
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
+function csvCell(value: string | Date) {
+  const normalized = value instanceof Date ? value.toISOString() : value;
+  return `"${normalized.replaceAll('"', '""')}"`;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {

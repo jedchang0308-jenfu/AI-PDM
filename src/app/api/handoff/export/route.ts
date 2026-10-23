@@ -66,6 +66,7 @@ export async function GET(request: Request) {
   });
 }
 
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
+function csvCell(value: string | Date) {
+  const normalized = value instanceof Date ? value.toISOString() : value;
+  return `"${normalized.replaceAll('"', '""')}"`;
 }

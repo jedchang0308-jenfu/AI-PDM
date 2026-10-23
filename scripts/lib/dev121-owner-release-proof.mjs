@@ -9,7 +9,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { assertStageReceipt, canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
-import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence, assertForwardAppliedMigrationContinuation, assertAppliedContinuationRuntimeBinding, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
 import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
 import { fetchProviderRead } from './dev012-read-retry.mjs'
 
@@ -595,7 +595,7 @@ function programOnlyProofSourceReader(internalReadSource = null, historicalReadb
   Object.defineProperty(reader, 'supportsAdmittedHistoricalRevisions', { value: true })
   return reader
 }
-function observationDeadline() {
+export function observationDeadline() {
   const handle = activeEvidence()
   if (handle === undefined) fail('CONTEXT_INVALID')
   return new Date(evidenceState(handle).root.expiresAtMs).toISOString()
@@ -1168,7 +1168,7 @@ export function assertAiPdmPausedRepairReadbacks({ baseline, records }) {
 }
 function assertObservedCapsule(value, ref, sourceRevision) {
   const keys = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt']
-  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'programOnlyBaseline', 'appliedMigrationContinuation']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
+  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'programOnlyBaseline', 'appliedMigrationContinuation', 'forwardAppliedMigrationContinuation']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
   if (!exactKeys(value, keys) || value.schemaVersion !== 'jenfu.dev117.ai-pdm-release-intent.v2' || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') ||
       value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') ||
       !/^ai-pdm-prod-[a-f0-9]{12}$/u.test(value.previousRevision ?? '') || !Number.isFinite(Date.parse(value.deadlineAt)) ||
@@ -1181,6 +1181,10 @@ function assertObservedCapsule(value, ref, sourceRevision) {
         value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('OBSERVED_CAPSULE_INVALID')
   }
   const reconciledAbort = assertReconciledPrincipalAbortBinding(value, AI_BUCKET)
+  if (Object.hasOwn(value, 'forwardAppliedMigrationContinuation')) {
+    assertForwardAppliedMigrationContinuation(value.forwardAppliedMigrationContinuation, AI_BUCKET)
+    if (!value.appliedMigrationContinuation || !value.openswxWorkerRef) fail('OBSERVED_CAPSULE_INVALID')
+  }
   if (value.openswxWorkerRef && (value.principalOnlyFenceRef || value.principalOnlyRecovery) && !reconciledAbort) fail('OBSERVED_CAPSULE_INVALID')
   if (Object.hasOwn(value, 'unlinkedProfileCleanupRef')) {
     assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef)
@@ -1588,6 +1592,132 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
     })
   })
 }
+// Applied continuations keep the worker runtime/ref unchanged. Their database
+// proof must not reinterpret that historical descriptor as a current worker
+// build. Ordinary paused-worker observations keep the original full graph.
+async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetchImpl, readOwnerSourceProof: observeOwnerSource }) {
+  if (!exactKeys(refs, ['prepare', 'migrate', 'terminal'])) fail('INPUT_INVALID')
+  const selected = assertOwnerReleaseRefSet('ai-pdm', { prepare: refs.prepare, migrate: null, terminal: null }, 'pre_migration')
+  const root = selected.root
+  const intentRef = { uri: `gs://${AI_BUCKET}/receipts/releases/${selected.releaseId}/release-intent.json`, sha256: root.split('/').at(-1) }
+  const intent = assertObservedCapsule((await readRef(intentRef, AI_BUCKET, token, fetchImpl)).value, intentRef, sourceRevision)
+  if (!intent.appliedMigrationContinuation || intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+  const prepare = await readRef(refs.prepare, AI_BUCKET, token, fetchImpl)
+  sameProof(prepare.value.facts?.prerequisiteRefs, Object.fromEntries(Object.entries({ sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }).map(([name, key]) => [name, intent[key]])))
+  const base = await readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision,
+    refs: { prepare: refs.prepare, migrate: null, terminal: null }, mode: 'pre_migration', token, fetchImpl })
+  let chain = Object.fromEntries(await Promise.all(Object.entries(base.buildChain).map(async ([key, row]) => [key, await readRef({ uri: row.ref, sha256: row.sha256 }, AI_BUCKET, token, fetchImpl)])))
+  if (chain.deployment.value.schemaVersion !== 'jenfu.dev117.ai-pdm-deployment-capsule.v2'
+    || chain.deployment.value.ownerApplicationId !== 'ai-pdm' || chain.deployment.value.deadlineAt !== intent.deadlineAt
+    || chain.deployment.value.releaseIntentSha256 !== intentRef.sha256) fail('DEPLOYMENT_CAPSULE_INVALID')
+  sameProof(chain.deployment.value.releaseIntentRef, intentRef)
+  sameProof(chain.deployment.value.sourceObject, chain.build.value.facts.sourceObject)
+  sameProof(chain.deployment.value.sourceObject, chain.provenance.value.sourceObject)
+  sameProof(chain.deployment.value.migrationBundleRef, chain.build.value.facts.migrationBundleRef)
+  if (chain.deployment.value.openswxWorker) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
+  const runtimeRow = await readRef(intent.runtimeConfigRef, AI_BUCKET, token, fetchImpl)
+  if (runtimeRow.value.releaseId !== intent.releaseId || runtimeRow.value.sourceRevision !== sourceRevision
+    || runtimeRow.value.ownerApplicationId !== 'ai-pdm' || runtimeRow.value.status !== 'VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
+  const runtime = runtimeRow.value.runtimeConfig ?? runtimeRow.value
+  const { assertRuntimeConfig } = await import('./dev012-owner-release-runtime.mjs')
+  assertAppliedContinuationRuntimeBinding(runtime, intent)
+  const sourceLock = await readRef(intent.sourceLockRef, AI_BUCKET, token, fetchImpl)
+  if (sourceLock.value.sourceSha256 !== intent.sourceSha256 || sourceLock.value.migrationManifestSha256 !== intent.migrationManifestSha256) fail('SOURCE_LOCK_INVALID')
+  admitAiPdmEvidenceSource({ bytes: sourceLock.bytes, ref: sourceLock.ref })
+  const bundle = await readObservationBundle({ ref: chain.deployment.value.migrationBundleRef, revision: sourceRevision, token, fetchImpl })
+  if (bundle.bundle.manifestSha256 !== intent.migrationManifestSha256) fail('MIGRATION_BUNDLE_MANIFEST_INVALID')
+  const archived = await observeArchiveContent({ source: chain.deployment.value.sourceObject, revision: sourceRevision, bundle: bundle.bundle, token, fetchImpl })
+  const profile = JSON.parse(strictUtf8(archived.content.files.get(PROFILE_PATH)))
+  assertRuntimeConfig(profile, runtime)
+  const transport = {
+    async readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null } = {}) {
+      if (prefixes.length !== 1 || !['receipts', 'source/migration-bundles'].includes(prefixes[0])) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+      let object
+      try { object = await readGcsObject({ uri, expectedBucket: AI_BUCKET, expectedPrefix: prefixes[0], token, fetchImpl: scopeFetch(fetchImpl) }) }
+      catch (error) {
+        if (error?.code === 'MIGRATION_GCS_METADATA_FAILED' && error.message === '404') throw Object.assign(new Error('MISSING'), { code: 'MISSING' })
+        throw error
+      }
+      const ref = { uri, sha256: expectedSha256 ?? sha256(object.bytes) }
+      const bytes = await readAiPdmEvidenceLeaf({ ref, read: async () => object.bytes })
+      rememberReceiptMetadata(ref, object)
+      return { ...object, bytes, ref }
+    },
+    readJson: ref => readRef(ref, AI_BUCKET, token, fetchImpl),
+    async readOwnerSourceProof(args) {
+      if (observeOwnerSource) return observeOwnerSource(args)
+      const proof = await readAiPdmReleaseObservation({ sourceRevision: args.sourceRevision, refs: args.refs, token, fetchImpl, readSource: null })
+      return { proof, provider: await verifyOwnerProviderReadback({ proof, token, fetchImpl, builderReadback: null }) }
+    },
+  }
+  const stage = await import('./dev012-owner-stage-executor.mjs')
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+  const readSource = (file, revision) => {
+    if (revision !== sourceRevision || (file !== PROFILE_PATH && !bundle.bundle.entries.some(row => row.path === file))) fail('APPLIED_MIGRATION_CONTINUATION_SOURCE_INVALID')
+    const bytes = archived.content.files.get(file)
+    if (!bytes) fail('APPLIED_MIGRATION_CONTINUATION_SOURCE_INVALID')
+    return bytes
+  }
+  const buildMigrationBundle = async revision => createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: profile.migrations.ledger, baselineCount: profile.migrations.baselineCount },
+    sourceRevision: revision, entries: structuredClone(bundle.bundle.entries) })
+  let migrate = null, terminal = null, history = null, oldHistory = null, migrationMode = null
+  if (refs.migrate !== null) {
+    oldHistory = await stage.readAppliedMigrationContinuationHistory({ intent, profile, transport, readSource, buildMigrationBundle, repositoryRoot })
+    if (intent.forwardAppliedMigrationContinuation) {
+      assertOwnerReleaseRefSet('ai-pdm', refs, 'post_migration')
+      history = await stage.readForwardAppliedMigrationHistory({ intent, profile, transport, repositoryRoot })
+      if (assertAiPdmRepairMigrationMode(oldHistory, history.source.content) !== 'FORWARD_APPLIED' || bundle.bundle.entries.length !== 38) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+      assertAiPdmInstalledMigrationEquivalent(history, archived.content)
+      migrate = await readRef(refs.migrate, AI_BUCKET, token, fetchImpl)
+      assertForwardMigrationAssociation(migrate.value, { intent, deploymentRef: chain.deployment.ref, history })
+      await stage.assertNoForwardMigrationSubmission({ transport, profile, outputUri: `${root}/migrate.json` })
+      migrationMode = 'HISTORICAL_EVIDENCE_REUSED'
+    } else if (canonicalize(refs.migrate) === canonicalize(intent.appliedMigrationContinuation.migrateRef)) {
+      if (refs.terminal) assertRef(refs.terminal, AI_BUCKET, `${root}/terminal.json`)
+      history = oldHistory
+      assertAiPdmInstalledMigrationEquivalent(history, archived.content)
+      migrate = await readRef(refs.migrate, AI_BUCKET, token, fetchImpl)
+      migrationMode = 'HISTORICAL_EVIDENCE_REUSED'
+    } else {
+      assertOwnerReleaseRefSet('ai-pdm', refs, 'post_migration')
+      const evidence = await stage.readAppliedMigrationEvidence({ binding: { sourceRevision, prepareRef: refs.prepare, migrateRef: refs.migrate }, currentIntent: intent, profile, transport, readSource })
+      history = assertAiPdmMigrationHistory(evidence.history)
+      migrate = await readRef(refs.migrate, AI_BUCKET, token, fetchImpl)
+      if (migrate.value.ledgerCount !== bundle.bundle.entries.length || Date.parse(migrate.value.startedAt) < Date.parse(chain.build.value.observedAt)
+        || Date.parse(migrate.value.completedAt) > Date.parse(intent.deadlineAt)) fail('OBSERVED_CHRONOLOGY_INVALID')
+      if (assertAiPdmRepairMigrationMode(oldHistory, archived.content) !== 'FORWARD_APPLIED') fail('REPAIR_MIGRATION_MODE_INVALID')
+      migrationMode = 'FORWARD_APPLIED'
+    }
+    const admission = await readFixedJson(`${root}/migration-admission.json`, AI_BUCKET, token, fetchImpl)
+    assertStage(admission.value, 'ai-pdm', sourceRevision, intent.releaseId, 'migrate')
+    if (canonicalize(admission.value.previousReceiptRef) !== canonicalize(chain.deployment.ref)
+      || canonicalize(admission.value.facts?.migrationReceiptRef) !== canonicalize(migrate.ref)
+      || admission.value.facts.disposition !== migrationMode || admission.value.facts.sourceRevision !== sourceRevision
+      || admission.value.facts.manifestSha256 !== intent.migrationManifestSha256
+      || Boolean(intent.forwardAppliedMigrationContinuation) !== (admission.value.facts.schemaStageOnly === true)
+      || (!intent.forwardAppliedMigrationContinuation && Object.hasOwn(admission.value.facts, 'schemaStageOnly'))
+      || Date.parse(admission.value.observedAt) > Date.parse(intent.deadlineAt)) fail('MIGRATION_ADMISSION_INVALID')
+    if (refs.terminal) {
+      terminal = await readRef(refs.terminal, AI_BUCKET, token, fetchImpl)
+      assertStage(terminal.value, 'ai-pdm', sourceRevision, intent.releaseId, 'terminal')
+      if (terminal.value.facts?.result !== 'RELEASED' || terminal.value.facts.databaseDisposition !== migrationMode
+        || terminal.value.facts.remainingHumanAction !== 0 || Date.parse(terminal.value.observedAt) > Date.parse(intent.deadlineAt)) fail('TERMINAL_INVALID')
+      if (migrationMode === 'HISTORICAL_EVIDENCE_REUSED') sameProof(terminal.value.facts.migrationEvidenceRef, migrate.ref)
+      chain = await readReleasedStageChain({ owner: 'ai-pdm', config: OWNERS['ai-pdm'], revision: sourceRevision, releaseId: intent.releaseId, root, terminal, prepare, migrate, token, fetchImpl })
+    }
+  } else if (refs.terminal !== null) fail('OWNER_RELEASE_REF_SET_INVALID')
+  const times = [prepare.value.observedAt, chain.build.value.observedAt,
+    ...(migrate?.value?.schemaVersion === 'jenfu.dev012.stage-receipt.v1' ? [migrate.value.observedAt] : []),
+    ...['candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize'].filter(key => chain[key]).map(key => chain[key].value.observedAt),
+    ...(terminal ? [terminal.value.observedAt] : [])].map(Date.parse)
+  if (times.some(time => !Number.isFinite(time) || time > Date.parse(intent.deadlineAt))
+    || times.some((time, index) => index && time < times[index - 1])
+    || (migrationMode === 'FORWARD_APPLIED' && chain.candidate && Date.parse(migrate.value.completedAt) > Date.parse(chain.candidate.value.observedAt))) fail('OBSERVED_CHRONOLOGY_INVALID')
+  return { intent, intentRef, prepare, sourceLock, migrate, terminal, chain, bundle, content: archived.content,
+    sourceAuthentication: archived.sourceAuthentication, migrationHistory: history, repairHistory: oldHistory, repair: false,
+    descriptor: null, baseline: null, prerequisite: null, migrationMode, appliedMigrationOnly: true }
+}
+
 /** Qualify at the public native root before the current capsule is descended.
  * Nested observers may only consume the capability already owned by that root. */
 async function prepareHistoryObservationIngress({ workerDescriptor, intent, token, fetchImpl, readSource }) {
@@ -1614,8 +1744,32 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
   if (observeOwnerSource !== null && typeof observeOwnerSource !== 'function') fail('PROGRAM_ONLY_SOURCE_PROOF_INVALID')
   const handle = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(handle, async () => {
+    if (!exactKeys(refs, ['prepare', 'migrate', 'terminal'])) fail('INPUT_INVALID')
     const preMigration = refs?.migrate === null && refs?.terminal === null
-    const selected = assertOwnerReleaseRefSet('ai-pdm', refs, preMigration ? 'pre_migration' : 'post_migration')
+    const selected = assertOwnerReleaseRefSet('ai-pdm', { prepare: refs.prepare, migrate: null, terminal: null }, 'pre_migration')
+    const selectedIntentRef = { uri: `gs://${AI_BUCKET}/receipts/releases/${selected.releaseId}/release-intent.json`, sha256: selected.root.split('/').at(-1) }
+    const selectedIntent = assertObservedCapsule((await readRef(selectedIntentRef, AI_BUCKET, token, fetchImpl)).value, selectedIntentRef, sourceRevision)
+    if (selectedIntent.appliedMigrationContinuation) {
+      const inputs = { sourceRevision, refs: structuredClone(refs), token, fetchImpl, readOwnerSourceProof: observeOwnerSource }
+      const graph = await readAppliedOnlyObservedGraph(inputs)
+      const object = row => ({ ref: row.ref.uri, sha256: row.ref.sha256, generation: row.generation, crc32c: row.crc32c })
+      const historical = graph.migrationMode === 'HISTORICAL_EVIDENCE_REUSED'
+      const proof = { owner: 'ai-pdm', sourceRevision, releaseId: graph.intent.releaseId,
+        disposition: graph.terminal ? 'released' : preMigration ? 'build_only' : historical ? 'migration_evidence_only' : 'migration_only',
+        migrationManifestSha256: graph.intent.migrationManifestSha256, prepare: object(graph.prepare), sourceLock: object(graph.sourceLock),
+        artifactDigest: graph.chain.deployment.value.artifactDigest, releaseCapsuleRef: graph.intentRef,
+        providerClaim: { buildId: graph.chain.provenance.value.cloudBuild.id, sourceObject: graph.chain.provenance.value.sourceObject },
+        ...(preMigration ? { releaseAuthority: false, migrationVerified: false } : { migrate: { ...object(graph.migrate), generation: null, crc32c: null } }),
+        ...(graph.terminal ? { terminal: object(graph.terminal), candidateRevision: graph.terminal.value.facts.candidateRevision,
+          releaseChain: Object.fromEntries(Object.entries(graph.chain).map(([key, row]) => [key, object(row)])) }
+          : { buildChain: Object.fromEntries(Object.entries(graph.chain).map(([key, row]) => [key, object(row)])) }),
+        ...(historical ? { releaseAuthority: false, migrationVerified: false, currentDatabaseReadPerformed: false, databaseLiveState: 'UNKNOWN', evidenceScope: 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION', databaseDisposition: 'HISTORICAL_EVIDENCE_REUSED', migrationEvidenceRef: graph.migrate.ref } : {}) }
+      authenticatedObservations.set(proof, { root: evidenceState(handle).root, proofSha256: sha256(canonicalize(proof)), sourceAuthentication: graph.sourceAuthentication,
+        deriveGraph: () => readAppliedOnlyObservedGraph(inputs) })
+      activeEvidence()
+      return proof
+    }
+    assertOwnerReleaseRefSet('ai-pdm', refs, preMigration ? 'pre_migration' : 'post_migration')
     const migration = preMigration ? null : await readRef(refs.migrate, AI_BUCKET, token, fetchImpl)
     let pausedForward = false, cleanupBound = false, programOnlyBound = false
     if (migration?.value?.schemaVersion !== 'aipdm.paused-app-repair-migration-association.v1') {
@@ -1672,7 +1826,7 @@ export async function readAiPdmObservationInputs(proof) {
   const active = activeEvidence(), stored = authenticatedObservations.get(proof)
   if (active === undefined || !stored || stored.root !== evidenceState(active).root || stored.root.closed ||
       stored.proofSha256 !== sha256(canonicalize(proof))) fail('OBSERVATION_IDENTITY_INVALID')
-  const graph = await readObservedCapsuleGraph(stored.input)
+  const graph = stored.deriveGraph ? await stored.deriveGraph() : await readObservedCapsuleGraph(stored.input)
   activeEvidence()
   return graph
 }

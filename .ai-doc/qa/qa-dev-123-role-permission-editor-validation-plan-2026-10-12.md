@@ -189,10 +189,23 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 | `release-preparation/post-schema-existing-ui-readback.json` | 舊PDM serving版在schema後，以瀏覽器既有公司session讀到九legacy角色及原RD能力；只證schema相容及既有session。未提交帳密、未套用矩陣、未改任用；不是新版UI或fresh SSO驗收。 |
 | development-only SSO adapters：[PDM #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)、[OrgMaster #153](https://github.com/jedchang0308-jenfu/OrgMaster/pull/153)、[Platform #140](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/140) | 各自獨立草稿及required CI通過，未合併／未納入上述production來源。local runtimes已停止；正常Google旅程因現行IdP未允許localhost而未執行，暫加localhost問題仍待人類答覆。source CI不能關閉fresh SSO／三端正常UI旅程。 |
 
-正式收據根目錄為`gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-WIF-39988578179-1/`與`gs://jenfu-platform-prod-orgmaster-release/receipts/releases/ORGMASTER-REL-20261023172420327-66E8BFC/`；stage收據位於各自capsule hash子目錄。本次PDM capsule deadline為`2026-10-23T18:40:19.356Z`，只在有效且consumer前提成立時才能依既有owner入口續接；過期則走既有fresh封存／恢復程序，不延長舊收據、不重播已完成schema寫入。086–088與034–036已套用，後續SQL修正只能新增forward migration。
+
+本輪source修正與驗證增補（2026-10-24；尚未發布）：
+
+| 證據／範圍 | 實際結果與判定邊界 |
+|---|---|
+| PR #480產品caller修正；`c676b68…`的五個檔案 | PG JSONB manifest原生object與SQLite string共用同一嚴格membership／schema／hash檢查；兩個CSV caller把PG Date轉ISO字串再escaping。partner focused36項及typecheck通過，僅採納這五檔，未納入development-only SSO adapter。最終source required CI仍待本PR刷新。 |
+| `dev123-native-package-http-20261024-r6.json`／`.log` | 19／19 PASS：正常repository建立PDF／model／BOM三檔混合ZIP與CSV200，核對實際bytes／hash；真apply撤download後403、混合member／Range deny、scope、有效正向後corruption503、share撤銷／到期404及拒絕無StorageAccessed。r1–r5保留；是native PG＋原route loopback HTTP，非完整Next／fresh SSO／production actor驗收。 |
+| `dev123-native-recognition-formalize-http-20261024-r8.json`／`.log` | 原POST formalize200建立mm canonical unit；同session真apply停用RD後第二次403，14個canonical／history／command／outbox／audit表全列hash不變。r7已驗200／403但額外fixture teardown違反FK而FAIL；r8移除無必要teardown後整段PASS。前期503為fixture company code與numbering resolver不一致，未放寬產品guard。 |
+| `dev123-native-file-asset-http-20261024-r7.json`／`.log` | 原canonical route original／preview200核對hash；撤download後original／Range403但安全preview200；無ready derivative202且不回退原檔；撤view後404隱藏資源。StorageAccessed恰3次，denies不增加；r1–r6前提／oracle／cleanup失敗保留。 |
+| 上列native資料及清理 | 各run來源before／after相符；task PG／HTTP bridge／port／temp已清理。只支持已列的bytes、撤權、正式化及scope斷言，不代表正常Google旅程或正式consumer／writer已通過。 |
+| `dev-123-forward-continuation/provider-native38-read-r1..r4.json` | r1顯示舊observer錯將retained worker來源當成當前app；r2為歷史archive解析錯用過期寫入deadline；r3為prepare未顯式載入。修正後r4唯讀PASS：native ledger38／applied3／replayed35／38 entries，provider build/image來源核對成立；productionWrites=false、currentDatabaseReadPerformed=false、databaseLiveState=UNKNOWN、releaseAuthority=false。原失敗全保留。 |
+| `dev-123-forward-continuation/focused-r3.log`／`focused-r4.log`／`focused-r5.log` | r3發布／opaque source proof七檔275／275 PASS；最後審查補prepare／deployment／source hash join、prior admission flag與歷史native fence之後，r4為276／277 PASS，唯一失敗是新增測試把既有固定檔名migrate-submission-intent誤寫為migration-submission-intent。修正oracle、加fresh index與unknown-read案例後，受影響兩檔r5為24／24 PASS；整套final source回歸／required CI待更新。 |
+
+正式收據根目錄為`gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-WIF-39988578179-1/`與`gs://jenfu-platform-prod-orgmaster-release/receipts/releases/ORGMASTER-REL-20261023172420327-66E8BFC/`；stage收據位於各自capsule hash子目錄。本次PDM capsule deadline為`2026-10-23T18:40:19.356Z`，現已過期，不再dispatch或延長原capsule。[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)正補齊fresh continuation：驗既有native38／source／provider收據後，新attempt只封存輸入等價關聯，明記沒有新Job、沒有當前DB讀取且live state UNKNOWN；schema-only workflow仍停止於migration，不提前啟用writer。該修正尚未通過最終required CI／合併／發布，不將工作碼唯讀PASS當成release GO。086–088與034–036已套用，後續SQL修正只能新增forward migration。
 
 401的現有證據只能定位到Platform session邊界：refresh與operator Firebase驗證成功，不足以證明正式runtime verifier或Principal revokedBefore通過。尚無可用的既有特定Principal epoch唯讀入口，未執行任意SQL／Job、新session、Secret輪替或IAM變更。Platform正式修改不在本輪授權內；不得把這個authentication失敗記作Org業務permission deny或已證根因。
 
-剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的實際bytes／長任務子項與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
+剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的子斷言與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。

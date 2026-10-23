@@ -76,6 +76,8 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 下一步：釐清Platform session 401，完成OrgMaster reader發布及真實讀回，再沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)續接PDM writer與正式驗收；正常Google／SSO旅程仍待完成。PDM既有protected發布／驗收與OrgMaster相容migration／reader部署已授權，後者限jenfu-platform-prod／orgmaster-prod，不含人員指派改寫、IAM或Secrets，也不延伸為Platform正式修改。52 QA／17 AC／CG目的保留，尚未整體驗收或套用新矩陣。
 
+來源修正：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。新source最終required CI／合併／發布待完成，結果統一記QA §6。
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。

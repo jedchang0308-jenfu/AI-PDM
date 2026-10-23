@@ -8,7 +8,7 @@ import { assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConf
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
-import { migrationDispositionFromStageResult } from './dev117-ai-pdm-continuous-release.mjs'
+import { migrationDispositionFromStageResult, migrationSchemaStageOnlyFromStageResult } from './dev117-ai-pdm-continuous-release.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
@@ -380,7 +380,7 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
   const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
-  const historicalGate = "        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}"
+  const historicalGate = "        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}"
   const oldAppliedGate = "        if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
   const cli = readText('scripts/dev117-ai-pdm-continuous-release.mjs')
   assert.equal(source.split(historicalGate).length - 1, 13)
@@ -388,11 +388,15 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   assert.match(cli, /migration_disposition=\$\{migrationDisposition\}/u)
   assert.equal(migrationDispositionFromStageResult({ value: { facts: { disposition: 'HISTORICAL_EVIDENCE_REUSED' } } }), 'HISTORICAL_EVIDENCE_REUSED')
   assert.equal(migrationDispositionFromStageResult({ value: { facts: { disposition: 'FORWARD_APPLIED' } } }), 'FORWARD_APPLIED')
+  assert.equal(migrationSchemaStageOnlyFromStageResult({ value: { facts: { disposition: 'HISTORICAL_EVIDENCE_REUSED', schemaStageOnly: true } } }), true)
+  assert.equal(migrationSchemaStageOnlyFromStageResult({ value: { facts: { disposition: 'HISTORICAL_EVIDENCE_REUSED' } } }), false)
+  assert.throws(() => migrationSchemaStageOnlyFromStageResult({ value: { facts: { schemaStageOnly: false } } }), { code: 'MIGRATION_ADMISSION_INVALID' })
   assert.throws(() => migrationDispositionFromStageResult({ value: { facts: {} } }), { code: 'MIGRATION_DISPOSITION_INVALID' })
   assert.match(fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/locals.tf', import.meta.url), 'utf8'), /github_rd_permission_readback_ref/u)
   const duplicateSourceTest = source.replace('      - run: npm ci', '      - run: npm ci\n      - run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner')
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(duplicateSourceTest, wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(historicalGate, oldAppliedGate), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(" && steps.migrate.outputs.schema_stage_only != 'true'", ''), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'UNKNOWN'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })

@@ -1,5 +1,7 @@
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { executePrerequisiteProducer, readGitAuthority } from './dev012-owner-prerequisite-producer.mjs'
+import { assertStageReceipt } from './dev012-production-migration-runner.mjs'
+import { assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -52,6 +54,27 @@ export function createAppliedContinuationRefreshTransport({ verifier, builder })
   return Object.freeze(Object.fromEntries(routes))
 }
 
+async function forwardBindingFromTemplate({ template, templateRef, profile, transport }) {
+  if (template.forwardAppliedMigrationContinuation) return assertForwardAppliedMigrationContinuation(template.forwardAppliedMigrationContinuation, profile.artifact.releaseBucket)
+  const root = `gs://${profile.artifact.releaseBucket}/receipts/releases/${template.releaseId}/${templateRef.sha256}`
+  let row
+  try { row = await transport.readBytes(`${root}/migration-admission.json`, { prefixes: ['receipts'] }) }
+  catch (error) { if (error?.code === 'MISSING') return null; throw error }
+  let admission
+  try { admission = JSON.parse(row.bytes.toString('utf8')) } catch { fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID') }
+  assertStageReceipt(admission, { ownerApplicationId: 'ai-pdm', releaseId: template.releaseId, sourceRevision: template.sourceRevision, stage: 'migrate' })
+  if (admission.facts?.disposition !== 'FORWARD_APPLIED') return null
+  const nativeRef = admission.facts.migrationReceiptRef
+  if (nativeRef?.uri !== `${root}/migrate.json` || !H64.test(nativeRef.sha256 ?? '')) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+  const native = await transport.readJson(nativeRef, profile.artifact.releaseBucket, ['receipts'])
+  if (native.value?.ledgerCount !== 38) return null
+  const prepare = await transport.readBytes(`${root}/prepare.json`, { prefixes: ['receipts'] })
+  // This is an index, not migration authority. The fresh prepare/migrate/source
+  // observer resolves the complete prior opaque graph before any runtime write.
+  return assertForwardAppliedMigrationContinuation({ schemaVersion: 'aipdm.forward-applied-migration-continuation.v1',
+    priorIntentRef: templateRef, priorPrepareRef: prepare.ref, priorMigrationAdmissionRef: row.ref }, profile.artifact.releaseBucket)
+}
+
 export async function refreshAppliedContinuationCapsule({
   templateRef,
   profile,
@@ -81,6 +104,7 @@ export async function refreshAppliedContinuationCapsule({
   if (!template.appliedMigrationContinuation || !template.postAbortLedgerReadbackRef
     || !template.principalOnlyFenceRef || !template.principalOnlyRecovery) fail('APPLIED_CONTINUATION_REFRESH_TEMPLATE_INVALID')
   if (!H40.test(template.sourceRevision ?? '') || !H40.test(git.sourceRevision ?? '') || !readWorkerSource.isAncestor?.(template.sourceRevision, git.sourceRevision)) fail('APPLIED_CONTINUATION_REFRESH_SOURCE_DIVERGED')
+  const forwardAppliedMigrationContinuation = await forwardBindingFromTemplate({ template, templateRef, profile, transport })
   const releaseDeadlineAt = new Date(now().getTime() + 2 * 60 * 60 * 1000).toISOString()
   const producer = (stage, input) => producePrerequisite({
     stage,
@@ -119,6 +143,7 @@ export async function refreshAppliedContinuationCapsule({
     principalOnlyFenceRef: template.principalOnlyFenceRef,
     principalOnlyRecovery: template.principalOnlyRecovery,
     appliedMigrationContinuation: template.appliedMigrationContinuation,
+    ...(forwardAppliedMigrationContinuation ? { forwardAppliedMigrationContinuation } : {}),
   }
   const authority = await producer('routine-authority', {
     schemaVersion: 'jenfu.dev012.routine-owner-authority-input.v1',

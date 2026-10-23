@@ -27,6 +27,8 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
 - [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：已合併且required CI通過；PDM 086–088／OrgMaster 034–036正式schema已套用，consumer因Platform session 401未上線，writer暫緩。來源、收據、恢復與待驗範圍見QA §6；OrgMaster授權仍限相容migration／reader，不含人員指派改寫、IAM或Secrets，尚未正式驗收／套用新矩陣。
 
+來源修正：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。新source最終required CI／合併／發布待完成，結果統一記QA §6。
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方main `b42458b3cd05924be566ea05e536454f6751c883`；R60 source freeze及12-row metadata no-op/read完成，worker越過reader-scope修正後，於舊600秒profile仍被current-only 1200秒validator／固定SHA拒絕。新最小修正改用既有historical validator，僅允許完整固定的1200或600秒profile；exact bytes仍由下游descriptor SHA及origin相容檢查綁定，其他歷史、來源與provider fence不變。R60 association／owner dispatch／build／migration／service／traffic／正式資料皆未變更，舊input不重送。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。

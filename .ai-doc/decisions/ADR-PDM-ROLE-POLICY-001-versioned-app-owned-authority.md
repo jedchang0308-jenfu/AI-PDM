@@ -37,3 +37,5 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 首次rollout沿既有35-prefix證據與38-entry真forward migration；保留worker runtime及sealed prepared分類，schema-only完成後才由full owner續接同capsule，詳SPEC§11及既有release spec§26.4／26.6。不新增mode、workflow、簽核或readiness狀態。
 
 2026-10-23登入政策決策：人類選擇沿用現有公司Google管理員登入政策，移除本次實作額外加入的AAL2硬限制；不新增MFA系統，也不把AAL1冒記為AAL2。既有verified Principal/session及human_privileged、direct global exact-Principal system_admin資格保持，post-lock assurance須與registered session一致。此決策僅限DEV-123，不修改其他DEV-121管理API或SSO信任契約。
+
+2026-10-24發布續接修正：正式schema已完成而consumer尚未就緒，原capsule到期後須以不可變prior38證據重新封存，不重送DDL。依既有app／worker來源分工，applied-only的DB/source觀察不重播保留worker的舊build graph；runtime/ref及普通worker流程保護維持。封閉forward索引、零Job association及schema-only派生旗標見release spec§26.4；不增加產品狀態、人工簽核或任意操作入口。實際source修正／驗證及尚未發布範圍仍只記QA§6。

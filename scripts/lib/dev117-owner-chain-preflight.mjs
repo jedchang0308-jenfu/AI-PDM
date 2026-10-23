@@ -143,6 +143,9 @@ function normalizeActivation({ intent, candidate, activation }) {
  * produces one normalized model, and never invokes a provider writer.
  */
 export function normalizeOwnerChain({ profile, intent, values, infraInput = null, migration, build, candidate, activation, worker = null, appliedMigrationContinuation = null, isAncestor = null, now }) {
+  // This pure receipt model has no authenticated source-graph capability. Do
+  // not turn an unverified forward index into READY_FOR_CANDIDATE authority.
+  if (Object.hasOwn(intent ?? {}, 'forwardAppliedMigrationContinuation')) fail('CHAIN_FORWARD_CONTINUATION_REQUIRES_OWNER_RESOLVER')
   if (!profile || !intent || !RELEASE_ID.test(intent.releaseId ?? '') || intent.ownerApplicationId !== profile.application.id
     || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '')
     || !Number.isFinite(Date.parse(intent.deadlineAt))) fail('CHAIN_INPUT_INVALID')

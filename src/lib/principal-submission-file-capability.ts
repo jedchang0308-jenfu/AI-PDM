@@ -23,7 +23,7 @@ export function submissionFileCapabilityGroups(row: SubmissionFileCapabilitySour
 /** All actual members of a ZIP require download; no partial or filename-based
  * authorization. For a single original/inline PDF, constrain the exact file ID. */
 export async function authorizeSubmissionOriginalsInSnapshot(snapshot: AsyncDatabaseClient,
-  verified: VerifiedPrincipalRequest, submissionId: string, fileId?: string, manifestJson?: string) {
+  verified: VerifiedPrincipalRequest, submissionId: string, fileId?: string, manifestJson?: unknown) {
   if (!await isDynamicRolePolicyInSnapshot(snapshot)) return null
   const rows = await snapshot.query<SubmissionFileCapabilitySource>(
     `SELECT f.id,f.file_role,f.sha256,s.source_entity_type,a.linked_entity_type,a.document_category
@@ -44,7 +44,13 @@ export async function authorizeSubmissionOriginalsInSnapshot(snapshot: AsyncData
   }
   if (manifestJson !== undefined) {
     let manifest: { schema?: string; submission?: { id?: string }; files?: Array<{ id?: string; sha256?: string; file_role?: string }> }
-    try { manifest = JSON.parse(manifestJson) } catch { manifest = {} }
+    // PostgreSQL JSONB arrives decoded; SQLite JSON arrives as text. Both
+    // representations must pass the same exact membership checks below.
+    try {
+      const decoded: unknown = typeof manifestJson === 'string' ? JSON.parse(manifestJson) : manifestJson
+      manifest = decoded !== null && typeof decoded === 'object' && !Array.isArray(decoded)
+        ? decoded as typeof manifest : {}
+    } catch { manifest = {} }
     const files = manifest?.files
     if (manifest?.schema !== 'ai-pdm-release-package.v1' || manifest.submission?.id !== submissionId ||
         !Array.isArray(files) || files.length !== rows.length || new Set(files.map(file => file?.id)).size !== rows.length ||
