@@ -47,6 +47,7 @@ import { createReleasePackageStorageService, LocalRepositoryStorageAdapter } fro
 import { POST as createTransfer } from "@/app/api/transfer-packages/route";
 import { POST as addTransferItem } from "@/app/api/transfer-packages/[id]/items/route";
 import { POST as submitTransfer } from "@/app/api/transfer-packages/[id]/submit-review/route";
+import { GET as readTransferReadiness } from "@/app/api/transfer-packages/[id]/readiness-summary/route";
 import { POST as decideTransfer } from "@/app/api/approvals/requests/[requestId]/decisions/route";
 import { buildTransferPackageReadiness } from "@/lib/transfer-package-phase1d";
 import { PartChangeWorkAsyncRepository } from "@/lib/repositories/part-change-work-async-repository";
@@ -138,7 +139,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (fullLifecycleSelection||["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope","openswx-work-cancel"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (fullLifecycleSelection||["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope","openswx-work-cancel","part-access-ui"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -994,6 +995,51 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
           JSON.stringify({case:{status,age,attempt},httpStatus:response.status,selectedHeaders})+"\n");
       }
     } finally { time.mockRestore(); }
+  });
+  it("canonical GET requeues one stale running job for the same actual worker claim", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("canonical-get-reclaim"), first = await nativePreviewClaim(send);
+      expect(first.sourceFileAssetId).toBe(fixture.assetId);
+      expect(first.leaseBasis).toMatchObject({ companyId: "company-jenfu", sourceFileAssetId: fixture.assetId,
+        sourceContentHash: fixture.asset.content_hash, attemptCount: 1 });
+      const stale = await resetFileJob(fixture, "running", 1, 31_000);
+      expect(stale).toMatchObject({ id: first.jobId, locked_by: "dev122-lease-worker" });
+      const stableOwnedRows = async () => ({ ...await ownedLifecycleSnapshot(), preview_jobs: await db!.query(
+        "SELECT to_jsonb(job) AS row FROM preview_jobs job WHERE id<>:id ORDER BY job.id", { id: first.jobId }) });
+      const before = await stableOwnedRows(), objects = await previewRepositorySnapshot();
+      const source = await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: fixture.assetId });
+      const response = await fileResponse(fixture, true);
+      expect(response.status).toBe(202);
+      const selectedHeaders = { "retry-after": response.headers.get("retry-after"), "x-pdm-preview-state": response.headers.get("x-pdm-preview-state") };
+      expect(selectedHeaders).toEqual({ "retry-after": "2", "x-pdm-preview-state": "pending" });
+      expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_NOT_READY", retryable: true } });
+      const queued = await currentFileJob(fixture);
+      expect(queued).toMatchObject({ id: first.jobId, status: "queued", attempt_count: 1,
+        locked_by: null, locked_at: null, completed_at: null, error_code: "preview_worker_heartbeat_timeout" });
+      expect(await stableOwnedRows()).toEqual(before);
+      expect(await previewRepositorySnapshot()).toEqual(objects);
+      const second = await nativePreviewClaim(send), claimed = await currentFileJob(fixture);
+      expect(second).toMatchObject({ jobId: first.jobId, sourceFileAssetId: fixture.assetId,
+        sourceContentHash: fixture.asset.content_hash, sourceExtension: first.sourceExtension, requestedKind: first.requestedKind,
+        leaseBasis: { companyId: "company-jenfu", sourceFileAssetId: fixture.assetId,
+          sourceContentHash: fixture.asset.content_hash, attemptCount: 2 } });
+      expect(claimed).toMatchObject({ id: first.jobId, status: "running", attempt_count: 2, locked_by: "dev122-lease-worker",
+        company_id: second.leaseBasis.companyId, source_file_asset_id: second.sourceFileAssetId, source_content_hash: second.sourceContentHash });
+      expect(new Date(claimed.locked_at as string | Date).toISOString()).toBe(second.leaseBasis.lockedAt);
+      for (const field of ["company_id", "source_file_asset_id", "source_content_hash", "requested_kind", "source_extension",
+        "idempotency_key", "generator_profile", "created_by", "metadata_json"]) {
+        expect(queued[field], field).toEqual(stale[field]);
+        expect(claimed[field], field).toEqual(stale[field]);
+      }
+      expect(await stableOwnedRows()).toEqual(before);
+      expect(await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: fixture.assetId })).toEqual(source);
+      expect(await previewRepositorySnapshot()).toEqual(objects);
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "canonical-get-reclaim-readback.json"), JSON.stringify({
+        first, stale, canonicalGet: { status: response.status, selectedHeaders }, queued, second, claimed,
+        onlyExactPreviewJobChanged: true, sourceAssetUnchanged: true, derivativesAndOtherOwnedRowsUnchanged: true,
+        repositorySnapshotUnchanged: true, repositorySnapshot: objects
+      }, null, 2));
+    });
   });
   it("returns unknown dependency safe500 and known missing storage503 after real authorization/native reads", async () => {
     const fixture = await normalDrawingFile("dependency-errors");
@@ -2810,6 +2856,60 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "part-access-ui") {
+      const fixtures = [], readbacks = [];
+      const otherClaims = verifyJenfuPrincipalSession(otherToken, getPlatformSessionKeyRing());
+      expect(otherClaims.companyId).toBe("company-dev122-other");
+      expect(await new JenfuPrincipalSessionRegistry(db!).isActive(otherClaims)).toBe(true);
+      for (const width of [1440, 390]) {
+        const label = "part-access-" + width;
+        const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request(
+          "/api/numbering/records", ownerToken, "POST", { coreName: "DEV122 ordinary " + width,
+            itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+        const partId = part.partNumber.id;
+        const started = await ok<{ data: { workId: string } }>(await createPartWork(request(
+          "/api/pdm/parts/" + partId + "/change-works", ownerToken, "POST", {}, 1,
+          await contract("dev122-profile-owner"), label + "-work"), { params: Promise.resolve({ partId }) }));
+        const workId = started.data.workId, workParams = { params: Promise.resolve({ workId }) };
+        const work = await ok<Work>(await readPartWork(request("/api/pdm/part-change-works/" + workId), workParams));
+        await ok(await updatePartWork(request("/api/pdm/part-change-works/" + workId, ownerToken, "PATCH",
+          { ...work.data.payload, partName: "DEV122 ordinary saved " + width }, work.data.rowVersion,
+          work.meta.contractToken), workParams));
+        const intake = await ok<{ workbench: { id: string; rowVersion: number; packageNumber: string } }>(await createTransfer(request(
+          "/api/transfer-packages", ownerToken, "POST", { title: "DEV122 Draft readiness " + width,
+            caseType: "development_case", caseReason: "Bounded ordinary edit readiness", sourceReferenceStatus: "not_available",
+            sourceReferenceReason: "Isolated synthetic prerequisite" }, 1, "", label + "-transfer")), 201);
+        const packageId = intake.workbench.id, params = { params: Promise.resolve({ id: packageId }) };
+        await ok(await addTransferItem(request("/api/transfer-packages/" + packageId + "/items", ownerToken, "POST",
+          { expectedRowVersion: intake.workbench.rowVersion, entityType: "part_number", entityId: partId }, 1, "", label + "-item"), params));
+        const before = await ownedLifecycleSnapshot();
+        const readinessResponse = await readTransferReadiness(request("/api/transfer-packages/" + packageId + "/readiness-summary"), params);
+        const readinessBody = await readinessResponse.json(), after = await ownedLifecycleSnapshot();
+        expect(readinessResponse.status).toBe(200); expect(readinessBody.readiness.ready).toBe(false);
+        expect(readinessBody.readiness.blockers).toEqual(expect.arrayContaining([expect.objectContaining({ code: "transfer_official_item_invalid" })]));
+        expect(after).toEqual(before);
+        const formal = await db!.queryOne("SELECT * FROM part_numbers WHERE id=:id", { id: partId });
+        expect(formal).toMatchObject({ record_status: "Draft" });
+        expect(await db!.query("SELECT * FROM part_approved_change_snapshots WHERE part_id=:id", { id: partId })).toEqual([]);
+        // Prepare pending review through normal commands; no approved outcome is seeded.
+        const review = await draftReleaseFixture(label + "-review");
+        const pending = await db!.queryOne<{ snapshot_hash: string }>("SELECT snapshot_hash FROM pdm_work_review_requests WHERE id=:id", { id: review.submission.data.requestId });
+        expect(pending?.snapshot_hash).toMatch(/^[a-f0-9]{64}$/);
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "part-access", terminalAssetIds: [],
+          partId, partNumber: part.partNumber.partNumber, partWorkId: workId, packageId,
+          reviewPartNumber: (await db!.queryOne<{ part_number: string }>("SELECT part_number FROM part_numbers WHERE id=:id", { id: review.partId }))!.part_number,
+          reviewPartId: review.partId, requestId: review.submission.data.requestId, packageHash: pending!.snapshot_hash,
+          otherContract: await contract("dev122-profile-other", "company-dev122-other") });
+        readbacks.push({ viewport: width, partId, workId, packageId, route: "/api/transfer-packages/" + packageId + "/readiness-summary",
+          method: "GET", status: readinessResponse.status, body: readinessBody, fullOwnedRowsUnchanged: true,
+          formal, approvedSnapshots: [], pendingRequestId: review.submission.data.requestId, packageHash: pending!.snapshot_hash });
+      }
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "part-access-native-readbacks.json"), JSON.stringify({
+        producerBoundary: "FIXTURE", production: "NOT_RUN", otherActor: { principalId: otherClaims.principalId,
+          employeeId: otherClaims.employeeId, companyId: otherClaims.companyId, registered: true }, readbacks }, null, 2));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.

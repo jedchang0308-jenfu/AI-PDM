@@ -19,10 +19,11 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer','part-access'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
-const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
+const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer','part-access'].includes(flowSelection);
 const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
+const permissionDeniedMessage='目前帳號沒有此審核的決策權限。請公司管理員確認有效的工作區指派與 approval.request.decide 權限；權限更新後重新整理本頁。';
 const output=path.join(root,'output','playwright','dev122',path.basename(runtime));fs.mkdirSync(output,{recursive:true});
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
@@ -130,7 +131,7 @@ try {
     const previewContexts=new Map(fixture.previewInputs?fixture.previewInputs.flatMap(input=>input.sourceReadbacks.map(source=>[source.fileAssetId,[input.drawingWorkId,input.drawingId]])):fixture.terminalAssetIds.map(id=>[id,[fixture.drawingWorkId]]));
     const observedPartWorkspaceRoots=new Map();
     const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,step,data,navigationRoutes:[...navigationRoutes]});save();};
-    const waitResponse=predicate=>{const pending=page.waitForResponse(predicate);void pending.catch(error=>{
+    const waitResponse=predicate=>{const pending=page.waitForResponse(predicate,flowSelection==='part-access'?{timeout:60000}:{});void pending.catch(error=>{
       receipt.responseWaitFailures??=[];receipt.responseWaitFailures.push({observedAt:Date.now(),viewport:fixture.width,
         pathname:new URL(page.url()).pathname,predicate:String(predicate),message:error.message});
       try{save();}catch(saveError){errors.push('RESPONSE_WAIT_FAILURE_SAVE_FAILED:'+saveError.message);}
@@ -141,7 +142,7 @@ try {
       try{save();}catch(saveError){errors.push('DOWNLOAD_WAIT_FAILURE_SAVE_FAILED:'+saveError.message);}
     });return pending;};
     page.on('framenavigated',frame=>{if(frame===page.mainFrame()&&frame.url().startsWith(origin))navigationRoutes.push({pathname:new URL(frame.url()).pathname,search:new URL(frame.url()).search});});
-    let expectedSaveFailure=null,expectedSaveFailureReached=0,expectedSettingsDenied=false;
+    let expectedSaveFailure=null,expectedSaveFailureReached=0,expectedSettingsDenied=false,expectedDecisionFailure=null;
     const secretMutationRequests=[],settingsDeniedHeaders=[],settingsUiResponseIds=new WeakMap();
     let settingsDeniedProof=null,expectedSettingsReadAbort=false;
     const settingsReadFailureEvidence=[];
@@ -164,7 +165,7 @@ try {
     }});
     page.on('dialog',dialog=>{alerts.push(dialog.message());void dialog.dismiss();});
     page.on('response',response=>{if(response.url().startsWith(origin+'/api/')){
-      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status()});
+      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,method:response.request().method(),status:response.status()});
       if(response.status()>=400)apiChecks.push((async()=>{
         const headers=response.headers();
         if(flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
@@ -196,10 +197,11 @@ try {
         const expectedSettingsFailure=flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
           &&['/api/settings','/api/settings/secrets'].includes(responseUrl.pathname)&&response.status()===403
           &&(body?.error??body?.code)==='permission_not_granted'&&/no-store/u.test(readback.cacheControl??'');
+        const expectedDecisionDenial=flowSelection==='part-access'&&expectedDecisionFailure===responseUrl.pathname&&response.request().method()==='POST'&&response.status()===403&&body?.error==='permission_not_granted';
         readback.expectedClassification=expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
-          expectedSettingsFailure?'exact lawful Principal missing settings permission':null;save();
+          expectedSettingsFailure?'exact lawful Principal missing settings permission':expectedDecisionDenial?'exact assigned reviewer grant withdrawal':null;save();
         if(expectedAuthFailure)expectedSaveFailureReached+=1;
-        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
+        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure&&!expectedDecisionDenial)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
       })().catch(error=>{errors.push(`API_READBACK_FAILED:${error.message}`);receipt.apiReadbackFailures??=[];
         receipt.apiReadbackFailures.push({pathname:responseUrl.pathname,status:response.status(),message:error.message});save();}));
     }});
@@ -277,7 +279,7 @@ try {
           item,accepted,partLoadingHeading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
         assert.ok(accepted,'UNEXPECTED_NEXT_ROUTE_ANNOUNCEMENT');
       }
-      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
+      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(flowSelection==='part-access'&&expectedDecisionFailure&&item.text===permissionDeniedMessage)&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
     };
     const screenshot=async name=>{await healthy();
       const metrics=await page.evaluate(()=>({viewport:window.innerWidth,documentWidth:document.documentElement.scrollWidth,
@@ -320,6 +322,97 @@ try {
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
       else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(flowSelection==='part-access') {
+        assert.equal(fixture.flow,'part-access');
+        const boundedCases=[];
+        const control=async action=>{
+          const nonce=crypto.randomUUID(),requestPath=path.join(runtime,'grant-fixture-request.json'),resultPath=path.join(runtime,'grant-fixture-result.json');
+          fs.rmSync(resultPath,{force:true});fs.writeFileSync(requestPath+'.tmp',JSON.stringify({action,nonce}));fs.renameSync(requestPath+'.tmp',requestPath);
+          const deadline=Date.now()+30000;
+          while(Date.now()<deadline){if(fs.existsSync(resultPath)){const result=JSON.parse(fs.readFileSync(resultPath,'utf8'));
+            if(result.nonce===nonce){assert.equal(result.status,'APPLIED',JSON.stringify(result));return result;}}
+            await new Promise(resolve=>setTimeout(resolve,50));}
+          throw new Error('PART_ACCESS_FIXTURE_CHANNEL_TIMEOUT:'+action);
+        };
+        const snapshot=async()=>{
+          const value=await control('owned-lifecycle-snapshot');assert.equal(value.readOnly,true);assert.equal(value.isolation,'repeatable read');
+          const rows=Object.fromEntries(Object.entries(value.rows).map(([table,values])=>[table,values.map(item=>item.row)]));
+          assert.equal(value.tableCount,Object.keys(rows).length);assert.ok(rows.contract_manifest);
+          return {rows,tableCount:value.tableCount,rowsHash:createHash('sha256').update(JSON.stringify(rows)).digest('hex')};
+        };
+        const runCase=async(id,action)=>{
+          const result={id,viewport:fixture.width,status:'RUNNING'};boundedCases.push(result);receipt.partAccessCases??=[];receipt.partAccessCases.push(result);save();
+          try{await action(result);result.status='PASS';}
+          catch(error){result.status='FAIL';result.failure={message:error.message,stack:error.stack};receipt.firstFailure??={...result.failure,group:id,viewport:fixture.width};save();
+            await page.screenshot({path:path.join(output,`${fixture.width}-${id}-failure.png`),fullPage:true}).catch(()=>{});
+            fs.writeFileSync(path.join(output,`${fixture.width}-${id}-failure-dom.html`),await page.content());}
+          save();
+        };
+        await runCase('P-02C',async result=>{
+          const before=await snapshot(),readinessPath='/api/transfer-packages/'+fixture.packageId+'/readiness-summary',reviewPath='/api/transfer-packages/'+fixture.packageId+'/submit-review';
+          const pending=waitResponse(response=>new URL(response.url()).pathname===readinessPath&&response.request().method()==='GET');
+          await page.goto(origin+'/transfer-packages/'+fixture.packageId+'?section=review',{waitUntil:'domcontentloaded'});
+          const response=await pending,body=await response.json();assert.equal(response.status(),200,JSON.stringify(body));
+          assert.equal(body.readiness.ready,false);const blocker=body.readiness.blockers.find(item=>item.code==='transfer_official_item_invalid');assert.ok(blocker);
+          const button=page.getByRole('button',{name:'送交整包審核',exact:true});await button.waitFor({state:'visible'});
+          assert.equal(await button.isDisabled(),true);assert.equal(await button.getAttribute('title'),'送交整包審核','DISABLED_BY_MISSING_PERMISSION_INSTEAD_OF_READINESS');
+          await page.getByText(blocker.message,{exact:true}).first().waitFor();
+          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          assert.equal(requests.filter(item=>item.url===reviewPath&&item.method==='POST').length,0);
+          const after=await snapshot(),partOf=value=>value.rows.part_numbers.filter(item=>item.id===fixture.partId),snapshotsOf=value=>value.rows.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId);
+          assert.equal(partOf(before)[0].record_status,'Draft');assert.deepEqual(partOf(after),partOf(before));assert.deepEqual(snapshotsOf(after),snapshotsOf(before));assert.equal(snapshotsOf(after).length,0);
+          await screenshot('P02C-Draft-readiness-disabled');
+          Object.assign(result,{actor:'dev122-principal-owner',companyId:'company-jenfu',partId:fixture.partId,workId:fixture.partWorkId,packageId:fixture.packageId,
+            entry:'normal /transfer-packages/:id?section=review application route',method:'GET',route:readinessPath,statusCode:200,body,
+            disabled:true,hasSubmitPermission:true,reviewPostCount:0,formalBefore:partOf(before),formalAfter:partOf(after),snapshotsBefore:snapshotsOf(before),snapshotsAfter:snapshotsOf(after)});
+        });
+        await runCase('P-03B',async result=>{
+          if(receipt.partAccessRecoveryBlocked)throw new Error('PART_ACCESS_REVIEW_MUTATION_BLOCKED_BY_GRANT_RECOVERY');
+          await context.addCookies([{name:'__session',value:sessions.reviewer,url:origin,httpOnly:true,sameSite:'Lax'}]);
+          await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate(/^審核工作台(?:，.*)?$/u);await page.waitForURL(location=>location.pathname==='/approvals');
+          await page.getByRole('textbox',{name:'搜尋圖號、料號、品名或送審者',exact:true}).fill(fixture.reviewPartNumber);
+          const row=page.locator('[data-approval-workbench-row="true"]').filter({hasText:fixture.reviewPartNumber});await row.waitFor({state:'visible'});await row.focus();
+          const targetPending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${fixture.requestId}/targets/part/${fixture.reviewPartId}`);
+          await page.keyboard.press('Enter');await page.waitForURL(location=>location.pathname==='/approvals/'+fixture.requestId);
+          const target=await targetPending;assert.equal(target.status(),200);assert.equal((await target.json()).data.readonly,true);
+          const shellResponse=await context.request.get(origin+'/api/pdm/review-requests/'+fixture.requestId),shell=await shellResponse.json();
+          assert.equal(shellResponse.status(),200);assert.equal(shell.data.packageHash,fixture.packageHash);
+          const decisionPath='/api/pdm/review-requests/'+fixture.requestId+'/decisions',samePage=page.url();
+          const otherContext=await browser.newContext();
+          try{
+            await otherContext.addCookies([{name:'__session',value:sessions.other,url:origin,httpOnly:true,sameSite:'Lax'}]);
+            const beforeOther=await snapshot(),denied=await otherContext.request.post(origin+decisionPath,{headers:{'content-type':'application/json','if-match':String(shell.data.rowVersion),'idempotency-key':crypto.randomUUID(),'x-pdm-workbench-contract':fixture.otherContract},data:{decision:'approve'}}),otherBody=await denied.json(),afterOther=await snapshot();
+            assert.equal(denied.status(),403,JSON.stringify(otherBody));assert.deepEqual(otherBody,{error:'entitlement_scope_mismatch'});assert.match(denied.headers()['cache-control'],/no-store/u);assert.deepEqual(afterOther.rows,beforeOther.rows);
+            result.otherCompany={actor:'dev122-principal-other',companyId:'company-dev122-other',registered:true,method:'POST',route:decisionPath,statusCode:403,body:otherBody,
+              denialLayer:'actual HTTP decision route workspace scope check before resource lookup',tableCount:beforeOther.tableCount,beforeRowsHash:beforeOther.rowsHash,afterRowsHash:afterOther.rowsHash,noEffects:true};
+          }finally{await otherContext.close();}
+          let withdrawn=null;
+          try{
+            withdrawn=await control('withdraw');assert.equal(withdrawn.rowCount,1);assert.deepEqual(withdrawn.after,[]);
+            const before=await snapshot();expectedDecisionFailure=decisionPath;
+            const pending=waitResponse(response=>new URL(response.url()).pathname===decisionPath&&response.request().method()==='POST');
+            await page.getByRole('button',{name:'核准',exact:true}).click();const denied=await pending,body=await denied.json();
+            assert.equal(denied.status(),403,JSON.stringify(body));assert.deepEqual(body,{error:'permission_not_granted'});
+            await page.getByRole('alert').filter({hasText:permissionDeniedMessage}).waitFor();
+            assert.equal(page.url(),samePage);assert.ok((await page.locator('.canonical-review-package').innerText()).includes(fixture.packageHash.slice(0,10)));
+            const after=await snapshot();assert.deepEqual(after.rows,before.rows);assert.equal(await page.getByRole('button',{name:'核准',exact:true}).isEnabled(),true);
+            await screenshot('P03B-grant-withdrawn-same-package');
+            result.withdrawn={actor:'dev122-principal-reviewer',requestId:fixture.requestId,packageHash:fixture.packageHash,method:'POST',route:decisionPath,statusCode:403,body,
+              samePage:true,error:permissionDeniedMessage,tableCount:before.tableCount,beforeRowsHash:before.rowsHash,afterRowsHash:after.rowsHash,noEffects:true,grantBefore:withdrawn.before,grantAfter:withdrawn.after};
+          }finally{
+            if(withdrawn){try{const restored=await control('restore-withdrawn');assert.equal(restored.rowCount,1);assert.deepEqual(restored.after,withdrawn.before);result.restoredGrant={before:restored.before,after:restored.after};}
+              catch(error){receipt.partAccessRecoveryBlocked=true;throw error;}}
+          }
+          assert.equal(page.url(),samePage);const retried=waitResponse(response=>new URL(response.url()).pathname===decisionPath&&response.request().method()==='POST');
+          await page.getByRole('button',{name:'核准',exact:true}).click();const approved=await retried,approvedBody=await approved.json();assert.equal(approved.status(),200,JSON.stringify(approvedBody));
+          await page.waitForURL(location=>location.pathname==='/approvals');expectedDecisionFailure=null;
+          const final=await snapshot(),part=final.rows.part_numbers.find(item=>item.id===fixture.reviewPartId),snapshots=final.rows.part_approved_change_snapshots.filter(item=>item.part_id===fixture.reviewPartId),terminal=final.rows.pdm_work_review_terminal_receipts.filter(item=>item.request_id===fixture.requestId),commands=final.rows.platform_command_receipts.filter(item=>item.effect_key==='review:'+fixture.requestId);
+          assert.equal(part.record_status,'Released');assert.equal(snapshots.length,1);assert.equal(snapshots[0].approval_context.packageHash,fixture.packageHash);assert.equal(terminal.length,1);assert.equal(commands.length,1);
+          result.recovery={samePageRetryWithoutReload:true,method:'POST',route:decisionPath,statusCode:200,body:approvedBody,normalReturnPath:new URL(page.url()).pathname,part,approvedSnapshots:snapshots,terminalReceipts:terminal,commands};
+          await screenshot('P03B-same-page-retry-complete');
+        });
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:boundedCases.every(item=>item.status==='PASS')?'PASS':'FAIL',flow:'part-access',normalNavigation:true,signedPrincipal:true,boundedCases,requests,overflowMetrics,navigationRoutes});save();continue;
+      }
       if(flowSelection==='drawing-pdf-viewer') {
         assert.equal(fixture.flow,'drawing-pdf-viewer');
         const evidence={viewport:fixture.width,layer:'ACTUAL_NATIVE_NEXT_PG_AND_PDFJS_CANVAS',pdf:fixture.pdf,readability:fixture.readability,operations:[],status:'RUNNING'};
@@ -1150,8 +1243,8 @@ try {
       else await context.close();
     }
   }
-  receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.status=flowSelection==='part-access'&&receipt.partAccessCases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
+  receipt.coverage={partial:preflight?[]:flowSelection==='part-access'?['P-02C','P-03B']:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
 } catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
