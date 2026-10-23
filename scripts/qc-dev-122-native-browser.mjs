@@ -16,10 +16,20 @@ const url=new URL(origin);assert.equal(url.hostname,'127.0.0.1');assert.equal(ur
 const preflight=process.env.DEV122_BROWSER_PREFLIGHT==='1';
 const sessions=JSON.parse(fs.readFileSync(path.join(runtime,'signed-sessions.json'),'utf8'));
 const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.json'),'utf8'));
-assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
+const partJourneys=process.env.DEV122_BROWSER_FLOW==='part-journeys';
+if(partJourneys) {
+  assert.deepEqual(fixtures.map(item=>[item.group,item.width]),['R-01A','P-02B','P-03A'].flatMap(group=>[1440,390].map(width=>[group,width])));
+  for(const fixture of fixtures)assert.ok(['READY','FAILED'].includes(fixture.setupStatus),'PART_JOURNEY_SETUP_STATUS_MISSING');
+  const ready=fixtures.filter(item=>item.setupStatus==='READY');
+  for(const key of ['partId','partWorkId','partNumber']) {
+    assert.ok(ready.every(item=>typeof item[key]==='string'&&item[key]),'PART_JOURNEY_SETUP_ID_MISSING');
+    assert.equal(new Set(ready.map(item=>item[key])).size,ready.length,'SHARED_PART_JOURNEY_FIXTURE');
+  }
+}else assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
-const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const partGroupSelection=process.env.DEV122_BROWSER_PART_GROUP??'all';assert.ok(['all','R-01A'].includes(partGroupSelection)&& (partJourneys||partGroupSelection==='all'),'DEV122_BROWSER_PART_GROUP_REJECTED');
+const selectedFixtures=fixtures.filter(item=>(viewportSelection==='all'||item.width===390)&&(partGroupSelection==='all'||item.group===partGroupSelection));
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer','part-journeys'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
 const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -27,6 +37,7 @@ const output=path.join(root,'output','playwright','dev122',path.basename(runtime
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
     processTreeOwner:process.pid,cleanupCondition:'finally close verified task-owned browser and contexts'},status:'RUNNING',cases:[],cleanup:false};
+if(partJourneys)receipt.selection.partGroup=partGroupSelection;
 const save=()=>fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));save();
 let browser,browserServer,browserIdentity,browserRegistered=false;
 function identity(pid){return JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',`$p=Get-Process -Id ${Number(pid)} -ErrorAction Stop; @{pid=$p.Id;executable=$p.Path;startToken=$p.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()}|ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','ignore']}));}
@@ -106,7 +117,13 @@ try {
   receipt.browserDeclaration.governorRegister=governor('register');browserRegistered=true;save();
   browser=await chromium.connect(browserServer.wsEndpoint());receipt.browserDeclaration.version=browser.version();save();
   for(const fixture of selectedFixtures) {
+    if(partJourneys&&fixture.setupStatus==='FAILED') {
+      const failure={group:fixture.group,viewport:fixture.width,stage:'fixture preparation',message:fixture.setupFailure};
+      receipt.firstFailure??=failure;receipt.cases.push({group:fixture.group,viewport:{width:fixture.width,height:fixture.height},status:'BLOCKED',failure});save();continue;
+    }
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
+    // Bound cold development compilation without changing any response or UI timing.
+    if(partJourneys){context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(60000);}
     const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
     const workbenchQueryState=[];
     // Passive observation begins before any workbench input; no timer/response/click is changed.
@@ -129,7 +146,7 @@ try {
     };
     const previewContexts=new Map(fixture.previewInputs?fixture.previewInputs.flatMap(input=>input.sourceReadbacks.map(source=>[source.fileAssetId,[input.drawingWorkId,input.drawingId]])):fixture.terminalAssetIds.map(id=>[id,[fixture.drawingWorkId]]));
     const observedPartWorkspaceRoots=new Map();
-    const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,step,data,navigationRoutes:[...navigationRoutes]});save();};
+    const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,...(partJourneys?{group:fixture.group}:{}),step,data,navigationRoutes:[...navigationRoutes]});save();};
     const waitResponse=predicate=>{const pending=page.waitForResponse(predicate);void pending.catch(error=>{
       receipt.responseWaitFailures??=[];receipt.responseWaitFailures.push({observedAt:Date.now(),viewport:fixture.width,
         pathname:new URL(page.url()).pathname,predicate:String(predicate),message:error.message});
@@ -164,7 +181,7 @@ try {
     }});
     page.on('dialog',dialog=>{alerts.push(dialog.message());void dialog.dismiss();});
     page.on('response',response=>{if(response.url().startsWith(origin+'/api/')){
-      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status()});
+      const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status(),...(partJourneys?{method:response.request().method()}:{} )});
       if(response.status()>=400)apiChecks.push((async()=>{
         const headers=response.headers();
         if(flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
@@ -320,6 +337,145 @@ try {
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
       else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(partJourneys) {
+        const prefix=fixture.group+'-'+fixture.width;
+        const evidence={group:fixture.group,viewport:{width:fixture.width,height:fixture.height},partId:fixture.partId,
+          partNumber:fixture.partNumber,workId:fixture.partWorkId,layer:'ACTUAL_NEXT_BROWSER_NATIVE_PG',status:'RUNNING',responses:[],snapshots:[]};
+        receipt.partJourneys??=[];receipt.partJourneys.push(evidence);save();
+        const digest=value=>createHash('sha256').update(value).digest('hex');
+        const capture=async(label,pending)=>{
+          const response=await pending;await response.finished();const raw=await response.text(),body=JSON.parse(raw);
+          // Preserve data bytes and original digest; never persist an issued contract token.
+          const redacted=raw.replace(/("contractToken"\s*:\s*)"[^"\\]*(?:\\.[^"\\]*)*"/gu,'$1"[REDACTED]"');
+          const file=path.join(output,prefix+'-'+label+'-response.json');fs.writeFileSync(file,redacted);
+          evidence.responses.push({label,method:response.request().method(),pathname:new URL(response.url()).pathname,
+            status:response.status(),cacheControl:response.headers()['cache-control']??null,contentType:response.headers()['content-type']??null,
+            originalBodySha256:digest(raw),redactedBodySha256:digest(redacted),file,tokenRedacted:redacted!==raw});save();
+          assert.equal(response.status(),200,redacted);return body;
+        };
+        const snapshot=async label=>{
+          const nonce=crypto.randomUUID(),requestPath=path.join(runtime,'grant-fixture-request.json'),resultPath=path.join(runtime,'grant-fixture-result.json');
+          fs.rmSync(resultPath,{force:true});fs.writeFileSync(requestPath+'.tmp',JSON.stringify({action:'owned-lifecycle-snapshot',nonce}));fs.renameSync(requestPath+'.tmp',requestPath);
+          const deadline=Date.now()+15000;while(Date.now()<deadline) {
+            if(fs.existsSync(resultPath)) {const result=JSON.parse(fs.readFileSync(resultPath,'utf8'));
+              if(result.nonce===nonce) {assert.equal(result.status,'APPLIED');assert.equal(result.readOnly,true);assert.equal(result.isolation,'repeatable read');
+                assert.equal(result.tableCount,165);assert.equal(Object.keys(result.rows).length,165);
+                const rows=Object.fromEntries(Object.entries(result.rows).map(([table,values])=>[table,values.map(value=>{
+                  assert.deepEqual(Object.keys(value),['row']);return value.row;
+                })]));const bytes=JSON.stringify(rows),file=path.join(output,prefix+'-'+label+'-owned.json');fs.writeFileSync(file,bytes);
+                evidence.snapshots.push({label,file,sha256:digest(bytes),tableCount:165,readOnly:true,isolation:result.isolation});save();return rows;
+              }
+            }
+            await new Promise(resolve=>setTimeout(resolve,50));
+          }throw new Error('UI_OWNED_READBACK_TIMEOUT');
+        };
+        const dom=async label=>{
+          fs.writeFileSync(path.join(output,prefix+'-'+label+'-dom.html'),await page.content());
+          fs.writeFileSync(path.join(output,prefix+'-'+label+'-accessibility.yml'),await page.locator('body').ariaSnapshot());
+          await screenshot(fixture.group+'-'+label);
+        };
+        const asActor=async actor=>context.addCookies([{name:'__session',value:sessions[actor],url:origin,httpOnly:true,sameSite:'Lax'}]);
+        const matrixPath='/api/pdm/parts/'+fixture.partId+'/matrix-workspace',workPath='/api/pdm/part-change-works/'+fixture.partWorkId;
+        const partRow=()=>page.locator('tr[data-canonical-workbench-row="true"].is-work').filter({hasText:fixture.partNumber});
+        const enterPart=async label=>{
+          await navigate('料號工作台');await page.waitForURL(location=>location.pathname==='/parts');
+          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);
+          await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).click();
+          const rowKey=await partRow().getAttribute('data-row-key');await queryState(label+' selected',fixture.partNumber,rowKey);
+          const pending=waitResponse(response=>new URL(response.url()).pathname===matrixPath&&response.request().method()==='GET');
+          await page.getByRole('button',{name:'繼續編輯',exact:true}).click();await page.waitForURL(location=>location.pathname==='/parts/'+fixture.partId+'/workspace');
+          const body=await capture(label+'-matrix',pending);assert.equal(typeof body.data.root.code,'string');assert.ok(body.data.root.code.trim());
+          observedPartWorkspaceRoots.set('/parts/'+fixture.partId+'/workspace',body.data.root.code);
+          const column=body.data.columns.find(item=>item.partId===fixture.partId);assert.ok(column);assert.equal(body.data.sourcePartId,fixture.partId);
+          const name=page.getByRole('textbox',{name:fixture.partNumber+' partName',exact:true});await name.waitFor();
+          assert.equal(await name.inputValue(),column.payload.partName,'MATRIX_DOM_PAYLOAD_MISMATCH');await dom(label+'-workspace');return body;
+        };
+        const before=await snapshot('before');await enterPart('initial');
+        if(fixture.group==='R-01A') {
+          const rowKey=workbenchQueryState.at(-1).expectedDetail;
+          const listReady=waitResponse(response=>new URL(response.url()).pathname==='/api/parts/workbench'&&response.request().method()==='GET');
+          const detailReady=waitResponse(response=>new URL(response.url()).pathname==='/api/parts/workbench/'+encodeURIComponent(rowKey)&&response.request().method()==='GET');
+          await page.getByRole('button',{name:'返回上一個工作清單',exact:true}).click();
+          await page.waitForURL(location=>location.pathname==='/parts');await page.getByRole('textbox',{name:'搜尋',exact:true}).waitFor();
+          await queryState('returned from matrix',fixture.partNumber);
+          await capture('returned-list',listReady);const detail=await capture('returned-detail',detailReady);
+          assert.equal(detail.data.row.rowKey,rowKey);assert.equal(detail.data.row.entityType,'part');
+          await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).waitFor({state:'visible'});
+          await page.getByRole('button',{name:'繼續編輯',exact:true}).waitFor({state:'visible'});
+          assert.equal(await page.getByText('正在載入明細…',{exact:true}).count(),0);
+          await dom('returned');const after=await snapshot('after');assert.deepEqual(after,before,'READER_CHANGED_OWNED_ROWS');
+          assert.deepEqual(requests.filter(item=>item.method&&!['GET','HEAD'].includes(item.method)),[],'READER_SENT_MUTATION');
+          evidence.readOnly={allOwnedRowsUnchanged:true,tableCount:165,noMutationRequests:true};
+        }else {
+          const release=page.getByRole('checkbox',{name:fixture.partNumber+' 申請首次發行',exact:true});assert.equal(await release.isChecked(),false);
+          const intent=waitResponse(response=>new URL(response.url()).pathname===workPath&&response.request().method()==='PATCH');
+          await release.focus();await page.keyboard.press('Space');assert.equal((await capture('intent',intent)).data.lifecycleIntent,'first_release');
+          const submit=async label=>{const pending=waitResponse(response=>new URL(response.url()).pathname===workPath+'/submit'&&response.request().method()==='POST');
+            await page.getByRole('button',{name:/^送出審核/u}).click();const body=await capture(label,pending);assert.ok(body.data.requestId);return body.data.requestId;};
+          const review=async(requestId,label)=>{
+            await asActor('reviewer');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate(/^審核工作台(?:，.*)?$/u);
+            await page.waitForURL(location=>location.pathname==='/approvals');
+            await page.getByRole('textbox',{name:'搜尋圖號、料號、品名或送審者',exact:true}).fill(fixture.partNumber);
+            const row=page.locator('[data-approval-workbench-row="true"]').filter({hasText:fixture.partNumber});await row.waitFor({state:'visible'});await row.focus();
+            const target=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${requestId}/targets/part/${fixture.partId}`&&response.request().method()==='GET');
+            await page.keyboard.press('Enter');await page.waitForURL(location=>location.pathname==='/approvals/'+requestId);
+            const body=await capture(label+'-target',target);assert.equal(body.data.requestId,requestId);assert.equal(body.data.readonly,true);
+            assert.equal(body.data.snapshot.targetKey,'part:'+fixture.partId);assert.equal(body.data.snapshot.workspace.entityId,fixture.partId);
+            await page.getByText('首次發行核准',{exact:true}).waitFor();
+            const controls=await page.locator('.canonical-review-package input,.canonical-review-package select,.canonical-review-package textarea').evaluateAll(items=>items.map(item=>({disabled:item.disabled,readOnly:item.readOnly??false})));
+            assert.ok(controls.length>0);assert.ok(controls.every(item=>item.disabled||item.readOnly),'EDITABLE_REVIEW_SNAPSHOT');
+            evidence[label]={requestId,targetHash:body.data.targetHash,readonlyControls:controls};await dom(label);return body;
+          };
+          const decide=async(requestId,decision)=>{const pending=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${requestId}/decisions`&&response.request().method()==='POST');
+            await page.getByRole('button',{name:decision==='approve'?'核准':'退回修改',exact:true}).click();await capture(decision+'-'+requestId,pending);
+            await page.waitForURL(location=>location.pathname==='/approvals');};
+          const oldId=await submit('initial-submit'),initialTarget=await review(oldId,'initial-review');
+          const submitted=await snapshot('submitted'),originalRequest=submitted.pdm_work_review_requests.find(item=>item.id===oldId);assert.ok(originalRequest);
+          const envelope=row=>typeof row.snapshot_payload==='string'?JSON.parse(row.snapshot_payload):row.snapshot_payload;
+          const bindTarget=(body,row)=>{
+            const target=envelope(row).targets.find(item=>item.targetKey==='part:'+fixture.partId);assert.ok(target);
+            assert.equal(body.data.targetHash,target.evidenceHash,'UI_TARGET_HASH_NOT_FROZEN_PACKAGE');
+            assert.deepEqual(body.data.snapshot,target,'UI_TARGET_BYTES_NOT_FROZEN_PACKAGE');
+          };
+          bindTarget(initialTarget,originalRequest);
+          const originalBytes=JSON.stringify(originalRequest),oldFile=path.join(output,prefix+'-original-request.json');fs.writeFileSync(oldFile,originalBytes);
+          let approvedId=oldId;
+          if(fixture.group==='P-03A') {
+            await decide(oldId,'return');const returned=await snapshot('returned');
+            assert.equal(returned.part_numbers.find(item=>item.id===fixture.partId).record_status,'Draft');
+            assert.equal(returned.part_change_works.find(item=>item.id===fixture.partWorkId).owner_user_id,'dev122-profile-owner');
+            assert.equal(returned.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId).length,0);
+            const terminal=returned.pdm_work_review_terminal_receipts.find(item=>item.request_id===oldId);assert.ok(terminal);
+            assert.equal(returned.pdm_work_review_requests.filter(item=>item.id===oldId).length,0);
+            await asActor('owner');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await enterPart('returned-owner');
+            const name=page.getByRole('textbox',{name:fixture.partNumber+' partName',exact:true}),corrected='DEV122 '+prefix+' owner correction';
+            await name.click();await page.locator('.part-number-matrix-cell.is-focused').filter({has:name}).waitFor();
+            await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+            const saved=waitResponse(response=>new URL(response.url()).pathname===workPath&&response.request().method()==='PATCH');
+            await name.fill(corrected);await name.press('Tab');assert.equal((await capture('owner-correction',saved)).data.payload.partName,corrected);
+            await page.reload({waitUntil:'domcontentloaded'});await name.waitFor();assert.equal(await name.inputValue(),corrected);assert.equal(await release.isChecked(),true);
+            approvedId=await submit('fresh-submit');assert.notEqual(approvedId,oldId);const freshTarget=await review(approvedId,'fresh-review');
+            const fresh=await snapshot('fresh'),nextRequest=fresh.pdm_work_review_requests.find(item=>item.id===approvedId);assert.ok(nextRequest);
+            bindTarget(freshTarget,nextRequest);
+            const oldPackage=envelope(originalRequest),nextPackage=envelope(nextRequest);
+            assert.notEqual(nextRequest.snapshot_hash,originalRequest.snapshot_hash);assert.notEqual(nextPackage.decisionBasis.hash,oldPackage.decisionBasis.hash);
+            assert.ok(nextPackage.decisionBasis.workRowVersion>oldPackage.decisionBasis.workRowVersion,'WORK_BASIS_VERSION_NOT_ADVANCED');
+            assert.equal(nextPackage.decisionBasis.payload.partName,corrected);
+            assert.equal(fs.readFileSync(oldFile,'utf8'),originalBytes,'ARCHIVED_ORIGINAL_PACKAGE_CHANGED');
+            assert.deepEqual(fresh.pdm_work_review_terminal_receipts.find(item=>item.request_id===oldId),terminal);
+            evidence.freshPackage={oldId,newId:approvedId,oldHash:originalRequest.snapshot_hash,newHash:nextRequest.snapshot_hash,
+              oldBasis:oldPackage.decisionBasis,newBasis:nextPackage.decisionBasis,oldArchive:{file:oldFile,sha256:digest(originalBytes),unchanged:true},
+              oldRequestRetired:true,oldTerminalReceiptUnchanged:true,serverRereadOfRetiredPackage:'NOT_APPLICABLE_REMOVED_ON_TERMINAL_DECISION'};
+          }
+          await decide(approvedId,'approve');const after=await snapshot('approved');
+          assert.equal(after.part_numbers.find(item=>item.id===fixture.partId).record_status,'Released');
+          assert.equal(after.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId).length,1);
+          assert.equal(after.pdm_work_review_terminal_receipts.filter(item=>item.request_id===approvedId).length,1);
+          assert.equal(after.pdm_work_review_requests.filter(item=>[oldId,approvedId].includes(item.id)).length,0);
+          evidence.approved={requestId:approvedId,recordStatus:'Released',snapshotCount:1,terminalReceiptCount:1};await dom('approved');
+        }
+        await healthy();evidence.status='PASS';receipt.cases.push({...evidence,normalNavigation:true,requests,workbenchQueryState,overflowMetrics,navigationRoutes,frameworkAnnouncements,observedPageTitles});save();continue;
+      }
       if(flowSelection==='drawing-pdf-viewer') {
         assert.equal(fixture.flow,'drawing-pdf-viewer');
         const evidence={viewport:fixture.width,layer:'ACTUAL_NATIVE_NEXT_PG_AND_PDFJS_CANVAS',pdf:fixture.pdf,readability:fixture.readability,operations:[],status:'RUNNING'};
@@ -1126,6 +1282,17 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,workbenchQueryState,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
+      if(partJourneys) {
+        const failure={message:error.message,stack:error.stack,group:fixture.group,viewport:fixture.width};receipt.firstFailure??=failure;
+        const evidence=receipt.partJourneys?.find(item=>item.group===fixture.group&&item.viewport.width===fixture.width);if(evidence){evidence.status='FAIL';evidence.failure=failure;}
+        receipt.cases.push({group:fixture.group,viewport:{width:fixture.width,height:fixture.height},status:'FAIL',failure,requests,navigationRoutes});save();
+        for(const [suffix,capture] of [['dom.html',()=>page.content()],['accessibility.yml',()=>page.locator('body').ariaSnapshot()]]) {
+          try{fs.writeFileSync(path.join(output,`${fixture.group}-${fixture.width}-first-failure-${suffix}`),await capture());}catch(captureError){receipt.captureFailures??=[];receipt.captureFailures.push({group:fixture.group,viewport:fixture.width,message:captureError.message});}
+        }
+        await page.screenshot({path:path.join(output,`${fixture.group}-${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});save();
+        // Remaining fixtures have separate Part/work lifecycles; no failed prerequisite is reused.
+        continue;
+      }
       if(boundedSettingsFlow) {
         receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
@@ -1150,10 +1317,11 @@ try {
       else await context.close();
     }
   }
-  receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
+  receipt.status=partJourneys&&receipt.cases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+  if(partJourneys)receipt.coverage={partial:[...new Set(selectedFixtures.map(item=>item.group))],notRun:['unselected original29 groups','Production'],acceptanceComplete:false};
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||partJourneys){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
     if(boundedSettingsFlow) {

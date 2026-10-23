@@ -2810,6 +2810,33 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (["part-journeys-ui", "part-reader-ui"].includes(process.env.DEV122_NATIVE_SELECTION!)) {
+      // Each original group and viewport owns a separate Draft/work lifecycle.
+      // Review, return and release outcomes are produced later by the mounted UI.
+      const fixtures: Array<{ group: string; width: number; height: number; setupStatus: "READY" | "FAILED";
+        partId?: string; partNumber?: string; partWorkId?: string; terminalAssetIds: string[]; setupFailure?: string }> = [];
+      for (const group of ["R-01A", "P-02B", "P-03A"]) for (const width of [1440, 390]) {
+        const label = group + "-" + width;
+        try {
+        const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+          { coreName: "DEV122 " + label + " Part", itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+        const started = await ok<{ data: { workId: string } }>(await createPartWork(request("/api/pdm/parts/" + part.partNumber.id + "/change-works", ownerToken, "POST", {},
+          1, await contract("dev122-profile-owner"), label + "-part-work"), { params: Promise.resolve({ partId: part.partNumber.id }) }));
+        fixtures.push({ group, width, height: width === 1440 ? 900 : 844, setupStatus: "READY", partId: part.partNumber.id,
+          partNumber: part.partNumber.partNumber, partWorkId: started.data.workId, terminalAssetIds: [] });
+        } catch (error) {
+          // Independent fixture preparation may continue; the browser reports
+          // this group's missing prerequisite as BLOCKED and fails the batch.
+          fixtures.push({ group, width, height: width === 1440 ? 900 : 844, setupStatus: "FAILED", terminalAssetIds: [],
+            setupFailure: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      const ready = fixtures.filter(item => item.setupStatus === "READY");
+      expect(new Set(ready.map(item => item.partId)).size).toBe(ready.length);
+      expect(new Set(ready.map(item => item.partWorkId)).size).toBe(ready.length);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.
