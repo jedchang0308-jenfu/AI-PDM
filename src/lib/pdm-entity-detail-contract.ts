@@ -1,3 +1,5 @@
+import { normalizeMediaType } from "@/lib/media-type";
+
 /** Shared identity types retained by review/file authorization. Drawer and
  * editor payloads live in their typed canonical domain contracts. */
 export type PdmEntityKey = `candidate:${string}` | `drawing:${string}` | `part:${string}` | `root:${string}`;
@@ -18,5 +20,5 @@ export type DrawingPreviewSlotModel = {
 };
 
 export function isPdfPreviewSlot(slot: Pick<DrawingPreviewSlotModel, "kind" | "mediaMimeType" | "fileName">) {
-  return slot.kind === "two-d" && slot.mediaMimeType === "application/pdf";
+  return slot.kind === "two-d" && normalizeMediaType(slot.mediaMimeType) === "application/pdf";
 }

@@ -292,7 +292,7 @@ function DetailRecognitionSections({ detail }: { detail: Detail }) {
   </section>)}</>;
 }
 
-function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel] }) {
+export function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel] }) {
   const cards: DrawingDetailPreviewCard[] = (previews ?? []).map((preview) => ({
     kind: preview.kind,
     title: preview.title,
@@ -300,6 +300,7 @@ function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotMo
     state: preview.state === "queued" || preview.state === "running" ? "pending" : preview.state,
     stateTitle: preview.stateTitle,
     stateText: preview.stateText,
+    actions: preview.downloadHref ? <a className="secondary-button" href={preview.downloadHref} download aria-label={`下載原檔 ${preview.fileName ?? preview.title}`}>下載原檔</a> : undefined,
     media: preview.state === "ready" && preview.mediaHref ? {
       href: preview.mediaHref,
       mode: preview.kind === "three-d" ? "image" : "document",

@@ -5,6 +5,13 @@ const source = { id:"asset-one", company_id:"company-one", storage_provider:"loc
   storage_bucket:null, storage_key:"source", original_path:"source", file_name:"model.sldprt",
   file_ext:"sldprt", mime_type:"application/octet-stream", content_hash:"source-hash" };
 describe("canonical preview company boundary", () => {
+  it.each(["application/pdf; charset=binary", " Application/PDF "])("reads a source PDF directly for normalized media type %s", async mime => {
+    const queryOne = vi.fn();
+    const result = await resolveDrawingPreviewAsync({ queryOne } as unknown as AsyncDatabaseClient,
+      { ...source, file_ext: "pdf", file_name: "drawing.pdf", mime_type: mime });
+    expect(result).toMatchObject({ record: { id: source.id }, mimeType: "application/pdf" });
+    expect(queryOne).not.toHaveBeenCalled();
+  });
   it.each(["company-one", "company-two"])("binds derivative lookup and readback to source company: %s", async (company) => {
     const queryOne = vi.fn().mockResolvedValue({ id:"preview", company_id:company,
       source_content_hash:"source-hash", file_name:"preview.png", mime_type:"image/png" });

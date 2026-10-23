@@ -203,6 +203,24 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
     return key;
   }
 
+  async function reloadAfterAcceptedMutation(successMessage: string, failureMessage: string) {
+    setAttachments([]);
+    setDeletedAttachments([]);
+    setPreviewAttachment(null);
+    setStatus("loading");
+    try {
+      await refreshAttachments(canManageAttachments, canReadAttachments);
+      setStatus("ready");
+      setNotice(successMessage);
+    } catch {
+      setAttachments([]);
+      setDeletedAttachments([]);
+      setPreviewAttachment(null);
+      setStatus("error");
+      setError(failureMessage);
+    }
+  }
+
   async function deleteAttachment(attachment: PartAttachment) {
     if (busy || !window.confirm(`確定將「${attachment.displayName || attachment.fileName}」移至已刪除附件？之後仍可還原。`)) return;
     setBusy(true);
@@ -217,8 +235,7 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(responseMessage(body, "附件刪除失敗。"));
       mutationKeys.current.delete(`delete:${attachment.id}`);
-      await refreshAttachments(canManageAttachments, canReadAttachments);
-      setNotice("附件已移至已刪除區，可於本頁還原。");
+      await reloadAfterAcceptedMutation("附件已移至已刪除區，可於本頁還原。", "刪除已完成，但附件清單重新載入失敗，請重新載入確認。");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "附件刪除失敗。");
     } finally {
@@ -240,8 +257,7 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(responseMessage(body, "附件還原失敗。"));
       mutationKeys.current.delete(`restore:${deleted.attachment.id}`);
-      await refreshAttachments(canManageAttachments, canReadAttachments);
-      setNotice("附件已還原。");
+      await reloadAfterAcceptedMutation("附件已還原。", "還原已完成，但附件清單重新載入失敗，請重新載入確認。");
     } catch (restoreError) {
       setError(restoreError instanceof Error ? restoreError.message : "附件還原失敗。");
     } finally {

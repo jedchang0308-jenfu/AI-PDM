@@ -12,6 +12,7 @@ import {
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import { isWorkspacePdf, selectWorkspacePreviewSource } from "@/lib/pdm-canonical-preview";
+import { normalizeMediaType } from "@/lib/media-type";
 import { isReviewPackageRecognitionProjection } from "@/lib/pdm-review-package-contract";
 import type { DrawingRecognitionReviewProjection } from "@/lib/drawing-recognition-review-projection";
 
@@ -75,10 +76,10 @@ function apiCode(body: unknown) {
   const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
   return error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string" ? String((error as { code: string }).code) : null;
 }
-function fileRoleLabel(file: FileRow) {
+export function fileRoleLabel(file: Pick<FileRow, "role" | "mime_type">) {
   if (file.role === "cad_3d") return "3D 模型";
   if (file.role === "drawing_2d") return "2D 圖面";
-  if (file.role === "pdf" || file.mime_type === "application/pdf") return "PDF 圖面";
+  if (file.role === "pdf" || normalizeMediaType(file.mime_type) === "application/pdf") return "PDF 圖面";
   return "其他檔案";
 }
 

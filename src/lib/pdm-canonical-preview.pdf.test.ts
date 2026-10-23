@@ -24,6 +24,12 @@ describe("DEV122 B42 same revision PDF selection; pure source layer", () => {
     const rows = [source("cad", "slddrw"), source("pdf", "pdf")];
     expect(selectCanonicalTwoDSource(rows, "current", [{ sourceFileAssetId: "cad", sourceContentHash: "cad", derivativeKind: "thumbnail_png", mimeType: "image/png", generatorProfile: "openswx", generatorVersion: "1", status: "ready" }])?.assetId).toBe("pdf");
   });
+  it.each(["application/pdf; charset=binary", " Application/PDF "])("selects a current PDF by normalized media type %s", mimeType => {
+    const currentPdf = { ...source("pdf", "pdf"), mimeType };
+    expect(selectCanonicalTwoDSource([source("cad", "slddrw"), currentPdf], "current")?.assetId).toBe("pdf");
+    expect(isPdfPreviewSlot({ kind: "two-d", fileName: "drawing.pdf", mediaMimeType: mimeType })).toBe(true);
+    expect(selectCanonicalTwoDSource([source("cad", "slddrw"), { ...currentPdf, mimeType: "application/pdfx" }], "current")?.assetId).toBe("cad");
+  });
   it("does not guess between ambiguous canonical PDFs and preserves CAD fallback", () => {
     const first = { ...source("one", "pdf"), isPrimary: false };
     const second = { ...source("two", "pdf"), isPrimary: false };

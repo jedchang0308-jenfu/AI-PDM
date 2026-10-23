@@ -60,6 +60,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 function button(label: string) {
@@ -97,6 +98,78 @@ describe("review decision feedback", () => {
 const attachment = (id: string) => ({ id, entityId: "part-one", displayName: `${id}.png`, description: "",
   fileName: `${id}.png`, fileExt: "png", mimeType: "image/png", fileSize: 5,
   uploadedByName: null, createdAt: "2026-10-23T00:00:00Z" });
+describe("accepted attachment lifecycle commands followed by list refresh", () => {
+  it.each([
+    ["delete", "success"], ["restore", "success"], ["delete", "denied"], ["restore", "denied"]
+  ])("preserves a normal %s result and a genuine command rejection: %s", async (command, outcome) => {
+    let accepted = false;
+    const deleted = { attachment: attachment("restore"), policy: { stageLabel: "已刪除", actions: { restore: { allowed: true } } } };
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/numbering/permissions") return json({ pages: { "numbering.search": true }, actions: { "numbering.attachments.manage": true } });
+      if (init?.method === "DELETE" || init?.method === "POST") {
+        if (outcome === "denied") return json({ error: "command denied" }, 403);
+        accepted = true; return json({});
+      }
+      if (String(input).endsWith("?surface=deleted_data")) return json({ attachments: accepted
+        ? command === "delete" ? [{ ...deleted, attachment: attachment("old") }] : []
+        : command === "restore" ? [deleted] : [] });
+      return json({ attachments: accepted ? command === "delete" ? [] : [attachment("old"), attachment("restore")] : [attachment("old")] });
+    });
+    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => button(command === "delete" ? "刪除" : "還原").click());
+    if (outcome === "denied") {
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain("command denied");
+      expect(container.querySelector(".part-attachment-list:not(.is-deleted)")?.textContent).toContain("old.png");
+      expect(container.textContent).not.toContain("已完成，但");
+    } else {
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(container.querySelector('[role="status"]')?.textContent).toContain(command === "delete" ? "附件已移至已刪除區" : "附件已還原");
+      if (command === "delete") {
+        expect(container.querySelector(".part-attachment-list:not(.is-deleted)")).toBeNull();
+        expect(container.querySelector(".part-attachment-list.is-deleted")?.textContent).toContain("old.png");
+      } else {
+        expect(container.querySelector(".part-attachment-list:not(.is-deleted)")?.textContent).toContain("restore.png");
+        expect(container.querySelector(".part-attachment-list.is-deleted")).toBeNull();
+      }
+    }
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE" || init?.method === "POST")).toHaveLength(1);
+  });
+  it.each(["delete", "restore"] as const)("distinguishes an accepted %s from a failed list refresh and reloads without resending", async command => {
+    let accepted = false, failReload = true;
+    const deleted = { attachment: attachment("restore"), policy: { stageLabel: "已刪除", actions: { restore: { allowed: true } } } };
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/numbering/permissions") return json({ pages: { "numbering.search": true }, actions: { "numbering.attachments.manage": true } });
+      if (init?.method === "DELETE" || init?.method === "POST") { accepted = true; return json({}); }
+      if (url.endsWith("?surface=deleted_data")) {
+        if (accepted && failReload && command === "restore") return json({}, 503);
+        return json({ attachments: accepted ? command === "delete" ? [{ ...deleted, attachment: attachment("old") }] : [] : command === "restore" ? [deleted] : [] });
+      }
+      if (accepted && failReload && command === "delete") throw new Error("list connection interrupted");
+      return json({ attachments: accepted ? command === "delete" ? [] : [attachment("old"), attachment("restore")] : [attachment("old")] });
+    });
+    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => button("預覽").click());
+    await act(async () => button(command === "delete" ? "刪除" : "還原").click());
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(command === "delete" ? "刪除已完成，但附件清單重新載入失敗" : "還原已完成，但附件清單重新載入失敗");
+    expect(container.querySelector(".part-attachment-list")).toBeNull();
+    expect(container.querySelector("iframe, img")).toBeNull();
+    expect(container.textContent).not.toContain("尚無附件");
+    failReload = false;
+    await act(async () => button("重新載入").click());
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    if (command === "restore") {
+      expect(container.querySelector(".part-attachment-list:not(.is-deleted)")?.textContent).toContain("restore.png");
+      expect(container.querySelector(".part-attachment-list.is-deleted")).toBeNull();
+    } else {
+      expect(container.querySelector(".part-attachment-list:not(.is-deleted)")).toBeNull();
+      expect(container.querySelector(".part-attachment-list.is-deleted")?.textContent).toContain("old.png");
+    }
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE" || init?.method === "POST")).toHaveLength(1);
+  });
+});
 describe("attachment upload followed by list refresh", () => {
   it("distinguishes an accepted upload from a confirmed list when the actor can manage but cannot read", async () => {
     fetchMock.mockImplementation(async (input, init) => {

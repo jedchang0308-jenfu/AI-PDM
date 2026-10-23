@@ -95,6 +95,12 @@ B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 sessi
 
 最終 diff audit 補齊 heartbeat／complete JSON echo 與 binary header handshake；缺版／錯版停止，unknown terminal 不重送。真實 PG 新增第六案，以實際 source row lock 各等待超過 30 秒，核對 claim 無 mutation／heartbeat 409，再正常 recovery、reclaim／cancel；原五案及 closed13 案例保留。首次新案在既有 30s SQL timeout 安全拒絕，原 FAIL 保留；後續只於該隔離測試 transaction 以 SET LOCAL 將 statement timeout 設為 40s，以實際等待 31s 到達獨立 lease-age 守門，driver 35s limit 與 production 設定／schema 均不變。skew 案讀回實際 migration 安裝且啟用的 BEFORE UPDATE now() trigger，Node +31 秒持續到 accepted cancellation 與 terminal cancelled／locks null／completed_at／DB basis 斷言完成。結果依 `output/qa/dev122-cancelled/` 與各 native manifest 原始讀回，不將先前五案當新增鎖等待案。FULL gate 曾於既有 sealed READY-chain fixture 缺 `entrypointSnapshot` 首敗；只補 verifier 方法承接，不放寬 production transport 或 required gate，原 FAIL 保留。 最終本地 focused 174／174、materializer 8／8、typecheck／lint／DB boundary 通過；native `b3286b9c2da8a3f9` 六案及 `3ffd6f56208773da` closed13 全部選定案例 passed、firstFailure=null、cleanup 全 true。runner 仍為 PARTIAL_NOT_ACCEPTED；先前 `98a02d0e52225f16` SQL timeout 首敗不覆寫。兩份 native before/after source binding 各自相同；本段後補結果只改文件，server／worker／SQL 測試輸入未變，不當新 raw source binding。
 
+### F-01A／F-01C／F-01E 附件讀回與預覽呈現（2026-10-23，本地切片）
+
+從 protected main `b497b9c3` 分開承接檔案／UI correctness，不混 I-01 SQL 或驗收 runner 改動。DELETE／restore 的 2xx 與後續清單 GET 分開：接受後立即撤下舊清單／預覽，重載失敗明示操作已完成與 GET-only 重載；命令拒絕保持原拒絕，不把 GET 失敗變成新 mutation。2D 詳細預覽分別呈現 cancelled、skipped、succeeded 但無相符輸出的終態，保留 no retry 並在原 preview card 承接受控原檔下載，不新增預覽工作。
+
+共用 media-type normalization 只移除參數、trim 與轉小寫，套用於 PDF selector、slot、asset resolver、OCR source／response guard、上傳分類與檔案標籤；保留 extension priority、PDF bytes／content-hash、Principal／company、來源 hash 與 fake derivative 拒絕。內部受控 derivative MIME union 不擴張。原 red、預覽卡缺下載與 metadata caller red 保留於 `output/qa/dev122-files-ui/`；聚焦回歸 120／120 是純函式、合成 DOM／SSR、mocked HTTP 及只載入 adapter 的原生 Node 子程序證據，不是 Production mounted UI／真實 OCR、worker 啟動或 RD actor 驗收。原生 import red 證實 Node 入口無法解析新增的 app alias，僅改為既有 TypeScript 設定允許的相對 `.ts` import；未變更 worker 入口／程序。附件成功與 GET 恢復皆核對有效／已刪除兩個清單及 mutation 只送一次。第一輪缺 import 及測試把已刪除區誤當有效清單的失敗亦保留，未改標 PASS。本切片無 DDL／migration，不部署或修改正式資料，原 7／29 與正式登入阻擋不變。
+
 ### I-01A／I-01C 採購讀取一致性（2026-10-23，本地切片）
 
 以 protected main `06874f97` 為基準，隔離 PostgreSQL 重現同 item 的兩筆 Released 歷史在有效時間相等時同時進入 latest 清單；使用與既有排序相同的 `(COALESCE(released_at, updated_at, created_at), id)` 比較，時間相等只保留 ID 較大的一筆。公司、Released 狀態、submitter 與 200 筆上限不變。另以 route fixture 重現有效 `since=1970-01-01` 解析為 0 後被 truthiness 略過，改以 `since !== null` 套用原嚴格晚於語意；缺少／invalid since 的既有行為不變。
