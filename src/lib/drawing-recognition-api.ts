@@ -24,8 +24,8 @@ export function recognitionRoles(access: { actor: { roles: readonly string[] } }
 
 export function recognitionErrorResponse(error: unknown, context: string) {
   if (error instanceof DrawingRecognitionError) {
-    return NextResponse.json({ error: { code: error.code, message: error.message, retryable: error.retryable } }, { status: error.status });
+    return NextResponse.json({ error: { code: error.code, message: error.message, retryable: error.retryable } }, { status: error.status, headers: { "cache-control": "private, no-store" } });
   }
   console.error("Drawing recognition request failed.", { context, error });
-  return NextResponse.json({ error: { code: "RECOGNITION_INTERNAL_ERROR", message: "辨識服務暫時無法處理此要求。", retryable: true } }, { status: 500 });
+  return NextResponse.json({ error: { code: "RECOGNITION_INTERNAL_ERROR", message: "辨識服務暫時無法處理此要求。", retryable: true } }, { status: 500, headers: { "cache-control": "private, no-store" } });
 }
