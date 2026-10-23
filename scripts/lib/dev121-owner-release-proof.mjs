@@ -1744,7 +1744,9 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
   if (observeOwnerSource !== null && typeof observeOwnerSource !== 'function') fail('PROGRAM_ONLY_SOURCE_PROOF_INVALID')
   const handle = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(handle, async () => {
-    if (!exactKeys(refs, ['prepare', 'migrate', 'terminal'])) fail('INPUT_INVALID')
+    if (!exactKeys(refs, ['prepare', 'migrate', 'terminal'])
+      || (refs.migrate === null ? refs.terminal !== null : !exactKeys(refs.migrate, ['uri', 'sha256']))
+      || (refs.terminal !== null && !exactKeys(refs.terminal, ['uri', 'sha256']))) fail('INPUT_INVALID')
     const preMigration = refs?.migrate === null && refs?.terminal === null
     const selected = assertOwnerReleaseRefSet('ai-pdm', { prepare: refs.prepare, migrate: null, terminal: null }, 'pre_migration')
     const selectedIntentRef = { uri: `gs://${AI_BUCKET}/receipts/releases/${selected.releaseId}/release-intent.json`, sha256: selected.root.split('/').at(-1) }
