@@ -1,6 +1,6 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-24（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474已合併；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。結果、來源與缺口統一見QA§6，尚未整體驗收。本輪已授權PDM既有protected發布／驗收與jenfu-platform-prod／orgmaster-prod相容migration及reader部署；不含人員指派改寫、IAM或Secrets。
+建立：2026-10-12；修訂：2026-10-24（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474及caller／發布續接修正PR #480已合併且required PR CI通過；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。結果、來源與缺口統一見QA§6，尚未整體驗收。本輪已授權PDM既有protected發布／驗收與jenfu-platform-prod／orgmaster-prod相容migration及reader部署；不含人員指派改寫、IAM或Secrets。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
 

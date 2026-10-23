@@ -224,3 +224,15 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。
 
 本次補記封存於2026-10-23 19:40 UTC前；新source required CI／合併狀態以[PR #480 checks](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480/checks)及provider綁定的實際head為準，舊40a文件-only CI不支持本輪source。這是結果索引的live provider引用；沒有把先前待驗狀態改成正式發布或整體驗收。
+
+### PR #480 合併後的來源與QA50核對
+
+[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)以head `a796e3e162b424621de5b45f2cc7ebe0a0a2d1fb`完成required CI [40013187741](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40013187741)：DEV-012 Isolated PostgreSQL Cutover與Production Slice QC均SUCCESS，isolated build `artifact=true; primary=true; cleanup=true`。provider讀回main ruleset24077878為active、零bypass、PR required／零人工核准及兩個required checks；同head經GitHub merge為官方main `20290a9028035807280176c6e10f53c0dbb1dc1b`，app tree相同。該main的[CI 40014459702](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40014459702)兩項required checks亦由provider讀回SUCCESS；沒有發布新capsule或改正式runtime／traffic。
+
+QA123-50剩餘範圍經有界來源核對：model.review是Principal LIVE，需父項目review與model.review AND；多binding須區分review package內多個canonical附件（LIVE）與多個MA package綁同model的model-basis舊入口（Principal仍拒絕）。baseline只有resolve read是Principal LIVE；create／release仍為舊入口，維持拒絕。mock contract結果不算native，正補既有LIVE入口的合法fixture；未支援入口不創造新流程。52 QA／17 AC／CG目的不變。
+
+QA50後續有界native補證：`dev123-native-model-review-http-20261024-r2.json`／`.log`為PASS_WITH_NOT_RUN。授權J來源A0029-M01.SLDDRW與A0029.SLDPRT原bytes經正常numbering201／upload200／submit200，實際selector選出role-rd-manager的canonical Principal reviewer；正常dynamic apply單獨關閉model.review及drawing.review各得approve403，每次168張ai_pdm_core全表row count／digest（含audit／command／outbox）完全不變；恢復兩者後approve200、pending刪除且唯一completed receipt綁精確Principal／profile。baseline resolve同公司**空合法part**200、foreign owner403且168表不變；這只證read入口與scope，不是已發布baseline快照／create／release證據。
+
+來源34項直接inputs前後未變，root再以`native-model-review-source-equivalence-r1.json`核對28個tracked產品輸入與官方main20290 canonical bytes一致，其餘原harness／Org及授權CAD來源hash相符。PG ERROR/FATAL=0、asyncErrors=0，cluster／bridge／port／temp已清；使用registered synthetic AAL2 session，非fresh SSO／完整Next／native CAD語意驗收。r1在HTTP前因runner自行加入未受契約支持的universal SolidWorks magic斷言而失敗，原件保留；r2移除該假設，改核對授權實檔bytes／hash，未改產品。
+
+雙model binding仍BLOCKED：正常upload同一CAD role會取代；需要合法CAD＋intermediate兩個role，但原授權資料夾只有SLDPRT／SLDASM／SLDDRW，未找到STEP／STP／IGES。待補合法中間格式來源，不造檔或轉檔來強行通過。model-basis及baseline create／release為既有非Principal入口，維持拒絕／未驗。QA123-50仍PARTIAL；正常Google／兩端正式actor旅程及reader→writer發布也未完成，不縮減52目的／17AC／CG。
