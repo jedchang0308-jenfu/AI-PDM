@@ -26,6 +26,14 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 能力可獨立標記 `PASS`、`FAIL`、`PENDING` 或 `NOT_APPLICABLE`。一項能力未完成，不改寫其他能力已成立的證據；DEV-122 整體結案仍需原始 7／29 全部有可接受結果。
 
+### R-01A 辨識讀取錯誤回應（2026-10-23）
+
+兩個實際 GET route 的合成回歸證實 `recognitionErrorResponse()` 在 domain 503 與 unknown 500 均未明確設定禁止快取標頭，四個原始 red 保留。修正只為這兩個共用錯誤分支補 `cache-control: private, no-store`；原有狀態碼、安全訊息、retryable、Principal／有效授權／公司／撤銷規則不變，required recognition CI 納入同一回歸。這不證明歷史 UI 500／missing-key 的根因，也不證明 Production 曾快取錯誤。
+
+本地聚焦 22／22、型別與增量 lint、planner 17／17、release-core 220／220、isolated build（artifact／primary／cleanup）通過。隔離 native run `9b66a28d097f584a` 在正常空來源 Drawing，以同一合成 owner 登入狀態實測 latest-reader GET 200 → 精確暫停隔離表的有效 SELECT → 安全 500 → 恢復權限 → 同頁「重試」回到正常空資料。Next 實際標頭另有 `max-age=0`，仍包含 private／no-store；過度嚴格的初次 observer 字串比對及原回應保留。伺服器 29 筆請求皆 GET，165 張 `ai_pdm_core` 資料表前後相同，沒有 recognition session／preview job；ACL 另核對有效 SELECT 與 grantee／privilege／grantability，未宣稱逐欄 grantor 還原或未知寫入 recovery 已驗。原 fixture 欄位錯誤亦保留；runtime、PG、連接埠、暫存目錄與 task tab 均清理。證據在 `output/qa/dev122-recognition-reader/`，不是既有辨識 session 投影、worker、CAD 或正式 actor 驗收。
+
+同日補齊的其他本地窄範圍證據保留各自來源：main `533834853e5af656f7d945901ed26a2bd806194d` 的 P-02C actual Part readiness HTTP／1440×900 畫面，確認正常 Draft 被阻擋、經正常首次發行審核的 Released 可送審；R-01A Part／Drawing 19 筆 HTTP 讀取與拒絕，以及 Part Matrix 授權到期 403／恢復後同頁重載。各自的 core 資料前後相同，authority fixture 的預期變動另列；它們不替代 Production、Dani 或使用者 A0002 檔案 lineage，P-02A 沿用 B52 的 save401 證據而不新增重複案例。上述 runner 均維持 `PARTIAL_NOT_ACCEPTED`；原始 7／29、歷史失敗及未驗責任不變。本切片無 DDL／migration，不部署、不切流、不改正式資料。
+
 ### 辨識 Production dispatch 缺口（2026-10-23）
 
 B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 session GET 200／session null，隨後 create POST 403；原回應的 closed code／header 與同 snapshot effective grant 未擷取，不能把 catalog allow 當作 actor grant proof。Provider 確認該版本使用 `official-numbering-draft`，source 的 slice allowlist 卻沒有任何 recognition-session mutation；synthetic actual-middleware 回歸已在未修改實作時重現十個既有 command 均無法 dispatch。修正只補 [production slice amendment](SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md) 明列的 method／path，保留既有 Principal、有效授權、公司／資源、撤銷及交易守門；不修改角色指派或重送 085。此 source-level 根因不證明原 actor 通過後續 guard，也不證明 worker、辨識結果、CAD／PDF 預覽或管理員／RD 正式驗收成功。正式原失敗與 7／29 分母保留，部署與 actor 實測待各自取得證據。
