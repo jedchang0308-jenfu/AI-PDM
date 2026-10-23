@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { claimPreviewJobAsync } from "@/lib/preview-derivatives";
+import { previewLeaseProtocolVersion } from "@/lib/preview-worker-lease";
 import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-service-auth";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   const labelDenied = rejectWorkerLabel(actor, body.workerId);
   if (labelDenied) return labelDenied;
   const workerId = actor.id;
+  if (body.leaseProtocolVersion !== previewLeaseProtocolVersion) return NextResponse.json({ error: "WORKLOAD_LEASE_PROTOCOL_REQUIRED" }, { status: 400 });
   const allowedExtensions = [
     ...(actor.capabilities.includes("solidworks_3d_preview_png") ? ["sldprt", "sldasm"] : []),
     ...(actor.capabilities.includes("solidworks_2d_preview_png") ? ["slddrw"] : [])
@@ -33,9 +35,10 @@ export async function POST(request: Request) {
   const supportedPreviewKinds = [...new Set(supportedKinds)] as "native_thumbnail_png"[];
 
   const claim = await claimPreviewJobAsync(getAsyncDatabaseClient(), {
+    leaseProtocolVersion: previewLeaseProtocolVersion,
     workerId,
     supportedKinds: supportedPreviewKinds,
     supportedExtensions: extensions
   });
-  return NextResponse.json({ job: claim });
+  return NextResponse.json({ leaseProtocolVersion: previewLeaseProtocolVersion, job: claim });
 }

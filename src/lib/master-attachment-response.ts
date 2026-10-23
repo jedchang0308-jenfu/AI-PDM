@@ -19,6 +19,7 @@ export function buildMasterAttachmentFileResponse(input: {
 }
 
 export function masterAttachmentStatusFromError(message: string) {
+  if (message === "PREVIEW_ATTEMPTS_EXHAUSTED") return 409;
   if (message === "PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED") return 403;
   if (["PLATFORM_COMMAND_ACTOR_MISMATCH", "PLATFORM_COMMAND_IDEMPOTENCY_PAYLOAD_MISMATCH",
        "PLATFORM_COMMAND_SCHEMA_MISMATCH", "PLATFORM_COMMAND_IN_PROGRESS", "PLATFORM_OUTBOX_IDEMPOTENCY_CONFLICT"].includes(message)) return 409;

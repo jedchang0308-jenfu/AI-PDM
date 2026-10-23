@@ -1,3 +1,5 @@
+F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
+
 ## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
 
 正常料號附件頁及 collection POST、item DELETE（soft delete）、item restore POST 的現行精確邊界見 [SPEC matrix](specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md#phase-1-route--api-boundary-matrix)、[ADR amendment](decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md)、[QA amendment](qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md#dev-122-part-附件正常入口2026-10-23) 及 [DEV-122 當前契約](specs/DEV-122-ai-pdm-internal-function-issues.md#part-附件正常入口2026-10-23修正待正式驗收)。較舊 no-file／numbering-only 敘述對這些精確入口已被取代；其餘 default-deny、owner 授權及受保護發布保留。PR #455 修正已合併，正式部署及正常附件操作驗收仍須取得各自證據；本入口不宣告整體 7／29 PASS。

@@ -43,7 +43,7 @@ export type ResolvedDrawingPreview = {
 export async function resolveDrawingPreviewAsync(
   client: AsyncDatabaseClient,
   source: DrawingPreviewSource,
-  options: { allowFake?: boolean; derivativeId?: string | null } = {}
+  options: { derivativeId?: string | null } = {}
 ): Promise<ResolvedDrawingPreview | null> {
   const mimeType = source.mime_type?.trim().toLowerCase() || "";
   if (mimeType === "application/pdf" || mimeType.startsWith("image/")) {
@@ -61,7 +61,7 @@ export async function resolveDrawingPreviewAsync(
         AND id = COALESCE(:derivativeId, id)
         AND status = 'ready'
         AND derivative_kind IN ('model_preview_png', 'thumbnail_png', 'drawing_pdf', 'sheet_png')
-        AND (:allowFake = 1 OR NOT (generator_profile = 'fake_preview_worker' AND generator_version = 'fake-local-pipeline'))
+        AND generator_profile <> 'fake_preview_worker' AND COALESCE(generator_version, '') <> 'fake-local-pipeline'
       ORDER BY CASE derivative_kind
         WHEN 'model_preview_png' THEN 0
         WHEN 'drawing_pdf' THEN 1
@@ -70,9 +70,9 @@ export async function resolveDrawingPreviewAsync(
       END, created_at DESC
       LIMIT 1
     `,
-    { sourceFileAssetId: source.id, companyId: source.company_id, derivativeId: options.derivativeId ?? null, allowFake: options.allowFake ? 1 : 0 }
+    { sourceFileAssetId: source.id, companyId: source.company_id, derivativeId: options.derivativeId ?? null }
   );
-  if (!derivative || derivative.company_id !== source.company_id) return null;
+  if (!derivative || derivative.company_id !== source.company_id || derivative.generator_profile === "fake_preview_worker" || derivative.generator_version === "fake-local-pipeline") return null;
   if (source.content_hash && derivative.source_content_hash !== source.content_hash) return null;
   return { record: derivative, fileName: derivative.file_name || source.file_name || "圖面附件", mimeType: derivative.mime_type };
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { materializeClaimedPreviewSource } from "./lib/preview-worker-source.mjs";
+import { claimPreviewJob, createPreviewWorkerShutdown, runClaimedPreviewJob } from "./lib/preview-worker-lease.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -52,7 +53,9 @@ if (watchMode) {
   console.log(JSON.stringify({ workerId, watching: true, modelsOnly: args.modelsOnly === true, pollMs }, null, 2));
 }
 
-while (true) {
+const shutdown = createPreviewWorkerShutdown();
+try {
+while (!shutdown.requested) {
   let claim;
   try {
     claim = await claimJob({ baseUrl, token, workerId, modelsOnly: args.modelsOnly === true });
@@ -88,79 +91,44 @@ while (true) {
   }
 
   idleReported = false;
-  const heartbeat = startJobHeartbeat({ baseUrl, token, workerId, jobId: claim.jobId });
-  let succeeded;
-  try {
-    succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512), capabilityReporter });
-  } finally {
-    heartbeat.stop();
-  }
+  const succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512), capabilityReporter });
   if (!watchMode) {
     if (!succeeded) process.exitCode = 1;
     break;
   }
 }
 
+} finally { shutdown.dispose(); capabilityReporter.stop(); }
+
 async function processClaim(input) {
   let materializedSource;
   try {
-    materializedSource = await materializeClaimedPreviewSource(input);
-    const sourcePath = materializedSource.sourcePath;
-    const outputPath = path.join(path.dirname(sourcePath), "preview.png");
-    const extracted = await extractWindowsShellThumbnail(sourcePath, outputPath, input.size);
-    const bytes = fs.readFileSync(outputPath);
-    assertPng(bytes, outputPath);
-    const quality = await analyzePngContent(bytes);
-    assertMeaningfulThumbnailQuality(quality, outputPath);
-    const dimensions = readPngDimensions(bytes);
-    const completion = await completeJob({
-      baseUrl: input.baseUrl,
-      token: input.token,
-      workerId: input.workerId,
-      job: input.claim,
-      derivative: {
-        kind: "thumbnail_png",
-        fileName: `${path.basename(sourcePath)}.preview.png`,
-        mimeType: "image/png",
-        contentBase64: bytes.toString("base64"),
-        width: dimensions.width,
-        height: dimensions.height,
-        generatorProfile: input.claim.generatorProfile,
-        generatorVersion: modelPreviewRendererVersion
+    const result = await runClaimedPreviewJob({ ...input, shutdown,
+      async render(signal) {
+        materializedSource = await materializeClaimedPreviewSource({ ...input, signal });
+        signal.throwIfAborted();
+        const sourcePath = materializedSource.sourcePath;
+        const outputPath = path.join(path.dirname(sourcePath), "preview.png");
+        await extractWindowsShellThumbnail(sourcePath, outputPath, input.size, signal);
+        const bytes = fs.readFileSync(outputPath);
+        assertPng(bytes, outputPath);
+        assertMeaningfulThumbnailQuality(await analyzePngContent(bytes), outputPath);
+        const dimensions = readPngDimensions(bytes);
+        return [{ kind: "thumbnail_png", fileName: `${path.basename(sourcePath)}.preview.png`, mimeType: "image/png",
+          contentBase64: bytes.toString("base64"), width: dimensions.width, height: dimensions.height,
+          generatorProfile: input.claim.generatorProfile, generatorVersion: modelPreviewRendererVersion }];
+      },
+      rendererFailure(error) {
+        const message = error instanceof Error ? error.message : String(error);
+        void input.capabilityReporter.update(capabilityStateForError(error, message)).catch(() => undefined);
+        return { errorCode: "windows_shell_thumbnail_failed", errorSummary: userFacingPreviewErrorSummary(error, message) };
       }
     });
-    console.log(
-      JSON.stringify(
-        { workerId: input.workerId, claimed: true, jobId: input.claim.jobId, sourcePath, extracted, quality, completion },
-        null,
-        2
-      )
-    );
-    await input.capabilityReporter.update({ status: "ready", issueCode: null });
-    return true;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const errorSummary = userFacingPreviewErrorSummary(error, message);
-    await input.capabilityReporter.update(capabilityStateForError(error, message));
-    await failJob({ baseUrl: input.baseUrl, token: input.token, workerId: input.workerId, jobId: input.claim.jobId, errorSummary });
-    console.error(
-      JSON.stringify(
-        {
-          workerId: input.workerId,
-          claimed: true,
-          jobId: input.claim.jobId,
-          status: "failed",
-          errorCode: "windows_shell_thumbnail_failed",
-          errorSummary
-        },
-        null,
-        2
-      )
-    );
-    return false;
-  } finally {
-    await materializedSource?.cleanup();
-  }
+    if (result.status === "unconfirmed") { shutdown.requestStop(); process.exitCode = 1; }
+    console.log(JSON.stringify({ workerId: input.workerId, jobId: input.claim.jobId, ...result }));
+    if (result.status === "succeeded") await input.capabilityReporter.update({ status: "ready", issueCode: null });
+    return result.status === "succeeded" || result.status === "cancelled";
+  } finally { await materializedSource?.cleanup(); }
 }
 
 function createCapabilityReporter(input) {
@@ -193,6 +161,7 @@ function createCapabilityReporter(input) {
         if (!input.watchMode) throw error;
       }
     },
+    stop() { if (timer) clearInterval(timer); timer = null; },
     start() {
       if (!input.watchMode || timer) return;
       timer = setInterval(() => { void send().catch(() => undefined); }, 15_000);
@@ -231,84 +200,10 @@ function capabilityStateForError(error, message) {
 }
 
 async function claimJob(input) {
-  const response = await fetch(`${input.baseUrl}/api/preview-jobs/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      supportedKinds: ["native_thumbnail_png"],
-      supportedExtensions: input.modelsOnly ? ["sldprt", "sldasm"] : ["sldprt", "sldasm", "slddrw"]
-    })
-  });
-  if (!response.ok) {
-    const error = new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
-    if (response.status === 401 || response.status === 403 || response.status === 503) error.code = "PREVIEW_WORKER_CONFIGURATION_ERROR";
-    throw error;
-  }
-  const body = await response.json();
-  return body.job ?? null;
+  return claimPreviewJob({ ...input, supportedExtensions: input.modelsOnly ? ["sldprt", "sldasm"] : ["sldprt", "sldasm", "slddrw"] });
 }
 
-async function completeJob(input) {
-  const response = await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.job.jobId)}/complete`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      status: "succeeded",
-      sourceContentHash: input.job.sourceContentHash,
-      derivatives: [input.derivative]
-    })
-  });
-  if (!response.ok) throw new Error(`Preview worker complete failed with HTTP ${response.status}: ${await response.text()}`);
-  const result = await response.json();
-  if (result.accepted !== true) throw new Error("PREVIEW_JOB_CLAIM_LOST");
-  return result;
-}
-
-function startJobHeartbeat(input) {
-  const send = async () => {
-    await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/heartbeat`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-      },
-      body: JSON.stringify({ workerId: input.workerId })
-    }).catch(() => undefined);
-  };
-  void send();
-  const timer = setInterval(() => void send(), 5000);
-  return { stop: () => clearInterval(timer) };
-}
-
-async function failJob(input) {
-  await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/complete`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      status: "failed",
-      errorCode: "windows_shell_thumbnail_failed",
-      errorSummary: input.errorSummary
-    })
-  }).catch(() => undefined);
-}
-
-async function extractWindowsShellThumbnail(sourcePath, outputPath, size) {
+async function extractWindowsShellThumbnail(sourcePath, outputPath, size, signal) {
   if (process.platform !== "win32") throw new Error("Windows Shell thumbnail extraction requires Windows.");
   if (!fs.existsSync(extractorPath)) throw new Error(`Extractor script not found: ${extractorPath}`);
   const absoluteSourcePath = path.resolve(sourcePath);
@@ -330,7 +225,7 @@ async function extractWindowsShellThumbnail(sourcePath, outputPath, size) {
     outputPath,
     "-Size",
     String(size)
-  ]);
+  ], { signal });
   if (result.status !== 0) {
     throw new Error(`Windows Shell thumbnail extractor failed: ${[result.stdout, result.stderr].filter(Boolean).join("\n").trim()}`);
   }
@@ -338,19 +233,20 @@ async function extractWindowsShellThumbnail(sourcePath, outputPath, size) {
   return { outputPath, outputUrl: pathToFileURL(outputPath).href, bytes };
 }
 
-function spawnFileAsync(command, commandArgs) {
+function spawnFileAsync(command, commandArgs, options = {}) {
   return new Promise((resolve) => {
-    const child = spawn(command, commandArgs, { cwd: root, windowsHide: true });
+    const child = spawn(command, commandArgs, { cwd: root, windowsHide: true, ...options });
     let stdout = "";
     let stderr = "";
+    const deadline = setTimeout(() => { stderr += " PREVIEW_RENDERER_TIMEOUT"; child.kill(); }, 120000);
     child.stdout?.on("data", (chunk) => {
       stdout += chunk.toString();
     });
     child.stderr?.on("data", (chunk) => {
       stderr += chunk.toString();
     });
-    child.on("close", (status) => resolve({ status, stdout, stderr }));
-    child.on("error", (error) => resolve({ status: 1, stdout, stderr: error.message }));
+    child.on("close", (status) => { clearTimeout(deadline); resolve({ status, stdout, stderr }); });
+    child.on("error", (error) => { stderr += error.message; if (!child.pid) { clearTimeout(deadline); resolve({ status: 1, stdout, stderr }); } });
   });
 }
 

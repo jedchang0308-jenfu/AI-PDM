@@ -15,11 +15,15 @@ import { requirePublishedPrincipalCatalog, principalCatalog } from "@/lib/jenfu-
 import { validateEffectiveRoleAssignment } from "@/lib/jenfu-entitlement-contract";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 import path from "node:path";
+import { EventEmitter } from "node:events";
+import { createPreviewWorkerShutdown, runClaimedPreviewJob } from "../../scripts/lib/preview-worker-lease.mjs";
+import { recoverStalePreviewJobsAsync, type PreviewWorkerClaim } from "@/lib/preview-derivatives";
+import type { PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { getAsyncDatabaseClient, type AsyncDatabaseQueryParams } from "@/lib/db-async-provider";
+import { getAsyncDatabaseClient, type AsyncDatabaseClient, type AsyncDatabaseQueryParams, type AsyncDatabaseTransactionOptions } from "@/lib/db-async-provider";
 import { GET as readProcurement } from "@/app/api/integrations/procurement/releases/route";
 import { GET as readProcurementPackage } from "@/app/api/integrations/procurement/releases/[id]/package/route";
 import { GET as readCanonicalFile } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
@@ -368,6 +372,36 @@ describe.runIf(procurementEnabled)("DEV122 I01 actual signed procurement route/s
   });
 });
 
+async function previewRepositorySnapshot() {
+  const rows: Array<{ path: string; hash: string }> = [];
+  const root = process.env.PDM_REPOSITORY_DIR!;
+  async function walk(directory: string) {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const location = path.join(directory, entry.name);
+      if (entry.isDirectory()) await walk(location);
+      else if (entry.isFile()) rows.push({ path: path.relative(root, location), hash: createHash("sha256").update(await fs.readFile(location)).digest("hex") });
+      else throw new Error("DEV122_PREVIEW_UNEXPECTED_STORAGE_ENTRY");
+    }
+  }
+  await walk(root); return rows.sort((a, b) => a.path.localeCompare(b.path));
+}
+async function withPreviewLeaseWorker(run: (send: (url: string, body?: object, basis?: PreviewLeaseBasis) => Request) => Promise<void>) {
+  const previous = process.env.PDM_WORKLOAD_AUTH_CREDENTIALS, token = Buffer.alloc(32, 124).toString("base64url");
+  process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [
+    { id: "dev122-lease-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] }] });
+  const send = (url: string, body?: object, basis?: PreviewLeaseBasis) => new Request("https://ai-pdm.test" + url, {
+    method: body ? "POST" : "GET", headers: { authorization: "Bearer " + token, "content-type": "application/json",
+      ...(basis ? { "x-pdm-preview-lease": Buffer.from(JSON.stringify({ leaseProtocolVersion: 2, leaseBasis: basis })).toString("base64url") } : {}) },
+    body: body ? JSON.stringify({ leaseProtocolVersion: 2, ...(basis ? { leaseBasis: basis } : {}), ...body }) : undefined });
+  try { await run(send); } finally { vi.useRealTimers();
+    if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; }
+}
+async function nativePreviewClaim(send: (url: string, body?: object) => Request) {
+  const response = await ok<{ leaseProtocolVersion: number; job: PreviewWorkerClaim | null }>(await claimWorkerJob(send("/api/preview-jobs/claim",
+    { supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] })));
+  expect(response.leaseProtocolVersion).toBe(2); expect(response.job).not.toBeNull(); return response.job!;
+}
+
 type FileFixture = { workId: string; bindingId: string; assetId: string; bytes: Buffer; url: string;
   asset: { id: string; content_hash: string; file_size: number | string; storage_key: string; original_path: string } };
 async function normalDrawingFile(label: string, extension = "SLDDRW", actualSourceBytes?: Buffer, fixtureToken = ownerToken): Promise<FileFixture> {
@@ -501,9 +535,11 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
     const fixture=await normalDrawingFile("stale-derivative-source");await resetFileJob(fixture,"queued",0);
     const token=Buffer.alloc(32,126).toString("base64url"),previous=process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=JSON.stringify({schemaVersion:"ai-pdm.workload-credentials.v1",workloads:[{id:"dev122-stale-derivative",token,purposes:["preview_jobs"],capabilities:["solidworks_2d_preview_png"]}]});
-    const workload=(url:string,body:object)=>new Request("https://ai-pdm.test"+url,{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});
+    let heldLease: PreviewLeaseBasis | undefined;
+    const workload=(url:string,body:object)=>new Request("https://ai-pdm.test"+url,{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({leaseProtocolVersion:2,...(heldLease?{leaseBasis:heldLease}:{}),...body})});
     try{
-      const claimed=await ok<{job:{jobId:string}}>(await claimWorkerJob(workload("/api/preview-jobs/claim",{supportedKinds:["native_thumbnail_png"],supportedExtensions:["slddrw"]})));
+      const claimed=await ok<{job:PreviewWorkerClaim}>(await claimWorkerJob(workload("/api/preview-jobs/claim",{supportedKinds:["native_thumbnail_png"],supportedExtensions:["slddrw"]})));
+      heldLease = claimed.job.leaseBasis;
       expect(claimed.job.jobId).toBe(String((await currentFileJob(fixture)).id));
       const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSf8AAAAASUVORK5CYII=","base64");
       const completed=await ok<{accepted:boolean;derivativeIds:string[]}>(await completeWorkerJob(workload("/api/preview-jobs/"+claimed.job.jobId+"/complete",{
@@ -585,30 +621,32 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       layer:"ACTUAL_NATIVE_POSTGRES_LOCAL_FIXTURE_TEARDOWN",producerBoundary:"FIXTURE",variant,sourceFileAssetId:fixture.assetId,
       deletionCompanyId:"company-jenfu",remainingSourceJobs,remainingSourceJobCount:remainingSourceJobs.length,exactSourceJobCountZero:remainingSourceJobs.length===0}));
   });
-  it.each(["heartbeat", "claim"] as const)("canonical recovery races actual %s with native timestamp CAS and cannot overwrite fresh actor",async variant=>{
+  it.each(["heartbeat", "claim"] as const)("canonical recovery races actual %s with native timestamp CAS without reviving expired leases or overwriting fresh actor",async variant=>{
     const fixture=await normalDrawingFile("route-race-"+variant);await resetFileJob(fixture,"queued",0);
     const token=Buffer.alloc(32,125).toString("base64url"),previous=process.env.PDM_WORKLOAD_AUTH_CREDENTIALS,worker="dev122-route-race-"+variant;
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=JSON.stringify({schemaVersion:"ai-pdm.workload-credentials.v1",workloads:[{id:worker,token,purposes:["preview_jobs"],capabilities:["solidworks_2d_preview_png"]}]});
-    const workload=(url:string,body:object)=>new Request("https://ai-pdm.test"+url,{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(body)});
+    let heldLease: PreviewLeaseBasis | undefined;
+    const workload=(url:string,body:object)=>new Request("https://ai-pdm.test"+url,{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({leaseProtocolVersion:2,...(heldLease?{leaseBasis:heldLease}:{}),...body})});
     const claim=()=>claimWorkerJob(workload("/api/preview-jobs/claim",{supportedKinds:["native_thumbnail_png"],supportedExtensions:["slddrw"]}));
     let restoreObserver:(()=>void)|undefined,selected=0,casRows:number[]=[];let fresh:Record<string,unknown>|undefined;
     try{
-      const claimed=await ok<{job:{jobId:string}}>(await claim());const jobId=String((await currentFileJob(fixture)).id);expect(claimed.job.jobId).toBe(jobId);
+      const claimed=await ok<{job:PreviewWorkerClaim}>(await claim());const jobId=String((await currentFileJob(fixture)).id);expect(claimed.job.jobId).toBe(jobId);heldLease=claimed.job.leaseBasis;
       const stale=await resetFileJob(fixture,"running",1,30_001),original=db!.query.bind(db!);let armed=true;
       const observer=vi.spyOn(db!,"query").mockImplementation(async<Row>(sql:string,params?:AsyncDatabaseQueryParams):Promise<Row[]>=>{
         const rows=await original<Row>(sql,params);
         if(armed&&sql.includes("CAST(job.updated_at AS TEXT) AS previous_updated_at")){
           armed=false;selected++;expect(rows.some(row=>(row as {id:string}).id===jobId)).toBe(true);
-          if(variant==="heartbeat") await ok(await heartbeatWorkerJob(workload("/api/preview-jobs/"+jobId+"/heartbeat",{}),{params:Promise.resolve({jobId})}));
-          else expect((await ok<{job:{jobId:string}}>(await claim())).job.jobId).toBe(jobId);
-          fresh=await currentFileJob(fixture);expect(fresh.exact_updated_at).not.toBe(stale.exact_updated_at);
+          if(variant==="heartbeat") expect((await heartbeatWorkerJob(workload("/api/preview-jobs/"+jobId+"/heartbeat",{}),{params:Promise.resolve({jobId})})).status).toBe(409);
+          else expect((await ok<{job:PreviewWorkerClaim}>(await claim())).job.jobId).toBe(jobId);
+          fresh=await currentFileJob(fixture);if(variant!=="heartbeat")expect(fresh.exact_updated_at).not.toBe(stale.exact_updated_at);
         } else if(sql.includes("previousUpdatedAt")&&sql.includes("RETURNING job.id")) casRows.push(rows.length);
         return rows;
       });
       restoreObserver=()=>observer.mockRestore();
       const response=await fileResponse(fixture,true),body=await response.json();restoreObserver();restoreObserver=undefined;
-      expect(response.status).toBe(202);expect(selected).toBe(1);expect(casRows).toContain(0);
-      expect(await currentFileJob(fixture)).toEqual(fresh);expect(fresh).toMatchObject({status:"running",locked_by:worker,attempt_count:variant==="heartbeat"?1:2});
+      expect(response.status).toBe(202);expect(selected).toBe(1);expect(casRows).toContain(variant==="heartbeat"?1:0);
+      if(variant==="heartbeat")expect(await currentFileJob(fixture)).toMatchObject({status:"queued",locked_by:null,attempt_count:1});
+      else{expect(await currentFileJob(fixture)).toEqual(fresh);expect(fresh).toMatchObject({status:"running",locked_by:worker,attempt_count:2});}
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+".json"),JSON.stringify({variant,jobId,stale,fresh,selected,casRows,status:response.status,body,layer:"ACTUAL_SIGNED_CANONICAL_GET_AND_ACTUAL_WORKLOAD_ROUTE"}));
     }finally{restoreObserver?.();if(previous===undefined)delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=previous;}
   });
@@ -779,11 +817,11 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       { id: "dev122-negative-claim-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] } ] });
     try {
       const before = await ownedLifecycleSnapshot(), response = await claimWorkerJob(new Request("https://ai-pdm.test/api/preview-jobs/claim", { method: "POST",
-        headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] }) }));
+        headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] }) }));
       const body = await response.json(), after = await ownedLifecycleSnapshot();
       await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-negative-readbacks.jsonl"), JSON.stringify({ variant, phase: "claim", sourceAsset: fixture.assetId,
         jobBefore: await currentFileJob(fixture), status: response.status, body, allOwnedRowsUnchanged: JSON.stringify(after) === JSON.stringify(before) }) + "\n");
-      expect(response.status).toBe(200); expect(body).toEqual({ job: null }); expect(after).toEqual(before);
+      expect(response.status).toBe(200); expect(body).toEqual({ leaseProtocolVersion: 2, job: null }); expect(after).toEqual(before);
     } finally { if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; }
   });
   it.each(["holder", "provenance"] as const)("claimed content rejects native %s mismatch without storage or DB effects", async variant => {
@@ -793,15 +831,15 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       { id: "dev122-content-holder", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] },
       { id: "dev122-content-nonholder", token: other, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] } ] });
     try {
-      const claimed = await ok<{ job: { jobId: string } }>(await claimWorkerJob(new Request("https://ai-pdm.test/api/preview-jobs/claim", { method: "POST",
-        headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] }) })));
+      const claimed = await ok<{ job: PreviewWorkerClaim }>(await claimWorkerJob(new Request("https://ai-pdm.test/api/preview-jobs/claim", { method: "POST",
+        headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] }) })));
       expect(claimed.job?.jobId).toBe((await currentFileJob(fixture)).id);
       if (variant === "provenance") await fixtureMutation("F01 loss of normal-upload Principal provenance negative input", "UPDATE preview_jobs SET metadata_json='{}' WHERE id=:id", { id: claimed.job.jobId });
       const before = await ownedLifecycleSnapshot(), response = await readWorkerContent(new Request("https://ai-pdm.test/api/preview-jobs/" + claimed.job.jobId + "/content",
-        { headers: { authorization: "Bearer " + (variant === "holder" ? other : token) } }), { params: Promise.resolve({ jobId: claimed.job.jobId }) }), body = await response.json(), after = await ownedLifecycleSnapshot();
+        { headers: { authorization: "Bearer " + (variant === "holder" ? other : token), "x-pdm-preview-lease":Buffer.from(JSON.stringify({leaseProtocolVersion:2,leaseBasis:claimed.job.leaseBasis})).toString("base64url") } }), { params: Promise.resolve({ jobId: claimed.job.jobId }) }), body = await response.json(), after = await ownedLifecycleSnapshot();
       await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-negative-readbacks.jsonl"), JSON.stringify({ variant, phase: "content", jobId: claimed.job.jobId,
         status: response.status, body, allOwnedRowsUnchanged: JSON.stringify(after) === JSON.stringify(before) }) + "\n");
-      expect(response.status).toBe(403); expect(body).toEqual({ error: "PREVIEW_SOURCE_CLAIM_FORBIDDEN" }); expect(after).toEqual(before);
+      expect(response.status).toBe(409); expect(body).toEqual({ error: "PREVIEW_JOB_CLAIM_LOST" }); expect(after).toEqual(before);
     } finally { if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; }
   });
   it("uploads through the normal signed command and reads exact source bytes with Principal/company/binding audit", async () => {
@@ -834,15 +872,15 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       const before = await resetFileJob(fixture, status);
       for (let count = 0; count < 2; count += 1) {
         const response = await fileResponse(fixture, true); expect(response.status).toBe(409);
-        expect(response.headers.get("x-pdm-preview-state")).toBe("failed"); expect(response.headers.has("retry-after")).toBe(false);
+        expect(response.headers.get("x-pdm-preview-state")).toBe(status === "cancelled" ? "cancelled" : "failed"); expect(response.headers.has("retry-after")).toBe(false);
         expect(await response.json()).toMatchObject({ error: { code, retryable: false } });
       }
       expect(await currentFileJob(fixture)).toEqual(before);
       expect(Buffer.from(await (await fileResponse(fixture)).arrayBuffer())).toEqual(fixture.bytes);
     });
   it.each([
-    ["running", 29_999, 2, "running", 202], ["running", 30_001, 2, "queued", 202],
-    ["running", 30_001, 3, "failed", 409], ["queued", 119_999, 2, "queued", 202], ["queued", 120_001, 2, "failed", 409]
+    ["running", 28_000, 2, "running", 202], ["running", 31_000, 2, "queued", 202],
+    ["running", 31_000, 3, "failed", 409], ["queued", 118_000, 2, "queued", 202], ["queued", 122_000, 2, "failed", 409]
   ] as const)("canonical GET recovers only bounded %s age=%i attempt=%i", async (status, age, attempt, expected, http) => {
     const fixture = await normalDrawingFile("boundary-" + status + age + attempt), other = await normalDrawingFile("other-" + status + age + attempt);
     const clock = Date.now(); await resetFileJob(fixture, status, attempt, age, clock);
@@ -863,7 +901,7 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
   });
   it("returns unknown dependency safe500 and known missing storage503 after real authorization/native reads", async () => {
     const fixture = await normalDrawingFile("dependency-errors");
-    const queryFault = await withNativeReadFault(sql => sql.includes("FROM file_derivatives") && sql.includes(":allowFake"),
+    const queryFault = await withNativeReadFault(sql => sql.includes("FROM file_derivatives") && sql.includes("generator_profile <>"),
       new Error("DEV122_NATIVE_RESOLVER_PRIVATE"), () => fileResponse(fixture, true));
     expect(queryFault.status).toBe(500); expect(await queryFault.json()).toMatchObject({ error: { code: "WORKBENCH_INTERNAL_ERROR" } });
     const original = LocalRepositoryStorageAdapter.prototype.readObject;
@@ -898,15 +936,17 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
     const token = Buffer.alloc(32, 123).toString("base64url"), workerId = "dev122-fresh-shell-" + input.extension.toLowerCase();
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [
       { id: workerId, token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png", "solidworks_3d_preview_png"] } ] });
+    let heldLease: PreviewLeaseBasis | undefined;
     const workload = (url: string, body?: object) => new Request("https://ai-pdm.test" + url, { method: body ? "POST" : "GET",
-      headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      headers: { authorization: "Bearer " + token, "content-type": "application/json", ...(heldLease ? {"x-pdm-preview-lease":Buffer.from(JSON.stringify({leaseProtocolVersion:2,leaseBasis:heldLease})).toString("base64url")} : {}) }, body: body ? JSON.stringify({leaseProtocolVersion:2,...(heldLease?{leaseBasis:heldLease}:{}),...body}) : undefined });
     try {
       const fixture = await normalDrawingFile("fresh-cad-" + input.extension, input.extension, original);
       await fixtureMutation("F01F deterministic queue input priority only; uploaded job metadata retained", "UPDATE preview_jobs SET priority=-1000001 WHERE source_file_asset_id=:id", { id: fixture.assetId });
       const queued = await currentFileJob(fixture);
       expect(queued).toMatchObject({ status: "queued", source_content_hash: input.hash, source_extension: input.extension.toLowerCase(), requested_kind: "native_thumbnail_png" });
-      const claimed = await ok<{ job: { jobId: string; generatorProfile: string } }>(await claimWorkerJob(workload("/api/preview-jobs/claim",
+      const claimed = await ok<{ job: PreviewWorkerClaim }>(await claimWorkerJob(workload("/api/preview-jobs/claim",
         { supportedKinds: ["native_thumbnail_png"], supportedExtensions: [input.extension.toLowerCase()] })));
+      heldLease=claimed.job.leaseBasis;
       expect(claimed.job?.jobId).toBe(queued.id);
       const jobId = claimed.job.jobId, params = { params: Promise.resolve({ jobId }) }, running = await currentFileJob(fixture);
       expect(running).toMatchObject({ status: "running", attempt_count: 1, locked_by: workerId, source_content_hash: input.hash });
@@ -933,19 +973,262 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       expect(createHash("sha256").update(await fs.readFile(originalPath)).digest("hex")).toBe(input.hash);
     }
   }, 90_000);
+  it("lease v2 normal shutdown producer preserves terminal cancellation and original download", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-cancel"); const claim = await nativePreviewClaim(send);
+      expect(claim.sourceFileAssetId).toBe(fixture.assetId);
+      const params = { params: Promise.resolve({ jobId: claim.jobId }) };
+      const events = new EventEmitter(), shutdown = createPreviewWorkerShutdown(events);
+      let entered!: () => void, release!: () => void;
+      const ready = new Promise<void>(resolve => { entered = resolve; }), rendered = new Promise<void>(resolve => { release = resolve; });
+      const statuses: string[] = [];
+      try {
+        const running = runClaimedPreviewJob({ baseUrl: "https://ai-pdm.test", token: "unused-handler-bridge", workerId: "dev122-lease-worker", claim, shutdown,
+          request: async (url, init) => {
+            const body = JSON.parse(String(init.body));
+            if (url.endsWith("/heartbeat")) return heartbeatWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+            statuses.push(body.status); return completeWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+          }, render: async () => { entered(); await rendered; return []; },
+          rendererFailure: () => ({ errorCode: "must_not_fail", errorSummary: "unexpected" }) });
+        await ready; events.emit("SIGTERM"); release(); expect((await running).status).toBe("cancelled");
+        expect(statuses).toEqual(["cancelled"]);
+      } finally { shutdown.dispose(); }
+      const before = await currentFileJob(fixture);
+      expect(before).toMatchObject({ status: "cancelled", attempt_count: 1, locked_by: null, locked_at: null }); expect(before.completed_at).toBeTruthy();
+      for (let i = 0; i < 2; i++) {
+        const response = await fileResponse(fixture, true); expect(response.status).toBe(409);
+        expect(response.headers.get("x-pdm-preview-state")).toBe("cancelled"); expect(response.headers.has("retry-after")).toBe(false);
+        expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_CANCELLED", retryable: false } });
+      }
+      expect(await currentFileJob(fixture)).toEqual(before);
+      const downloaded = Buffer.from(await (await fileResponse(fixture)).arrayBuffer()); expect(downloaded).toEqual(fixture.bytes);
+      expect(createHash("sha256").update(downloaded).digest("hex")).toBe(fixture.asset.content_hash);
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-lease-cancel-producer.json"), JSON.stringify({
+        producer: "NORMAL_UPLOAD_CLAIM_SHARED_SIGTERM_HANDLER_NATIVE_PG_ROUTES", signalSource: "NODE_EVENTEMITTER_TEST_SIGNAL_NOT_OS_PROCESS",
+        jobId: claim.jobId, basis: claim.leaseBasis, statuses, finalJob: before, bytesHash: fixture.asset.content_hash,
+        parentLockMounted: "NOT_RUN_SEPARATE_GAP", nativeCadRendering: "NOT_RUN_NOT_REQUIRED_FOR_CANCELLATION" }));
+    });
+  });
+  it("lease v2 same actor reclaim rejects every old action without job derivative or object mutation", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-reclaim"), first = await nativePreviewClaim(send);
+      expect(first.sourceFileAssetId).toBe(fixture.assetId);
+      // The disposable DB installs the actual production migration, including
+      // its BEFORE UPDATE trigger. Do not replace it with an app-clock stub.
+      const trigger = await db!.queryOne<{ enabled: string; definition: string; function_definition: string }>(`
+        SELECT t.tgenabled AS enabled,pg_get_triggerdef(t.oid) AS definition,pg_get_functiondef(t.tgfoid) AS function_definition
+        FROM pg_trigger t WHERE t.tgrelid='ai_pdm_core.preview_jobs'::regclass AND t.tgname='trg_preview_jobs_updated_at'`);
+      expect(trigger?.enabled).toBe("O");
+      expect(trigger?.definition).toContain("BEFORE UPDATE"); expect(trigger?.function_definition).toMatch(/NEW\.updated_at\s*=\s*now\(\)/u);
+      // Controlled stale-running input preserves the actual first claim basis;
+      // no terminal state is seeded. All subsequent recovery is the real server.
+      await resetFileJob(fixture, "running", first.leaseBasis.attemptCount, 31000);
+      const recoveryClock = Date.now(), second = await nativePreviewClaim(send);
+      vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(Date.now() + 31000);
+      expect(second.jobId).toBe(first.jobId); expect(second.leaseBasis.attemptCount).toBe(2);
+      const databaseBasis = await db!.queryOne<{ locked_at: Date; updated_at: Date; observed_at: Date }>(
+        "SELECT locked_at,updated_at,statement_timestamp() AS observed_at FROM preview_jobs WHERE id=:id", { id: second.jobId });
+      expect(databaseBasis!.locked_at.toISOString()).toBe(second.leaseBasis.lockedAt);
+      expect(databaseBasis!.observed_at.getTime() - databaseBasis!.updated_at.getTime()).toBeGreaterThanOrEqual(0);
+      expect(databaseBasis!.observed_at.getTime() - databaseBasis!.updated_at.getTime()).toBeLessThan(30000);
+      expect(Date.now() - databaseBasis!.observed_at.getTime()).toBeGreaterThan(30000);
+      const params = { params: Promise.resolve({ jobId: first.jobId }) }, prefix = "/api/preview-jobs/" + first.jobId;
+      const before = await ownedLifecycleSnapshot(), objects = await previewRepositorySnapshot(); const results: Array<{ action: string; status: number }> = [];
+      results.push({ action: "heartbeat", status: (await heartbeatWorkerJob(send(prefix + "/heartbeat", {}, first.leaseBasis), params)).status });
+      results.push({ action: "content", status: (await readWorkerContent(send(prefix + "/content", undefined, first.leaseBasis), params)).status });
+      for (const status of ["failed", "skipped", "succeeded", "cancelled"]) {
+        results.push({ action: status, status: (await completeWorkerJob(send(prefix + "/complete", { status, cancelReason: "operator_shutdown",
+          errorCode: "old_generation", errorSummary: "old generation", sourceContentHash: first.sourceContentHash,
+          derivatives: [{ kind: "thumbnail_png", fileName: "old.png", mimeType: "image/png", contentBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=" }] }, first.leaseBasis), params)).status });
+      }
+      expect(results.every(result => result.status === 409)).toBe(true); expect(await ownedLifecycleSnapshot()).toEqual(before);
+      expect(await previewRepositorySnapshot()).toEqual(objects);
+      const heartbeat = await ok(await heartbeatWorkerJob(send(prefix + "/heartbeat", {}, second.leaseBasis), params));
+      expect(heartbeat).toEqual({ ok: true, leaseProtocolVersion: 2 });
+      const cancellation = await ok(await completeWorkerJob(send(prefix + "/complete", { status: "cancelled", cancelReason: "operator_shutdown" }, second.leaseBasis), params));
+      expect(cancellation).toMatchObject({ accepted: true, leaseProtocolVersion: 2 });
+      const terminal = await db!.queryOne<{ status: string; locked_by: string | null; locked_at: Date | null; completed_at: Date; updated_at: Date; observed_at: Date; attempt_count: number }>(
+        "SELECT status,locked_by,locked_at,completed_at,updated_at,attempt_count,statement_timestamp() AS observed_at FROM preview_jobs WHERE id=:id", { id: second.jobId });
+      expect(terminal).toMatchObject({ status: "cancelled", locked_by: null, locked_at: null, attempt_count: second.leaseBasis.attemptCount });
+      expect(terminal!.completed_at).toBeInstanceOf(Date);
+      expect(terminal!.completed_at.getTime()).toBeGreaterThanOrEqual(Date.parse(second.leaseBasis.lockedAt));
+      expect(terminal!.completed_at.getTime()).toBeLessThanOrEqual(terminal!.observed_at.getTime());
+      expect(terminal!.observed_at.getTime() - terminal!.updated_at.getTime()).toBeLessThan(30000);
+      expect(Date.now() - terminal!.observed_at.getTime()).toBeGreaterThan(30000);
+      vi.useRealTimers();
+      const invalidResults: Array<Record<string,unknown>> = [];
+      for (const variant of ["missing", "hash", "owner"]) {
+        const invalid = await normalDrawingFile("lease-v2-invalid-" + variant), owned = await nativePreviewClaim(send);
+        expect(owned.sourceFileAssetId).toBe(invalid.assetId);
+        if (variant === "missing") await fixtureMutation("F01 v2 missing-source controlled negative, no terminal seed", "UPDATE file_assets SET deleted_at=CURRENT_TIMESTAMP WHERE id=:id", { id: invalid.assetId });
+        if (variant === "hash") await fixtureMutation("F01 v2 hash-drift controlled negative, no terminal seed", "UPDATE file_assets SET content_hash=:hash WHERE id=:id", { id: invalid.assetId, hash: "f".repeat(64) });
+        if (variant === "owner") await fixtureMutation("F01 v2 owner-drift controlled negative, no terminal seed", "UPDATE file_assets SET linked_entity_id='unavailable-owner' WHERE id=:id", { id: invalid.assetId });
+        const invalidSource = await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: invalid.assetId }), objectsBefore = await previewRepositorySnapshot();
+        await resetFileJob(invalid, "running", owned.leaseBasis.attemptCount, 31000);
+        const recovered = await recoverStalePreviewJobsAsync(db!, { companyId: "company-jenfu", sourceFileAssetIds: [invalid.assetId] });
+        vi.useRealTimers();
+        expect(recovered).toEqual({ recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 1 });
+        expect(await currentFileJob(invalid)).toMatchObject({ status: "failed", error_code: "preview_source_unavailable", locked_by: null, locked_at: null });
+        expect(await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: invalid.assetId })).toEqual(invalidSource);
+        expect(await previewRepositorySnapshot()).toEqual(objectsBefore); invalidResults.push({ variant, recovered });
+      }
+      // Controlled invalid-source observation races real normal reclaim + heartbeat.
+      const raced = await normalDrawingFile("lease-v2-invalid-race"), originalLease = await nativePreviewClaim(send);
+      await fixtureMutation("F01 v2 race source invalid before recovery SELECT", "UPDATE file_assets SET content_hash=:hash WHERE id=:id", { id: raced.assetId, hash: "f".repeat(64) });
+      await resetFileJob(raced, "running", originalLease.leaseBasis.attemptCount, 31000);
+      const queryOne = db!.queryOne.bind(db!); let armed = true; let freshLease: PreviewWorkerClaim | undefined;
+      const race = vi.spyOn(db!, "queryOne").mockImplementation(async<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T|null> => {
+        if (armed && sql.includes("previousSourceValid") && sql.includes("UPDATE preview_jobs")) {
+          armed = false;
+          await fixtureMutation("F01 v2 restore source before competing normal reclaim", "UPDATE file_assets SET content_hash=:hash WHERE id=:id", { id: raced.assetId, hash: raced.asset.content_hash });
+          freshLease = await nativePreviewClaim(send); vi.useRealTimers();
+          await ok(await heartbeatWorkerJob(send("/api/preview-jobs/" + freshLease.jobId + "/heartbeat", {}, freshLease.leaseBasis), { params: Promise.resolve({ jobId: freshLease.jobId }) }));
+        }
+        return queryOne<T>(sql, params);
+      });
+      let racedRecovery;
+      try {
+        racedRecovery = await recoverStalePreviewJobsAsync(db!, { companyId: "company-jenfu", sourceFileAssetIds: [raced.assetId] });
+      } finally { vi.useRealTimers(); race.mockRestore(); }
+      expect(racedRecovery).toEqual({ recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 });
+      expect(freshLease?.leaseBasis.attemptCount).toBe(originalLease.leaseBasis.attemptCount + 1);
+      expect(await currentFileJob(raced)).toMatchObject({ status: "running", locked_by: "dev122-lease-worker", attempt_count: freshLease!.leaseBasis.attemptCount });
+      await ok(await completeWorkerJob(send("/api/preview-jobs/" + freshLease!.jobId + "/complete", { status: "cancelled", cancelReason: "operator_shutdown" }, freshLease!.leaseBasis), { params: Promise.resolve({ jobId: freshLease!.jobId }) }));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-invalid-source-recovery.json"), JSON.stringify({ invalidResults, racedRecovery, freshLease, boundary: "CONTROLLED_NEGATIVE_SOURCE_FAULTS_WITH_NORMAL_SERVER_RECOVERY_AND_RECLAIM" }));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-lease-reclaim.json"), JSON.stringify({
+        producer: "NORMAL_UPLOAD_ACTUAL_CLAIM_CONTROLLED_STALE_RUNNING_INPUT_NORMAL_RECOVERY_NO_TERMINAL_SQL_SEED", first, second, recoveryClock,
+        nodeClockSkewMs: 31000, clockSkewHeldThroughAcceptedCancellation: true, leaseClockAuthority: "REAL_DATABASE_STATEMENT_TIMESTAMP_WITH_PRODUCTION_NOW_TRIGGER",
+        trigger, databaseBasis, heartbeat, cancellation, terminal, results, allOwnedRowsUnchanged: true, repositoryUnchanged: true }));
+    });
+  });
+  it("lease v2 source lock waits cannot publish an already stale claim or heartbeat", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-lock-wait");
+      const observations: Array<Record<string, unknown>> = [];
+      const whileSourceLocked = async (operation: () => Promise<Response>) => {
+        let locked!: () => void, unlock!: () => void;
+        const ready = new Promise<void>(resolve => { locked = resolve; });
+        const released = new Promise<void>(resolve => { unlock = resolve; });
+        const blocker = db!.transaction(async tx => {
+          await tx.queryOne("SELECT id FROM file_assets WHERE id=:id FOR UPDATE", { id: fixture.assetId });
+          locked(); await released;
+        }, { isolationLevel: "repeatable_read", readOnly: false });
+        await ready;
+        // The normal 30s per-statement timeout already fails closed. Extend it
+        // only in this disposable transaction so the independent lease-age SQL
+        // guard is reached. Runtime/schema defaults and the 35s driver limit stay.
+        const actualTransaction = db!.transaction.bind(db!);
+        const timeout = vi.spyOn(db!, "transaction").mockImplementation(<T>(fn: (tx: AsyncDatabaseClient) => T | Promise<T>, options?: AsyncDatabaseTransactionOptions) =>
+          actualTransaction(async tx => { await tx.execute("SET LOCAL statement_timeout='40s'"); return fn(tx); }, options));
+        const outcome = operation().then(response => ({ response, error: null }), error => ({ response: null, error }));
+        const started = Date.now(); let wait;
+        try {
+          // Confirm an actual source-lock wait, not a sleeping mock clock.
+          while (Date.now() - started < 5000) {
+            wait = await db!.queryOne<{ pid: number; age_ms: number }>(`SELECT pid,
+              EXTRACT(EPOCH FROM (clock_timestamp()-xact_start))*1000 AS age_ms
+              FROM pg_stat_activity WHERE datname=current_database() AND usename=current_user
+                AND wait_event_type='Lock' AND query LIKE '%FROM file_assets WHERE id=%' LIMIT 1`);
+            if (wait) break;
+            await new Promise(resolve => setTimeout(resolve, 20));
+          }
+          expect(wait).toBeTruthy();
+          await new Promise(resolve => setTimeout(resolve, 31000));
+        } finally { unlock(); await blocker; timeout.mockRestore(); }
+        const result = await outcome;
+        if (result.error) throw result.error;
+        expect(Date.now() - started).toBeGreaterThanOrEqual(31000);
+        return { response: result.response!, wait, waitedMs: Date.now() - started };
+      };
+      const queued = await currentFileJob(fixture);
+      const claim = await whileSourceLocked(() => claimWorkerJob(send("/api/preview-jobs/claim", {})));
+      expect(claim.response.status).toBe(200);
+      const claimBody = await claim.response.json(); expect(claimBody).toEqual({ leaseProtocolVersion: 2, job: null });
+      expect(await currentFileJob(fixture)).toEqual(queued);
+      observations.push({ action: "claim", wait: claim.wait, waitedMs: claim.waitedMs, response: claimBody, rowUnchanged: true });
+      const current = await nativePreviewClaim(send), params = { params: Promise.resolve({ jobId: current.jobId }) };
+      const running = await currentFileJob(fixture);
+      const heartbeat = await whileSourceLocked(() => heartbeatWorkerJob(send("/api/preview-jobs/" + current.jobId + "/heartbeat", {}, current.leaseBasis), params));
+      expect(heartbeat.response.status).toBe(409);
+      expect(await currentFileJob(fixture)).toEqual(running);
+      observations.push({ action: "heartbeat", wait: heartbeat.wait, waitedMs: heartbeat.waitedMs, status: heartbeat.response.status, rowUnchanged: true });
+      const recovered = await nativePreviewClaim(send);
+      expect(recovered.leaseBasis.attemptCount).toBe(current.leaseBasis.attemptCount + 1);
+      const cancellation = await ok(await completeWorkerJob(send("/api/preview-jobs/" + recovered.jobId + "/complete",
+        { status: "cancelled", cancelReason: "operator_shutdown" }, recovered.leaseBasis), params));
+      expect(cancellation).toMatchObject({ accepted: true, leaseProtocolVersion: 2 });
+      expect(await currentFileJob(fixture)).toMatchObject({ status: "cancelled", locked_by: null, locked_at: null });
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-source-lock-waits.json"), JSON.stringify({
+        boundary: "REAL_SOURCE_ROW_LOCK_WAIT_PRODUCTION_NOW_TRIGGER_NO_TERMINAL_SEED", fixtureStatementTimeoutMs: 40000,
+        productionStatementTimeoutUnchanged: true, observations, recovered, cancellation
+      }));
+    });
+  }, 90000);
+  it("lease v2 refuses missing protocol before claim recovery and keeps the queue unchanged", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-negotiation"), before = await ownedLifecycleSnapshot();
+      for (const leaseProtocolVersion of [undefined, 1, "2", null]) {
+        const response = await claimWorkerJob(send("/api/preview-jobs/claim", { leaseProtocolVersion })); expect(response.status).toBe(400);
+        expect(await ownedLifecycleSnapshot()).toEqual(before);
+      }
+      const claim = await nativePreviewClaim(send); expect(claim.sourceFileAssetId).toBe(fixture.assetId);
+      await ok(await completeWorkerJob(send("/api/preview-jobs/" + claim.jobId + "/complete", { status: "cancelled", cancelReason: "operator_shutdown" }, claim.leaseBasis), { params: Promise.resolve({ jobId: claim.jobId }) }));
+    });
+  });
+  it("lease v2 content checks a fresh snapshot after storage pointer changes", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-content-race"), claim = await nativePreviewClaim(send);
+      const read = LocalRepositoryStorageAdapter.prototype.readObject; let changed = false;
+      const spy = vi.spyOn(LocalRepositoryStorageAdapter.prototype, "readObject").mockImplementation(async function (this: LocalRepositoryStorageAdapter, key) {
+        const bytes = await read.call(this, key);
+        if (!changed && key === fixture.asset.storage_key) { changed = true; await fixtureMutation("F01 v2 controlled pointer race, not a normal producer",
+          "UPDATE file_assets SET storage_key=storage_key||'-changed' WHERE id=:id", { id: fixture.assetId }); }
+        return bytes;
+      });
+      try {
+        expect((await readWorkerContent(send("/api/preview-jobs/" + claim.jobId + "/content", undefined, claim.leaseBasis), { params: Promise.resolve({ jobId: claim.jobId }) })).status).toBe(409);
+        expect(changed).toBe(true);
+      } finally { spy.mockRestore(); }
+      await fixtureMutation("F01 v2 restore the exact pointer after controlled negative test", "UPDATE file_assets SET storage_key=:key WHERE id=:id", { id: fixture.assetId, key: fixture.asset.storage_key });
+      await ok(await completeWorkerJob(send("/api/preview-jobs/" + claim.jobId + "/complete", { status: "cancelled", cancelReason: "operator_shutdown" }, claim.leaseBasis), { params: Promise.resolve({ jobId: claim.jobId }) }));
+    });
+  });
+  it("lease v2 completion locks the exact source and owner until commit", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("lease-v2-locks"), claim = await nativePreviewClaim(send);
+      const source = await db!.queryOne<{ linked_entity_type: string; linked_entity_id: string }>("SELECT linked_entity_type,linked_entity_id FROM file_assets WHERE id=:id", { id: fixture.assetId });
+      const tables: Record<string, string> = { drawing_revision: "drawing_revisions", numbering_candidate_revision: "numbering_candidate_revision_drafts", drawing_number: "drawing_numbers", part_number: "part_numbers" };
+      let entered!: () => void, release!: () => void; const ready = new Promise<void>(resolve => { entered = resolve; }), proceed = new Promise<void>(resolve => { release = resolve; });
+      const put = LocalRepositoryStorageAdapter.prototype.putObject;
+      const spy = vi.spyOn(LocalRepositoryStorageAdapter.prototype, "putObject").mockImplementation(async function (this: LocalRepositoryStorageAdapter, input) { entered(); await proceed; return put.call(this, input); });
+      const completing = completeWorkerJob(send("/api/preview-jobs/" + claim.jobId + "/complete", { status: "succeeded", sourceContentHash: claim.sourceContentHash,
+        derivatives: [{ kind: "thumbnail_png", fileName: "protocol-lock.png", mimeType: "image/png", generatorProfile: "dev122_protocol_fixture", generatorVersion: "PROTOCOL_ONLY",
+          contentBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=" }] }, claim.leaseBasis), { params: Promise.resolve({ jobId: claim.jobId }) });
+      try {
+        await Promise.race([ready, completing.then(response => { throw new Error("COMPLETION_ENDED_BEFORE_STORAGE:" + response.status); })]);
+        for (const [table, id] of [["preview_jobs", claim.jobId], ["file_assets", fixture.assetId], [tables[source!.linked_entity_type], source!.linked_entity_id]]) {
+          await expect(db!.transaction(tx => tx.queryOne(`SELECT id FROM ${table} WHERE id=:id FOR UPDATE NOWAIT`, { id }), { isolationLevel: "repeatable_read", readOnly: false })).rejects.toMatchObject({ code: "55P03" });
+        }
+      } finally { release(); spy.mockRestore(); }
+      expect((await completing).status).toBe(200); expect(await currentFileJob(fixture)).toMatchObject({ status: "succeeded", locked_by: null, locked_at: null });
+    });
+  });
   it("claims once under actual workload authentication, heartbeats and reads source bytes, then completes protocol-only PNG", async () => {
     const fixture = await normalDrawingFile("worker-protocol"); await resetFileJob(fixture, "queued", 0);
     await fixtureMutation("F01 deterministic lawful queue priority for concurrent target claim", "UPDATE preview_jobs SET priority=-1000000 WHERE source_file_asset_id=:id", { id: fixture.assetId });
     const token = Buffer.alloc(32, 122).toString("base64url"), previousCredentials = process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [
       { id: "dev122-protocol-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] } ] });
+    let heldLease: PreviewLeaseBasis | undefined;
     function workload(url: string, body?: object) { return new Request("https://ai-pdm.test" + url, { method: body ? "POST" : "GET",
-      headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
+      headers: { authorization: "Bearer " + token, "content-type": "application/json", ...(heldLease ? {"x-pdm-preview-lease":Buffer.from(JSON.stringify({leaseProtocolVersion:2,leaseBasis:heldLease})).toString("base64url")} : {}) }, body: body ? JSON.stringify({leaseProtocolVersion:2,...(heldLease?{leaseBasis:heldLease}:{}),...body}) : undefined }); }
     try {
       const input = { supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] };
       const claims = await Promise.all([claimWorkerJob(workload("/api/preview-jobs/claim", input)), claimWorkerJob(workload("/api/preview-jobs/claim", input))]);
-      const jobs = await Promise.all(claims.map(response => ok<{ job: null | { jobId: string } }>(response)));
+      const jobs = await Promise.all(claims.map(response => ok<{ leaseProtocolVersion: number; job: PreviewWorkerClaim | null }>(response)));
       const current = await currentFileJob(fixture), jobId = String(current.id), params = { params: Promise.resolve({ jobId }) };
+      expect(jobs.every(result=>result.leaseProtocolVersion===2)).toBe(true);
+      heldLease=jobs.find(result=>result.job?.jobId===jobId)!.job!.leaseBasis;
       expect(jobs.filter(result => result.job?.jobId === jobId)).toHaveLength(1);
       expect(new Set(jobs.filter(result => result.job).map(result => result.job!.jobId)).size).toBe(jobs.filter(result => result.job).length);
       expect(current).toMatchObject({ status: "running", attempt_count: 1, locked_by: "dev122-protocol-worker" });

@@ -81,7 +81,7 @@ export function CanonicalPreviewMedia({
           if (canonicalPreviewResponseDisposition(response.status, state, body) === "terminal") {
             if (readDeadline) clearTimeout(readDeadline);
             if (!cancelled) {
-              setTerminalReason(state === "unsupported" ? "此格式無法預覽，可下載原檔。" : "預覽無法顯示，可下載原檔。");
+              setTerminalReason(state === "cancelled" ? "預覽已取消；可下載原檔。" : state === "unsupported" ? "此格式無法預覽，可下載原檔。" : "預覽無法顯示，可下載原檔。");
               setLoadState("failed");
             }
             return;

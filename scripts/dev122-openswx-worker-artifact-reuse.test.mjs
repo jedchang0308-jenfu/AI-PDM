@@ -2211,7 +2211,7 @@ async function rdProgramOnlyServingFixture({secretVersionIam=false,historicalOri
   h.transport.readOwnerSourceProof=async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}}
   Object.assign(h.transport,{getService:async()=>structuredClone(service),getRevision:async()=>structuredClone(revision),
     readOwnerRun:async(_profile,ownerRunRef)=>{assert.equal(ownerRunRef,control.ownerRunRef);return {id:'351',status:'completed',conclusion:'success',event:'workflow_dispatch',headSha:currentRevision,createdAt:servingNow,updatedAt:servingNow}},
-    putBytes:validators.putBytes,
+    putBytes:validators.putBytes,entrypointSnapshot:validators.entrypointSnapshot,
     effectiveRevision:validators.effectiveRevision,assertRevisionReady:validators.assertRevisionReady,assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint})
   // Production-shaped chain: the active program-only release retains its
   // historical READY snapshot, while a later immutable reuse association

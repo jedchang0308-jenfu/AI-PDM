@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import zlib from "node:zlib";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { parsePreviewLeaseBasis, previewLeaseProtocolVersion, type PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import {
   assertStoredFileIntegrity,
   buildStorageKey,
@@ -84,7 +84,7 @@ type PreviewJobRow = {
   error_code: string | null;
   error_summary: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | Date;
   completed_at: string | null;
 };
 
@@ -132,12 +132,15 @@ export type PreviewWorkerClaim = {
   generatorProfile: string;
   storageKey: string | null;
   originalPath: string | null;
+  leaseBasis: PreviewLeaseBasis;
 };
 
 export type PreviewWorkerCompletionInput =
+  | { workerId: string; jobId: string; leaseBasis: PreviewLeaseBasis; status: "cancelled"; cancelReason: "operator_shutdown" }
   | {
       workerId: string;
       jobId: string;
+      leaseBasis: PreviewLeaseBasis;
       status: "failed" | "skipped";
       errorCode: string;
       errorSummary: string;
@@ -145,6 +148,7 @@ export type PreviewWorkerCompletionInput =
   | {
       workerId: string;
       jobId: string;
+      leaseBasis: PreviewLeaseBasis;
       status: "succeeded";
       sourceContentHash: string;
       derivatives: Array<{
@@ -209,7 +213,7 @@ export async function readLatestPreviewJobForSourceAsync(client: AsyncDatabaseCl
   requestedKind: PreviewRequestedKind;
 }): Promise<MasterAttachmentPreviewJob | null> {
   const job = await client.queryOne<PreviewJobRow>(`SELECT * FROM preview_jobs
-    WHERE company_id=:companyId AND source_file_asset_id=:sourceFileAssetId
+    WHERE generator_profile <> 'fake_preview_worker' AND company_id=:companyId AND source_file_asset_id=:sourceFileAssetId
       AND source_content_hash=:sourceContentHash AND requested_kind=:requestedKind
     ORDER BY updated_at DESC,created_at DESC,id DESC LIMIT 1`, input);
   return job ? mapPreviewJob(job) : null;
@@ -228,8 +232,8 @@ export function canonicalPreviewJobResponse(job: MasterAttachmentPreviewJob | nu
   const code = unsupported ? "PREVIEW_UNSUPPORTED" : job?.status === "cancelled"
     ? "PREVIEW_CANCELLED" : job?.status === "succeeded" ? "PREVIEW_OUTPUT_MISSING" : "PREVIEW_FAILED";
   return { status: unsupported ? 422 : 409,
-    headers: { ...headers, "x-pdm-preview-state": unsupported ? "unsupported" : "failed" },
-    body: { error: { code, message: unsupported ? "此格式無法預覽；可下載原檔。" : "預覽無法顯示；可下載原檔。",
+    headers: { ...headers, "x-pdm-preview-state": unsupported ? "unsupported" : job?.status === "cancelled" ? "cancelled" : "failed" },
+    body: { error: { code, message: unsupported ? "此格式無法預覽；可下載原檔。" : job?.status === "cancelled" ? "預覽已取消；可下載原檔。" : "預覽無法顯示；可下載原檔。",
       retryable: false, ...(job?.errorCode ? { jobErrorCode: sanitizePreviewErrorCode(job.errorCode) } : {}) } } };
 }
 
@@ -242,6 +246,7 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
   client: AsyncDatabaseClient,
   input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; initiatorPrincipalId?: string; requireQueued?: boolean; runFakeWorker?: boolean }
 ): Promise<AutomaticPreviewPreparationResult[]> {
+  assertRealPreviewWorker(input.runFakeWorker);
   const sourceFileAssetIds = [...new Set(input.sourceFileAssetIds.map((value) => value.trim()).filter(Boolean))];
   if (sourceFileAssetIds.length === 0) return [];
 
@@ -263,7 +268,7 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
   const states = await listPreviewStatesForAttachmentIds(client, sources.map((source) => source.id));
   const jobRows = await client.query<PreviewJobRow>(
     `SELECT * FROM preview_jobs
-      WHERE company_id = :companyId AND source_file_asset_id IN (${idClause.sql})
+      WHERE generator_profile <> 'fake_preview_worker' AND company_id = :companyId AND source_file_asset_id IN (${idClause.sql})
       ORDER BY updated_at DESC, created_at DESC`,
     { companyId: input.companyId, ...idClause.params }
   );
@@ -271,10 +276,7 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
   for (const job of jobRows) {
     jobsBySourceId.set(job.source_file_asset_id, [...(jobsBySourceId.get(job.source_file_asset_id) ?? []), job]);
   }
-  const runFakeWorker = input.runFakeWorker ?? process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1";
-  const generatorProfile = runFakeWorker
-    ? fakePreviewGeneratorProfile
-    : realPreviewGeneratorProfile;
+  const generatorProfile = realPreviewGeneratorProfile;
   const results: AutomaticPreviewPreparationResult[] = [];
 
   for (const source of sources) {
@@ -294,17 +296,6 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
     }
 
     if (currentJob && (currentJob.status === "queued" || currentJob.status === "running")) {
-      if (runFakeWorker) {
-        try {
-          await runFakePreviewWorkerForJobAsync(client, { jobId: currentJob.id, workerId: "local-fake-preview-worker" });
-        } catch (error) {
-          if (input.requireQueued) throw error;
-          results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: currentJob.id });
-          continue;
-        }
-        results.push({ sourceFileAssetId: source.id, disposition: "ready", jobId: currentJob.id });
-        continue;
-      }
       results.push({ sourceFileAssetId: source.id, disposition: "active", jobId: currentJob.id });
       continue;
     }
@@ -323,7 +314,6 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
         initiatorPrincipalId: input.initiatorPrincipalId,
         requestedKind,
         generatorProfile,
-        runFakeWorker,
         forceRegenerate: false
       });
       results.push({ sourceFileAssetId: source.id, disposition: "queued", jobId: prepared.jobId });
@@ -380,6 +370,7 @@ export async function enqueuePreviewJobForSourceAsync(
     forceRegenerate?: boolean;
   }
 ) {
+  assertRealPreviewWorker(input.runFakeWorker, input.generatorProfile);
   const source = input.source;
   if (input.initiatorPrincipalId !== undefined &&
       (!input.initiatorPrincipalId.trim() || input.initiatorPrincipalId.length > 255 ||
@@ -395,7 +386,7 @@ export async function enqueuePreviewJobForSourceAsync(
   const sourceExtension = normalizeExtension(source.file_ext);
   const requestedKind = input.requestedKind ?? requestedPreviewKindForSource(source.file_ext);
   const generatorProfile = input.generatorProfile ?? realPreviewGeneratorProfile;
-  const now = new Date().toISOString();
+  const now = (await previewClock(client)).iso;
   const status = previewRequestSupported(sourceExtension, requestedKind) ? "queued" : "skipped";
   const errorCode = status === "skipped" ? "unsupported_preview_source" : null;
   const errorSummary =
@@ -417,10 +408,6 @@ export async function enqueuePreviewJobForSourceAsync(
     forceRegenerate: input.forceRegenerate === true,
     now
   });
-
-  if (status === "queued" && input.runFakeWorker === true && generatorProfile === fakePreviewGeneratorProfile) {
-    await runFakePreviewWorkerForJobAsync(client, { jobId: job.id, workerId: "local-fake-preview-worker" });
-  }
 
   const states = await listPreviewStatesForAttachmentIds(client, [source.id]);
   return { jobId: job.id, state: states.get(source.id) ?? { derivatives: [], job: mapPreviewJob(job) } };
@@ -488,15 +475,29 @@ export async function getPreviewDerivativeBytesForSourceAssetAsync(
   return { fileName: row.file_name, mimeType: row.mime_type, bytes, contentHash: row.content_hash };
 }
 
+/** PostgreSQL triggers own updated_at. Compare and stamp leases against that
+ * same server clock; workstation/container clock skew is not lease age. */
+async function previewClock(client: AsyncDatabaseClient) {
+  if (client.kind !== "postgres") {
+    const epoch = Date.now(); return { epoch, iso: new Date(epoch).toISOString() };
+  }
+  const row = await client.queryOne<{ lease_clock: string | Date }>("SELECT statement_timestamp() AS lease_clock");
+  const value = row?.lease_clock;
+  const epoch = typeof value === "string" ? Date.parse(value) : value?.getTime();
+  if (epoch === undefined || !Number.isFinite(epoch)) throw new Error("PREVIEW_LEASE_CLOCK_UNAVAILABLE");
+  return { epoch, iso: new Date(epoch).toISOString() };
+}
+
 export async function claimPreviewJobAsync(
   client: AsyncDatabaseClient,
-  input: { workerId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
+  input: { leaseProtocolVersion: 2; workerId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
 ): Promise<PreviewWorkerClaim | null> {
+  if (input.leaseProtocolVersion !== previewLeaseProtocolVersion) throw new Error("WORKLOAD_LEASE_PROTOCOL_REQUIRED");
   if (!input.supportedKinds.length || !input.supportedExtensions.length) return null;
   await recoverStalePreviewJobsAsync(client, { supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
   const kindClause = buildNamedInClause("kind", input.supportedKinds);
   const extensionClause = buildNamedInClause("extension", input.supportedExtensions.map(normalizeExtension));
-  const row = await client.transaction(async (transactionClient) => {
+  const result = await client.transaction(async (transactionClient) => {
     const selected = await transactionClient.queryOne<PreviewJobRow>(
       `
         SELECT *
@@ -513,7 +514,12 @@ export async function claimPreviewJobAsync(
       { ...kindClause.params, ...extensionClause.params, maxAttempts: previewMaxAttempts }
     );
     if (!selected) return null;
-    const claimed = await transactionClient.queryOne<{ id: string }>(
+    const source = await readPreviewSource(transactionClient, selected.source_file_asset_id, selected.company_id, true);
+    if (!source || source.content_hash !== selected.source_content_hash) return null;
+    const now = (await previewClock(transactionClient)).iso;
+    if (!parsePreviewLeaseBasis({ companyId: selected.company_id, sourceFileAssetId: selected.source_file_asset_id,
+      sourceContentHash: selected.source_content_hash, attemptCount: Number(selected.attempt_count) + 1, lockedAt: now })) return null;
+    const claimed = await transactionClient.queryOne<PreviewJobRow & { lease_locked_at: string }>(
       `
         UPDATE preview_jobs AS job
         SET status = 'running',
@@ -523,35 +529,15 @@ export async function claimPreviewJobAsync(
             updated_at = :now
         WHERE id = :id AND status = 'queued' AND attempt_count < :maxAttempts
           AND ${recoverablePreviewSourcePredicate()}
-        RETURNING id
+          ${previewWriteFreshnessPredicate(transactionClient)}
+        RETURNING *, CAST(locked_at AS TEXT) AS lease_locked_at
       `,
-      { id: selected.id, workerId: input.workerId, now: new Date().toISOString(), maxAttempts: previewMaxAttempts }
+      { id: selected.id, workerId: input.workerId, now, maxAttempts: previewMaxAttempts }
     );
-    return claimed ? selected : null;
-  });
-  if (!row) return null;
-
-  const source = await client.queryOne<PreviewSourceRow>("SELECT * FROM file_assets WHERE id = :id", { id: row.source_file_asset_id });
-  if (!source) {
-    await failPreviewJob(client, {
-      jobId: row.id,
-      status: "failed",
-      errorCode: "source_file_missing",
-      errorSummary: "來源檔案不存在，無法產生預覽。",
-      workerId: input.workerId
-    });
-    return null;
-  }
-  if (!row.company_id || !await previewSourceBelongsToCompany(client, row.source_file_asset_id, row.company_id)) {
-    await failPreviewJob(client, {
-      jobId: row.id,
-      status: "failed",
-      errorCode: "source_company_scope_invalid",
-      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。",
-      workerId: input.workerId
-    });
-    return null;
-  }
+    return claimed ? { row: claimed, source } : null;
+  }, { isolationLevel: "repeatable_read", readOnly: false });
+  if (!result) return null;
+  const { row, source } = result;
 
   return {
     jobId: row.id,
@@ -561,31 +547,80 @@ export async function claimPreviewJobAsync(
     requestedKind: row.requested_kind as PreviewRequestedKind,
     generatorProfile: row.generator_profile,
     storageKey: source.storage_key,
-    originalPath: source.original_path
+    originalPath: source.original_path,
+    leaseBasis: { companyId: row.company_id, sourceFileAssetId: row.source_file_asset_id,
+      sourceContentHash: row.source_content_hash, attemptCount: Number(row.attempt_count), lockedAt: new Date(row.lease_locked_at).toISOString() }
   };
 }
 
-export async function heartbeatPreviewJobAsync(
-  client: AsyncDatabaseClient,
-  input: { jobId: string; workerId: string }
-): Promise<boolean> {
-  const now = new Date().toISOString();
-  const updated = await client.queryOne<{ id: string }>(
-    `
-      UPDATE preview_jobs
-      SET updated_at = :now
-      WHERE id = :jobId
-        AND status = 'running'
-        AND locked_by = :workerId
-      RETURNING id
-    `,
-    { jobId: input.jobId, workerId: input.workerId, now }
-  );
-  return updated?.id === input.jobId;
+type PreviewLeaseInput = { jobId: string; workerId: string; leaseBasis: PreviewLeaseBasis };
+
+function previewLeasePredicate() {
+  return `job.id=:jobId AND job.status='running' AND job.locked_by=:workerId
+    AND job.company_id=:companyId AND job.source_file_asset_id=:sourceFileAssetId
+    AND job.source_content_hash=:sourceContentHash AND job.attempt_count=:attemptCount
+    AND job.locked_at=:lockedAt AND ${recoverablePreviewSourcePredicate()}`;
+}
+
+/** The existing PG trigger stamps transaction-start now(). A transaction that
+ * waited through a full lease must not claim/refresh with an already-stale stamp.
+ * Enforce this in the UPDATE as well as checking freshness after source locks. */
+function previewWriteFreshnessPredicate(client: AsyncDatabaseClient, heartbeat = false) {
+  return client.kind === "postgres" ? `AND statement_timestamp() < transaction_timestamp() + INTERVAL '30 seconds'
+    ${heartbeat ? "AND statement_timestamp() < job.updated_at + INTERVAL '30 seconds'" : ""}` : "";
+}
+
+async function readPreviewLease(client: AsyncDatabaseClient, input: PreviewLeaseInput, lock = false, checkFreshness = true) {
+  if (!input.jobId?.trim() || !input.workerId?.trim() || !parsePreviewLeaseBasis(input.leaseBasis)) return null;
+  const job = await client.queryOne<PreviewJobRow & { heartbeat_token: string; metadata_json: string }>(
+    `SELECT job.*, CAST(job.updated_at AS TEXT) AS heartbeat_token FROM preview_jobs job
+      WHERE ${previewLeasePredicate()} ${lock && client.kind === "postgres" ? "FOR UPDATE OF job" : ""}`,
+    { jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis });
+  if (!job) return null;
+  const updatedAt = typeof job.updated_at === "string" ? Date.parse(job.updated_at) : job.updated_at?.getTime();
+  if (!Number.isFinite(updatedAt)) return null;
+  const source = await readPreviewSource(client, input.leaseBasis.sourceFileAssetId, job.company_id, lock);
+  if (!source || source.content_hash !== job.source_content_hash) return null;
+  const clock = await previewClock(client);
+  if (checkFreshness && clock.epoch - updatedAt >= previewHeartbeatStaleAfterMs) return null;
+  return { job, source, clock };
+}
+
+async function readPreviewSource(client: AsyncDatabaseClient, id: string, companyId: string, lock = false) {
+  const source = await client.queryOne<PreviewSourceRow>(
+    `SELECT * FROM file_assets WHERE id=:id AND deleted_at IS NULL ${lock && client.kind === "postgres" ? "FOR SHARE" : ""}`, { id });
+  if (!source) return null;
+  // file_assets has no company_id. Lock the exact canonical relation as well as
+  // the immutable pointer, so a company change cannot race the storage write.
+  if (lock) {
+    const ownerTables: Record<string, string> = { drawing_revision: "drawing_revisions",
+      numbering_candidate_revision: "numbering_candidate_revision_drafts", drawing_number: "drawing_numbers", part_number: "part_numbers" };
+    const table = ownerTables[source.linked_entity_type];
+    if (!table || !await client.queryOne(`SELECT id FROM ${table} WHERE id=:id AND company_id=:companyId
+      ${client.kind === "postgres" ? "FOR SHARE" : ""}`, { id: source.linked_entity_id, companyId: companyId })) return null;
+  }
+  return source;
+}
+
+function sourceSnapshot(source: PreviewSourceRow) {
+  return JSON.stringify(source);
+}
+
+export async function heartbeatPreviewJobAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput): Promise<boolean> {
+  return client.transaction(async transaction => {
+    const owned = await readPreviewLease(transaction, input, true);
+    if (!owned) return false;
+    const updated = await transaction.queryOne<{ id: string }>(`UPDATE preview_jobs AS job SET updated_at=:now
+      WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt
+        ${previewWriteFreshnessPredicate(transaction, true)} RETURNING id`,
+      { jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis,
+        previousUpdatedAt: owned.job.heartbeat_token, now: owned.clock.iso });
+    return Boolean(updated);
+  }, { isolationLevel: "repeatable_read", readOnly: false });
 }
 
 function recoverablePreviewSourcePredicate() {
-  return `EXISTS (SELECT 1 FROM file_assets fa WHERE fa.id=job.source_file_asset_id
+  return `job.generator_profile <> 'fake_preview_worker' AND EXISTS (SELECT 1 FROM file_assets fa WHERE fa.id=job.source_file_asset_id
     AND fa.deleted_at IS NULL AND fa.content_hash=job.source_content_hash
     AND LOWER(REPLACE(fa.file_ext,'.',''))=LOWER(REPLACE(job.source_extension,'.',''))
     AND LOWER(REPLACE(fa.file_ext,'.','')) IN ('sldprt','sldasm','slddrw')
@@ -598,85 +633,77 @@ export type PreviewRecoveryScope = { companyId: string; sourceFileAssetIds: stri
 export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, scope?: PreviewRecoveryScope) {
   // Legacy callers without a verified resource/workload scope may read, but
   // must never recover the entire application queue.
-  if (!scope) return { recovered: 0, queuedUnclaimed: 0 };
+  if (!scope) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
   let scopeSql: string;
   let scopeParams: Record<string, string>;
   if ("companyId" in scope) {
     const ids = [...new Set(scope.sourceFileAssetIds.map(value => value.trim()).filter(Boolean))];
-    if (!scope.companyId.trim() || !ids.length) return { recovered: 0, queuedUnclaimed: 0 };
+    if (!scope.companyId.trim() || !ids.length) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
     const assets = buildNamedInClause("recoveryAsset", ids);
     scopeSql = `job.company_id=:recoveryCompany AND job.source_file_asset_id IN (${assets.sql})`;
     scopeParams = { recoveryCompany: scope.companyId, ...assets.params };
   } else {
-    if (!scope.supportedKinds.length || !scope.supportedExtensions.length) return { recovered: 0, queuedUnclaimed: 0 };
+    if (!scope.supportedKinds.length || !scope.supportedExtensions.length) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
     const kinds = buildNamedInClause("recoveryKind", scope.supportedKinds);
     const extensions = buildNamedInClause("recoveryExtension", scope.supportedExtensions.map(normalizeExtension));
     scopeSql = `job.requested_kind IN (${kinds.sql}) AND LOWER(REPLACE(job.source_extension,'.','')) IN (${extensions.sql})`;
     scopeParams = { ...kinds.params, ...extensions.params };
   }
   const sourceSql = recoverablePreviewSourcePredicate();
-  const rows = await client.query<Pick<PreviewJobRow, "id" | "status" | "attempt_count"> & { updated_at: string | Date; previous_updated_at: string }>(
-    `SELECT job.id,job.status,job.attempt_count,job.updated_at,CAST(job.updated_at AS TEXT) AS previous_updated_at FROM preview_jobs job
-      WHERE job.status IN ('running','queued') AND ${scopeSql} AND ${sourceSql}`, scopeParams);
-  const now = Date.now(), nowIso = new Date(now).toISOString();
-  let recovered = 0, queuedUnclaimed = 0;
+  const rows = await client.query<Pick<PreviewJobRow, "id" | "status" | "attempt_count" | "company_id" | "source_file_asset_id" | "source_content_hash" | "locked_by"> & {
+    updated_at: string | Date; previous_updated_at: string; previous_locked_at: string | null; source_valid: number | string }>(
+    `SELECT job.id,job.status,job.attempt_count,job.company_id,job.source_file_asset_id,job.source_content_hash,
+        job.locked_by,CAST(job.locked_at AS TEXT) AS previous_locked_at,job.updated_at,CAST(job.updated_at AS TEXT) AS previous_updated_at,
+        CASE WHEN ${sourceSql} THEN 1 ELSE 0 END AS source_valid FROM preview_jobs job
+      WHERE job.status IN ('running','queued') AND ${scopeSql}
+        AND job.generator_profile <> 'fake_preview_worker' AND job.requested_kind='native_thumbnail_png'
+        AND LOWER(REPLACE(job.source_extension,'.','')) IN ('sldprt','sldasm','slddrw')`, scopeParams);
+  const { epoch: now, iso: nowIso } = await previewClock(client);
+  let recovered = 0, queuedUnclaimed = 0, invalidSourceTerminated = 0;
   for (const row of rows) {
     const updatedAt = row.updated_at instanceof Date ? row.updated_at.getTime() : Date.parse(row.updated_at);
     const timeout = row.status === "running" ? previewHeartbeatStaleAfterMs : previewQueuedUnclaimedAfterMs;
     if (!Number.isFinite(updatedAt) || now - updatedAt < timeout) continue;
     const attemptCount = Number(row.attempt_count ?? 0);
-    const retry = row.status === "running" && attemptCount < previewMaxAttempts;
+    const sourceValid = Number(row.source_valid) === 1;
+    if (!sourceValid && row.status !== "running") continue;
+    const retry = sourceValid && row.status === "running" && attemptCount < previewMaxAttempts;
     const changed = await client.queryOne<{ id: string }>(`UPDATE preview_jobs AS job SET status=:nextStatus,
       error_code=:errorCode,error_summary=:errorSummary,locked_by=NULL,locked_at=NULL,updated_at=:now,completed_at=:completedAt
       WHERE job.id=:jobId AND job.status=:previousStatus AND job.updated_at=:previousUpdatedAt
-        AND job.attempt_count=:previousAttempts AND ${scopeSql} AND ${sourceSql} RETURNING job.id`, {
+        AND job.attempt_count=:previousAttempts AND job.company_id=:previousCompanyId
+        AND job.source_file_asset_id=:previousSourceId AND job.source_content_hash=:previousSourceHash
+        AND (job.locked_by=:previousLockedBy OR (job.locked_by IS NULL AND :previousLockedBy IS NULL))
+        AND (job.locked_at=:previousLockedAt OR (job.locked_at IS NULL AND :previousLockedAt IS NULL))
+        AND ${scopeSql} AND job.generator_profile <> 'fake_preview_worker'
+        AND (CASE WHEN ${sourceSql} THEN 1 ELSE 0 END)=:previousSourceValid
+        RETURNING ${client.kind === "postgres" ? "job.id" : "id"}`, {
       ...scopeParams, jobId: row.id, previousStatus: row.status, previousUpdatedAt: row.previous_updated_at,
-      previousAttempts: attemptCount, nextStatus: retry ? "queued" : "failed", now: nowIso,
+      previousCompanyId: row.company_id, previousSourceId: row.source_file_asset_id, previousSourceHash: row.source_content_hash,
+      previousLockedBy: row.locked_by, previousLockedAt: row.previous_locked_at, previousSourceValid: sourceValid ? 1 : 0, previousAttempts: attemptCount, nextStatus: retry ? "queued" : "failed", now: nowIso,
       completedAt: retry ? null : nowIso,
-      errorCode: row.status === "queued" ? "preview_worker_unavailable" : "preview_worker_heartbeat_timeout",
-      errorSummary: row.status === "queued" ? "預覽服務未接手，已停止等待，請確認服務後重試。"
+      errorCode: !sourceValid ? "preview_source_unavailable" : row.status === "queued" ? "preview_worker_unavailable" : "preview_worker_heartbeat_timeout",
+      errorSummary: !sourceValid ? "來源或公司關聯已失效，預覽工作已停止；請重新確認來源。" : row.status === "queued" ? "預覽服務未接手，已停止等待，請確認服務後重試。"
         : retry ? "系統已自動重新排程。" : "預覽服務未回應，請稍後再試。"
     });
     if (!changed) continue;
+    if (!sourceValid) { invalidSourceTerminated += 1; continue; }
     recovered += 1;
     if (row.status === "queued") queuedUnclaimed += 1;
   }
-  return { recovered, queuedUnclaimed };
+  return { recovered, queuedUnclaimed, invalidSourceTerminated };
 }
 
 export async function completePreviewJobAsync(client: AsyncDatabaseClient, input: PreviewWorkerCompletionInput) {
+  const refused = { accepted: false, derivativeIds: [] as string[] };
+  if (!parsePreviewLeaseBasis(input.leaseBasis) || !["succeeded", "failed", "skipped", "cancelled"].includes(input.status)) return refused;
+  if (input.status === "cancelled" && input.cancelReason !== "operator_shutdown") return refused;
   if (input.status !== "succeeded") {
-    const accepted = await failPreviewJob(client, {
-      jobId: input.jobId,
-      status: input.status,
-      errorCode: input.errorCode,
-      errorSummary: input.errorSummary,
-      workerId: input.workerId
-    });
-    return { accepted, derivativeIds: [] };
+    return { accepted: await finishPreviewJob(client, input), derivativeIds: [] };
   }
-
-  const job = await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id = :jobId", { jobId: input.jobId });
-  if (!job) throw new Error("PREVIEW_JOB_NOT_FOUND");
-  if (job.status !== "running" || job.locked_by !== input.workerId) return { accepted: false, derivativeIds: [] };
-  if (!job.company_id || !await previewSourceBelongsToCompany(client, job.source_file_asset_id, job.company_id)) {
-    await failPreviewJob(client, {
-      jobId: job.id, status: "failed", errorCode: "source_company_scope_invalid",
-      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。", workerId: input.workerId
-    });
-    return { accepted: false, derivativeIds: [] };
-  }
-  if (job.source_content_hash !== input.sourceContentHash) {
-    await failPreviewJob(client, {
-      jobId: input.jobId,
-      status: "failed",
-      errorCode: "source_hash_mismatch",
-      errorSummary: "預覽產物與目前來源檔 hash 不一致，系統已拒絕採用。",
-      workerId: input.workerId
-    });
-    return { accepted: false, derivativeIds: [] };
-  }
-
+  const observed = await readPreviewLease(client, input);
+  if (!observed || observed.job.source_content_hash !== input.sourceContentHash) return refused;
+  const job = observed.job;
   // A successful preview must contain a usable result. Keep the current lease
   // running on malformed/empty output; worker error handling decides whether to fail it.
   if (!Array.isArray(input.derivatives) || input.derivatives.length === 0) {
@@ -694,18 +721,21 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
   });
   if (!validOutput) return { accepted: false, derivativeIds: [] };
 
-  const derivativeIds = await client.transaction(async (transactionClient) => {
-    const owned = await transactionClient.queryOne<{ id: string }>(
-      `SELECT id FROM preview_jobs WHERE id = :jobId
-         AND status = 'running' AND locked_by = :workerId
-         ${transactionClient.kind === "postgres" ? "FOR UPDATE" : ""}`,
-      { jobId: input.jobId, workerId: input.workerId }
-    );
-    if (!owned) return null;
+
+  const objectKeys: string[] = [];
+  const storedObjects: Array<{ provider: string; key: string; generation?: string }> = [];
+  try {
+    const derivativeIds = await client.transaction(async (transactionClient) => {
+      const owned = await readPreviewLease(transactionClient, input, true);
+      if (!owned || sourceSnapshot(owned.source) !== sourceSnapshot(observed.source)) return null;
     const ids: string[] = [];
     for (const derivative of input.derivatives) {
       const bytes = Buffer.from(derivative.contentBase64, "base64");
+      const objectKeyId = crypto.randomUUID();
+      objectKeys.push(buildStorageKey(["preview-derivatives", job.source_file_asset_id, job.source_content_hash, job.id,
+        objectKeyId, `${derivative.kind}-${sanitizeDerivativeFilename(derivative.fileName)}`]));
       const stored = await storePreviewDerivativeBytes({
+        objectKeyId,
         sourceFileAssetId: job.source_file_asset_id,
         sourceContentHash: job.source_content_hash,
         jobId: job.id,
@@ -714,8 +744,9 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
         mimeType: derivative.mimeType,
         bytes
       });
+      storedObjects.push({ provider: stored.provider, key: stored.key, generation: stored.generation });
       const derivativeId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const now = (await previewClock(transactionClient)).iso;
       await retireReadyDerivatives(transactionClient, {
         sourceFileAssetId: job.source_file_asset_id,
         sourceContentHash: job.source_content_hash,
@@ -746,353 +777,29 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
       });
       ids.push(derivativeId);
     }
-    const completed = await transactionClient.queryOne<{ id: string }>(
-      `
-        UPDATE preview_jobs
-        SET status = 'succeeded',
-            error_code = NULL,
-            error_summary = NULL,
-            locked_by = :workerId,
-            updated_at = :now,
-            completed_at = :now
-        WHERE id = :jobId
-          AND status = 'running'
-          AND locked_by = :workerId
-        RETURNING id
-      `,
-      { jobId: input.jobId, workerId: input.workerId, now: new Date().toISOString() }
-    );
-    if (!completed) throw new Error("PREVIEW_JOB_CLAIM_LOST");
-    return ids;
-  });
 
-  return { accepted: derivativeIds !== null, derivativeIds: derivativeIds ?? [] };
-}
-
-async function runFakePreviewWorkerForJobAsync(client: AsyncDatabaseClient, input: { jobId: string; workerId: string }) {
-  const job = await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id = :jobId", { jobId: input.jobId });
-  if (!job) throw new Error("PREVIEW_JOB_NOT_FOUND");
-  const source = await client.queryOne<PreviewSourceRow>("SELECT * FROM file_assets WHERE id = :id", { id: job.source_file_asset_id });
-  if (!source) {
-    await failPreviewJob(client, {
-      jobId: input.jobId,
-      status: "failed",
-      errorCode: "source_file_missing",
-      errorSummary: "來源檔案不存在，無法產生預覽。",
-      workerId: input.workerId
-    });
-    return;
+      // Locks are held through commit. Do not age out our own lease while its
+      // heartbeat is blocked by this transaction; still recheck every identity.
+      const current = await readPreviewLease(transactionClient, input, false, false);
+      if (!current || sourceSnapshot(current.source) !== sourceSnapshot(owned.source)) throw new Error("PREVIEW_JOB_CLAIM_LOST");
+      const completed = await transactionClient.queryOne<{ id: string }>(`UPDATE preview_jobs AS job
+        SET status='succeeded', error_code=NULL, error_summary=NULL, locked_by=NULL, locked_at=NULL,
+            updated_at=:now, completed_at=:now
+        WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt RETURNING id`,
+        { jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis,
+          previousUpdatedAt: owned.job.heartbeat_token, now: (await previewClock(transactionClient)).iso });
+      if (!completed) throw new Error("PREVIEW_JOB_CLAIM_LOST");
+      return ids;
+    }, { isolationLevel: "repeatable_read", readOnly: false });
+    return { accepted: derivativeIds !== null, derivativeIds: derivativeIds ?? [] };
+  } catch (error) {
+    // Never retry a transaction with external storage effects. COMMIT ACK may
+    // be lost; record enough for read-only reconciliation, do not infer rollback
+    // or delete a possibly shared local object / immutable GCS generation.
+    if (objectKeys.length) console.error("PREVIEW_COMPLETION_OUTCOME_REQUIRES_READBACK", {
+      jobId: input.jobId, attemptCount: input.leaseBasis.attemptCount, objectKeys, storedObjects });
+    throw error;
   }
-  if (!job.company_id || !await previewSourceBelongsToCompany(client, job.source_file_asset_id, job.company_id)) {
-    await failPreviewJob(client, {
-      jobId: job.id, status: "failed", errorCode: "source_company_scope_invalid",
-      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。", workerId: input.workerId
-    });
-    return;
-  }
-  if (requireSourceHash(source) !== job.source_content_hash) {
-    await failPreviewJob(client, {
-      jobId: input.jobId,
-      status: "failed",
-      errorCode: "source_hash_mismatch",
-      errorSummary: "來源檔案已更新，請重新產生預覽。",
-      workerId: input.workerId
-    });
-    return;
-  }
-
-  const derivativeKind: PreviewDerivativeKind = "thumbnail_png";
-  const preview = buildFakePreviewPng({
-    sourceExtension: normalizeExtension(source.file_ext),
-    sourceFileName: source.file_name,
-    sourceContentHash: job.source_content_hash
-  });
-  const bytes = preview.bytes;
-  const stored = await storePreviewDerivativeBytes({
-    sourceFileAssetId: job.source_file_asset_id,
-    sourceContentHash: job.source_content_hash,
-    jobId: job.id,
-    kind: derivativeKind,
-    fileName: `${source.file_name}.preview.png`,
-    mimeType: "image/png",
-    bytes
-  });
-  const now = new Date().toISOString();
-
-  await client.transaction(async (transactionClient) => {
-    await retireReadyDerivatives(transactionClient, {
-      sourceFileAssetId: job.source_file_asset_id,
-      sourceContentHash: job.source_content_hash,
-      derivativeKind,
-      generatorProfile: job.generator_profile
-    });
-    await insertDerivative(transactionClient, {
-      id: crypto.randomUUID(),
-      companyId: job.company_id,
-      sourceFileAssetId: job.source_file_asset_id,
-      sourceContentHash: job.source_content_hash,
-      derivativeKind,
-      storageProvider: stored.provider,
-      storageKey: stored.key,
-      originalPath: stored.localPath,
-      fileName: `${source.file_name}.preview.png`,
-      mimeType: "image/png",
-      fileSize: bytes.byteLength,
-      contentHash: stored.sha256,
-      width: preview.width,
-      height: preview.height,
-      pageCount: null,
-      generatorProfile: job.generator_profile,
-      generatorVersion: fakePreviewGeneratorVersion,
-      previewJobId: job.id,
-      createdByWorker: input.workerId,
-      now
-    });
-    await transactionClient.execute(
-      `
-        UPDATE preview_jobs
-        SET status = 'succeeded',
-            error_code = NULL,
-            error_summary = NULL,
-            locked_by = :workerId,
-            updated_at = :now,
-            completed_at = :now
-        WHERE id = :jobId
-      `,
-      { jobId: input.jobId, workerId: input.workerId, now }
-    );
-  });
-}
-
-type RgbaColor = [number, number, number, number];
-
-function buildFakePreviewPng(input: { sourceExtension: string; sourceFileName: string; sourceContentHash: string }) {
-  const width = 320;
-  const height = 180;
-  const digest = crypto
-    .createHash("sha256")
-    .update([input.sourceExtension, input.sourceFileName, input.sourceContentHash].join("|"))
-    .digest();
-  const pixels = Buffer.alloc(width * height * 4);
-  const accent: RgbaColor = [40 + (digest[0] % 110), 94 + (digest[1] % 90), 110 + (digest[2] % 90), 255];
-  const secondary: RgbaColor = [170 + (digest[3] % 55), 106 + (digest[4] % 80), 48 + (digest[5] % 90), 255];
-  const line: RgbaColor = [71, 85, 105, 255];
-  fillRect(pixels, width, height, 0, 0, width, height, [247, 250, 252, 255]);
-  fillRect(pixels, width, height, 0, 0, width, 24, mixRgba(accent, [255, 255, 255, 255], 0.78));
-  fillRect(pixels, width, height, 0, 24, 6, height - 24, accent);
-  strokeRect(pixels, width, height, 0, 0, width, height, [203, 213, 225, 255], 2);
-
-  if (input.sourceExtension === "slddrw") {
-    drawFakeDrawingSheet(pixels, width, height, accent, secondary, line);
-  } else if (input.sourceExtension === "sldasm") {
-    drawFakeAssemblyModel(pixels, width, height, accent, secondary, line, digest);
-  } else {
-    drawFakePartModel(pixels, width, height, accent, secondary, line, digest);
-  }
-  drawPreviewFingerprint(pixels, width, height, digest, accent, secondary);
-  return { width, height, bytes: createPngRgba(width, height, pixels) };
-}
-
-function drawFakeDrawingSheet(pixels: Buffer, width: number, height: number, accent: RgbaColor, secondary: RgbaColor, line: RgbaColor) {
-  fillRect(pixels, width, height, 48, 34, 224, 118, [255, 255, 255, 255]);
-  strokeRect(pixels, width, height, 48, 34, 224, 118, line, 2);
-  strokeRect(pixels, width, height, 58, 44, 204, 98, [148, 163, 184, 255], 1);
-  for (let i = 0; i < 5; i += 1) {
-    drawLine(pixels, width, height, 74 + i * 31, 54, 98 + i * 28, 108, [203, 213, 225, 255]);
-    drawLine(pixels, width, height, 92 + i * 27, 111, 170 + i * 9, 64, [203, 213, 225, 255]);
-  }
-  strokeRect(pixels, width, height, 176, 110, 86, 32, line, 1);
-  fillRect(pixels, width, height, 178, 112, 82, 10, mixRgba(accent, [255, 255, 255, 255], 0.72));
-  fillRect(pixels, width, height, 184, 128, 42, 4, secondary);
-  fillRect(pixels, width, height, 184, 136, 64, 3, [148, 163, 184, 255]);
-  drawLine(pixels, width, height, 62, 132, 166, 72, accent);
-  drawLine(pixels, width, height, 66, 136, 171, 76, secondary);
-}
-
-function drawFakePartModel(
-  pixels: Buffer,
-  width: number,
-  height: number,
-  accent: RgbaColor,
-  secondary: RgbaColor,
-  line: RgbaColor,
-  digest: Buffer
-) {
-  const lift = digest[6] % 14;
-  fillRect(pixels, width, height, 92, 78 - lift, 132, 56, mixRgba(accent, [255, 255, 255, 255], 0.18));
-  fillRect(pixels, width, height, 122, 52 - lift, 74, 36, mixRgba(secondary, [255, 255, 255, 255], 0.1));
-  strokeRect(pixels, width, height, 92, 78 - lift, 132, 56, line, 2);
-  strokeRect(pixels, width, height, 122, 52 - lift, 74, 36, line, 2);
-  drawLine(pixels, width, height, 92, 78 - lift, 122, 52 - lift, line);
-  drawLine(pixels, width, height, 224, 78 - lift, 196, 52 - lift, line);
-  drawLine(pixels, width, height, 224, 134 - lift, 196, 88 - lift, line);
-  fillRect(pixels, width, height, 143, 94 - lift, 31, 18, [241, 245, 249, 255]);
-  strokeRect(pixels, width, height, 143, 94 - lift, 31, 18, line, 1);
-  for (let i = 0; i < 4; i += 1) drawLine(pixels, width, height, 114 + i * 28, 137 - lift, 142 + i * 28, 152 - lift, [148, 163, 184, 255]);
-}
-
-function drawFakeAssemblyModel(
-  pixels: Buffer,
-  width: number,
-  height: number,
-  accent: RgbaColor,
-  secondary: RgbaColor,
-  line: RgbaColor,
-  digest: Buffer
-) {
-  const offset = digest[7] % 10;
-  fillRect(pixels, width, height, 78, 80, 88, 46, mixRgba(accent, [255, 255, 255, 255], 0.12));
-  fillRect(pixels, width, height, 154, 60 + offset, 78, 52, mixRgba(secondary, [255, 255, 255, 255], 0.08));
-  fillRect(pixels, width, height, 128, 104, 104, 30, [226, 232, 240, 255]);
-  strokeRect(pixels, width, height, 78, 80, 88, 46, line, 2);
-  strokeRect(pixels, width, height, 154, 60 + offset, 78, 52, line, 2);
-  strokeRect(pixels, width, height, 128, 104, 104, 30, line, 2);
-  drawLine(pixels, width, height, 166, 103, 154, 88 + offset, accent);
-  drawLine(pixels, width, height, 166, 103, 128, 119, secondary);
-  drawLine(pixels, width, height, 208, 112 + offset, 232, 119, accent);
-  fillRect(pixels, width, height, 102, 94, 18, 18, [248, 250, 252, 255]);
-  strokeRect(pixels, width, height, 102, 94, 18, 18, line, 1);
-}
-
-function drawPreviewFingerprint(
-  pixels: Buffer,
-  width: number,
-  height: number,
-  digest: Buffer,
-  accent: RgbaColor,
-  secondary: RgbaColor
-) {
-  for (let i = 0; i < 14; i += 1) {
-    const barHeight = 4 + (digest[i] % 18);
-    const color = i % 2 === 0 ? accent : secondary;
-    fillRect(pixels, width, height, 38 + i * 18, height - 22 - barHeight, 10, barHeight, mixRgba(color, [255, 255, 255, 255], 0.2));
-  }
-  for (let i = 0; i < digest.length; i += 1) {
-    const x = width - 42 + (i % 16);
-    const y = height - 17 + Math.floor(i / 16);
-    setPixel(pixels, width, height, x, y, [digest[i], digest[(i + 5) % digest.length], digest[(i + 11) % digest.length], 255]);
-  }
-}
-
-function createPngRgba(width: number, height: number, pixels: Buffer) {
-  const raw = Buffer.alloc((width * 4 + 1) * height);
-  for (let y = 0; y < height; y += 1) {
-    const rowStart = y * (width * 4 + 1);
-    raw[rowStart] = 0;
-    pixels.copy(raw, rowStart + 1, y * width * 4, (y + 1) * width * 4);
-  }
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header[8] = 8;
-  header[9] = 6;
-  header[10] = 0;
-  header[11] = 0;
-  header[12] = 0;
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    pngChunk("IHDR", header),
-    pngChunk("IDAT", zlib.deflateSync(raw)),
-    pngChunk("IEND", Buffer.alloc(0))
-  ]);
-}
-
-function pngChunk(type: string, data: Buffer) {
-  const typeBuffer = Buffer.from(type, "ascii");
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.byteLength, 0);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
-  return Buffer.concat([length, typeBuffer, data, crc]);
-}
-
-const crc32Table = buildCrc32Table();
-
-function buildCrc32Table() {
-  const table = new Uint32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c >>> 0;
-  }
-  return table;
-}
-
-function crc32(buffer: Buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer) crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function fillRect(pixels: Buffer, width: number, height: number, x: number, y: number, rectWidth: number, rectHeight: number, color: RgbaColor) {
-  const x0 = Math.max(0, Math.floor(x));
-  const y0 = Math.max(0, Math.floor(y));
-  const x1 = Math.min(width, Math.ceil(x + rectWidth));
-  const y1 = Math.min(height, Math.ceil(y + rectHeight));
-  for (let py = y0; py < y1; py += 1) {
-    for (let px = x0; px < x1; px += 1) setPixel(pixels, width, height, px, py, color);
-  }
-}
-
-function strokeRect(
-  pixels: Buffer,
-  width: number,
-  height: number,
-  x: number,
-  y: number,
-  rectWidth: number,
-  rectHeight: number,
-  color: RgbaColor,
-  thickness = 1
-) {
-  fillRect(pixels, width, height, x, y, rectWidth, thickness, color);
-  fillRect(pixels, width, height, x, y + rectHeight - thickness, rectWidth, thickness, color);
-  fillRect(pixels, width, height, x, y, thickness, rectHeight, color);
-  fillRect(pixels, width, height, x + rectWidth - thickness, y, thickness, rectHeight, color);
-}
-
-function drawLine(pixels: Buffer, width: number, height: number, x0: number, y0: number, x1: number, y1: number, color: RgbaColor) {
-  let currentX = Math.round(x0);
-  let currentY = Math.round(y0);
-  const targetX = Math.round(x1);
-  const targetY = Math.round(y1);
-  const dx = Math.abs(targetX - currentX);
-  const sx = currentX < targetX ? 1 : -1;
-  const dy = -Math.abs(targetY - currentY);
-  const sy = currentY < targetY ? 1 : -1;
-  let err = dx + dy;
-  while (true) {
-    setPixel(pixels, width, height, currentX, currentY, color);
-    if (currentX === targetX && currentY === targetY) break;
-    const e2 = 2 * err;
-    if (e2 >= dy) {
-      err += dy;
-      currentX += sx;
-    }
-    if (e2 <= dx) {
-      err += dx;
-      currentY += sy;
-    }
-  }
-}
-
-function setPixel(pixels: Buffer, width: number, height: number, x: number, y: number, color: RgbaColor) {
-  if (x < 0 || y < 0 || x >= width || y >= height) return;
-  const index = (y * width + x) * 4;
-  pixels[index] = color[0];
-  pixels[index + 1] = color[1];
-  pixels[index + 2] = color[2];
-  pixels[index + 3] = color[3];
-}
-
-function mixRgba(left: RgbaColor, right: RgbaColor, rightWeight: number): RgbaColor {
-  const leftWeight = 1 - rightWeight;
-  return [
-    Math.round(left[0] * leftWeight + right[0] * rightWeight),
-    Math.round(left[1] * leftWeight + right[1] * rightWeight),
-    Math.round(left[2] * leftWeight + right[2] * rightWeight),
-    Math.round(left[3] * leftWeight + right[3] * rightWeight)
-  ];
 }
 
 async function listPreviewStatesForAttachmentIds(client: AsyncDatabaseClient, attachmentIds: string[]) {
@@ -1124,7 +831,7 @@ async function listPreviewStatesForAttachmentIds(client: AsyncDatabaseClient, at
       SELECT job.*
       FROM preview_jobs job
       JOIN file_assets fa ON fa.id = job.source_file_asset_id AND fa.deleted_at IS NULL
-      WHERE job.source_file_asset_id IN (${idClause.sql})
+      WHERE job.generator_profile <> 'fake_preview_worker' AND job.source_file_asset_id IN (${idClause.sql})
         AND ${previewSourceCompanyPredicate("job.company_id")}
       ORDER BY job.updated_at DESC, job.created_at DESC
     `,
@@ -1201,6 +908,7 @@ async function upsertPreviewJob(
     const forceResetStatuses = new Set(["succeeded", "failed", "skipped", "cancelled"]);
     const shouldResetExisting = input.forceRegenerate && forceResetStatuses.has(existing.status);
     if (shouldResetExisting) {
+      if (Number(existing.attempt_count) >= previewMaxAttempts) throw new Error("PREVIEW_ATTEMPTS_EXHAUSTED");
       await client.execute(
         `
           UPDATE preview_jobs
@@ -1211,24 +919,19 @@ async function upsertPreviewJob(
               locked_at = NULL,
               updated_at = :now,
               completed_at = CASE WHEN :status = 'skipped' THEN :now ELSE NULL END
-          WHERE id = :id
+          WHERE id = :id AND status = :previousStatus AND attempt_count = :previousAttempts
+            AND updated_at = :previousUpdatedAt
         `,
         {
-          id: existing.id,
+          id: existing.id, previousStatus: existing.status, previousAttempts: existing.attempt_count,
+          previousUpdatedAt: existing.updated_at,
           status: input.status,
           errorCode: input.errorCode,
           errorSummary: input.errorSummary,
           now: input.now
         }
       );
-      return {
-        ...existing,
-        status: input.status,
-        error_code: input.errorCode,
-        error_summary: input.errorSummary,
-        updated_at: input.now,
-        completed_at: input.status === "skipped" ? input.now : null
-      };
+      return await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id=:id", { id: existing.id }) ?? existing;
     }
     return existing;
   }
@@ -1277,42 +980,26 @@ async function upsertPreviewJob(
   } satisfies PreviewJobRow;
 }
 
-async function failPreviewJob(
-  client: AsyncDatabaseClient,
-  input: {
-    jobId: string;
-    status: "failed" | "skipped";
-    errorCode: string;
-    errorSummary: string;
-    workerId: string;
-  }
-) {
-  const now = new Date().toISOString();
-  const updated = await client.queryOne<{ id: string }>(
-    `
-      UPDATE preview_jobs
-      SET status = :status,
-          error_code = :errorCode,
-          error_summary = :errorSummary,
-          locked_by = :workerId,
-          updated_at = :now,
-          completed_at = :now
-      WHERE id = :jobId AND status = 'running' AND locked_by = :workerId
-      RETURNING id
-    `,
-    {
-      jobId: input.jobId,
-      status: input.status,
-      errorCode: sanitizePreviewErrorCode(input.errorCode),
-      errorSummary: sanitizePreviewErrorSummary(input.errorSummary),
-      workerId: input.workerId,
-      now
-    }
-  );
-  return Boolean(updated);
+async function finishPreviewJob(client: AsyncDatabaseClient, input: Exclude<PreviewWorkerCompletionInput, { status: "succeeded" }>) {
+  return client.transaction(async transaction => {
+    const owned = await readPreviewLease(transaction, input, true);
+    if (!owned) return false;
+    const cancelled = input.status === "cancelled";
+    const updated = await transaction.queryOne<{ id: string }>(`UPDATE preview_jobs AS job
+      SET status=:status, error_code=:errorCode, error_summary=:errorSummary,
+          locked_by=NULL, locked_at=NULL, updated_at=:now, completed_at=:now
+      WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt RETURNING id`, {
+      jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis, status: input.status,
+      errorCode: cancelled ? "preview_worker_cancelled" : sanitizePreviewErrorCode(input.errorCode),
+      errorSummary: cancelled ? "預覽已由處理服務取消；可下載原檔。" : sanitizePreviewErrorSummary(input.errorSummary),
+      previousUpdatedAt: owned.job.heartbeat_token, now: (await previewClock(transaction)).iso
+    });
+    return Boolean(updated);
+  }, { isolationLevel: "repeatable_read", readOnly: false });
 }
 
 async function storePreviewDerivativeBytes(input: {
+  objectKeyId: string;
   sourceFileAssetId: string;
   sourceContentHash: string;
   jobId: string;
@@ -1329,6 +1016,7 @@ async function storePreviewDerivativeBytes(input: {
       input.sourceFileAssetId,
       input.sourceContentHash,
       input.jobId,
+      input.objectKeyId,
       `${input.kind}-${sanitizeDerivativeFilename(input.fileName)}`
     ]),
     bytes: input.bytes,
@@ -1429,8 +1117,8 @@ function mapPreviewJob(row: PreviewJobRow): MasterAttachmentPreviewJob {
     errorSummary: row.error_summary,
     createdAt: row.created_at,
     startedAt: row.locked_at,
-    lastHeartbeatAt: row.updated_at,
-    updatedAt: row.updated_at,
+    lastHeartbeatAt: typeof row.updated_at === "string" ? row.updated_at : row.updated_at.toISOString(),
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : row.updated_at.toISOString(),
     completedAt: row.completed_at
   };
 }
@@ -1456,12 +1144,13 @@ function buildPreviewJobIdempotencyKey(input: {
 }
 
 function isDisplayablePreviewDerivativeRow(row: Pick<FileDerivativeRow, "generator_profile" | "generator_version">) {
-  if (isLocalFakePreviewWorkerEnabled()) return true;
   return row.generator_profile !== fakePreviewGeneratorProfile && row.generator_version !== fakePreviewGeneratorVersion;
 }
 
-function isLocalFakePreviewWorkerEnabled() {
-  return process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1";
+function assertRealPreviewWorker(runFakeWorker?: boolean, profile?: string) {
+  if (runFakeWorker || process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" || profile === fakePreviewGeneratorProfile) {
+    throw new Error("LOCAL_FAKE_PREVIEW_WORKER_RETIRED");
+  }
 }
 
 function previewRequestSupported(extension: string, requestedKind: PreviewRequestedKind) {
@@ -1515,29 +1204,25 @@ function sanitizeDerivativeFilename(value: string) {
 
 /** A workload token is not access to every asset: only the running claim holder
  * may read this job's same-company immutable source, preserving its Principal. */
-export async function readClaimedPreviewSourceAsync(client: AsyncDatabaseClient, input: { jobId: string; workerId: string }) {
-  if (!input.jobId.trim() || !input.workerId.trim()) throw new Error("PREVIEW_SOURCE_CLAIM_REQUIRED");
-  const resolved = await client.transaction(async (snapshot) => {
-    const job = await snapshot.queryOne<PreviewJobRow & { metadata_json: string }>(
-      "SELECT * FROM preview_jobs WHERE id = :jobId", { jobId: input.jobId });
-    if (!job || job.status !== "running" || job.locked_by !== input.workerId) return null;
-    const metadata = JSON.parse(job.metadata_json || "{}");
-    if (metadata.initiator?.kind !== "verified_principal" ||
-        typeof metadata.initiator.principalId !== "string" || !metadata.initiator.principalId.trim()) return null;
-    if (!job.company_id || !await previewSourceBelongsToCompany(snapshot, job.source_file_asset_id, job.company_id)) return null;
-    const source = await snapshot.queryOne<PreviewSourceRow>("SELECT * FROM file_assets WHERE id = :id", { id: job.source_file_asset_id });
-    if (!source || source.content_hash !== job.source_content_hash) return null;
-    return { source, contentHash: job.source_content_hash, principalId: metadata.initiator.principalId as string };
-  }, { isolationLevel: "repeatable_read", readOnly: true });
-  if (!resolved) throw new Error("PREVIEW_SOURCE_CLAIM_FORBIDDEN");
+export async function readClaimedPreviewSourceAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput) {
+  const observe = async (snapshot: AsyncDatabaseClient) => {
+    const state = await readPreviewLease(snapshot, input);
+    if (!state) return null;
+    const metadata = typeof state.job.metadata_json === "string" ? JSON.parse(state.job.metadata_json || "{}") : state.job.metadata_json;
+    if (metadata?.initiator?.kind !== "verified_principal" ||
+      typeof metadata.initiator.principalId !== "string" || !metadata.initiator.principalId.trim()) return null;
+    return { ...state, principalId: metadata.initiator.principalId as string };
+  };
+  const resolved = await client.transaction(observe, { isolationLevel: "repeatable_read", readOnly: true });
+  if (!resolved) throw new Error("PREVIEW_JOB_CLAIM_LOST");
   const pointer = storagePointerFromRecord(resolved.source);
   const bytes = await createFileStorageServiceForPointer(pointer).readObject(pointer.key);
   assertStoredFileIntegrity(bytes, resolved.source);
-  // Do not deliver after another worker has recovered the claim during storage I/O.
-  const holder = await client.queryOne<{ id: string }>(
-    "SELECT id FROM preview_jobs WHERE id = :jobId AND status = 'running' AND locked_by = :workerId",
-    { jobId: input.jobId, workerId: input.workerId });
-  if (!holder) throw new Error("PREVIEW_SOURCE_CLAIM_FORBIDDEN");
-  return { bytes, contentHash: resolved.contentHash, fileName: resolved.source.file_name,
+  // A new transaction after storage I/O, not the old repeatable-read snapshot.
+  const current = await client.transaction(observe, { isolationLevel: "repeatable_read", readOnly: true });
+  if (!current || current.principalId !== resolved.principalId || sourceSnapshot(current.source) !== sourceSnapshot(resolved.source)) {
+    throw new Error("PREVIEW_JOB_CLAIM_LOST");
+  }
+  return { bytes, contentHash: resolved.job.source_content_hash, fileName: resolved.source.file_name,
     mimeType: resolved.source.mime_type || "application/octet-stream", principalId: resolved.principalId };
 }

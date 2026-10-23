@@ -331,7 +331,6 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
   try {
     const resolved = input.wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, {
-          allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1",
           derivativeId: input.derivativeId
         })
       : {
@@ -355,10 +354,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
           },
           actorUserId: input.actorId,
           initiatorPrincipalId: input.initiatorPrincipalId,
-          requestedKind: requestedPreviewKindForSource(source.file_ext),
-          generatorProfile:
-            process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
-          runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+          requestedKind: requestedPreviewKindForSource(source.file_ext)
         });
         job = await readLatestPreviewJobForSourceAsync(client, scope);
         if (!job) throw new Error("PREVIEW_ENQUEUE_READBACK_MISSING");

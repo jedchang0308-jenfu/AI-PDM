@@ -158,17 +158,21 @@ try {
     GRANT USAGE ON SCHEMA ai_pdm_core TO dev121_preview_runtime;
     GRANT SELECT ON ALL TABLES IN SCHEMA ai_pdm_core TO dev121_preview_runtime;
     GRANT UPDATE ON ai_pdm_core.preview_jobs TO dev121_preview_runtime;
+    -- SELECT FOR SHARE also requires UPDATE privilege on at least one column.
+    -- This task-owned role models the application writer's existing DML, not a production grant.
+    GRANT UPDATE ON ai_pdm_core.file_assets, ai_pdm_core.drawing_revisions, ai_pdm_core.numbering_candidate_revision_drafts,
+      ai_pdm_core.drawing_numbers, ai_pdm_core.part_numbers TO dev121_preview_runtime;
     GRANT SELECT, INSERT, UPDATE ON ai_pdm_core.file_derivatives TO dev121_preview_runtime;
     INSERT INTO ai_pdm_core.drawing_revisions VALUES ('revision-one','company-one');
     INSERT INTO ai_pdm_core.file_assets
-      (id,linked_entity_type,linked_entity_id,storage_key)
-      VALUES ('asset-one','drawing_revision','revision-one','source/one');
+      (id,linked_entity_type,linked_entity_id,storage_key,file_ext,content_hash)
+      VALUES ('asset-one','drawing_revision','revision-one','source/one','slddrw',repeat('a',64));
     INSERT INTO ai_pdm_core.preview_jobs
       (id,company_id,source_file_asset_id,source_content_hash,requested_kind,
        source_extension,status,idempotency_key,generator_profile,created_by,
        created_at,updated_at,metadata_json)
       VALUES ('job-one','company-one','asset-one',repeat('a',64),
-       'native_thumbnail_png','slddrw','queued','job-one-key','fake_preview_worker',
+       'native_thumbnail_png','slddrw','queued','job-one-key','dev121_protocol_fixture',
        'profile-one',now(),now(),
        '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}');
   `)
@@ -184,9 +188,10 @@ try {
     searchPath: 'ai_pdm_core,pg_catalog', maxConnections: 1, statementTimeoutMillis: 3000 }
   workerOne = createAsyncDatabaseClient(config)
   workerTwo = createAsyncDatabaseClient(config)
-  const claim = (worker, workerId) => claimPreviewJobAsync(worker, {
-    workerId, supportedKinds: ['native_thumbnail_png'], supportedExtensions: ['slddrw']
-  })
+  const leases = new Map();
+  const claim = async (worker, workerId) => { const result = await claimPreviewJobAsync(worker, {
+    leaseProtocolVersion:2, workerId, supportedKinds: ['native_thumbnail_png'], supportedExtensions: ['slddrw']
+  }); if(result)leases.set(result.jobId,result.leaseBasis); return result; }
   await check('SKIP LOCKED does not wait for a job held by another transaction', async () => {
     await admin.query('BEGIN')
     try {
@@ -217,37 +222,37 @@ try {
       WHERE id='job-one'`)).rows[0].locked_by
     const other = holder === 'worker-one' ? 'worker-two' : 'worker-one'
     assert.equal(await heartbeatPreviewJobAsync(workerOne, {
-      jobId: 'job-one', workerId: other }), false)
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: other }), false)
     assert.equal(await heartbeatPreviewJobAsync(workerOne, {
-      jobId: 'job-one', workerId: holder }), true)
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: holder }), true)
   })
   await check('only the claim holder can complete and a late failure cannot overwrite success', async () => {
     const holder = (await admin.query(`SELECT locked_by FROM ai_pdm_core.preview_jobs
       WHERE id='job-one'`)).rows[0].locked_by
     const other = holder === 'worker-one' ? 'worker-two' : 'worker-one'
     const refused = await completePreviewJobAsync(workerTwo, {
-      jobId: 'job-one', workerId: other, status: 'succeeded',
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: other, status: 'succeeded',
       sourceContentHash: 'a'.repeat(64), derivatives: []
     })
     assert.deepEqual(refused, { accepted: false, derivativeIds: [] })
     const empty = await completePreviewJobAsync(workerOne, {
-      jobId: 'job-one', workerId: holder, status: 'succeeded',
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: holder, status: 'succeeded',
       sourceContentHash: 'a'.repeat(64), derivatives: []
     })
     assert.deepEqual(empty, { accepted: false, derivativeIds: [] })
     assert.equal((await admin.query("SELECT status FROM ai_pdm_core.preview_jobs WHERE id='job-one'")).rows[0].status,'running')
     const accepted = await completePreviewJobAsync(workerOne, {
-      jobId: 'job-one', workerId: holder, status: 'succeeded',
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: holder, status: 'succeeded',
       sourceContentHash: 'a'.repeat(64), derivatives: [{
         kind:'thumbnail_png',fileName:'preview.png',mimeType:'image/png',
         contentBase64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=',
-        width:1,height:1,generatorProfile:'fake_preview_worker'
+        width:1,height:1,generatorProfile:'dev121_protocol_fixture'
       }]
     })
     assert.equal(accepted.accepted,true)
     assert.equal(accepted.derivativeIds.length,1)
     const lateFailure = await completePreviewJobAsync(workerTwo, {
-      jobId: 'job-one', workerId: holder, status: 'failed',
+      jobId: 'job-one', leaseBasis:leases.get('job-one'), workerId: holder, status: 'failed',
       errorCode: 'late_error', errorSummary: 'late failure'
     })
     assert.deepEqual(lateFailure, { accepted: false, derivativeIds: [] })
@@ -261,13 +266,13 @@ try {
        source_extension,status,idempotency_key,generator_profile,created_by,
        created_at,updated_at,metadata_json)
       VALUES ('job-other','company-other','asset-one',repeat('a',64),
-       'native_thumbnail_png','slddrw','queued','job-other-key','fake_preview_worker',
+       'native_thumbnail_png','slddrw','queued','job-other-key','dev121_protocol_fixture',
        'profile-one',now(),now(),
        '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}')`)
     assert.equal(await claim(workerOne, 'worker-one'), null)
     const job = (await admin.query(`SELECT status,error_code FROM ai_pdm_core.preview_jobs
       WHERE id='job-other'`)).rows[0]
-    assert.deepEqual(job, { status: 'failed', error_code: 'source_company_scope_invalid' })
+    assert.deepEqual(job, { status: 'queued', error_code: null })
   })
   await check('claimed worker writes derivative bytes and Principal provenance stays on the job', async () => {
     await admin.query(`INSERT INTO ai_pdm_core.preview_jobs
@@ -275,18 +280,18 @@ try {
        source_extension,status,idempotency_key,generator_profile,created_by,
        created_at,updated_at,metadata_json)
       VALUES ('job-file','company-one','asset-one',repeat('a',64),
-       'native_thumbnail_png','slddrw','queued','job-file-key','fake_preview_worker',
+       'native_thumbnail_png','slddrw','queued','job-file-key','dev121_protocol_fixture',
        'profile-one',now(),now(),
        '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}')`)
     const claimed = await claim(workerOne, 'worker-file')
     assert.equal(claimed.jobId, 'job-file')
     const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=', 'base64')
     const result = await completePreviewJobAsync(workerOne, {
-      jobId: 'job-file', workerId: 'worker-file', status: 'succeeded',
+      jobId: 'job-file', leaseBasis:claimed.leaseBasis, workerId: 'worker-file', status: 'succeeded',
       sourceContentHash: 'a'.repeat(64), derivatives: [{
         kind: 'thumbnail_png', fileName: 'preview.png', mimeType: 'image/png',
         contentBase64: bytes.toString('base64'), width: 1, height: 1,
-        generatorProfile: 'fake_preview_worker'
+        generatorProfile: 'dev121_protocol_fixture'
       }]
     })
     assert.equal(result.accepted, true)
@@ -375,19 +380,20 @@ try {
       const headers={'content-type':'application/json',authorization:'Bearer '+token,'x-pdm-worker-id':'http-worker'};
       let response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({workerId:'http-worker'})});
       assert.equal(response.status,403);
-      response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers,body:JSON.stringify({workerId:'http-worker',supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']})});
-      assert.equal(response.status,200);const claim=(await response.json()).job;assert.equal(claim.jobId,'job-http');
+      response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers,body:JSON.stringify({workerId:'http-worker',leaseProtocolVersion:2,supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']})});
+      assert.equal(response.status,200);const negotiated=await response.json();assert.equal(negotiated.leaseProtocolVersion,2);const claim=negotiated.job;assert.equal(claim.jobId,'job-http');
       await assert.rejects(materializeClaimedPreviewSource({baseUrl,token,workerId:'other-worker',claim}),/READ_FAILED:403/);
+      response=await fetch(baseUrl+'/api/preview-jobs/job-http/heartbeat',{method:'POST',headers,body:JSON.stringify({workerId:'http-worker',leaseProtocolVersion:2,leaseBasis:claim.leaseBasis})});assert.equal(response.status,200);assert.equal((await response.json()).ok,true);
       const source=await materializeClaimedPreviewSource({baseUrl,token,workerId:'http-worker',claim});
       const temporary=path.dirname(source.sourcePath);
       try {assert.equal((await fs.readFile(source.sourcePath)).toString(),'synthetic-cad-source-not-native-extraction');}
       finally {await source.cleanup();}
       await assert.rejects(fs.stat(temporary),{code:'ENOENT'});
       const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=';
-      const completion={workerId:'http-worker',status:'succeeded',sourceContentHash:claim.sourceContentHash,derivatives:[{kind:'thumbnail_png',fileName:'preview.png',mimeType:'image/png',contentBase64:png,width:1,height:1,generatorProfile:'synthetic_http_worker'}]};
+      const completion={workerId:'http-worker',leaseProtocolVersion:2,leaseBasis:claim.leaseBasis,status:'succeeded',sourceContentHash:claim.sourceContentHash,derivatives:[{kind:'thumbnail_png',fileName:'preview.png',mimeType:'image/png',contentBase64:png,width:1,height:1,generatorProfile:'synthetic_http_worker'}]};
       response=await fetch(baseUrl+'/api/preview-jobs/job-http/complete',{method:'POST',headers,body:JSON.stringify(completion)});assert.equal(response.status,200);assert.equal((await response.json()).accepted,true);
       response=await fetch(baseUrl+'/api/preview-jobs/job-http/complete',{method:'POST',headers,body:JSON.stringify(completion)});assert.equal(response.status,409);
-      response=await fetch(baseUrl+'/api/preview-jobs/job-http/content',{headers:{...headers,'x-pdm-preview-worker-id':'http-worker'}});assert.equal(response.status,403);
+      response=await fetch(baseUrl+'/api/preview-jobs/job-http/content',{headers:{...headers,'x-pdm-preview-lease':Buffer.from(JSON.stringify({leaseProtocolVersion:2,leaseBasis:claim.leaseBasis})).toString('base64url')}});assert.equal(response.status,409);
       console.log(JSON.stringify({worker:'independent-node',sourceTransport:'actual HTTP',cleanup:true,nativeCadExtraction:false}));
     `;
     const workerResult=await runWorkerChild(['--input-type=module','-e',workerSource],

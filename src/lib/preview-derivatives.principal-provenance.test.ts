@@ -55,7 +55,7 @@ describe("principal preview job provenance", () => {
         .toEqual({ company_id: "company-one" });
 
       const validClaim = await claimPreviewJobAsync(client, {
-        workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
+        leaseProtocolVersion: 2, workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
       });
       expect(validClaim).toMatchObject({ jobId: queued.jobId, sourceFileAssetId: source.id });
 
@@ -67,7 +67,7 @@ describe("principal preview job provenance", () => {
       const beforeWrongCompanyClaim = database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId);
       expect(beforeWrongCompanyClaim).toMatchObject({ company_id: "company-two", status: "queued" });
       const claim = await claimPreviewJobAsync(client, {
-        workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
+        leaseProtocolVersion: 2, workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
       });
       expect(claim).toBeNull();
       expect(database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId))
@@ -85,12 +85,12 @@ describe("principal preview job provenance", () => {
       database.prepare("UPDATE preview_jobs SET status = 'running', locked_by = 'worker-one' WHERE id = ?")
         .run(queued.jobId);
       const completion = await completePreviewJobAsync(client, {
-        jobId: queued.jobId, workerId: "worker-one", status: "succeeded",
+        jobId: queued.jobId, workerId: "worker-one", leaseBasis: validClaim!.leaseBasis, status: "succeeded",
         sourceContentHash: source.content_hash, derivatives: []
       });
       expect(completion).toEqual({ accepted: false, derivativeIds: [] });
       expect(database.prepare("SELECT status, error_code FROM preview_jobs WHERE id = ?").get(queued.jobId))
-        .toEqual({ status: "failed", error_code: "source_company_scope_invalid" });
+        .toEqual({ status: "running", error_code: null });
     } finally {
       database.close();
     }
@@ -173,7 +173,7 @@ describe("principal preview job provenance", () => {
       [{kind:"thumbnail_png",fileName:"result.png",mimeType:"image/png",
         contentBase64:Buffer.from("<svg><script>active</script></svg>").toString("base64")}]]) {
       const result=await completePreviewJobAsync(client,{jobId:"job-output",workerId:"worker-one",
-        status:"succeeded",sourceContentHash:"a".repeat(64),derivatives:derivatives as never});
+        leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:"a".repeat(64),attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"},status:"succeeded",sourceContentHash:"a".repeat(64),derivatives:derivatives as never});
       expect(result).toEqual({accepted:false,derivativeIds:[]});
     }
     expect(transaction).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();

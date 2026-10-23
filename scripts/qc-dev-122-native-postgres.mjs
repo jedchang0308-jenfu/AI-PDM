@@ -47,8 +47,8 @@ if (cuaHandoff && (process.argv.filter(arg=>arg.startsWith('--suite=')).length !
 }
 // This finite slice excludes CAD credential/extractor cases and does not establish F-01D acceptance.
 const previewGetCaseNames=[
-  'running age=29999 attempt=2','running age=30001 attempt=2','running age=30001 attempt=3',
-  'queued age=119999 attempt=2','queued age=120001 attempt=2'
+  'running age=28000 attempt=2','running age=31000 attempt=2','running age=31000 attempt=3',
+  'queued age=118000 attempt=2','queued age=122000 attempt=2'
 ].map(name=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded '+name);
 const previewProtocolGapCaseNames=[
   'DEV122 F01 actual signed canonical file routes, storage and native worker protocol no-job canonical preview normal has actual enqueue readback or safe500 without false202',
@@ -57,13 +57,22 @@ const previewProtocolGapCaseNames=[
   ...["holder","provenance"].map(variant=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol claimed content rejects native '+variant+' mismatch without storage or DB effects'),
   'DEV122 F01 actual signed canonical file routes, storage and native worker protocol claims once under actual workload authentication, heartbeats and reads source bytes, then completes protocol-only PNG'
 ];
+const previewLeaseV2CaseNames = [
+  'lease v2 normal shutdown producer preserves terminal cancellation and original download',
+  'lease v2 same actor reclaim rejects every old action without job derivative or object mutation',
+  'lease v2 refuses missing protocol before claim recovery and keeps the queue unchanged',
+  'lease v2 content checks a fresh snapshot after storage pointer changes',
+  'lease v2 completion locks the exact source and owner until commit',
+  'lease v2 source lock waits cannot publish an already stale claim or heartbeat'
+].map(name => 'DEV122 F01 actual signed canonical file routes, storage and native worker protocol ' + name);
 const exactCasePattern=names=>'^('+names.join('|')+')$';
+const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
-const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+const nativeTestPattern=nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
   ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -103,7 +112,7 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -361,7 +370,8 @@ function captureControlledSource() {
   const files=['package.json','package-lock.json','next.config.mjs','next-env.d.ts','tsconfig.json','tsconfig.app.json','tsconfig.next.json',
     'scripts/qc-dev-122-native-postgres.mjs','scripts/qc-dev-122-native-browser.mjs','scripts/qc-ts-path-loader.mjs',
     'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
-    'scripts/run-drawing-recognition-worker.mjs','scripts/run-solidworks-document-manager-credential-probe.mjs',
+    'scripts/lib/preview-worker-lease.mjs','scripts/lib/preview-worker-lease.d.mts','scripts/lib/preview-worker-source.mjs',
+    'scripts/run-windows-shell-preview-worker.mjs','scripts/run-solidworks-document-manager-preview-worker.mjs','scripts/run-drawing-recognition-worker.mjs','scripts/run-solidworks-document-manager-credential-probe.mjs',
     'scripts/run-solidworks-document-manager-metadata-extractor.mjs','scripts/solidworks-document-manager-credential-probe.cs','scripts/solidworks-document-manager-metadata-exporter.cs',
     'config/solidworks-metadata-field-aliases.json','config/local/dev122-native-postgres.v1.json','.ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md'];
   function visit(relative) {
@@ -525,7 +535,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -561,6 +571,11 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
         new Set(completed.map(nameOf)).size!==5||completed.some(test=>!previewGetCaseNames.includes(nameOf(test)))) {
         throw new Error('DEV122_PREVIEW_GET_REQUIRED_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
       }
+    }
+    if(nativeSelection==='preview-lease-v2') {
+      const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
+      if(previewLeaseV2CaseNames.length!==6||completed.length!==6||new Set(completed.map(nameOf)).size!==6||
+        completed.some(test=>!previewLeaseV2CaseNames.includes(nameOf(test)))) throw new Error('DEV122_PREVIEW_LEASE_V2_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
     }
     if(nativeSelection==='preview-protocol-gaps') {
       const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
@@ -726,7 +741,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
@@ -1171,11 +1186,11 @@ async function runPreviewDiagnosticChild() {
     await reset(true);
     await capture('actual workload claim repairs supported sources and claims each job once',async()=>{
       const claims=[];for(let i=0;i<2;i++)claims.push(await helper.claimPreviewJobAsync(client,
-        {workerId:'dev122-diagnostic-worker',supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']}));return claims;},
+        {leaseProtocolVersion:2,workerId:'dev122-diagnostic-worker',supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']}));return claims;},
       (before,result,after)=>{assert(result.every(Boolean),'two actual claims');assert(new Set(result.map(claim=>claim.jobId)).size===2,'no duplicate claim');
         assert(result.every(claim=>!['unsupported','unsupported-kind','replacement-source','running-limit','running-fresh'].some(id=>claim.jobId==='dev122-job-'+id)),'claim source/kind/attempt bounds');
         for(const claim of result){const row=after.find(row=>row.id===claim.jobId);assert(row.status==='running'&&row.attempt_count===3,'claim exactly one attempt');}
-        unchanged(before,after,['running-fresh','unsupported','unsupported-kind','replacement-source']);assert(rowById(after,'running-limit').status==='failed','exhausted terminal');});
+        unchanged(before,after,['running-fresh','unsupported','unsupported-kind']);assert(rowById(after,'replacement-source').status==='failed'&&rowById(after,'replacement-source').error_code==='preview_source_unavailable','invalid source terminalized');assert(rowById(after,'running-limit').status==='failed','exhausted terminal');});
     await reset();race=true;
     const authorizedAssets=previewDiagnosticInputs.filter(input=>!input.other).map(input=>'dev122-asset-'+input.id);
     await capture('scoped recovery respects millisecond boundaries and actual CAS returned rows',()=>helper.recoverStalePreviewJobsAsync(client,

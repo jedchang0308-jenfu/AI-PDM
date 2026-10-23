@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveDrawingPreviewAsync } from "@/lib/drawing-preview-asset";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 const source = { id:"asset-one", company_id:"company-one", storage_provider:"local_repository",
@@ -13,4 +13,10 @@ describe("canonical preview company boundary", () => {
       expect.objectContaining({companyId:"company-one", sourceFileAssetId:"asset-one"}));
     expect(Boolean(result)).toBe(company === "company-one");
   });
+});
+afterEach(()=>vi.unstubAllEnvs());
+it.each([{generator_profile:"fake_preview_worker",generator_version:"other"},{generator_profile:"other",generator_version:"fake-local-pipeline"}])("never permits old fake derivative via environment: %j",async fake=>{
+ vi.stubEnv("PDM_LOCAL_FAKE_PREVIEW_WORKER","1");const queryOne=vi.fn().mockResolvedValue({...fake,id:"preview",company_id:source.company_id,source_content_hash:source.content_hash});
+ expect(await resolveDrawingPreviewAsync({queryOne} as unknown as AsyncDatabaseClient,source)).toBeNull();
+ expect(queryOne.mock.calls[0][0]).not.toContain(":allowFake");
 });
