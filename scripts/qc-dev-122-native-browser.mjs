@@ -1232,7 +1232,8 @@ try {
   receipt.status=gLifecycle&&receipt.cases.some(item=>item.status!=='PASS')?'FAIL':preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-  if(gLifecycle)receipt.coverage={partial:['G-01','G-02'],notRun:['other original29 groups','Production'],acceptanceComplete:false};
+  if(gLifecycle)receipt.coverage={partial:gGroup==='all'?['G-01','G-02']:[gGroup],
+    notRun:[...(gGroup==='all'?[]:[gGroup==='G-01'?'G-02':'G-01']),'other original29 groups','Production'],acceptanceComplete:false};
 } catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||gLifecycle){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
