@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource } from './lib/dev122-applied-migration-continuation.mjs'
-import { readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
+import { assertNoForwardMigrationSubmission, readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
@@ -297,4 +297,106 @@ test('C96 continuation rejects aliases, source divergence, recovery drift and le
   await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile: f.historicalProfile, transport: f.transport,
     readSource: f.readSource, buildMigrationBundle: async () => f.runnerFull,
     ancestorRunner: () => true, compatibilityRunner: () => true }), /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
+})
+
+
+function forwardFixture() {
+  const priorId = 'DEV123-NATIVE38-PRIOR'
+  const priorIntentRef = ref(`gs://${bucket}/receipts/releases/${priorId}/release-intent.json`)
+  const root = `gs://${bucket}/receipts/releases/${priorId}/${priorIntentRef.sha256}`
+  const legacy = fixture().binding
+  const prior = { releaseId: priorId, sourceRevision: appliedSource, migrationManifestSha256: '1'.repeat(64), appliedMigrationContinuation: legacy }
+  const nativeRef = ref(`${root}/migrate.json`)
+  const deploymentRef = ref(`${root}/deployment-capsule.json`)
+  const admissionValue = stageReceipt({ profile, intent: prior, stage: 'migrate', previousReceiptRef: deploymentRef,
+    facts: { disposition: 'FORWARD_APPLIED', sourceRevision: appliedSource, manifestSha256: prior.migrationManifestSha256, migrationReceiptRef: nativeRef }, observedAt: '2026-10-23T17:00:00.000Z' })
+  const admission = { ref: ref(`${root}/migration-admission.json`, admissionValue), value: admissionValue }
+  const binding = { schemaVersion: 'aipdm.forward-applied-migration-continuation.v1', priorIntentRef,
+    priorPrepareRef: ref(`${root}/prepare.json`), priorMigrationAdmissionRef: admission.ref }
+  const history = { installed: { bundle: { entries: Array.from({ length: 38 }, (_, order) => ({ order })) }, receipt: { ledgerCount: 38 }, receiptRef: nativeRef } }
+  const graph = { intent: prior, intentRef: priorIntentRef, prepare: { ref: binding.priorPrepareRef }, migrate: { ref: nativeRef },
+    terminal: null, migrationMode: 'FORWARD_APPLIED', repair: false, appliedMigrationOnly: true, migrationHistory: history, chain: { deployment: { ref: deploymentRef } } }
+  return { binding, currentIntent: { releaseId: 'DEV123-FRESH-ATTEMPT', sourceRevision: currentSource, appliedMigrationContinuation: legacy, forwardAppliedMigrationContinuation: binding },
+    observed: { proof: { disposition: 'migration_only', sourceRevision: appliedSource }, provider: { status: 'BUILD_IMAGE_VERIFIED' } },
+    graph, admission, profile, isAncestor: () => true }
+}
+
+test('forward38 index keeps legacy35 separate and binds native admission to one opaque prior graph', () => {
+  const f = forwardFixture()
+  assert.equal(assertForwardAppliedMigrationContinuation(f.binding), f.binding)
+  assert.deepEqual(forwardAppliedMigrationProofRefs(f.binding, f.graph.intent, f.admission), {
+    prepare: f.binding.priorPrepareRef, migrate: f.graph.migrate.ref, terminal: null,
+  })
+  assert.equal(assertForwardAppliedMigrationGraph(f), f.graph.migrationHistory)
+  assert.throws(() => assertAppliedMigrationContinuation(f.binding), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
+})
+
+test('forward38 rejects mixed roots, recursive indices, wrong actors/sources, incomplete ledger and drifted joins', () => {
+  const changeAdmission = (f, change) => {
+    change(f.admission.value)
+    const { receiptSha256: _oldHash, ...core } = f.admission.value
+    f.admission.value.receiptSha256 = sha256(canonicalize(core))
+    f.admission.ref = ref(f.admission.ref.uri, f.admission.value)
+    f.binding.priorMigrationAdmissionRef = f.admission.ref
+  }
+  for (const mutate of [
+    f => { f.binding.priorPrepareRef.uri = f.binding.priorPrepareRef.uri.replace('prepare.json', 'candidate.json') },
+    f => { f.binding.priorIntentRef.sha256 = '9'.repeat(64) },
+    f => { f.graph.intent.forwardAppliedMigrationContinuation = f.binding },
+    f => { f.currentIntent.releaseId = f.graph.intent.releaseId },
+    f => { delete f.currentIntent.forwardAppliedMigrationContinuation },
+    f => { f.currentIntent.forwardAppliedMigrationContinuation = { ...f.binding, schemaVersion: 'invalid' } },
+    f => { f.isAncestor = () => false },
+    f => { f.observed.provider.status = 'UNKNOWN' },
+    f => { f.observed.proof.disposition = 'released' },
+    f => { f.graph.terminal = {} },
+    f => { f.graph.appliedMigrationOnly = false },
+    f => { f.graph.migrationMode = 'HISTORICAL_EVIDENCE_REUSED' },
+    f => { f.graph.migrationHistory.installed.receipt.ledgerCount = 35 },
+    f => { f.graph.migrationHistory.installed.bundle.entries.pop() },
+    f => { f.graph.intent.appliedMigrationContinuation = null },
+    f => { f.graph.chain.deployment.ref = ref(`gs://${bucket}/receipts/releases/OTHER-RELEASE/deployment-capsule.json`) },
+    f => { f.graph.migrate.ref = ref(`gs://${bucket}/receipts/releases/OTHER-RELEASE/migrate.json`) },
+    f => changeAdmission(f, row => { row.facts.disposition = 'HISTORICAL_EVIDENCE_REUSED' }),
+    f => changeAdmission(f, row => { row.facts.sourceRevision = currentSource }),
+    f => changeAdmission(f, row => { row.facts.manifestSha256 = '9'.repeat(64) }),
+    f => changeAdmission(f, row => { row.facts.schemaStageOnly = true }),
+    f => changeAdmission(f, row => { row.facts.schemaStageOnly = false }),
+  ]) {
+    const f = forwardFixture()
+    mutate(f)
+    assert.throws(() => assertForwardAppliedMigrationGraph(f))
+  }
+})
+
+test('fresh association records only equivalent historical input and rejects live-database or new-job claims', () => {
+  const f = forwardFixture()
+  const intent = { ...f.currentIntent, migrationManifestSha256: '3'.repeat(64) }
+  const deploymentRef = ref(`gs://${bucket}/receipts/releases/${intent.releaseId}/deployment-capsule.json`)
+  const make = overrides => stageReceipt({ profile, intent, stage: 'migrate', previousReceiptRef: deploymentRef,
+    facts: { disposition: 'HISTORICAL_EVIDENCE_REUSED', sourceRevision: intent.sourceRevision, manifestSha256: intent.migrationManifestSha256,
+      migrationReceiptRef: f.graph.migrate.ref, forwardAppliedMigrationContinuation: f.binding,
+      migrationJobSubmitted: false, migrationJobSubmissions: 0, currentDatabaseReadPerformed: false, databaseLiveState: 'UNKNOWN', ...overrides },
+    observedAt: '2026-10-24T01:00:00.000Z' })
+  const input = { intent, deploymentRef, history: f.graph.migrationHistory }
+  assert.doesNotThrow(() => assertForwardMigrationAssociation(make({}), input))
+  for (const changed of [{ migrationJobSubmitted: true }, { migrationJobSubmissions: 1 }, { currentDatabaseReadPerformed: true },
+    { databaseLiveState: 'VERIFIED' }, { manifestSha256: '9'.repeat(64) }, { migrationReceiptRef: deploymentRef }, { extraAuthority: true }]) {
+    assert.throws(() => assertForwardMigrationAssociation(make(changed), input))
+  }
+})
+
+test('no-job continuation requires positive absence of the fixed submission intent and propagates unknown reads', async () => {
+  const outputUri = `gs://${bucket}/receipts/releases/DEV123-FRESH-ATTEMPT/${'a'.repeat(64)}/migrate.json`
+  const reads = []
+  const input = { profile, outputUri, transport: { async readBytes(uri, options) {
+    reads.push({ uri, options }); throw Object.assign(new Error('MISSING'), { code: 'MISSING' })
+  } } }
+  assert.equal(await assertNoForwardMigrationSubmission(input), true)
+  assert.equal(reads.length, 1)
+  assert.equal(reads[0].uri, outputUri.replace(/\.json$/u, '-submission-intent.json'))
+  assert.deepEqual(reads[0].options, { prefixes: ['receipts'] })
+  await assert.rejects(() => assertNoForwardMigrationSubmission({ ...input, transport: { readBytes: async () => ({ bytes: Buffer.from('{}') }) } }), /APPLIED_FORWARD_UNEXPECTED_MIGRATION_SUBMISSION/u)
+  const denied = Object.assign(new Error('ACCESS_DENIED'), { code: 'ACCESS_DENIED' })
+  await assert.rejects(() => assertNoForwardMigrationSubmission({ ...input, transport: { readBytes: async () => { throw denied } } }), error => error === denied)
 })

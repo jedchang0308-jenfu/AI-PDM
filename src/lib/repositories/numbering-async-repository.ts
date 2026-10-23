@@ -5754,12 +5754,11 @@ export class AsyncNumberingRepository {
         generatedAt: now,
         completedAt: now
       });
-      await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
-        id: this.idFactory(),
+      await this.insertAudit(client, {
         actorId: input.generatedBy,
         action: "numbering.export_job.create",
-        detailJson: JSON.stringify(normalizeAuditDetail({ exportJobId: id, exportMode: input.exportMode })),
-        createdAt: now
+        companyId,
+        detail: { exportJobId: id, exportMode: input.exportMode }
       });
       const row = await client.queryOne<NumberingExportJobRow>(SELECT_ASYNC_NUMBERING_EXPORT_JOB_BY_ID_SQL, { jobId: id });
       if (!row) throw new Error(`NUMBERING_EXPORT_JOB_NOT_FOUND: ${id}`);

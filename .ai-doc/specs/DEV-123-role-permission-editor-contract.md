@@ -1,6 +1,6 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-23（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；本輪已授權PDM branch／PR／required CI及既有protected release workflow的發布與驗收；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。結果與缺口統一見QA§6，尚未整體驗收。
+建立：2026-10-12；修訂：2026-10-24（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474已合併；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。結果、來源與缺口統一見QA§6，尚未整體驗收。本輪已授權PDM既有protected發布／驗收與jenfu-platform-prod／orgmaster-prod相容migration及reader部署；不含人員指派改寫、IAM或Secrets。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
 
@@ -360,6 +360,8 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 本變更涉及DB格式／ACL及consumer，沿專案既有forward-only、required CI與release執行；先具相容consumer，再交付PDM writer，migration與部署均不自動套用矩陣。**不新增DEV-123專屬release gate、enablement receipt、owner mode或正式操作腳本**，也不用此文件繞過現行執行器。
 
 首次發布固定recipe為：**PDM086-088 schema-only（保留v1／legacy授權）→ Org034-036 compatible consumer → 確認真實consumer已相容 → PDM writer full release → 人類設定apply**。既有protected principal migration workflow支援prepare／build／migrate；現行baseline保留舊worker及已安裝35筆的continuation時，歷史證據只驗精確35筆前綴，完整38筆仍以既有`FORWARD_APPLIED`執行真migration。workflow依sealed migration-admission的disposition定範圍：forward只做三stage；consumer就緒後，由完整owner workflow續接同capsule已有的prepare／native migration-admission，不重寫舊prepared model、不重送已知完成migration或重新啟動worker。歷史等價重用原路徑不變；缺收據／未知disposition不進candidate。不新增mode、workflow、actor input或IAM。
+
+若schema-only capsule已到期，沿既有release spec§26.4的封閉forward索引重新封存：驗prior完整native38與current full38等價，fresh attempt僅產生零Job association／admission，不延長舊期限或重新套DDL。原35-prefix證據與舊worker runtime/ref維持各自責任；`schemaStageOnly`由sealed intent派生，principal workflow仍止於schema，由consumer就緒後的full owner續接。這是同一發布責任內的續接修正，不新增產品啟用步驟或管理者權限。
 
 本輪文件同步與已授權隔離工作樹本機實作／證據並行；PDM branch／PR／required CI／既有protected release workflow發布與驗收已授權並仍須遵守既有requirements；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。只停止未知基線、破壞歷史／保護內容、漏判權或不相容所影響的動作，安全的獨立診斷／修正可繼續。新責任／環境、未授權不可逆效果或人員指派責任改變才回送人類決策；內部等效修正不逐項簽核。
 

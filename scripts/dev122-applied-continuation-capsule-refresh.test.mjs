@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import test from 'node:test'
 
 import { createWifAppliedContinuationRefreshTransport } from './dev122-applied-continuation-capsule-refresh.mjs'
-import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { canonicalize, createOwnerTransport, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 
 import {
   APPLIED_CONTINUATION_REFRESH_TRANSPORT_ROUTES,
@@ -61,6 +61,7 @@ function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHo
   const runtime = { runtimeConfig }
   const reads = []
   const transport = {
+    async readBytes() { throw Object.assign(new Error('MISSING'), { code: 'MISSING' }) },
     async readJson(actual) {
       reads.push(actual)
       if (actual.uri === capsuleRef.uri) return { ref: capsuleRef, value: template }
@@ -221,6 +222,45 @@ test('workerless applied continuation refresh remains valid and does not invent 
   assert.equal(f.reads.some(row => row.uri?.includes('/openswx-worker/')), false)
 })
 
+test('native38 refresh indexes the sealed prior admission and carries the same index through authority and intent', async () => {
+  const template = appliedTemplate()
+  const f = fixture(template)
+  const root = `gs://${BUCKET}/receipts/releases/${template.releaseId}/${templateRef.sha256}`
+  const nativeRef = { uri: `${root}/migrate.json`, sha256: HASH }
+  const admission = stageReceipt({ profile: { application: { id: 'ai-pdm' } }, intent: template, stage: 'migrate',
+    facts: { disposition: 'FORWARD_APPLIED', migrationReceiptRef: nativeRef }, observedAt: '2026-10-21T23:00:00.000Z' })
+  const admissionBytes = Buffer.from(`${canonicalize(admission)}\n`)
+  const admissionRef = { uri: `${root}/migration-admission.json`, sha256: sha256(admissionBytes) }
+  const prepareRef = { uri: `${root}/prepare.json`, sha256: HASH }
+  f.transport.readBytes = async uri => {
+    if (uri === admissionRef.uri) return { bytes: admissionBytes, ref: admissionRef }
+    assert.equal(uri, prepareRef.uri)
+    return { bytes: Buffer.from('sealed prepare'), ref: prepareRef }
+  }
+  const readJson = f.transport.readJson
+  f.transport.readJson = actual => actual.uri === nativeRef.uri
+    ? { value: { ledgerCount: 38 }, ref: nativeRef } : readJson(actual)
+  await refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') })
+  const expected = { schemaVersion: 'aipdm.forward-applied-migration-continuation.v1', priorIntentRef: templateRef,
+    priorPrepareRef: prepareRef, priorMigrationAdmissionRef: admissionRef }
+  for (const row of f.stages.filter(row => ['routine-authority', 'release-intent'].includes(row.stage))) {
+    assert.deepEqual(row.input.forwardAppliedMigrationContinuation, expected)
+    assert.deepEqual(row.input.appliedMigrationContinuation, template.appliedMigrationContinuation)
+  }
+  assert.equal(f.stages.some(row => /migrate|worker|build/u.test(row.stage)), false)
+})
+
+test('unreadable optional native admission stops refresh before receipt publication', async () => {
+  const f = fixture()
+  f.transport.readBytes = async () => { throw Object.assign(new Error('ACCESS_DENIED'), { code: 'ACCESS_DENIED' }) }
+  await assert.rejects(() => refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') }), /ACCESS_DENIED/u)
+  assert.equal(f.stages.length, 0)
+})
+
 test('C110-shaped refresh routes the exact pre-activation owner run through verifier before authority publication', async () => {
   const ownerRunRef = 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/39723589561'
   const events = []
@@ -234,6 +274,7 @@ test('C110-shaped refresh routes the exact pre-activation owner run through veri
   })
   const verifier = new Proxy({
     readJson: (...args) => f.transport.readJson(...args),
+    readBytes: (...args) => f.transport.readBytes(...args),
     readOwnerRun: async (_profile, actualRef) => {
       assert.equal(actualRef, ownerRunRef)
       events.push('verifier-read-owner-run')

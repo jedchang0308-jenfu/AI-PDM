@@ -15,6 +15,7 @@ const SPECIAL_INTENT_FIELDS = Object.freeze([
   'principalOnlyRecovery',
   'postAbortLedgerReadbackRef',
   'appliedMigrationContinuation',
+  'forwardAppliedMigrationContinuation',
   'programOnlyBaseline',
   'unlinkedProfileCleanupRef',
 ])
@@ -31,7 +32,7 @@ export function classifyReleaseMode({ intent = {}, executionMode = 'full_release
   // reuses an already provider-verified database result.  Its retained
   // principal-only fields describe the safe rollback revision; they do not
   // turn this attempt back into the one-time migration-073 operation.
-  if (intent.appliedMigrationContinuation) return 'special_recovery'
+  if (intent.appliedMigrationContinuation || intent.forwardAppliedMigrationContinuation) return 'special_recovery'
   if (intent.principalOnlyRecovery || intent.principalOnlyFenceRef) return 'principal_only'
   // baselineIntentRef is ordinary provenance for the currently serving
   // revision; only continuation/abort/cleanup bindings are special paths.

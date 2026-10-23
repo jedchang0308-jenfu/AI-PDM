@@ -593,6 +593,12 @@ continuous／QC／affected-slice runner 共用 `scripts/dev117-test-environment.
 
 同一 principal workflow 對 `FORWARD_APPLIED` 在 prepare／build／migrate 後結束；只有 sealed admission 明確為 `HISTORICAL_EVIDENCE_REUSED` 才沿原 applied-completion steps。OrgMaster consumer 相容及其正式操作責任確認後，完整 owner workflow可接續**同一 capsule 已存在的 prepare 與 migration-admission**；所有 current native/source proof仍在 candidate 前驗證。這是既有 schema-first 順序的接線修正，不新增workflow、actor stage override、IAM或receipt種類，migration不自動套用新矩陣。
 
+2026-10-24 DEV-123 到期續接修訂：已完成 schema-only 的38筆native receipt，不因原capsule到期而重送Job。fresh producer可增加唯一封閉索引 `forwardAppliedMigrationContinuation={schemaVersion:"aipdm.forward-applied-migration-continuation.v1",priorIntentRef,priorPrepareRef,priorMigrationAdmissionRef}`；三個immutable refs必須同一release／capsule hash，native migrate ref只從已驗的prior admission推導。舊v1 `appliedMigrationContinuation`／35-prefix及worker runtime/ref binding原樣保留；prior不得再帶forward索引，禁止自指與遞迴。完整prior38的source／build／provider／native／admission關聯須驗證，current full38的source/applied SQL及migration設定須完全等價；35 probe僅作歷史證據。普通073 live fence及普通worker repair流程不變。
+
+applied-only observation只驗此次app source/build與DB history，先驗v1及runtime/ref、且deployment不得含新worker build；不把保留的舊worker descriptor當current app來源重播。歷史內容解析沿既有opaque root的600秒觀察budget，所有舊寫入時間仍驗原sealed deadline；執行當前stage仍在每次provider動作前後驗fresh intent期限，不延長或改寫舊capsule。Proof object identity／root／hash／max8及artifact provider驗證保持。
+
+fresh migrate驗完prior38及full38等價後，產生自己的標準migrate stage association與admission；association精確綁current source／manifest／deployment及prior native ref，聲明零Job、未作current DB read（live state仍UNKNOWN），不複製舊stage bytes。現行migrator在Job POST前必seal固定submission intent，因此此分支及replay必先取得該current URI的positive MISSING；DENIED／UNKNOWN／已存在均停止。既有admission不可略過prior proof重驗。disposition如實為`HISTORICAL_EVIDENCE_REUSED`；從sealed intent派生admission `schemaStageOnly:true`及CLI `schema_stage_only=true`，principal workflow的13個writer後續步驟全部拒絕此旗標，仍停在schema階段；consumer就緒後由既有完整owner以同一fresh capsule續接。沒有新增mode、workflow input、SQL、IAM或Secret，也沒有新增人工GO。
+
 ### 26.5 Source authority and artifact transport separation（2026-10-19）
 
 Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical tree source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app source object 與 worker source object 可由不同 OS、tar 或 gzip 實作產生；兩者的 archive SHA 不得互相比較，也不得用來決定 fresh／reuse、current／historical 或 candidate admission。candidate 另以 immutable worker image digest join；worker input 等價另以逐檔 manifest 與 effective recipe 驗證。

@@ -10,7 +10,7 @@ import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from '.
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
 import { assertWorkerRuntimeJoin, readWorkerDescriptorForIntent, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
-import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -302,6 +302,10 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     intent.appliedMigrationContinuation = structuredClone(assertAppliedMigrationContinuation(input.appliedMigrationContinuation, profile.artifact.releaseBucket))
   }
   const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
+  if (Object.hasOwn(input, 'forwardAppliedMigrationContinuation')) {
+    if (!intent.appliedMigrationContinuation || !intent.openswxWorkerRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+    intent.forwardAppliedMigrationContinuation = structuredClone(assertForwardAppliedMigrationContinuation(input.forwardAppliedMigrationContinuation, profile.artifact.releaseBucket))
+  }
   if (Object.hasOwn(intent, 'appliedMigrationContinuation') && !reconciledAbort) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
   if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR' &&
     (intent.principalOnlyFenceRef || intent.principalOnlyRecovery) && !reconciledAbort) fail('REPAIR_CAPSULE_INVALID')

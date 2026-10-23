@@ -1,6 +1,6 @@
 # DEV-123 角色權限設定驗證計畫
 
-建立：2026-10-12；修訂：2026-10-23。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已授權AI-PDM與OrgMaster隔離工作樹協同開發；進度、有效結果與缺口只在§6記錄，非獨立QC或整體PASS。
+建立：2026-10-12；修訂：2026-10-24。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已授權AI-PDM與OrgMaster隔離工作樹協同開發；進度、有效結果與缺口只在§6記錄，非獨立QC或整體PASS。
 
 ## 1. 驗證範圍與方式
 
@@ -80,7 +80,7 @@ QA123-01..52及17AC/CG保留；52是驗收目的數，不是52個環境／旅程
 | QA123-47 | AC15/02/10／L2+L3 | 圖號或料號同格edit/review開關逐子操作建改送撤、審查核准退回；matrix/workbench單一save及另一action/grp不變 | 一個action同值、所有子caller採同code；審核不含publish，編輯不含review；同格label/keyboard可獨立選，admin只讀，busy/error/data sanity可觀察 |
 | QA123-48 | AC15/02／L2 | 僅drawing.edit或part.edit，對相似generic route傳錯entityType/body group；search混合資料/batch跨target／零件model片段 | DB target決定group；另一作業403零write，混合write需全target允許原子，read只合法資料／無未授count/model欄位；unknown parent/type fail closed，old true不補權 |
 | QA123-49 | AC16／L2+L3 | view-only正常preview後直接原檔/inline/Range/ZIP/CSV/CAD/BOM/package/URL；download有無view組合；export在撤權前後建立、final配送；share到期/撤權 | safe-preview可看、原bytes無download拒絕；沒安全預覽不fallback；download單獨無view仍拒絕。任務與每次配送fresh policy，無長效URL繞過；原session下一GET/Range拒絕。完整bytes manifest、HTTP evidence及UI screenshot，不宣稱追回已下載 |
-| QA123-50 | AC17／L2+L3 | model.view/edit/review/publish分別有/無parent action；BOM快照、shared model、關聯、多模型包、worker最終採用，引用已發布快照及未支援model kind | 只view不下載，不靠part.view取完整model欄位；model與parent需AND，edit不造review/publish流程，引用快照不假裝重發布；撤權fresh拒絕、未知原流程保持拒絕，全部live model bindings有實際正例 |
+| QA123-50 | AC17／L2+L3 | model.view/edit/review/publish分別有/無parent action；BOM快照、shared model、關聯、多模型包、worker最終採用，引用已發布快照及未支援model kind | 只view不下載，不靠part.view取完整model欄位；單純model.edit不改parent時可獨立；同時改parent及模型review/publish依實際target驗對應parent action AND，edit不造review/publish流程，引用快照不假裝重發布；撤權fresh拒絕、未知原流程保持拒絕，全部live model bindings有實際正例 |
 | QA123-51 | AC16/17/08／L2+L3 | 正常share建立API從Released project_code綁project_scope_key（不得seed結果），body偽binding拒絕/欄位ACL/舊NULL；external P1只view登入後從分享連結回原入口，P2/改project_code/未交付/到期/撤權及多group包 | 僅P1有效已交付共享資料允許metadata/safe-preview，不取原檔。對workspace或其他action拒絕；mixed package逐檔全部group view/download，不能用transfer.download覆蓋未授CAD或默默漏檔 |
 | QA123-52 | AC14/11/13／L4 | OrgMaster正常選七canonical/custom新任用，兩類legacy採購/生管history／代理/撤銷/到期、A→B停用恢復；system原特權入口、snapshot overlap及current/schema/version/hash不符 | 日常名稱/順序與PDM一致；新指派procurement，舊planning仍原identity/provenance且可撤銷，scope/期間/priority不合併；inactive不新任用、已撤不復活、protected資格不外洩；zero grant rewrite及兩端真實UI/DB/source/current讀回 |
 
@@ -172,6 +172,55 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 
 覆蓋採§4共用映射：contracts 支持 schema／hash／20 action／舊 66 key、scope／資格與實際 caller 子項；native PG 支持交易／ACL／history／撤權與競爭；UI 支持實際列舉的操作與 viewport。每案的其餘必要斷言仍未自動關閉。52 QA／17 AC／CG 是目的及覆蓋索引，不是固定測試檔數、52 次旅程或額外簽核；與 OrgMaster 的 24 目的／OM-C／H 索引可引用同一有效結果。
 
-剩餘交付：正常 IdP／SSO 與真實管理者／任用往返、需要實際 bytes／長任務採用的未覆蓋子項，以及 schema／consumer／writer 正式 rollout 與正式驗收仍未完成。10/23人類已允許 jenfu-platform-prod／orgmaster-prod 的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱 52 QA／17 AC／CG 整體 PASS，也未自動套用新矩陣或改人員指派。
+### 2026-10-24 更新：最終來源、實際 schema 與發布中止
+
+以下為截至2026-10-23 18:04 UTC（Asia/Taipei 10/24）的結果，補足以上歷史快照，沒有把首敗改判為PASS。PDM正式發布來源凍結在merged main `1a3f067cb2f36ff1a6e646152718782df67ad1f9`；結果補記使用獨立文件工作樹，不更換該次release capsule的來源。原始本機證據位於PDM completion工作樹的`output/qa/dev-123/`；正式收據另由provider原物件讀回並核對hash。
+
+| 證據／範圍 | 實際結果與判定邊界 |
+|---|---|
+| [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，[merged-main CI 39986601842](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/39986601842) | 來源`1a3f067…`的DEV-012 Isolated PostgreSQL Cutover、Production Slice QC均SUCCESS；最終PR head的55 files／532 contracts與隔離build artifact／primary invariant／cleanup PASS。這取代以上「新版CI待刷新」狀態，不把source CI視為正式部署或SSO證據。 |
+| `dev123-native-submission-http-current-r2.json`／`.mjs` | 真PG、signed registered AAL1 fixture、實際loopback HTTP bridge呼叫原GET route：原檔200／45 bytes與SHA-256相符；Range為200完整內容（非206）。真apply僅關閉RD的drawing.download，view／edit及其他分組能力仍在；同session完整與Range皆403且無原檔bytes，StorageAccessed計數不增。不是完整Next runtime、browser、正常SSO或正式環境。r1僅direct handler，bootstrap／governor／permission前提首敗及cleanup-order初版均保留；PG／bridge／port已清理。 |
+| `dev123-qa123-50-51-native.json`／`-r6.log`；`dev123-qa123-50-51-route-diagnosis-r3.json`／`.log` | 真PG正常repository建立Released P1/P2 share後，P1 external metadata原handler 200；P1下載因缺download回403、P2因scope不符回403。真apply撤掉model.view後metadata及package皆403；part＋model要求共同成立，沒有傳回原檔bytes。r6的wrapper 503由fixture缺Firebase project／issuer前提造成，診斷原件保留；僅修ignored runner，r3驗guard及原handler，未改產品來掩蓋失敗。direct handler非網路Next／browser／SSO；PG／port／temp已清理。 |
+| [PDM schema workflow 39988578179](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/39988578179) | SUCCESS；release `DEV122-RD-WIF-39988578179-1`、capsule SHA-256 `9f1b265f538037943cd2b71a617bca4547c56216744da625d1b616c78d47763a`。native migrate receipt `f2c71b5888b89b2462a5e42b98edf3748d4fb5210dca8ee8dd9a510165710430`：ledger38／applied3／replayed35，execution `ai-pdm-prod-migration-runner-7jzmp`。migration-admission `8341623db29ce19cdd5c9ac6d22e626acad6bf1d39186630cf69db60ada40e55`為FORWARD_APPLIED；candidate／entrypoint／activate／finalize確實SKIPPED，不是writer上線。 |
+| PDM build／provider readback；`release-preparation/schema-{build,provenance,sbom,scan}.json` | 同capsule已產出immutable app image `sha256:b80b08a63cc8e9a67d38d4a3b33181301e0762bcab52c972d3858fb29d828e29`，provenance／SBOM／scan原收據hash讀回相符，HIGH／CRITICAL與blocking均0。此artifact尚未承接正式app traffic。 |
+| OrgMaster [PR #151](https://github.com/jedchang0308-jenfu/OrgMaster/pull/151)／[PR #152](https://github.com/jedchang0308-jenfu/OrgMaster/pull/152) | 已修正受限DEV058 forward＋tool-rotation guard及已驗證rotation來源重用；required CI／master CI通過。首個run39990780793在DDL前TOOL_JOB_READBACK_REQUIRED失敗，次個prepare在dispatch前DEV013_MIGRATION_INFRA_RECEIPT_INVALID失敗，均保留，不誤稱migration成功；原digest／scope／liveJob／ordinary-forward限制未放寬。 |
+| [OrgMaster workflow 39994814094](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/39994814094)，`release-preparation/org-native-migrate.json` | 來源`66e8bfc0e87ba251b4a1eccd7c409c952862de3f`；release `ORGMASTER-REL-20261023172420327-66E8BFC`。native receipt SHA-256 `5b62d06a5a2ec53cf53a4e4cdf568ec8d69dca912a9b9b08eac377f9485d2ebc`為PASS：ledger34／applied3／replayed31，execution `orgmaster-prod-migration-runner-ccxfj`。034–036正式schema已套用；workflow整體仍FAILURE。 |
+| 同Org run verify／terminal；`org-candidate-smoke-safe-readback-r2.json`、`org-failed-release-terminal.json`、`org-after-failure-service-safe.json` | 候選驗證在Workflows execution `738aeffb-b0ab-444b-b0e7-144ab67604b6`的`platform_session`先回401／auth_token_invalid，未到Org callback。terminal receipt `41b51c81ccde73953239bac055f605a477f1dee56f2f37f2524af22f3ec29f2a`記PRE_ACTIVATION_ABORTED／FORWARD_APPLIED；其PASS只表示既定恢復成功。17:46:45 UTC服務讀回：舊revision `orgmaster-prod-e44ff9eaaac4`承接100%、tags空；candidate `orgmaster-prod-ffc16ebcf707`未啟用。沒有down migration或盲目重試。 |
+| `release-preparation/post-schema-existing-ui-readback.json` | 舊PDM serving版在schema後，以瀏覽器既有公司session讀到九legacy角色及原RD能力；只證schema相容及既有session。未提交帳密、未套用矩陣、未改任用；不是新版UI或fresh SSO驗收。 |
+| development-only SSO adapters：[PDM #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)、[OrgMaster #153](https://github.com/jedchang0308-jenfu/OrgMaster/pull/153)、[Platform #140](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/140) | 各自獨立草稿及required CI通過，未合併／未納入上述production來源。local runtimes已停止；正常Google旅程因現行IdP未允許localhost而未執行，暫加localhost問題仍待人類答覆。source CI不能關閉fresh SSO／三端正常UI旅程。 |
+
+
+本輪source修正與驗證增補（2026-10-24；尚未發布）：
+
+| 證據／範圍 | 實際結果與判定邊界 |
+|---|---|
+| PR #480產品caller修正；`c676b68…`的五個檔案 | PG JSONB manifest原生object與SQLite string共用同一嚴格membership／schema／hash檢查；兩個CSV caller把PG Date轉ISO字串再escaping。partner focused36項及typecheck通過，僅採納這五檔，未納入development-only SSO adapter。最終source required CI仍待本PR刷新。 |
+| `dev123-native-package-http-20261024-r6.json`／`.log` | 19／19 PASS：正常repository建立PDF／model／BOM三檔混合ZIP與CSV200，核對實際bytes／hash；真apply撤download後403、混合member／Range deny、scope、有效正向後corruption503、share撤銷／到期404及拒絕無StorageAccessed。r1–r5保留；是native PG＋原route loopback HTTP，非完整Next／fresh SSO／production actor驗收。 |
+| `dev123-native-recognition-formalize-http-20261024-r8.json`／`.log` | 原POST formalize200建立mm canonical unit；同session真apply停用RD後第二次403，14個canonical／history／command／outbox／audit表全列hash不變。r7已驗200／403但額外fixture teardown違反FK而FAIL；r8移除無必要teardown後整段PASS。前期503為fixture company code與numbering resolver不一致，未放寬產品guard。 |
+| `dev123-native-file-asset-http-20261024-r7.json`／`.log` | 原canonical route original／preview200核對hash；撤download後original／Range403但安全preview200；無ready derivative202且不回退原檔；撤view後404隱藏資源。StorageAccessed恰3次，denies不增加；r1–r6前提／oracle／cleanup失敗保留。 |
+| 上列native資料及清理 | 各run來源before／after相符；task PG／HTTP bridge／port／temp已清理。只支持已列的bytes、撤權、正式化及scope斷言，不代表正常Google旅程或正式consumer／writer已通過。 |
+| `dev-123-forward-continuation/provider-native38-read-r1..r4.json` | r1顯示舊observer錯將retained worker來源當成當前app；r2為歷史archive解析錯用過期寫入deadline；r3為prepare未顯式載入。修正後r4唯讀PASS：native ledger38／applied3／replayed35／38 entries，provider build/image來源核對成立；productionWrites=false、currentDatabaseReadPerformed=false、databaseLiveState=UNKNOWN、releaseAuthority=false。原失敗全保留。 |
+| `dev-123-forward-continuation/focused-r3.log`／`focused-r4.log`／`focused-r5.log` | r3發布／opaque source proof七檔275／275 PASS；最後審查補prepare／deployment／source hash join、prior admission flag與歷史native fence之後，r4為276／277 PASS，唯一失敗是新增測試把既有固定檔名migrate-submission-intent誤寫為migration-submission-intent。修正oracle、加fresh index與unknown-read案例後，受影響兩檔r5為24／24 PASS；完整continuous-r1為389／391 PASS：另一失敗是sparse工作樹尚未展開qa fixture；真實回歸為畸形ref在fetch前未拒絕，已補入口結構檢查，相關兩檔r6為218／218 PASS。continuous-r2為495／497 PASS，僅native-history兩例因完整source fixture讀取未展開的既有.playwright-cli追蹤檔而ENOENT。已驗非output所有追蹤檔齊全，只重跑受影響兩例continuous-r3，2／2 PASS，保留原失敗；其餘495項沒有輸入漂移可重用，合計覆蓋本次497項斷言。這是分段有效結果，不把r2原整批改為PASS。required CI待更新。 |
+
+- 最後guard版本的`provider-native38-read-r5.json`在程式來源`2b1068873a078ada22f888ef0ce1e72af67fe104`再次唯讀PASS，讀到同一native38原件；不賦予舊capsule新deadline或release authority。之後malformed-ref入口檢查只影響無效輸入，正常graph證據可重用。
+- `abort-r1.log`為6／6 PASS；`db-boundary-r1.log`為DEV010_DB_RULESET_V1 PASS。本地`qc:dev-117:continuous`包含isolated build，25GiB容量保留要求被governor判BLOCKED，因此未啟動，不記PASS；既有required CI依planner執行受影響契約、資料庫及isolated build，不改gate或放寬保護。
+
+
+新增caller來源已收斂於`813bd297e`（承接partner `f5d4a1397`，沒有local SSO或DDL）。新增與上一輪package／file-asset／formalize原件均留在`C:/VIBE CODING/.worktrees/AI_PDM/dev123-local-sso-20261024/output/qa/dev-123/`；本PR自身release回歸及來源等價核對留在rollout-evidence工作樹的`output/qa/dev-123-forward-continuation/`。
+
+| 追加證據 | 有效結果與保留範圍 |
+|---|---|
+| `dev123-native-export-delivery-http-20261024-r5.json`／`.log` | PASS：原POST201／completed、detail200；真apply撤download後detail及新增POST403，job IDs/count、audit、command/outbox不增；raw download=true但view=false時effective download=false；audit綁實際Principal／company／profile。PG error／async error皆0，cleanup PASS。r1為實際legacy principal入口503；r3/r4為reports list／effective-download測試oracle錯誤，原件保留。 |
+| `dev123-native-share-preview-http-20261024-r5.json`／`.log`及cases／child | 16／16 PASS：真share POST／PATCH後P1安全PNG70 bytes與hash相符；P2、原檔／ZIP、view撤權、scope／project漂移、到期／撤share皆拒絕；無derivative、hash變動、unsafe MIME及未交付檔404，無原檔fallback／StorageAccessed。r1–r4的fixture／oracle／parent PATCH／immutable ACL首敗保留。到期使用明示owner time fixture，不聲稱自然TTL／正常SSO；已有share r6 elapsed結果按未變輸入重用。 |
+| `dev123-native-model-live-http-20261024-r1.json`／`.log` | PASS_WITH_NOT_RUN：實際shared-model GET／POST、純模型Draft編輯／撤權、new Released先publish deny再允許、既有已發布reuse不重發布、part與model view撤權、foreign owner／asset、未知category／status均按原規則通過；denies下完整models／audits不變。review／multipleBindings／baseline明確NOT_RUN，QA123-50仍PARTIAL，沒有新增模型審核流程。 |
+| `native-source-equivalence-r2.json`、`final-contracts-r1.log`、`final-typecheck-r1.log` | 本工作樹核對上述native實際app inputs分別24／36／13份全部相同或僅canonical LF差異；每份另3個Org輸入hash未變，harness在原證據位置hash相符，沒有把缺少本地harness誤作app source漂移。合併來源Node契約通過、Vitest 60 files／577 tests PASS、typecheck PASS。最終database boundary亦PASS；兩輪Luna caller唯讀增量審查最後固定24檔diff無P1/P2 blocker；是工程自查／來源審查，不是獨立產品QC或正式驗收。 |
+
+正式收據根目錄為`gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-WIF-39988578179-1/`與`gs://jenfu-platform-prod-orgmaster-release/receipts/releases/ORGMASTER-REL-20261023172420327-66E8BFC/`；stage收據位於各自capsule hash子目錄。本次PDM capsule deadline為`2026-10-23T18:40:19.356Z`，現已過期，不再dispatch或延長原capsule。[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)正補齊fresh continuation：驗既有native38／source／provider收據後，新attempt只封存輸入等價關聯，明記沒有新Job、沒有當前DB讀取且live state UNKNOWN；schema-only workflow仍停止於migration，不提前啟用writer。該修正尚未通過最終required CI／合併／發布，不將工作碼唯讀PASS當成release GO。086–088與034–036已套用，後續SQL修正只能新增forward migration。
+
+401的現有證據只能定位到Platform session邊界：refresh與operator Firebase驗證成功，不足以證明正式runtime verifier或Principal revokedBefore通過。尚無可用的既有特定Principal epoch唯讀入口，未執行任意SQL／Job、新session、Secret輪替或IAM變更。Platform正式修改不在本輪授權內；不得把這個authentication失敗記作Org業務permission deny或已證根因。
+
+剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的子斷言與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。
+
+本次補記封存於2026-10-23 19:40 UTC前；新source required CI／合併狀態以[PR #480 checks](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480/checks)及provider綁定的實際head為準，舊40a文件-only CI不支持本輪source。這是結果索引的live provider引用；沒有把先前待驗狀態改成正式發布或整體驗收。

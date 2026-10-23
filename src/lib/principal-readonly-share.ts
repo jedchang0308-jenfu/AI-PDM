@@ -12,7 +12,7 @@ import { AsyncSubmissionListRepository } from "@/lib/repositories/submission-lis
 import { authorizePrincipalSubmissionReadInSnapshot } from "@/lib/principal-submission-access";
 import type { ReadonlyShare, SubmissionDetail } from "@/lib/types";
 import { hashShareTokenAsync } from "@/lib/readonly-share-async";
-import { authorizeSubmissionOriginalsInSnapshot } from '@/lib/principal-submission-file-capability';
+import { authorizeSubmissionOriginalsInSnapshot, releaseManifestMatchesSubmissionFiles } from '@/lib/principal-submission-file-capability';
 
 export type PrincipalShareRequest = { snapshot: AsyncDatabaseClient; verified: VerifiedPrincipalRequest };
 export type PrincipalShareSubmission = { id: string; company_id: string; submitted_by: string; status: string };
@@ -141,6 +141,10 @@ export async function getAuthorizedPublicShareInSnapshot(
   }
   let externalProjectContext: ExternalProjectReadContext | undefined;
   if (resource.externalAssignmentId) {
+    if (!releaseManifestMatchesSubmissionFiles(submission.release_package.manifest_json, submission.id, submission.files)) {
+      return Response.json({ code: 'principal_release_membership_unavailable' },
+        { status: 503, headers: { 'cache-control': 'private, no-store' } });
+    }
     const clock = await snapshot.queryOne<{ decision_at: string }>('SELECT transaction_timestamp()::text AS decision_at');
     if (!clock?.decision_at || !Number.isFinite(Date.parse(clock.decision_at)) ||
         submission.release_package.submission_id !== submission.id || !/^[a-f0-9]{64}$/iu.test(submission.release_package.sha256)) {

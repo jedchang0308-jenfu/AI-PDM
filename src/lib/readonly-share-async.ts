@@ -12,7 +12,8 @@ export function buildPublicShareUrlAsync(request: Request, token: string) {
 }
 
 export async function serializePublicShareAsync(
-  submission: SubmissionDetail, token: string, shareId: string, snapshot: AsyncDatabaseClient, canDownload = true
+  submission: SubmissionDetail, token: string, shareId: string, snapshot: AsyncDatabaseClient, canDownload = true,
+  previewFileIds: readonly string[] = []
 ) {
   const supplierResponses = await new AsyncReleaseRepository(snapshot)
     .listSupplierPortalResponses({ submissionId: submission.id, shareId });
@@ -46,7 +47,9 @@ export async function serializePublicShareAsync(
       role: file.file_role,
       filename: file.original_filename,
       sha256: file.sha256,
-      size: file.file_size
+      size: file.file_size,
+      preview_url: previewFileIds.includes(file.id)
+        ? `/api/public/shares/${encodeURIComponent(token)}?previewFileId=${encodeURIComponent(file.id)}` : null
     })),
     approvals: submission.approvals.map((approval) => ({
       reviewer_name: approval.reviewer_name,

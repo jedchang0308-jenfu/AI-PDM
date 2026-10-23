@@ -38,6 +38,7 @@ type PublicShareData = {
     filename: string;
     sha256: string;
     size: number;
+    preview_url: string | null;
   }>;
   approvals: Array<{
     reviewer_name: string;
@@ -284,6 +285,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
                   </span>
                   <span className="file-name">{file.filename}</span>
                 </strong>
+                {file.preview_url && <a href={file.preview_url} target="_blank" rel="noreferrer">預覽</a>}
                 <div className="metadata-list">
                   <span className="metadata-pair">
                     <span className="metadata-label">大小</span>

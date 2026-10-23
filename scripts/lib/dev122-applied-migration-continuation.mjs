@@ -1,4 +1,4 @@
-import { assertMigrationBundle, canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { assertMigrationBundle, assertStageReceipt, canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
@@ -50,6 +50,70 @@ export function assertAppliedMigrationContinuation(value, bucket = DEFAULT_BUCKE
       `gs://${bucket}/receipts/releases/${root[1]}/${root[2]}/migrate.json` ||
       !new RegExp(`^gs://${bucket}/receipts/releases/[A-Z0-9][A-Z0-9-]{5,63}/[a-f0-9]{64}/ledger-readback-result\\.json$`, 'u')
         .test(value.ledgerReadbackResultRef.uri ?? '')) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+  return value
+}
+
+// The old ledger35 continuation remains unchanged. This separate binding indexes
+// the native38 result of the subsequent schema-only attempt; it never makes the
+// old ledger probe evidence about the current database.
+export function assertForwardAppliedMigrationContinuation(value, bucket = DEFAULT_BUCKET) {
+  exact(value, ['schemaVersion', 'priorIntentRef', 'priorPrepareRef', 'priorMigrationAdmissionRef'])
+  if (value.schemaVersion !== 'aipdm.forward-applied-migration-continuation.v1') fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+  for (const key of ['priorIntentRef', 'priorPrepareRef', 'priorMigrationAdmissionRef']) exactRef(value[key])
+  const match = new RegExp(`^gs://${bucket}/receipts/releases/([A-Z0-9][A-Z0-9-]{5,63})/release-intent\\.json$`, 'u').exec(value.priorIntentRef.uri)
+  const root = match && `gs://${bucket}/receipts/releases/${match[1]}/${value.priorIntentRef.sha256}`
+  if (!root || value.priorPrepareRef.uri !== `${root}/prepare.json`
+    || value.priorMigrationAdmissionRef.uri !== `${root}/migration-admission.json`) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+  return value
+}
+
+export function forwardAppliedMigrationProofRefs(binding, prior, admission, bucket = DEFAULT_BUCKET) {
+  assertForwardAppliedMigrationContinuation(binding, bucket)
+  if (canonicalize(admission?.ref) !== canonicalize(binding.priorMigrationAdmissionRef)) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+  assertStageReceipt(admission.value, { ownerApplicationId: 'ai-pdm', releaseId: prior.releaseId, sourceRevision: prior.sourceRevision, stage: 'migrate' })
+  const migrate = admission.value.facts?.migrationReceiptRef
+  exactRef(migrate)
+  if (admission.value.facts.disposition !== 'FORWARD_APPLIED' || Object.hasOwn(admission.value.facts, 'schemaStageOnly')
+    || migrate.uri !== binding.priorPrepareRef.uri.replace(/prepare\.json$/u, 'migrate.json')) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+  return { prepare: binding.priorPrepareRef, migrate, terminal: null }
+}
+
+export function assertForwardAppliedMigrationGraph({ binding, currentIntent, observed, graph, admission, profile, isAncestor }) {
+  assertForwardAppliedMigrationContinuation(binding, profile.artifact.releaseBucket)
+  const prior = graph?.intent, history = graph?.migrationHistory
+  const same = (left, right) => canonicalize(left) === canonicalize(right)
+  if (!prior || canonicalize(currentIntent.forwardAppliedMigrationContinuation) !== canonicalize(binding)
+    || prior.releaseId === currentIntent.releaseId || Object.hasOwn(prior, 'forwardAppliedMigrationContinuation')
+    || prior.appliedMigrationContinuation?.schemaVersion !== 'aipdm.applied-migration-continuation.v1'
+    || !same(currentIntent.appliedMigrationContinuation, prior.appliedMigrationContinuation)
+    || typeof isAncestor !== 'function' || !isAncestor(prior.sourceRevision, currentIntent.sourceRevision)
+    || observed?.proof?.disposition !== 'migration_only' || observed.proof.sourceRevision !== prior.sourceRevision
+    || Object.hasOwn(observed.proof, 'terminal') || observed.provider?.status !== 'BUILD_IMAGE_VERIFIED'
+    || !same(graph.intentRef, binding.priorIntentRef) || !same(graph.prepare?.ref, binding.priorPrepareRef)
+    || graph.terminal !== null || graph.migrationMode !== 'FORWARD_APPLIED'
+    || graph.appliedMigrationOnly !== true || !history || history.installed?.bundle?.entries?.length !== 38
+    || history.installed.receipt?.ledgerCount !== 38 || !same(history.installed.receiptRef, graph.migrate?.ref)
+    || !same(admission?.ref, binding.priorMigrationAdmissionRef)) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+  forwardAppliedMigrationProofRefs(binding, prior, admission, profile.artifact.releaseBucket)
+  const facts = admission.value.facts
+  if (facts?.disposition !== 'FORWARD_APPLIED' || facts.sourceRevision !== prior.sourceRevision
+    || facts.manifestSha256 !== prior.migrationManifestSha256
+    || !same(admission.value.previousReceiptRef, graph.chain?.deployment?.ref)
+    || !same(facts.migrationReceiptRef, graph.migrate.ref)) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+  return history
+}
+
+export function assertForwardMigrationAssociation(value, { intent, deploymentRef, history }) {
+  assertStageReceipt(value, { ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, stage: 'migrate' })
+  const facts = value.facts
+  exact(facts, ['disposition', 'sourceRevision', 'manifestSha256', 'migrationReceiptRef', 'forwardAppliedMigrationContinuation', 'migrationJobSubmitted', 'migrationJobSubmissions', 'currentDatabaseReadPerformed', 'databaseLiveState'])
+  if (!intent.forwardAppliedMigrationContinuation || facts.disposition !== 'HISTORICAL_EVIDENCE_REUSED'
+    || facts.sourceRevision !== intent.sourceRevision || facts.manifestSha256 !== intent.migrationManifestSha256
+    || canonicalize(value.previousReceiptRef) !== canonicalize(deploymentRef)
+    || canonicalize(facts.forwardAppliedMigrationContinuation) !== canonicalize(intent.forwardAppliedMigrationContinuation)
+    || canonicalize(facts.migrationReceiptRef) !== canonicalize(history.installed.receiptRef)
+    || facts.migrationJobSubmitted !== false || facts.migrationJobSubmissions !== 0 || facts.currentDatabaseReadPerformed !== false
+    || facts.databaseLiveState !== 'UNKNOWN') fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
   return value
 }
 

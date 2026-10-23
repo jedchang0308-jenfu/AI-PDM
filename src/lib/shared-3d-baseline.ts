@@ -34,6 +34,13 @@ export type SharedModelReuseCandidate = {
   status: SharedCadModelStatus;
 };
 
+export type SharedModelAccessOptions = {
+  client?: AsyncDatabaseClient;
+  companyId?: string | null;
+  principalAudit?: { principalId: string; companyId: string };
+  beforeNewRelease?: () => Promise<void>;
+};
+
 export type RequiredMaResolverResult = {
   owner: SharedModelOwner;
   required: Array<{
@@ -62,12 +69,19 @@ function summarizeModel(model: SharedCadModelVersion): SharedModelReuseCandidate
   };
 }
 
-async function resolveOwner(input: { ownerScope: SharedModelOwnerScope; ownerCode: string }, repository: AsyncShared3dBaselineRepository) {
+async function resolveOwner(
+  input: { ownerScope: SharedModelOwnerScope; ownerCode: string },
+  repository: AsyncShared3dBaselineRepository,
+  companyId?: string | null
+) {
   const owner =
     input.ownerScope === "part_number"
-      ? await repository.getOwnerByPartNumber(input.ownerCode)
-      : await repository.getOwnerByRootCode(input.ownerCode);
+      ? await repository.getOwnerByPartNumber(input.ownerCode, companyId)
+      : await repository.getOwnerByRootCode(input.ownerCode, companyId);
   if (!owner) throw new Shared3dBaselineError("SHARED_MODEL_OWNER_NOT_FOUND", "找不到 part/root 共用 3D 擁有者。", 404);
+  if (companyId && owner.companyId !== companyId) {
+    throw new Shared3dBaselineError("SHARED_MODEL_OWNER_COMPANY_MISMATCH", "共用 3D 擁有者不屬於目前公司。", 403);
+  }
   return owner;
 }
 
@@ -79,9 +93,13 @@ function sortReleasedPackages(packages: ReleasedDrawingPackage[]) {
   });
 }
 
-export async function listSharedModelVersionsAsync(input: { ownerScope: SharedModelOwnerScope; ownerCode: string }) {
-  const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
-  const owner = await resolveOwner(input, repository);
+export async function listSharedModelVersionsAsync(
+  input: { ownerScope: SharedModelOwnerScope; ownerCode: string },
+  options: SharedModelAccessOptions = {}
+) {
+  const client = options.client ?? getAsyncDatabaseClient();
+  const repository = new AsyncShared3dBaselineRepository(client);
+  const owner = await resolveOwner(input, repository, options.companyId);
   return { owner, models: await repository.listSharedModels(owner) };
 }
 
@@ -94,12 +112,17 @@ export async function createSharedModelVersionAsync(input: {
   status?: SharedCadModelStatus;
   releaseReason?: string | null;
   allowSameHashNewLabel?: boolean;
-}) {
-  const client = getAsyncDatabaseClient();
+}, options: SharedModelAccessOptions = {}) {
+  const client = options.client ?? getAsyncDatabaseClient();
   const repository = new AsyncShared3dBaselineRepository(client);
-  const owner = await resolveOwner(input, repository);
+  const owner = await resolveOwner(input, repository, options.companyId);
   const file = await repository.getFileAsset(input.sourceFileAssetId);
   if (!file) throw new Shared3dBaselineError("SHARED_MODEL_FILE_NOT_FOUND", "找不到共用 3D 來源檔案。", 404);
+  const expectedEntityType = owner.ownerScope === "part_number" ? "part_number" : "part_root";
+  const expectedEntityId = owner.ownerScope === "part_number" ? owner.partNumberId : owner.partRootId;
+  if (file.linkedEntityType !== expectedEntityType || file.linkedEntityId !== expectedEntityId) {
+    throw new Shared3dBaselineError("SHARED_MODEL_SOURCE_OWNER_MISMATCH", "共用 3D 來源檔案必須屬於相同的 part/root 擁有者。", 409);
+  }
   if (!file.contentHash) throw new Shared3dBaselineError("SHARED_MODEL_HASH_REQUIRED", "共用 3D 來源檔案缺少 content hash。", 409);
   if (file.documentCategory !== "cad_3d" && file.documentCategory !== "intermediate") {
     throw new Shared3dBaselineError("SHARED_MODEL_CATEGORY_REQUIRED", "共用 3D 來源檔案必須是 3D CAD 或中繼模型類別。", 409, {
@@ -111,6 +134,24 @@ export async function createSharedModelVersionAsync(input: {
   const byHash = await repository.findSharedModelsByHash(owner, file.contentHash);
   const reusable = byHash.find((model) => model.modelRevision === modelRevision);
   if (reusable) {
+    if (options.principalAudit) {
+      await createAuditLogAsync({
+        actorId: input.actorId,
+        action: "SharedCadModelVersionReused",
+        detail: {
+          modelId: reusable.id,
+          ownerScope: owner.ownerScope,
+          ownerCode: owner.ownerCode,
+          modelRevision,
+          contentHash: reusable.contentHash,
+          status: reusable.status,
+          principalAudit: options.principalAudit,
+          securityActor: { kind: "verified_principal", principalId: options.principalAudit.principalId }
+        },
+        companyId: options.principalAudit.companyId,
+        scopeKind: "tenant"
+      }, client);
+    }
     return { owner, model: reusable, reused: true, reuseCandidates: byHash.map(summarizeModel) };
   }
   if (byHash.length > 0 && !input.allowSameHashNewLabel) {
@@ -127,8 +168,9 @@ export async function createSharedModelVersionAsync(input: {
     });
   }
 
-  const now = new Date().toISOString();
   const status = input.status ?? "Released";
+  if (status === "Released" && options.beforeNewRelease) await options.beforeNewRelease();
+  const now = new Date().toISOString();
   const model: SharedCadModelVersion = {
     id: `SCM-${crypto.randomUUID()}`,
     companyId: owner.companyId,
@@ -157,9 +199,15 @@ export async function createSharedModelVersionAsync(input: {
       ownerCode: owner.ownerCode,
       modelRevision,
       contentHash: model.contentHash,
-      status
-    }
-  });
+      status,
+      ...(options.principalAudit ? {
+        principalAudit: options.principalAudit,
+        securityActor: { kind: "verified_principal", principalId: options.principalAudit.principalId }
+      } : {})
+    },
+    companyId: options.principalAudit?.companyId ?? owner.companyId,
+    scopeKind: "tenant"
+  }, client);
   return { owner, model, reused: false, reuseCandidates: byHash.map(summarizeModel) };
 }
 

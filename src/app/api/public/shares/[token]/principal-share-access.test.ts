@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   withIdentityOnly: vi.fn(),
   getAuthorizedShare: vi.fn(),
   serialize: vi.fn(),
-  deliver: vi.fn()
+  deliver: vi.fn(), preview: vi.fn(), deliverPreview: vi.fn()
 }));
 
 vi.mock("@/lib/principal-readonly-share", () => ({
@@ -15,6 +15,8 @@ vi.mock("@/lib/principal-readonly-share", () => ({
 }));
 vi.mock("@/lib/readonly-share-async", () => ({ serializePublicShareAsync: mocks.serialize }));
 vi.mock("@/lib/principal-release-package-delivery", () => ({ deliverPrincipalReleasePackage: mocks.deliver }));
+vi.mock("@/lib/principal-share-preview", () => ({ resolvePrincipalSharePreviewInSnapshot: mocks.preview,
+  deliverPrincipalSharePreview: mocks.deliverPreview }));
 
 import { GET as getShare } from "./route";
 import { GET as getPackage } from "./package/route";
@@ -25,6 +27,7 @@ const verified = { profile: { pdmUserId: "profile-one", companyId: "company-one"
   session: { principalId: "principal-one" } } as never;
 const share = { id: "share-one", submission_id: "submission-one", status: "active" as const };
 const submission = { id: "submission-one", company_id: "company-one", status: "Released",
+  files: [{ id: 'file-one' }],
   release_package: { id: "package-one", package_filename: "release.zip" } };
 const request = () => new Request("https://ai-pdm.test/api/public/shares/opaque-token");
 
@@ -38,6 +41,7 @@ describe("Principal-only public share routes", () => {
     mocks.getAuthorizedShare.mockResolvedValue({ share, submission });
     mocks.serialize.mockResolvedValue({ submission: { id: submission.id } });
     mocks.deliver.mockResolvedValue(new Response("release bytes", { status: 200 }));
+    mocks.preview.mockResolvedValue(new Response(null, { status: 404 }));
   });
 
   it("requires submission.view before returning metadata selected by an opaque token", async () => {
@@ -46,14 +50,28 @@ describe("Principal-only public share routes", () => {
     expect(mocks.withPermission).toHaveBeenCalledWith(expect.any(Request),
       "src/app/api/public/shares/[token]/route.ts", "submission.view", expect.any(Function), { readOnly: false });
     expect(mocks.getAuthorizedShare).toHaveBeenCalledWith(snapshot, verified, "opaque-token");
-    expect(mocks.serialize).toHaveBeenCalledWith(submission, "opaque-token", share.id, snapshot);
+    expect(mocks.serialize).toHaveBeenCalledWith(submission, "opaque-token", share.id, snapshot, true, []);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it('does not offer a download link for the external project view-only delivery', async () => {
     mocks.getAuthorizedShare.mockResolvedValue({ share, submission, externalProjectContext: { originalAssignmentId: 'assignment-one' } });
     expect((await getShare(request(), { params: Promise.resolve({ token: 'opaque-token' }) })).status).toBe(200);
-    expect(mocks.serialize).toHaveBeenCalledWith(submission, 'opaque-token', share.id, snapshot, false);
+    expect(mocks.serialize).toHaveBeenCalledWith(submission, 'opaque-token', share.id, snapshot, false, []);
+  });
+
+  it('offers only existing safe previews and delegates bytes to fresh share authorization', async () => {
+    mocks.preview.mockResolvedValue({ fileId: 'file-one' });
+    await getShare(request(), { params: Promise.resolve({ token: 'opaque-token' }) });
+    expect(mocks.serialize).toHaveBeenCalledWith(submission, 'opaque-token', share.id, snapshot, true, ['file-one']);
+    mocks.deliverPreview.mockImplementation(async (_request, authorize) => {
+      expect(await authorize()).toEqual({ fileId: 'file-one' });
+      return new Response('safe preview');
+    });
+    const response = await getShare(new Request('https://ai-pdm.test/api/public/shares/opaque-token?previewFileId=file-one'),
+      { params: Promise.resolve({ token: 'opaque-token' }) });
+    expect(await response.text()).toBe('safe preview');
+    expect(mocks.preview).toHaveBeenLastCalledWith(snapshot, verified, { share, submission }, 'file-one');
   });
 
   it("uses Principal checksum-audited delivery for a share package", async () => {
