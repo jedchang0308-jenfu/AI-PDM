@@ -593,6 +593,9 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
     for (const [id, { label, companyId }] of sources) cleanups.push(async () => {
       const before = await db!.query("SELECT id,company_id,status,source_file_asset_id FROM preview_jobs WHERE source_file_asset_id=:id", { id });
       const derivativesBefore = await db!.query("SELECT id,company_id,preview_job_id FROM file_derivatives WHERE source_file_asset_id=:id", { id });
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "fixture-mutations.jsonl"), JSON.stringify({
+        producerBoundary: "FIXTURE", purpose: "F01 owned source teardown precondition readback", sourceFileAssetId: id,
+        deletionCompanyId: companyId, before, derivativesBefore }) + "\n");
       await db!.transaction(async tx => {
         await fixtureMutation("F01 exact owned job derivatives teardown after original assertions/evidence; preserve other references",
           `DELETE FROM file_derivatives WHERE source_file_asset_id=:id AND company_id=:companyId AND preview_job_id IN
