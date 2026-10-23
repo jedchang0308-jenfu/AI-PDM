@@ -158,11 +158,11 @@ beforeAll(async () => {
 });
 afterAll(async()=>{await db?.close();});
 
-async function fixtureMutation(purpose: string, sql: string, params: Record<string, unknown>) {
+async function fixtureMutation(purpose: string, sql: string, params: Record<string, unknown>, client: AsyncDatabaseClient = db!) {
   await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "fixture-mutations.jsonl"), JSON.stringify({
     project: "AIPDM", purpose, scope: "own disposable native PG", sql, params, producerBoundary: "FIXTURE"
   }) + "\n");
-  await db!.execute(sql, params);
+  await client.execute(sql, params);
 }
 
 let fixtureRequestOutstanding = false;
@@ -592,11 +592,17 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
     }
     for (const [id, { label, companyId }] of sources) cleanups.push(async () => {
       const before = await db!.query("SELECT id,company_id,status,source_file_asset_id FROM preview_jobs WHERE source_file_asset_id=:id", { id });
-      await fixtureMutation("F01 per-case exact uploaded-source preview queue teardown after original assertions/evidence; not product recovery",
-        "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId", { id, companyId });
+      const derivativesBefore = await db!.query("SELECT id,company_id,preview_job_id FROM file_derivatives WHERE source_file_asset_id=:id", { id });
+      await db!.transaction(async tx => {
+        await fixtureMutation("F01 exact owned job derivatives teardown after original assertions/evidence; preserve other references",
+          `DELETE FROM file_derivatives WHERE source_file_asset_id=:id AND company_id=:companyId AND preview_job_id IN
+            (SELECT id FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId)`, { id, companyId }, tx);
+        await fixtureMutation("F01 per-case exact uploaded-source preview queue teardown after original assertions/evidence; not product recovery",
+          "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId", { id, companyId }, tx);
+      });
       const remaining = await db!.query("SELECT id,company_id FROM preview_jobs WHERE source_file_asset_id=:id", { id });
       await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "file-case-fixture-teardown.jsonl"), JSON.stringify({
-        producerBoundary: "FIXTURE", label, sourceFileAssetId: id, deletionCompanyId: companyId, before, remaining,
+        producerBoundary: "FIXTURE", label, sourceFileAssetId: id, deletionCompanyId: companyId, before, derivativesBefore, remaining,
         exactSourceJobCountZero: remaining.length === 0 }) + "\n");
       expect(remaining, label).toHaveLength(0);
     });
@@ -898,6 +904,7 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       source_hash: "UPDATE file_assets SET content_hash=:hash WHERE id=:id"
     };
     await fixtureMutation("F01 native claim source eligibility negative input", edits[variant], { id: variant === "source_hash" ? fixture.assetId : job.id, hash: "f".repeat(64) });
+    if (variant === "company") ownedFileCaseSources!.set(fixture.assetId, { label: "claim-negative-company", companyId: "company-dev122-other" });
     const token = Buffer.alloc(32, 112).toString("base64url"), previous = process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [
       { id: "dev122-negative-claim-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] } ] });
@@ -2336,10 +2343,11 @@ async function uploadNativeProtocolPair(workId: string, label: string) {
     const form = new FormData();
     // Only storage/protocol evidence. Actual CAD output is a separate native worker gate.
     form.set("file", new File(["DEV122 protocol fixture " + fileName], fileName, { type: "application/octet-stream" }));
-    await ok(await uploadDrawingFile(new Request("https://ai-pdm.test/api/pdm/drawing-revision-works/" + workId + "/files", {
+    const uploaded = await ok<{ data: { file: { sourceFileAssetId: string } } }>(await uploadDrawingFile(new Request("https://ai-pdm.test/api/pdm/drawing-revision-works/" + workId + "/files", {
       method: "POST", headers: { cookie: "__session=" + ownerToken, "if-match": String(work.data.rowVersion),
         "x-pdm-workbench-contract": work.meta.contractToken, "idempotency-key": `${workId}-${fileName}` }, body: form
     }), params));
+    ownedFileCaseSources?.set(uploaded.data.file.sourceFileAssetId, { label: fileName, companyId: "company-jenfu" });
   }
 }
 
