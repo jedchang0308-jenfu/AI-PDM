@@ -2810,6 +2810,24 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "part-attachment-ui") {
+      const fixtures = [];
+      for (const width of [1440, 390]) {
+        const label = "PartAttachmentUI" + width;
+        const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+          { coreName: "DEV122 " + label, itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+        const started = await ok<{ data: { workId: string } }>(await createPartWork(request("/api/pdm/parts/" + part.partNumber.id + "/change-works", ownerToken, "POST", {},
+          1, await contract("dev122-profile-owner"), label + "-work"), { params: Promise.resolve({ partId: part.partNumber.id }) }));
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "attachments", partId: part.partNumber.id,
+          partNumber: part.partNumber.partNumber, partWorkId: started.data.workId, terminalAssetIds: [] });
+      }
+      expect(await db!.query("SELECT id FROM file_assets")).toHaveLength(0);
+      expect(await db!.query("SELECT id FROM preview_jobs")).toHaveLength(0);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "part-attachment-ui-prerequisites.json"), JSON.stringify({ fixtures,
+        producer: "NORMAL_SIGNED_PART_AND_WORK_COMMANDS_ONLY", attachmentUpload: "BROWSER_ONLY", terminalStateSeeded: false, production: "NOT_RUN" }, null, 2));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.

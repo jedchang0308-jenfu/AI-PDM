@@ -20,6 +20,7 @@ assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
 const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const partAttachmentSlice=process.env.DEV122_NATIVE_SELECTION==='part-attachment-ui';
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
 const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -287,10 +288,17 @@ try {
       await page.screenshot({path:path.join(output,`${fixture.width}-${name}.png`),fullPage:!name.startsWith("PDF-")});};
     const exercisePartAttachments=async(partNumber,partId)=>{
       await page.waitForURL(location=>location.pathname==='/parts/'+partNumber+'/attachments');
-      const attachmentBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSf8AAAAASUVORK5CYII=','base64');
+      const attachmentBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=','base64');
       const attachmentName=`dev122-ui-${fixture.width}.png`,attachmentHash=createHash('sha256').update(attachmentBytes).digest('hex');
-      await page.getByRole('region',{name:'附件上傳',exact:true}).locator('input[type="file"]').setInputFiles({name:attachmentName,mimeType:'image/png',buffer:attachmentBytes});
-      const attachmentPath='/api/parts/'+partNumber+'/attachments';
+      const uploadRegion=page.getByRole('region',{name:'附件上傳',exact:true});
+      await uploadRegion.waitFor();assert.equal(await uploadRegion.getByRole('button',{name:'上傳附件',exact:true}).isEnabled(),false);
+      const attachmentPath='/api/parts/'+partNumber+'/attachments',postStarts=[];
+      const observeUpload=request=>{if(new URL(request.url()).pathname===attachmentPath&&request.method()==='POST')postStarts.push({at:Date.now(),method:'POST',path:attachmentPath});};
+      page.on('request',observeUpload);
+      await uploadRegion.locator('input[type="file"]').setInputFiles({name:attachmentName,mimeType:'image/png',buffer:attachmentBytes});
+      // FileDropzone clears the native input after passing the File into React state.
+      await uploadRegion.getByTitle(attachmentName,{exact:true}).waitFor();
+      assert.equal(await uploadRegion.getByRole('button',{name:'上傳 1 個附件',exact:true}).isEnabled(),true);
       const uploadAttachment=waitResponse(response=>new URL(response.url()).pathname===attachmentPath&&response.request().method()==='POST');
       await page.getByRole('button',{name:'上傳 1 個附件',exact:true}).focus();await page.keyboard.press('Enter');
       const attachmentResponse=await uploadAttachment,attachmentBody=await attachmentResponse.json();assert.equal(attachmentResponse.status(),201,JSON.stringify(attachmentBody));
@@ -304,18 +312,33 @@ try {
       const attachmentPreview=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/file-assets/'+attachmentId&&new URL(response.url()).searchParams.get('preview')==='1');
       await attachmentRow.getByRole('button',{name:'預覽',exact:true}).click();
       const attachmentPreviewResponse=await attachmentPreview,previewBytes=await attachmentPreviewResponse.body();
+      const previewURL=new URL(attachmentPreviewResponse.url());assert.equal(attachmentPreviewResponse.request().method(),'GET');
+      assert.equal(previewURL.origin,origin);assert.equal(previewURL.searchParams.get('context'),'part_attachment');
+      assert.equal(previewURL.searchParams.get('contextId'),partId);assert.equal(previewURL.searchParams.get('bindingId'),attachmentId);
       assert.equal(attachmentPreviewResponse.status(),200);assert.equal(attachmentPreviewResponse.headers()['content-type'],'image/png');
       assert.match(attachmentPreviewResponse.headers()['cache-control'],/private.*no-store/u);assert.equal(createHash('sha256').update(previewBytes).digest('hex'),attachmentHash);
-      await page.getByRole('region',{name:attachmentName+' 預覽',exact:true}).getByRole('img',{name:attachmentName,exact:true}).waitFor();
-      const attachmentDownloadEvent=waitDownload();await attachmentRow.getByRole('link',{name:'下載 '+attachmentName,exact:true}).click();
+      const image=page.getByRole('region',{name:attachmentName+' 預覽',exact:true}).getByRole('img',{name:attachmentName,exact:true});
+      await image.waitFor();const decoded=await image.evaluate(async node=>{await node.decode();return {complete:node.complete,width:node.naturalWidth,height:node.naturalHeight};});
+      assert.deepEqual(decoded,{complete:true,width:1,height:1});
+      const downloadLink=attachmentRow.getByRole('link',{name:'下載 '+attachmentName,exact:true});
+      const downloadURL=new URL(await downloadLink.getAttribute('href'),origin);assert.equal(downloadURL.origin,origin);
+      assert.equal(downloadURL.pathname,'/api/pdm/file-assets/'+attachmentId);assert.equal(downloadURL.searchParams.get('context'),'part_attachment');
+      assert.equal(downloadURL.searchParams.get('contextId'),partId);assert.equal(downloadURL.searchParams.get('bindingId'),attachmentId);assert.equal(downloadURL.searchParams.has('preview'),false);
+      const attachmentDownloadEvent=waitDownload();await downloadLink.click();
       const attachmentDownload=await attachmentDownloadEvent,attachmentOutput=path.join(output,`${fixture.width}-part-attachment.png`);
       await attachmentDownload.saveAs(attachmentOutput);assert.equal(await attachmentDownload.failure(),null);
-      assert.equal(createHash('sha256').update(fs.readFileSync(attachmentOutput)).digest('hex'),attachmentHash);
-      await screenshot('Part-mounted-attachment-preview');progress('normal mounted Part attachment upload list reload preview and download',{
+      const downloaded=fs.readFileSync(attachmentOutput);assert.deepEqual(downloaded,attachmentBytes);assert.equal(createHash('sha256').update(downloaded).digest('hex'),attachmentHash);
+      assert.equal(postStarts.length,1,'PART_ATTACHMENT_UPLOAD_REPEATED');page.off('request',observeUpload);
+      const evidence={
         partId:partId,partNumber,attachmentId,attachmentName,attachmentHash,size:attachmentBytes.length,
         upload:attachmentBody.attachment,listStatus:listedAttachmentResponse.status(),previewStatus:attachmentPreviewResponse.status(),
         previewCacheControl:attachmentPreviewResponse.headers()['cache-control'],previewMIME:attachmentPreviewResponse.headers()['content-type'],
-        canonicalPreviewURL:attachmentPreviewResponse.url(),downloadName:attachmentDownload.suggestedFilename(),layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'});
+        canonicalPreviewURL:attachmentPreviewResponse.url(),canonicalDownloadURL:downloadURL.href,downloadName:attachmentDownload.suggestedFilename(),downloadPath:attachmentOutput,
+        downloadedBytes:downloaded.length,downloadedSha256:createHash('sha256').update(downloaded).digest('hex'),decoded,postStarts,
+        layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'};
+      receipt.partAttachmentReadbacks??=[];receipt.partAttachmentReadbacks.push({viewport:fixture.width,...evidence});save();
+      await screenshot('Part-mounted-attachment-preview');progress('normal mounted Part attachment upload list reload preview and download',evidence);
+      return evidence;
     };
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
@@ -920,10 +943,10 @@ try {
         const row=page.locator('tr[data-canonical-workbench-row="true"].is-work').filter({hasText:fixture.partNumber});
         await row.getByRole('button',{name:fixture.partNumber,exact:true}).click();
         await page.getByRole('button',{name:'管理附件',exact:true}).click();
-        await exercisePartAttachments(fixture.partNumber,fixture.partId);
+        const partAttachment=await exercisePartAttachments(fixture.partNumber,fixture.partId);
         receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'attachments',
           fixture:{partId:fixture.partId,partNumber:fixture.partNumber,initialLifecycle:'Draft',producer:'NORMAL_SIGNED_API_PRECONDITION'},
-          normalNavigation:true,signedPrincipal:true,keyboardUpload:true,attachmentDOM:true,overflowMetrics,navigationRoutes,requests});save();continue;
+          partAttachment,normalNavigation:true,signedPrincipal:true,keyboardUpload:true,attachmentDOM:true,overflowMetrics,navigationRoutes,requests});save();continue;
       }
       let partNumber=fixture.partNumber,normalCreation=null,matrixRoundTrip=null;
       {
@@ -1126,6 +1149,7 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,workbenchQueryState,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
+      if(partAttachmentSlice){receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};save();}
       if(boundedSettingsFlow) {
         receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
@@ -1138,22 +1162,40 @@ try {
             receipt.settingsDiagnosticFailures??=[];receipt.settingsDiagnosticFailures.push({stage,viewport:fixture.width,message:captureError.message});save();
           }
         }
+      }else if(partAttachmentSlice) {
+        for(const [stage,capture] of [
+          ['DOM',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content())],
+          ['accessibility',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot())],
+          ['screenshot',()=>page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true})]
+        ])try{await capture();}catch(captureError){receipt.partAttachmentDiagnosticFailures??=[];
+          receipt.partAttachmentDiagnosticFailures.push({viewport:fixture.width,stage,message:captureError.message});save();}
+        receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
       }else {
         fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content());
         fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot());
         await page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
       }
+      if(partAttachmentSlice){receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'FAIL',flow:'attachments',message:error.message});save();continue;}
       throw error;
     } finally {
       if(boundedSettingsFlow)await settingsAwait('context close',()=>context.close(),fixture.width);
+      else if(partAttachmentSlice) {
+        let closeTimer;
+        try{await Promise.race([context.close(),new Promise((_,reject)=>{closeTimer=setTimeout(()=>reject(new Error('DEV122_PART_ATTACHMENT_CONTEXT_CLOSE_TIMEOUT')),10000);})]);}
+        catch(error){receipt.partAttachmentContextCloseFailures??=[];
+          receipt.partAttachmentContextCloseFailures.push({viewport:fixture.width,message:error.message});
+          receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width,stage:'context close'};save();}
+        finally{clearTimeout(closeTimer);}
+      }
       else await context.close();
     }
   }
+  if(partAttachmentSlice&&(receipt.cases.length!==2||receipt.cases.some(item=>item.status!=='PASS')||receipt.partAttachmentContextCloseFailures?.length))throw new Error('DEV122_PART_ATTACHMENT_REQUIRED_VIEWPORTS_FAILED');
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
   receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||partAttachmentSlice){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
     if(boundedSettingsFlow) {
