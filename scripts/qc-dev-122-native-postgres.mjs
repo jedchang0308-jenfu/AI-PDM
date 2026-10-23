@@ -51,7 +51,8 @@ if (cuaHandoff && (process.argv.filter(arg=>arg.startsWith('--suite=')).length !
 const previewGetCaseNames=[
   'running age=28000 attempt=2','running age=31000 attempt=2','running age=31000 attempt=3',
   'queued age=118000 attempt=2','queued age=122000 attempt=2'
-].map(name=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded '+name);
+].map(name=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded '+name)
+  .concat('DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET requeues one stale running job for the same actual worker claim');
 const previewProtocolGapCaseNames=[
   'DEV122 F01 actual signed canonical file routes, storage and native worker protocol no-job canonical preview normal has actual enqueue readback or safe500 without false202',
   ...previewGetCaseNames,
@@ -71,7 +72,7 @@ const exactCasePattern=names=>'^('+names.join('|')+')$';
 const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
-if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
+if(previewProtocolGapCaseNames.length!==14)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
 if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
 const nativeTestPattern=nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
@@ -570,8 +571,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     if(nativeSelection==='preview-get-boundaries') {
       const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
       const required=assertions.filter(test=>previewGetCaseNames.includes(nameOf(test)));
-      if(required.length!==5||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==5||
-        new Set(completed.map(nameOf)).size!==5||completed.some(test=>!previewGetCaseNames.includes(nameOf(test)))) {
+      if(required.length!==6||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==6||
+        new Set(completed.map(nameOf)).size!==6||completed.some(test=>!previewGetCaseNames.includes(nameOf(test)))) {
         throw new Error('DEV122_PREVIEW_GET_REQUIRED_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
       }
     }
@@ -583,8 +584,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     if(nativeSelection==='preview-protocol-gaps') {
       const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
       const required=assertions.filter(test=>previewProtocolGapCaseNames.includes(nameOf(test)));
-      if(required.length!==13||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==13||
-        new Set(completed.map(nameOf)).size!==13||completed.some(test=>!previewProtocolGapCaseNames.includes(nameOf(test)))) {
+      if(required.length!==14||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==14||
+        new Set(completed.map(nameOf)).size!==14||completed.some(test=>!previewProtocolGapCaseNames.includes(nameOf(test)))) {
         throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
       }
     }

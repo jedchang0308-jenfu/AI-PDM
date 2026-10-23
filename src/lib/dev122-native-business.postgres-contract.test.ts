@@ -995,6 +995,51 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       }
     } finally { time.mockRestore(); }
   });
+  it("canonical GET requeues one stale running job for the same actual worker claim", async () => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("canonical-get-reclaim"), first = await nativePreviewClaim(send);
+      expect(first.sourceFileAssetId).toBe(fixture.assetId);
+      expect(first.leaseBasis).toMatchObject({ companyId: "company-jenfu", sourceFileAssetId: fixture.assetId,
+        sourceContentHash: fixture.asset.content_hash, attemptCount: 1 });
+      const stale = await resetFileJob(fixture, "running", 1, 31_000);
+      expect(stale).toMatchObject({ id: first.jobId, locked_by: "dev122-lease-worker" });
+      const stableOwnedRows = async () => ({ ...await ownedLifecycleSnapshot(), preview_jobs: await db!.query(
+        "SELECT to_jsonb(job) AS row FROM preview_jobs job WHERE id<>:id ORDER BY job.id", { id: first.jobId }) });
+      const before = await stableOwnedRows(), objects = await previewRepositorySnapshot();
+      const source = await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: fixture.assetId });
+      const response = await fileResponse(fixture, true);
+      expect(response.status).toBe(202);
+      const selectedHeaders = { "retry-after": response.headers.get("retry-after"), "x-pdm-preview-state": response.headers.get("x-pdm-preview-state") };
+      expect(selectedHeaders).toEqual({ "retry-after": "2", "x-pdm-preview-state": "pending" });
+      expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_NOT_READY", retryable: true } });
+      const queued = await currentFileJob(fixture);
+      expect(queued).toMatchObject({ id: first.jobId, status: "queued", attempt_count: 1,
+        locked_by: null, locked_at: null, completed_at: null, error_code: "preview_worker_heartbeat_timeout" });
+      expect(await stableOwnedRows()).toEqual(before);
+      expect(await previewRepositorySnapshot()).toEqual(objects);
+      const second = await nativePreviewClaim(send), claimed = await currentFileJob(fixture);
+      expect(second).toMatchObject({ jobId: first.jobId, sourceFileAssetId: fixture.assetId,
+        sourceContentHash: fixture.asset.content_hash, sourceExtension: first.sourceExtension, requestedKind: first.requestedKind,
+        leaseBasis: { companyId: "company-jenfu", sourceFileAssetId: fixture.assetId,
+          sourceContentHash: fixture.asset.content_hash, attemptCount: 2 } });
+      expect(claimed).toMatchObject({ id: first.jobId, status: "running", attempt_count: 2, locked_by: "dev122-lease-worker",
+        company_id: second.leaseBasis.companyId, source_file_asset_id: second.sourceFileAssetId, source_content_hash: second.sourceContentHash });
+      expect(new Date(claimed.locked_at as string | Date).toISOString()).toBe(second.leaseBasis.lockedAt);
+      for (const field of ["company_id", "source_file_asset_id", "source_content_hash", "requested_kind", "source_extension",
+        "idempotency_key", "generator_profile", "created_by", "metadata_json"]) {
+        expect(queued[field], field).toEqual(stale[field]);
+        expect(claimed[field], field).toEqual(stale[field]);
+      }
+      expect(await stableOwnedRows()).toEqual(before);
+      expect(await db!.queryOne("SELECT * FROM file_assets WHERE id=:id", { id: fixture.assetId })).toEqual(source);
+      expect(await previewRepositorySnapshot()).toEqual(objects);
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "canonical-get-reclaim-readback.json"), JSON.stringify({
+        first, stale, canonicalGet: { status: response.status, selectedHeaders }, queued, second, claimed,
+        onlyExactPreviewJobChanged: true, sourceAssetUnchanged: true, derivativesAndOtherOwnedRowsUnchanged: true,
+        repositorySnapshotUnchanged: true, repositorySnapshot: objects
+      }, null, 2));
+    });
+  });
   it("returns unknown dependency safe500 and known missing storage503 after real authorization/native reads", async () => {
     const fixture = await normalDrawingFile("dependency-errors");
     const queryFault = await withNativeReadFault(sql => sql.includes("FROM file_derivatives") && sql.includes("generator_profile <>"),
