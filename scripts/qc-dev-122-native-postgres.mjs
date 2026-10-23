@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { compileOwnMigrations, bootstrapOwnSchemas, installOwnFixture, installContractFixture, marker, fixtureVersion, sha256 } from './lib/dev122-own-postgres-fixture.mjs';
 import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation-fixture.mjs';
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
-import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
+import { lifecycleCaseProfiles, lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nextCopyFiles=['scripts/prepare-dev-082-ocr-assets.mjs','package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
@@ -35,6 +35,10 @@ const cuaHandoff = uiMode === 'cua-handoff';
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.argv.find(arg=>arg.startsWith('--native-selection='))?.slice('--native-selection='.length)??process.env.DEV122_NATIVE_SELECTION??'suite';
+const gComposite=nativeSelection==='g-01-g-02';
+const gCaseNames=lifecycleCaseProfiles['g-01-g-02'].caseNames;
+const uiPrerequisiteName='DEV122 actual Next UI prerequisites creates owner work through normal APIs and records explicit terminal-job fault fixtures';
+if(gCaseNames.length!==17||new Set(gCaseNames).size!==17)throw new Error('DEV122_G_PROFILE_MAPPING_DRIFT');
 const fullLifecycleSelection=['lifecycle','all'].includes(suite)&&nativeSelection==='suite';
 const rdPermissionCaseName='DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny';
 if (!['automatic','cua-handoff'].includes(uiMode) ||
@@ -72,9 +76,9 @@ const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','g-01-g-02','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','g-01-g-02'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
-const nativeTestPattern=nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+const nativeTestPattern=gComposite?exactCasePattern([...gCaseNames,uiPrerequisiteName]):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
   ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -114,9 +118,9 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:gComposite?gCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
-  producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
+  producerIntegration:'NOT_RUN', production:gComposite?'NOT_ASSERTED':'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
   primaryActions:['disposable loopback PostgreSQL','own schemas','runtime nonowner DML','actual Next normal UI'],
   primaryDatabaseMutation:false, siblingInput:false };
@@ -371,7 +375,7 @@ function postgresBin() {
 function captureControlledSource() {
   const files=['package.json','package-lock.json','next.config.mjs','next-env.d.ts','tsconfig.json','tsconfig.app.json','tsconfig.next.json',
     'scripts/qc-dev-122-native-postgres.mjs','scripts/dev122-native-postgres-coverage.test.mjs','scripts/qc-dev-122-native-browser.mjs','scripts/qc-ts-path-loader.mjs',
-    'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/dev122-native-postgres-coverage.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
+    'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/dev122-drawing-lifecycle-browser.mjs','scripts/lib/dev122-native-postgres-coverage.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
     'scripts/lib/preview-worker-lease.mjs','scripts/lib/preview-worker-lease.d.mts','scripts/lib/preview-worker-source.mjs',
     'scripts/run-windows-shell-preview-worker.mjs','scripts/run-solidworks-document-manager-preview-worker.mjs','scripts/run-drawing-recognition-worker.mjs','scripts/run-solidworks-document-manager-credential-probe.mjs',
     'scripts/run-solidworks-document-manager-metadata-extractor.mjs','scripts/solidworks-document-manager-credential-probe.cs','scripts/solidworks-document-manager-metadata-exporter.cs',
@@ -450,6 +454,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     env.NODE_OPTIONS+=' --import='+pathToFileURL(tracePath).href;
     manifest.b18DependencyObservation={sourceHash:sha256(traceSource),output:traceOutput,scope:'exact delegated driver query SHA/error code only; parameters and rows omitted',temporaryObserver:tracePath};save();
   }
+  if(gComposite)Object.assign(env,{DEV122_BROWSER_FLOW:'lifecycle',DEV122_BROWSER_LIFECYCLE_PROFILE:'g-01-g-02',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(nativeSelection==='preview-polling-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'preview-polling',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(nativeSelection==='drawing-pdf-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'drawing-pdf-viewer',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(['settings','settings-automation'].includes(suite)) {
@@ -537,8 +542,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
-      sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
+      expectedCaseNames:gComposite?gCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      sourceApplicability:gComposite?'Composite17 exactnative cases and1 independent UI prerequisite; actual UI reported separately':['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
       '--exclude','**/.tmp/**','--exclude','**/output/**',...(suite==='share-metadata'?['--reporter=default']:[]),'--reporter=json','--outputFile='+path.join(evidenceRoot,'vitest.json')],{allowNonzero:true});
@@ -548,7 +553,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     catch(error){throw Object.assign(new Error('DEV122_NATIVE_REPORT_UNREADABLE'),{cause:error,exitCode:nativeExitCode});}
     const assertions=tests.testResults?.flatMap(result=>result.assertionResults)??[];
     const completed=assertions.filter(test=>['passed','failed'].includes(test.status));
-    const expectedDescribe=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
+    const expectedDescribe=gComposite?null:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
     manifest.executedCases=completed.length;
     manifest.cases=completed;manifest.skippedCases=assertions.filter(test=>!['passed','failed'].includes(test.status)).length;
     Object.assign(manifest.nativeSelection,{selected:assertions.filter(test=>test.status!=='pending'&&test.status!=='skipped').length,
@@ -558,7 +563,21 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     const firstFailed=completed.find(test=>test.status==='failed');
     if(firstFailed)manifest.firstFailure={message:firstFailed.failureMessages?.[0]||firstFailed.fullName||firstFailed.title,
       stack:firstFailed.failureMessages?.join('\n')??null,code:null,test:firstFailed.fullName||firstFailed.title};
-    manifest.lifecycleCaseCoverage=evaluateLifecycleCaseCoverage(assertions,{suite,selection:nativeSelection});
+    const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
+    const nativeAssertions=gComposite?assertions.filter(test=>nameOf(test)!==uiPrerequisiteName):assertions;
+    manifest.lifecycleCaseCoverage=evaluateLifecycleCaseCoverage(nativeAssertions,{suite,selection:nativeSelection});
+    if(gComposite) {
+      const setup=assertions.filter(test=>nameOf(test)===uiPrerequisiteName);
+      const nativeCompleted=nativeAssertions.filter(test=>['passed','failed'].includes(test.status));
+      manifest.nativeBusiness.passed=nativeCompleted.filter(test=>test.status==='passed').length;
+      manifest.nativeBusiness.failed=nativeCompleted.filter(test=>test.status==='failed').length;
+      manifest.composite={profile:'g-01-g-02',native:{expected:17,executed:nativeCompleted.length,cases:nativeCompleted},
+        prerequisites:{expected:1,executed:setup.filter(test=>['passed','failed'].includes(test.status)).length,cases:setup},
+        ui:{flow:'lifecycle',profile:'g-01-g-02',fixture:'Independent normal API setup; never native mutation fixtures',production:'NOT_ASSERTED'},
+        totalReportExecutions:completed.length};
+      save();
+      if(setup.length!==1||setup[0].status!=='passed'||completed.length!==18)throw new Error('DEV122_G_COMPOSITE_PREREQUISITE_OR_COUNT_INVALID');
+    }
     save();
     const exactNativeFile=path.join(root,'src/lib/dev122-native-business.postgres-contract.test.ts');
     if(tests.testResults.some(result=>path.resolve(result.name)!==exactNativeFile&&result.assertionResults.some(test=>['passed','failed'].includes(test.status))))throw new Error('DEV122_NATIVE_EXECUTED_SOURCE_PATH_MISMATCH');
@@ -742,12 +761,14 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       if(nextCapFailure)throw nextCapFailure;
       }
     }
+    if(gComposite)manifest.production='NOT_ASSERTED';
     manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:manifest.lifecycleCaseCoverage.partial,
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
     manifest.coverage={partial:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
+    if(gComposite)manifest.coverage={partial:['G-01','G-02'],notRun:['other original29 groups','Production'],acceptanceComplete:false,workerOutputBoundary:'NOT_ASSERTED'};
     }
   } catch(error) {
     manifest.status='FAIL';manifest.runnerFailure={message:error.message,exitCode:error.exitCode??null};
