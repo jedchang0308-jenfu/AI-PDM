@@ -41,6 +41,20 @@ describe("async readonly share audit subject", () => {
     expect(database.queryOne).not.toHaveBeenCalled();
   });
 
+  it("derives PostgreSQL project scope from the server-owned submission row", async () => {
+    const database = client("postgres");
+    const repository = new AsyncReleaseRepository(database);
+    await repository.createReadonlyShare({
+      submissionId: "submission-one", tokenHash: "a".repeat(64), label: "review",
+      expiresAt: "2026-11-01T00:00:00.000Z", createdBy: "profile-one",
+      principalAudit: { principalId: "principal-one", companyId: "company-jenfu" }
+    });
+    const sql = vi.mocked(database.execute).mock.calls[0][0];
+    expect(sql).toContain("project_scope_key")
+    expect(sql).toContain("submission.project_code")
+    expect(sql).not.toContain(":projectScopeKey")
+  });
+
   it("keeps legacy SQLite compatibility without inventing a Principal audit", async () => {
     const database = client("sqlite");
     const repository = new AsyncReleaseRepository(database);

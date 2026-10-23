@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ wor
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/part-change-works/[workId]/submit/route.ts", method: "POST",
-    permissionCode: "numbering.candidate.review.submit", readOnly: false
+    permissionCode: "numbering.candidate.review.submit", resourceGroup: "part", readOnly: false
   }, async (tx, verified) => {
     const { workId } = await params;
     return dev087Success(await new PartChangeWorkService(tx)

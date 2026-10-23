@@ -47,6 +47,15 @@ describe("principal DEV-087 route boundary", () => {
     expect(execute).toHaveBeenCalledWith(tx, verified);
   });
 
+  it("passes a fixed server route target group without changing the declared legacy policy", async () => {
+    const execute = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    const response = await withPrincipalDev087Route(request, "v2-token",
+      { ...input, resourceGroup: "part" }, execute);
+    expect(response.status).toBe(200);
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
+      [{ permissionKind: "action", permissionCode: input.permissionCode, resourceGroup: "part" }]);
+  });
+
   it("does not execute a command when authority denies the exact capability", async () => {
     mocks.evaluate.mockResolvedValueOnce([{
       allowed: false, decisionCode: "permission_not_granted",

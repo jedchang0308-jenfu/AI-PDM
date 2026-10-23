@@ -12,7 +12,7 @@ export function buildPublicShareUrlAsync(request: Request, token: string) {
 }
 
 export async function serializePublicShareAsync(
-  submission: SubmissionDetail, token: string, shareId: string, snapshot: AsyncDatabaseClient
+  submission: SubmissionDetail, token: string, shareId: string, snapshot: AsyncDatabaseClient, canDownload = true
 ) {
   const supplierResponses = await new AsyncReleaseRepository(snapshot)
     .listSupplierPortalResponses({ submissionId: submission.id, shareId });
@@ -38,7 +38,7 @@ export async function serializePublicShareAsync(
           sha256: submission.release_package.sha256,
           file_size: submission.release_package.file_size,
           created_at: submission.release_package.created_at,
-          download_url: `/api/public/shares/${token}/package`
+          download_url: canDownload ? `/api/public/shares/${token}/package` : null
         }
       : null,
     files: submission.files.map((file) => ({

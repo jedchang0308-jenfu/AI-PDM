@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   token: vi.fn(), authMode: vi.fn(), platformMode: vi.fn(), entitlementMode: vi.fn(),
   policy: vi.fn(), verifiedRead: vi.fn(), authorize: vi.fn(), queryOne: vi.fn(),
   storageKey: vi.fn(), readPackage: vi.fn(), storage: vi.fn(), downloadUrl: vi.fn(),
-  audit: vi.fn(), legacyAuth: vi.fn()
+  audit: vi.fn(), legacyAuth: vi.fn(), originals: vi.fn()
 }));
 vi.mock("@/lib/auth-config", () => ({ getAuthMode: mocks.authMode,
   getJenfuPlatformAuthMode: mocks.platformMode }));
@@ -23,6 +23,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicy: mocks.policy }));
 vi.mock("@/lib/principal-submission-access", () => ({ authorizePrincipalSubmissionReadInSnapshot: mocks.authorize }));
+vi.mock('@/lib/principal-submission-file-capability', () => ({ authorizeSubmissionOriginalsInSnapshot: mocks.originals }));
 vi.mock("@/lib/release-package-file", () => ({
   contentDispositionFilename: (name: string) => name,
   createReleasePackageStorageServiceForRecord: mocks.storage,
@@ -53,6 +54,7 @@ const context = { params: Promise.resolve({ id: "submission-1" }) };
 describe("Principal historical release package read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.originals.mockResolvedValue(null);
     mocks.token.mockReturnValue("principal-session");
     mocks.authMode.mockReturnValue("firebase_bff");
     mocks.platformMode.mockReturnValue("on");
@@ -87,6 +89,21 @@ describe("Principal historical release package read", () => {
     mocks.authorize.mockResolvedValue(Response.json({ code: "permission_not_granted" }, { status: 403 }));
     expect((await GET(request(), context)).status).toBe(403);
     expect(mocks.queryOne).not.toHaveBeenCalled();
+    expect(mocks.readPackage).not.toHaveBeenCalled();
+  });
+
+  it('denies download revoked between metadata authorization and storage read', async () => {
+    mocks.originals.mockResolvedValueOnce(null).mockResolvedValueOnce(Response.json({ code: 'permission_not_granted' }, { status: 403 }));
+    expect((await GET(request(), context)).status).toBe(403);
+    expect(mocks.verifiedRead).toHaveBeenCalledTimes(2);
+    expect(mocks.readPackage).not.toHaveBeenCalled();
+  });
+
+  it('rejects a replaced package at fresh delivery readback', async () => {
+    let count = 0;
+    mocks.queryOne.mockImplementation(async (sql: string) => sql.includes('release_packages')
+      ? { ...releasePackage(), id: ++count === 1 ? 'package-1' : 'package-2' } : { status: 'Released' });
+    expect((await GET(request(), context)).status).toBe(409);
     expect(mocks.readPackage).not.toHaveBeenCalled();
   });
 

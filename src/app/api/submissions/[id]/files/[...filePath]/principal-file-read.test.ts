@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   token: vi.fn(), authMode: vi.fn(), platformMode: vi.fn(), entitlementMode: vi.fn(),
   policy: vi.fn(), verifiedRead: vi.fn(), authorize: vi.fn(), fileClient: vi.fn(),
   file: vi.fn(), pointer: vi.fn(), storage: vi.fn(), readObject: vi.fn(),
-  downloadUrl: vi.fn(), audit: vi.fn(), legacyAuth: vi.fn(), legacyFile: vi.fn()
+  downloadUrl: vi.fn(), audit: vi.fn(), legacyAuth: vi.fn(), legacyFile: vi.fn(), originals: vi.fn()
 }));
 
 vi.mock("@/lib/auth-config", () => ({ getAuthMode: mocks.authMode,
@@ -24,6 +24,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicy: mocks.policy }));
 vi.mock("@/lib/principal-submission-access", () => ({ authorizePrincipalSubmissionReadInSnapshot: mocks.authorize }));
+vi.mock('@/lib/principal-submission-file-capability', () => ({ authorizeSubmissionOriginalsInSnapshot: mocks.originals }));
 vi.mock("@/lib/repositories/submission-file-async-repository", () => ({
   AsyncSubmissionFileRepository: class {
     constructor(client: unknown) { mocks.fileClient(client); }
@@ -63,6 +64,7 @@ const context = { params: Promise.resolve({ id: "submission-1", filePath: ["file
 describe("Principal historical submission file read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.originals.mockResolvedValue(null);
     mocks.token.mockReturnValue("principal-session");
     mocks.authMode.mockReturnValue("firebase_bff");
     mocks.platformMode.mockReturnValue("on");
@@ -101,6 +103,19 @@ describe("Principal historical submission file read", () => {
     mocks.authorize.mockResolvedValue(Response.json({ error: "permission_not_granted" }, { status: 403 }));
     expect((await GET(request(), context)).status).toBe(403);
     expect(mocks.file).not.toHaveBeenCalled();
+    expect(mocks.readObject).not.toHaveBeenCalled();
+  });
+
+  it('requires current download for original PDFs, including inline routes', async () => {
+    mocks.originals.mockResolvedValue(Response.json({ code: 'permission_not_granted' }, { status: 403 }));
+    expect((await GET(request(), { params: Promise.resolve({ id: 'submission-1', filePath: ['preview', 'file-1'] }) })).status).toBe(403);
+    expect(mocks.readObject).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the parent and download at delivery and rejects a concurrent revocation', async () => {
+    mocks.originals.mockResolvedValueOnce(null).mockResolvedValueOnce(Response.json({ code: 'permission_not_granted' }, { status: 403 }));
+    expect((await GET(request(), context)).status).toBe(403);
+    expect(mocks.verifiedRead).toHaveBeenCalledTimes(2);
     expect(mocks.readObject).not.toHaveBeenCalled();
   });
 

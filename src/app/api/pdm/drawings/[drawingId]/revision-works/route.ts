@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts", method: "POST",
-    permissionCode: "numbering.workspace.create", readOnly: false
+    permissionCode: "numbering.workspace.create", resourceGroup: "drawing", readOnly: false
   }, async (tx, verified) => {
     const { drawingId } = await params;
     const body = await dev087Json(request);

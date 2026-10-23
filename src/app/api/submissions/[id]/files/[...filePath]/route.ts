@@ -10,6 +10,7 @@ import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { authorizePrincipalSubmissionReadInSnapshot } from "@/lib/principal-submission-access";
 import { AsyncSubmissionFileRepository } from "@/lib/repositories/submission-file-async-repository";
+import { authorizeSubmissionOriginalsInSnapshot } from '@/lib/principal-submission-file-capability';
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const mode = resolveFileRouteMode(filePath);
   if (!mode) return NextResponse.json({ error: "Invalid file route" }, { status: 404 });
   try {
-    const authorized = await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    const readAuthorized = () => withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
       async (snapshot, verified) => {
         const resource = await authorizePrincipalSubmissionReadInSnapshot(snapshot, verified, id);
         if (resource instanceof Response) return resource;
@@ -41,15 +42,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         if (!file) return NextResponse.json({ error: "Submission file not found" }, { status: 404 });
         if (file.submission_id !== id) return NextResponse.json({ code: "principal_dependency_unavailable" },
           { status: 503, headers: { "cache-control": "no-store" } });
+        // Inline PDF is still the original object, so it also requires download.
+        const failure = await authorizeSubmissionOriginalsInSnapshot(snapshot, verified, id, mode.fileId);
+        if (failure) return failure;
         return { file, pointer: storagePointerFromRecord(file),
           principalId: verified.session.principalId, profileId: verified.profile.pdmUserId,
           companyId: resource.company_id };
       });
+    const authorized = await readAuthorized();
     if (authorized instanceof Response) return authorized;
     if (mode.disposition === "inline" && !isPdfFile(authorized.file)) {
       return NextResponse.json({ error: "Only PDF files can be previewed" }, { status: 415 });
     }
     const storage = createFileStorageServiceForPointer(authorized.pointer);
+    const fresh = await readAuthorized();
+    if (fresh instanceof Response) return fresh;
+    if (fresh.file.id !== authorized.file.id || fresh.file.sha256 !== authorized.file.sha256 ||
+        JSON.stringify(fresh.pointer) !== JSON.stringify(authorized.pointer) ||
+        fresh.principalId !== authorized.principalId || fresh.companyId !== authorized.companyId) {
+      return NextResponse.json({ code: 'principal_resource_changed' },
+        { status: 409, headers: { 'cache-control': 'private, no-store' } });
+    }
     let bytes: Buffer;
     try { bytes = await storage.readObject(authorized.pointer.key); }
     catch { return NextResponse.json({ error: "Stored file is missing" }, { status: 404 }); }

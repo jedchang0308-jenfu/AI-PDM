@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "2e43d568be3a25a6cfb097dfd723b4356ec109a76ae94e5b6930aa81bf639f61",
+  "sourceSha256": "01d3923e169b0485956c14d76f33b151a629d0a113b7c5c1db001f0aabc20747",
   "denominator": {
-    "uniqueFiles": 140,
-    "uniqueMethods": 161,
-    "policyEntries": 171
+    "uniqueFiles": 150,
+    "uniqueMethods": 172,
+    "policyEntries": 182
   },
   "entries": [
     {
@@ -850,6 +850,106 @@
       "preservedGuards": "workspace＋role catalog projection"
     },
     {
+      "path": "src/app/api/settings/access/role-policies/applications/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋saved draft/CAS＋OrgMaster compatibility"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/commands/[requestId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋original actor or direct global system_admin＋bounded result"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/preview/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋saved draft revision/hash＋active/compatibility readback"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋exact saved draft projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/save/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋draft revision/hash CAS"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋bounded draft summaries"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋active tuple CAS"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/publications/[catalogVersion]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋immutable publication projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/publications/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋bounded publication summaries"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/workspace/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋current producer/OrgMaster compatibility＋server-owned admission"
+    },
+    {
       "path": "src/app/api/settings/gdrive/folders/route.ts",
       "method": "GET",
       "discriminator": null,
@@ -1650,6 +1750,16 @@
       "preservedGuards": "same-company session, current version and signed impact preview"
     },
     {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact drawing/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
       "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
       "method": "POST",
       "discriminator": null,
@@ -1687,7 +1797,7 @@
       "permissionCode": "numbering.attachments.manage",
       "authorizationTarget": "numbering.attachments.manage",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+      "preservedGuards": "verified Principal/company; exact part; registry-validated category→part/model; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
     },
     {
       "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",

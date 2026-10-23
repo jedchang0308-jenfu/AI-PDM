@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ bra
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route.ts",
-    method: "POST", permissionCode: "numbering.draft.obsolete", readOnly: false
+    method: "POST", permissionCode: "numbering.draft.obsolete", resourceGroup: "drawing", readOnly: false
   }, async (tx, verified) => {
     const { branchId } = await params;
     const body = await dev087Json(request);

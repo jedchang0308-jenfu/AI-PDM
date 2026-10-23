@@ -18,8 +18,11 @@ const output = { kind: "thumbnail_png" as const, fileName: "preview.png", mimeTy
 const claim = () => claimPreviewJobAsync(client, { leaseProtocolVersion: 2, workerId: "worker-one",
   supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] });
 const source = () => ({ ...database.prepare("SELECT * FROM file_assets").get() as object, company_id: "company-one" }) as Parameters<typeof enqueuePreviewJobForSourceAsync>[1]["source"];
+const initiator = { kind: "verified_principal" as const, principalId: "principal-one", employeeId: "employee-one",
+  pdmUserId: "profile-one", companyId: "company-one", identityIssuer: "test", identitySubject: "worker-fixture",
+  profileVersion: 1, accountLifecycleVersion: 1, authEpoch: 0, authenticatedAt: basis.lockedAt, sessionIssuedAt: basis.lockedAt };
 const enqueue = (forceRegenerate = false) => enqueuePreviewJobForSourceAsync(client,
-  { source: source(), actorUserId: "profile-one", initiatorPrincipalId: "principal-one", forceRegenerate });
+  { source: source(), actorUserId: "profile-one", principalInitiator: initiator, forceRegenerate });
 const snapshot = () => JSON.stringify({ jobs: database.prepare("SELECT * FROM preview_jobs").all(),
   source: database.prepare("SELECT * FROM file_assets").all(), derivatives: database.prepare("SELECT * FROM file_derivatives").all() });
 beforeEach(() => {
@@ -28,6 +31,12 @@ beforeEach(() => {
   database = new Database(":memory:");
   database.exec(`
     CREATE TABLE drawing_revisions (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
+    CREATE TABLE drawing_revision_files (id TEXT PRIMARY KEY, company_id TEXT NOT NULL,
+      drawing_revision_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL, removed_at TEXT,
+      role TEXT, sort_order INTEGER);
+    CREATE TABLE numbering_candidate_revision_files (id TEXT PRIMARY KEY, company_id TEXT NOT NULL,
+      candidate_revision_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL, removed_at TEXT,
+      role TEXT, sort_order INTEGER);
     CREATE TABLE numbering_candidate_revision_drafts (id TEXT PRIMARY KEY, company_id TEXT);
     CREATE TABLE drawing_numbers (id TEXT PRIMARY KEY, company_id TEXT);
     CREATE TABLE part_numbers (id TEXT PRIMARY KEY, company_id TEXT);
@@ -43,6 +52,8 @@ beforeEach(() => {
       file_size INTEGER, content_hash TEXT, hash_algorithm TEXT, width INTEGER, height INTEGER, page_count INTEGER,
       generator_profile TEXT, generator_version TEXT, preview_job_id TEXT, status TEXT, created_at TEXT, created_by_worker TEXT, metadata_json TEXT);
     INSERT INTO drawing_revisions VALUES ('revision-one','company-one');
+    INSERT INTO drawing_revision_files VALUES
+      ('binding-one','company-one','revision-one','asset-one',NULL,'drawing_2d',1);
     INSERT INTO file_assets VALUES ('asset-one','drawing_revision','revision-one',NULL,'local_repository','source/one',NULL,
       'drawing.slddrw','slddrw','application/octet-stream',10,'${hash}','SHA-256');
   `);
@@ -135,7 +146,7 @@ describe("full generation fences on actual SQLite SQL (not PostgreSQL proof)", (
   });
   it("rejects the fake environment and explicit fake producer before any database effects", async () => {
     const before = snapshot();
-    await expect(enqueuePreviewJobForSourceAsync(client, { source: source(), actorUserId: "profile-one", runFakeWorker: true }))
+    await expect(enqueuePreviewJobForSourceAsync(client, { source: source(), actorUserId: "profile-one", principalInitiator: initiator, runFakeWorker: true }))
       .rejects.toThrow("LOCAL_FAKE_PREVIEW_WORKER_RETIRED");
     vi.stubEnv("PDM_LOCAL_FAKE_PREVIEW_WORKER", "1");
     await expect(ensureAutomaticPreviewJobsForSourceAssetsAsync(client, { companyId: "company-one", sourceFileAssetIds: ["asset-one"], actorUserId: "profile-one" }))

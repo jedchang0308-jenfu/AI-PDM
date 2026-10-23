@@ -40,7 +40,8 @@ export async function GET(request: Request) {
       if (companyResult.response) return companyResult.response;
       const rows = await new AsyncSubmissionListRepository(snapshot).listSubmissions({
         status, submittedBy: scope.submittedBy, companyId: companyResult.company.companyId,
-        limit: limit + 1, offset, includeHistory
+        limit: limit + 1, offset, includeHistory,
+        ...(scope.visibleSubmissionIds !== undefined ? { visibleSubmissionIds: scope.visibleSubmissionIds } : {})
       });
       const submissions = rows.slice(0, limit);
       return NextResponse.json({
@@ -48,7 +49,8 @@ export async function GET(request: Request) {
         pagination: { limit, offset, count: submissions.length,
           hasMore: rows.length > limit, nextOffset: offset + submissions.length },
         metrics: await new AsyncDashboardRepository(snapshot).getDashboardMetrics({
-          submittedBy: scope.submittedBy, companyId: companyResult.company.companyId
+          submittedBy: scope.submittedBy, companyId: companyResult.company.companyId,
+          ...(scope.visibleSubmissionIds !== undefined ? { visibleSubmissionIds: scope.visibleSubmissionIds } : {})
         }),
         historicalReadOnly: true
       }, { headers: { "cache-control": "private, no-store" } });

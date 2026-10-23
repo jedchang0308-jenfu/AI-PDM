@@ -44,10 +44,10 @@ export type ResolvedDrawingPreview = {
 export async function resolveDrawingPreviewAsync(
   client: AsyncDatabaseClient,
   source: DrawingPreviewSource,
-  options: { derivativeId?: string | null } = {}
+  options: { derivativeId?: string | null; requireDerivative?: boolean } = {}
 ): Promise<ResolvedDrawingPreview | null> {
   const mimeType = normalizeMediaType(source.mime_type);
-  if (mimeType === "application/pdf" || mimeType.startsWith("image/")) {
+  if (!options.requireDerivative && (mimeType === "application/pdf" || mimeType.startsWith("image/"))) {
     return { record: source, fileName: source.file_name || "圖面附件", mimeType: mimeType || drawingPreviewMimeType(source.file_ext) };
   }
 

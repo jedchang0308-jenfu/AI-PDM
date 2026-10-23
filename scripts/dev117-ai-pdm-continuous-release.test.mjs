@@ -8,6 +8,7 @@ import { assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConf
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
+import { migrationDispositionFromStageResult } from './dev117-ai-pdm-continuous-release.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
@@ -312,8 +313,8 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-18).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085'])
+  assert.deepEqual(bundle.bundle.entries.slice(-21).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088'])
   assert.deepEqual(profile.migrations.entries[29], { order: 30,
     path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
     sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })
@@ -334,6 +335,15 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   assert.deepEqual(profile.migrations.entries[34], { order: 35,
     path: 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
     sha256: '308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba' })
+  assert.deepEqual(profile.migrations.entries[35], { order: 36,
+    path: 'db/postgres/086_dev123_role_policy_editor_v1.sql',
+    sha256: '015749244315fb25e362770fc0a18bdab051655434b29a4d2a7cdc684345359f' })
+  assert.deepEqual(profile.migrations.entries[36], { order: 37,
+    path: 'db/postgres/087_dev123_role_policy_candidate_validation.sql',
+    sha256: 'ce9e3dfd8591e106788faf23bbfdcbcdd6cdf00c4c4aa299e6cfe9f99a9406d6' })
+  assert.deepEqual(profile.migrations.entries[37], { order: 38,
+    path: 'db/postgres/088_dev123_recognition_job_authority.sql',
+    sha256: '16f1a1b4655afc493ebdcb724e7a1c3bd239d9f34c581845e2de49b419728f83' })
   const insertedBeforeApplied = structuredClone(profile)
   insertedBeforeApplied.migrations.entries.splice(27, 0, insertedBeforeApplied.migrations.entries.pop())
   assert.throws(() => assertDev117V3Profile(insertedBeforeApplied, v1, n1c), { code: 'MIGRATION_MANIFEST_DRIFT' })
@@ -370,9 +380,21 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
   const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
+  const historicalGate = "        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}"
+  const oldAppliedGate = "        if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
+  const cli = readText('scripts/dev117-ai-pdm-continuous-release.mjs')
+  assert.equal(source.split(historicalGate).length - 1, 13)
+  assert.equal(source.split(oldAppliedGate).length - 1, 0)
+  assert.match(cli, /migration_disposition=\$\{migrationDisposition\}/u)
+  assert.equal(migrationDispositionFromStageResult({ value: { facts: { disposition: 'HISTORICAL_EVIDENCE_REUSED' } } }), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(migrationDispositionFromStageResult({ value: { facts: { disposition: 'FORWARD_APPLIED' } } }), 'FORWARD_APPLIED')
+  assert.throws(() => migrationDispositionFromStageResult({ value: { facts: {} } }), { code: 'MIGRATION_DISPOSITION_INVALID' })
   assert.match(fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/locals.tf', import.meta.url), 'utf8'), /github_rd_permission_readback_ref/u)
   const duplicateSourceTest = source.replace('      - run: npm ci', '      - run: npm ci\n      - run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner')
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(duplicateSourceTest, wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(historicalGate, oldAppliedGate), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'UNKNOWN'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, ', 'permissions: { '), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(/          GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\r?\n(?=          GOOGLE_OAUTH_ACCESS_TOKEN:)/u, ''), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })

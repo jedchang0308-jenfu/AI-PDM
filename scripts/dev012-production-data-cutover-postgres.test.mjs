@@ -64,7 +64,7 @@ test('DEV121 Principal precision, lifecycle, settings actor and submission-share
   const reports = result.stdout.trim().split(/\r?\n/u).filter(line => line.startsWith('{')).map(line => JSON.parse(line))
   const report = reports.find(item => item.status === 'PASS')
   assert.ok(report, 'the actual consumer/native PG regression must execute; no skip or mocked PASS')
-  assert.equal(report.checks.length,21)
+  assert.equal(report.checks.length,22)
   assert.equal(report.settingsProviderMocked,true)
   assert.equal(report.shareManagementRoutesActual,true)
   assert.equal(report.shareResourceFixtureSynthetic,true)

@@ -85,7 +85,7 @@ describe("principal DEV-087 decision route", () => {
     expect(mocks.withVerified).toHaveBeenCalledWith({ token: expect.any(String) },
       expect.any(Function), { readOnly: false, isolationLevel: "serializable" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
-      [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+      [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" }]);
     expect(mocks.decidePart).toHaveBeenCalledWith("review-one", "approve", verified,
       expect.objectContaining({ expectedRowVersion: 1, idempotencyKey: "decision-one" }));
     expect(mocks.legacyActor).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe("principal DEV-087 decision route", () => {
     expect((await POST(request(), params)).status).toBe(200);
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.objectContaining({
       session: expect.objectContaining({ assuranceLevel: "aal1" })
-    }), [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+    }), [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" }]);
     expect(mocks.decidePart).toHaveBeenCalledOnce();
     mocks.getReview.mockResolvedValueOnce({ requestKind: "part_change", reviewerUserId: "other-profile" });
     expect((await POST(request(), params)).status).toBe(404);
@@ -138,7 +138,7 @@ describe("principal DEV-087 decision route", () => {
     expect(mocks.decidePart).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
-  it("denies RD approval before review lookup, receipt replay or any writer", async () => {
+  it("denies approval after resolving the target and before contract use, receipt replay or any writer", async () => {
     const rd = catalog.roles.find(role => role.roleCode === "rd")!;
     mocks.evaluate.mockImplementation(async (_tx, _verified, permissions) => permissions.map(
       ({ permissionCode, permissionKind }: { permissionCode: string; permissionKind: string }) => {
@@ -150,7 +150,9 @@ describe("principal DEV-087 decision route", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "permission_not_granted" });
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect(mocks.getReview).toHaveBeenCalledOnce();
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
+      [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" }]);
     expect(mocks.verifyContract).not.toHaveBeenCalled();
     expect(mocks.replay).not.toHaveBeenCalled();
     expect(mocks.decidePart).not.toHaveBeenCalled();

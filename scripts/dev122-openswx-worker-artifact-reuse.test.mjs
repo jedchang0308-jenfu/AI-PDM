@@ -58,7 +58,16 @@ beforeEach(context => {
 const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.repeat(40), currentRevision = 'b'.repeat(40)
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
 const actualTree = git(['ls-tree', '-r', '-z', '--full-tree', 'HEAD']), cache = new Map()
-function canonicalSource(name) { if (!cache.has(name)) cache.set(name, git(['show', `HEAD:${name}`])); return cache.get(name) }
+const currentReleaseProfilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
+const currentReleaseMigrationPaths = new Set([
+  'db/postgres/086_dev123_role_policy_editor_v1.sql',
+  'db/postgres/087_dev123_role_policy_candidate_validation.sql',
+  'db/postgres/088_dev123_recognition_job_authority.sql',
+])
+function canonicalSource(name) {
+  if (!cache.has(name)) cache.set(name, name === currentReleaseProfilePath || currentReleaseMigrationPaths.has(name) ? readFileSync(path.join(root, name)) : git(['show', `HEAD:${name}`]))
+  return cache.get(name)
+}
 const profileBytes = canonicalSource(WORKER_PROFILE_PATH), profile = JSON.parse(profileBytes)
 const historicalProfileBytes = Buffer.from(profileBytes.toString('utf8').replace('"ownerDeadlineSeconds": 1200', '"ownerDeadlineSeconds": 600'))
 const historicalProfile = JSON.parse(historicalProfileBytes)
@@ -1086,7 +1095,7 @@ const b35Bundles = deriveProgramOnlyBundles({ profile: b35AppProfile, full: b35F
 test('current genuine Git v7 profile cannot borrow the historical B35 program-only fixture', () => {
   const full = buildDev117MigrationBundle(currentAppProfile, buildDev117MigrationPackage(currentAppProfile,
     JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), currentRevision)
-  assert.equal(full.bundle.entries.length, 35)
+  assert.equal(full.bundle.entries.length, 38)
   assert.throws(() => deriveProgramOnlyBundles({ profile: currentAppProfile, full }), /PROGRAM_ONLY/u)
 })
 test('program-only validation treats an admitted predecessor revision as historical even when profile bytes match', () => {
@@ -2282,7 +2291,7 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   assert.equal(basis.migrationMode,'FORWARD_APPLIED')
   assert.equal(basis.history.source.content.migrations.entries.length,34)
   assert.equal(basis.history.installed.bundle.entries.length,33)
-  assert.equal(basis.current.bundle.entries.length,35)
+  assert.equal(basis.current.bundle.entries.length,38)
   assert.equal(basis.prerequisite,null)
   noMutation({...f.h,calls:f.h.calls.slice(calls)})
 })
@@ -2335,7 +2344,7 @@ test('RD current program-only serving continues daily bootstrap, full evidence a
   assert.ok(!f.h.calls.some(row=>/:addVersion|cloudbuild.*POST/u.test(row.url)))
 })
 
-test('RD daily keeps historical program-only 34 separate from genuine current 35 source',async()=>{
+test('RD daily keeps historical program-only 34 separate from genuine current 38 source',async()=>{
   const f=await rdProgramOnlyServingFixture(),original=f.wire.readSource
   const reader=(name,revision)=>name==='config/release/dev117-ai-pdm-independent-production-v3.json'&&revision===currentRevision?Buffer.from(JSON.stringify(appProfile)+'\n'):original(name,revision)
   Object.assign(reader,original)
@@ -2712,7 +2721,7 @@ function historyIssuerFixture(h, legacyReader, predecessorInput, predecessorInpu
   const archive=Buffer.concat([pax,tar(rows)]),releaseId='DEV121-HISTORY-LOCAL-ISSUER'
   const issuerAppProfile=JSON.parse(files.get('config/release/dev117-ai-pdm-independent-production-v3.json').bytes)
   const bundle=buildDev117MigrationBundle(issuerAppProfile,buildDev117MigrationPackage(issuerAppProfile,JSON.parse(files.get('config/platform/dev-010-n1c-ai-pdm.json').bytes)),revision)
-  assert.equal(bundle.bundle.entries.length,35)
+  assert.equal(bundle.bundle.entries.length,38)
   for(const entry of bundle.bundle.entries)assert.equal(sha256(files.get(entry.path).bytes),entry.sourceSha256)
   const lock={...sourceLock(revision,tree,releaseId),migrationManifestSha256:bundle.bundle.manifestSha256,observedAt:new Date(Date.now()-2000).toISOString()}
   const sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
@@ -2882,7 +2891,7 @@ test('native history basis preserves the eight-transition boundary and admits th
     const graph=await readAiPdmObservationInputs(proof)
     assert.equal(graph.intent.migrationManifestSha256,issuer.bundle.bundle.manifestSha256)
     assert.equal(graph.sourceLock.value.migrationManifestSha256,issuer.bundle.bundle.manifestSha256)
-    assert.equal(graph.bundle.bundle.entries.length,35)
+    assert.equal(graph.bundle.bundle.entries.length,38)
     for(const entry of graph.bundle.bundle.entries)assert.equal(sha256(graph.content.files.get(entry.path)),entry.sourceSha256)
     // The same qualified v4 root must reject each poisoned raw v4 descriptor,
     // not merely reject a legacy v1 pause shape before reaching its reference.

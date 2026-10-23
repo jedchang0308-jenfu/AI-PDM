@@ -30,16 +30,20 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
     const decision = validateDev087ReviewDecision(body.decision);
     const context = dev087CommandContext(request);
     return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (tx, verified) => {
+      const companyId = verified.profile.companyId;
+      const item = await new PdmWorkReviewAsyncRepository(tx).get(tx, { companyId, requestId });
+      const resourceGroup = item?.requestKind === "part_change" ? "part" as const
+        : item?.requestKind === "drawing_revision" || item?.requestKind === "drawing_rd_void"
+          ? "drawing" as const : undefined;
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified,
-        [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+        [{ permissionKind: "action", permissionCode: "approval.request.decide",
+          ...(resourceGroup ? { resourceGroup } : {}) }]);
       if (decisions.length !== 1 || !decisions[0] || !decisions[0].allowed) {
         return jenfuEntitlementFailureResponse(decisions[0]?.decisionCode ?? "permission_not_granted");
       }
-      const companyId = verified.profile.companyId;
       await verifyCanonicalWorkbenchCommandContract(tx, {
         companyId, actorId: verified.profile.pdmUserId, token: context.contractToken
       });
-      const item = await new PdmWorkReviewAsyncRepository(tx).get(tx, { companyId, requestId });
       if (!item) {
         // A completed decision deletes its pending request. Recheck the exact
         // principal receipt before deciding this is an unknown request.

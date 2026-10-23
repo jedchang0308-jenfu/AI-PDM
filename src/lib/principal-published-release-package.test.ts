@@ -26,6 +26,7 @@ vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicy: mo
 vi.mock("@/lib/principal-release-package-delivery", () => ({
   deliverPrincipalReleasePackage: mocks.delivery
 }));
+vi.mock('@/lib/principal-submission-file-capability', () => ({ authorizeSubmissionOriginalsInSnapshot: vi.fn(async () => null) }));
 
 import { GET as handoffPackage } from "@/app/api/handoff/[id]/release-package/route";
 import { GET as procurementPackage } from "@/app/api/integrations/procurement/releases/[id]/package/route";
@@ -88,7 +89,7 @@ describe("published package Principal access", () => {
       route.path.replace(/^src\/app/u, "").replace(/\/route\.ts$/u, ""), {
         releasePackage: { id: "package-1", submission_id: "submission-1" },
         principalId: "principal-1", profileId: "profile-1", companyId: "company-1"
-      });
+      }, expect.any(Function));
   });
 
   it.each(routes)("fails closed on denied $code before resource or storage", async (route) => {

@@ -460,13 +460,32 @@ async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha25
   const result = await transport.readJson(intentRef, profile.artifact.releaseBucket, ['receipts'])
   const workflowAuthority = ownerWorkflowAuthority(profile, result.value, environment, { stage, migrationOnlyWorkflowPath })
   const releaseMode = classifyReleaseMode({ intent: result.value, executionMode: workflowAuthority.executionMode, cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover' })
+  const fullOwnerAppliedContinuation = environment.PDM_ENFORCE_DAILY_MODE_BOUNDARY === 'true'
+    && workflowAuthority.executionMode === 'full_release'
+    && workflowAuthority.workerPurpose === 'full'
+    && environment.GITHUB_WORKFLOW_REF === workflowAuthority.expectedWorkflowRef
+    && workflowAuthority.appliedContinuationRelease === false
+    && Object.hasOwn(result.value ?? {}, 'appliedMigrationContinuation')
+    && !result.value?.programOnlyBaseline
+    && !result.value?.unlinkedProfileCleanupRef
+    && environment.PDM_RELEASE_MODE !== 'one_time_cutover'
   if (environment.PDM_ENFORCE_DAILY_MODE_BOUNDARY === 'true') {
     const requiredWorkflowRef = `${profile.application.repository}/${profile.workflow.path}@refs/heads/${profile.application.branch}`
-    assertDailyReleaseMode({ mode: releaseMode, workflowRef: environment.GITHUB_WORKFLOW_REF, requiredWorkflowRef })
+    assertDailyReleaseMode({ mode: fullOwnerAppliedContinuation ? 'full_release' : releaseMode, workflowRef: environment.GITHUB_WORKFLOW_REF, requiredWorkflowRef })
   }
   if (validateIntent) validateIntent(result.value, profile)
   const intent = assertIntentBase(result.value, profile, intentRef, capsuleSha256)
-  return { intent, intentRef, intentReadback: result, paths: releasePaths(profile, intent, capsuleSha256), releaseMode, workflowAuthority }
+  const paths = releasePaths(profile, intent, capsuleSha256)
+  if (fullOwnerAppliedContinuation && stage === 'prepare') {
+    const [prepared, admission] = await Promise.all([
+      optionalNamedJson(transport, paths.prepare, profile),
+      optionalMigrationAdmission(transport, paths, profile, intent),
+    ])
+    if (!prepared || !admission) fail('APPLIED_CONTINUATION_PRIOR_MIGRATION_REQUIRED')
+    assertStage(prepared.value, profile, intent, 'prepare')
+    assertPreparedReleaseEvidence(prepared, profile, intent, releaseMode)
+  }
+  return { intent, intentRef, intentReadback: result, paths, releaseMode, workflowAuthority, fullOwnerAppliedContinuation }
 }
 
 export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now, candidate = null, nextState = null }) {
@@ -631,6 +650,16 @@ async function readAppliedMigrationEvidence({ binding, currentIntent, profile, t
     files = new Map([[profilePath, readSource(profilePath, currentIntent.sourceRevision)],
       ...installed.bundle.entries.map(row => [row.path, readSource(row.path, currentIntent.sourceRevision)])])
   } catch { fail('APPLIED_MIGRATION_CONTINUATION_SOURCE_INVALID') }
+  // This is a historical migration projection, not a replacement source artifact.
+  // Match every retained source hash before selecting its declaration from the
+  // current profile. The full current bundle is validated separately below.
+  const declaredProfile = JSON.parse(files.get(profilePath).toString('utf8'))
+  const declaredEntries = declaredProfile?.migrations?.entries
+  const installedEntries = installed.bundle.entries.map(({ order, path, sourceSha256 }) => ({ order, path, sha256: sourceSha256 }))
+  if (!Array.isArray(declaredEntries) || canonicalize(declaredEntries.slice(0, installedEntries.length)) !== canonicalize(installedEntries)) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
+  if (declaredEntries.length !== installedEntries.length) {
+    files.set(profilePath, Buffer.from(canonicalize({ ...declaredProfile, migrations: { ...declaredProfile.migrations, entries: installedEntries } })))
+  }
   const content = assertAiPdmMigrationContent({ files, bundle: installed.bundle, sourceRevision: binding.sourceRevision, deadlineAt: currentIntent.deadlineAt })
   const history = createAiPdmMigrationHistory({ sourceRevision: binding.sourceRevision, intentRef, deploymentRef: deployment.ref, candidateRef: null,
     content, receiptRef: migrate.ref, receipt: migrate.value, bundleRef, bundle: installed.bundle, bundleBytes: bundleRow.bytes })
@@ -653,7 +682,7 @@ export async function readAppliedMigrationContinuationHistory({ intent, profile,
     sourceVerification: async readbackIntent => {
       if (typeof buildMigrationBundle !== 'function') fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
       return assertAppliedMigrationReadbackSource({ readbackIntent, profile,
-        fullMigration: await buildMigrationBundle(readbackIntent.runnerSourceRevision), root: repositoryRoot,
+        fullMigration: await buildMigrationBundle(readbackIntent.runnerSourceRevision), installedBundle: history.installed.bundle, root: repositoryRoot,
         ancestorRunner: isAncestor, compatibilityRunner })
     } })
   return history
@@ -753,7 +782,7 @@ async function repairPrerequisite({ basis, transport, paths, profile, intent, in
 }
 async function validateRepairMigration({ basis, transport, paths, profile, intent, intentRef, deployment, receipt }) {
   if (basis.migrationMode === 'FORWARD_APPLIED') {
-    assertMigration(receipt.value, 'ai-pdm', profile.migrations, intent.sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef, intent.principalOnlyFenceRef ?? null)
+    assertMigration(receipt.value, 'ai-pdm', profile.migrations, intent.sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef, requiresPrincipalOnlyMigrationFence(intent) ? intent.principalOnlyFenceRef : null)
     if (receipt.value.ledgerCount !== basis.current.bundle.entries.length || receipt.value.baselineCount !== basis.current.bundle.baselineCount ||
         Date.parse(receipt.value.completedAt) > Date.parse(intent.deadlineAt)) fail('MIGRATION_RECEIPT_INVALID')
     const bundle = await transport.readBytes(deployment.value.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: deployment.value.migrationBundleRef.sha256 })
@@ -817,7 +846,7 @@ async function readCleanupMigrationBundle({ transport, deployment, intent, profi
 
 export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
-  const { intent, intentRef, paths, releaseMode, workflowAuthority } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
+  const { intent, intentRef, paths, releaseMode, workflowAuthority, fullOwnerAppliedContinuation } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
   // One-time cutover is an explicit workflow responsibility. Ordinary full,
   // build-only, program-only and recovery paths retain the historical fact but
   // do not re-parse its raw handoff receipts on every release stage.
@@ -904,6 +933,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       executionMode: workflowAuthority.executionMode,
       workflowRef: environment.GITHUB_WORKFLOW_REF,
       requiredWorkflowRef,
+      dailyAdmissionMode: fullOwnerAppliedContinuation ? 'full_release' : null,
       cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover',
       now: transport.now(),
     })
@@ -1070,7 +1100,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       assertAiPdmMigrationBundleBytes({ bytes: bundle.bytes, bundle: repair.current.bundle, sourceRevision: intent.sourceRevision, ref: deployment.value.migrationBundleRef })
     }
     if (!existing) await transport.runMigrationJob({ profile, deployment: deployment.value,
-      principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null,
+      principalOnlyFenceRef: requiresPrincipalOnlyMigrationFence(intent) ? intent.principalOnlyFenceRef : null,
       outputUri: paths.migrate, deadlineAt: intent.deadlineAt })
     const receipt = existing ?? await readNamedJson(transport, paths.migrate, profile)
     if (repair) {
@@ -1220,7 +1250,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   const submission = migrationAdmission || migration ? null : await optionalNamedJson(transport, migrationSubmissionIntentUri(profile, migrationOutputUri), profile)
   if (submission) {
     const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
-    assertMigrationSubmissionIntent(submission.value, { profile, deployment: deployment.value, outputUri: migrationOutputUri, deadlineAt: intent.deadlineAt, principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null })
+    assertMigrationSubmissionIntent(submission.value, { profile, deployment: deployment.value, outputUri: migrationOutputUri, deadlineAt: intent.deadlineAt, principalOnlyFenceRef: requiresPrincipalOnlyMigrationFence(intent) ? intent.principalOnlyFenceRef : null })
   }
   const databaseDisposition = migrationAdmission ? migrationAdmission.value.facts.disposition : migration ? programPolicy ? PROGRAM_ONLY_DISPOSITION : repair?.migrationMode ?? 'FORWARD_APPLIED' : submission ? 'UNKNOWN' : 'NOT_APPLIED'
   const migrationEvidence = migrationAdmission ? { migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migrationAdmission.value.facts.migrationReceiptRef, ...(databaseDisposition === PROGRAM_ONLY_DISPOSITION ? { currentDatabaseReadPerformed: true } : {}) } : migration && programPolicy ? { migrationEvidenceRef: migration.ref, currentDatabaseReadPerformed: true } : migration && repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? { migrationEvidenceRef: migration.ref } : submission ? { migrationSubmissionIntentRef: submission.ref, ...(programPolicy ? { currentDatabaseReadPerformed: false } : {}) } : programPolicy ? { currentDatabaseReadPerformed: false } : {}

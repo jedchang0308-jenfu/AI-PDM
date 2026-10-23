@@ -72,6 +72,7 @@ function normalizeReadonlyShare(row: ReadonlyShareRow): ReadonlyShare {
     id: row.id,
     submission_id: row.submission_id,
     label: row.label,
+    project_scope_key: row.project_scope_key ?? null,
     expires_at: row.expires_at,
     created_by: row.created_by,
     created_by_name: row.created_by_name ?? row.created_by,

@@ -4,6 +4,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { canonicalJsonStringify } from "@/lib/canonical-json";
 import { PUBLICATION_EVIDENCE_RULE_VERSION } from "@/lib/publication-evidence";
 import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
+import type { PrincipalJobInitiator } from "@/lib/principal-job-authority";
 import {
   buildRevisionPolicySnapshot,
   createRevisionSuggestion,
@@ -578,7 +579,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     companyId: string;
     candidateRevisionId: string;
     actorId: string;
-    initiatorPrincipalId?: string;
+    principalInitiator?: PrincipalJobInitiator;
     expectedRowVersion: number;
     storage: CandidateFileStorageInput;
   }) {
@@ -701,7 +702,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     );
     try {
       const extension = input.storage.fileExt.trim().toLowerCase().replace(/^\./u, "");
-      if (["sldprt", "sldasm", "slddrw"].includes(extension)) {
+      if (["sldprt", "sldasm", "slddrw"].includes(extension) && input.principalInitiator) {
         await enqueuePreviewJobForSourceAsync(this.client, {
           source: {
             id: input.storage.assetId,
@@ -716,10 +717,12 @@ export class AsyncNumberLifecycleSimplificationRepository {
             content_hash: input.storage.contentHash,
             hash_algorithm: "SHA-256",
             linked_entity_type: "numbering_candidate_revision",
-            linked_entity_id: input.candidateRevisionId
+            linked_entity_id: input.candidateRevisionId,
+            document_category: input.storage.role,
+            capability_role: input.storage.role
           },
           actorUserId: input.actorId,
-          initiatorPrincipalId: input.initiatorPrincipalId,
+          principalInitiator: input.principalInitiator,
           requestedKind: requestedPreviewKindForSource(extension),
           generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
           runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"

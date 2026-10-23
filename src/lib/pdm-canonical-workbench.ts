@@ -41,7 +41,7 @@ type CanonicalPreviewJob = {
 export class PdmCanonicalWorkbenchService {
   constructor(
     private readonly client: AsyncDatabaseClient = getAsyncDatabaseClient(),
-    private readonly options: { queuePreviewJobs?: boolean } = {}
+    _options: { queuePreviewJobs?: boolean } = {}
   ) {}
 
   async list(url: URL, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor): Promise<CanonicalWorkbenchListDto> {
@@ -221,13 +221,6 @@ export class PdmCanonicalWorkbenchService {
     }));
     if (!sources.length) return emptyPreviewSlots();
     const assetIds = sources.map((source) => source.assetId);
-    if (this.options.queuePreviewJobs !== false) {
-      await ensureAutomaticPreviewJobsForSourceAssetsAsync(this.client, {
-        companyId: actor.companyId,
-        sourceFileAssetIds: assetIds,
-        actorUserId: actor.id
-      });
-    }
     const derivatives = await this.previewDerivatives(actor.companyId, assetIds);
     const jobs = await this.previewJobs(actor.companyId, assetIds);
     const readContext = record.entityType === "drawing" && record.dataLayer === "drawing_rd"

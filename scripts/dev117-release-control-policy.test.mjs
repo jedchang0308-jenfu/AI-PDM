@@ -64,3 +64,22 @@ test('the second failure in the same family requests AI COO review without becom
     family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'TRIGGER_AI_COO_REVIEW',
   })
 })
+
+test('admitted applied continuation keeps its special model and all daily evidence protections', () => {
+  const requiredWorkflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main'
+  const input = { intent: { ...intent, appliedMigrationContinuation: {} }, source, receipts,
+    dailyAdmissionMode: 'full_release', workflowRef: requiredWorkflowRef, requiredWorkflowRef,
+    now: '2026-10-23T00:00:00.000Z' }
+  assert.equal(normalizeReleaseEvidence(input).mode, 'special_recovery')
+  assert.throws(() => normalizeReleaseEvidence({ ...input, workflowRef: requiredWorkflowRef.replace('/main', '/other') }),
+    /DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID/u)
+  assert.throws(() => normalizeReleaseEvidence({ ...input, receipts: { ...receipts, sourceLock: { ...receipts.sourceLock, evidenceScope: 'LOCAL_TEST' } } }),
+    /RELEASE_EVIDENCE_SCOPE_INVALID/u)
+  assert.throws(() => normalizeReleaseEvidence({ ...input, source: { ...source, sourceSha256: '0'.repeat(64) } }),
+    /RELEASE_EVIDENCE_SOURCE_JOIN_INVALID/u)
+  assert.throws(() => normalizeReleaseEvidence({ ...input, now: intent.deadlineAt }), /RELEASE_EVIDENCE_DEADLINE_EXPIRED/u)
+  for (const change of [{ requiredWorkflowRef: null }, { executionMode: 'build_only' }, { cutover: true },
+    { intent }, { intent: { ...input.intent, programOnlyBaseline: {} } }, { intent: { ...input.intent, unlinkedProfileCleanupRef: {} } }]) {
+    assert.throws(() => normalizeReleaseEvidence({ ...input, ...change }), /RELEASE_EVIDENCE_DAILY_ADMISSION_INVALID/u)
+  }
+})

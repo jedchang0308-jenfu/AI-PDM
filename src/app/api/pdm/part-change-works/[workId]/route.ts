@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/part-change-works/[workId]/route.ts", method: "GET",
-    permissionCode: "numbering.workspace.view", readOnly: true
+    permissionCode: "numbering.workspace.view", resourceGroup: "part", readOnly: true
   }, async (tx, verified) => {
     const { workId } = await params;
     return Response.json(await new PartChangeWorkService(tx).readPrincipal(workId, verified),
@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wo
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/part-change-works/[workId]/route.ts", method: "PATCH",
-    permissionCode: "numbering.workspace.update", readOnly: false
+    permissionCode: "numbering.workspace.update", resourceGroup: "part", readOnly: false
   }, async (tx, verified) => {
     const { workId } = await params;
     return dev087Success(await new PartChangeWorkService(tx).updatePrincipal(

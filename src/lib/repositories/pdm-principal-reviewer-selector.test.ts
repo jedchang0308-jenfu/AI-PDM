@@ -176,3 +176,51 @@ describe("release reviewer published capability", () => {
       expect.objectContaining({ permissionCode: "numbering.publish" })]), expect.any(Date));
   });
 });
+
+
+describe("DEV-123 dynamic reviewer capability", () => {
+  it("nominates a scoped custom drawing reviewer without requiring unrelated review actions or a fixed role name", async () => {
+    mocks.priority.mockResolvedValue(["rd_manager", "pdm_admin"]);
+    mocks.catalog.mockResolvedValue({
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000030",
+      roles: [{ roleCode: "custom_drawing_review" }]
+    });
+    mocks.entitlement.mockImplementation(async (requests: Array<{ permissionCode: string }>) =>
+      requests.map(request => ({ decisionCode: request.permissionCode === "pdm.drawing.review" ? "allowed" : "permission_not_granted",
+        role: { roleCode: "custom_drawing_review" } })));
+    await expect(selectPrincipalReviewerInSnapshot(client([
+      candidate("principal-reviewer", "profile-reviewer")
+    ]), { ...input, resourceGroup: "drawing" })).resolves.toBe("profile-reviewer");
+    expect(mocks.entitlement).toHaveBeenLastCalledWith([
+      expect.objectContaining({ permissionCode: "pdm.drawing.review",
+        rolePriority: ["rd_manager", "pdm_admin", "custom_drawing_review"] })
+    ], expect.any(Date));
+    await expect(selectPrincipalReviewerInSnapshot(client([
+      candidate("principal-reviewer", "profile-reviewer")
+    ]), { ...input, resourceGroup: "drawing", requirePublish: true })).rejects.toMatchObject({ status: 409 });
+    await expect(selectPrincipalReviewerInSnapshot(client([
+      candidate("principal-reviewer", "owner-profile")
+    ]), { ...input, resourceGroup: "drawing" })).rejects.toMatchObject({ status: 409 });
+  });
+
+  it.each([
+    ["parent denial", "pdm.drawing.review"],
+    ["model denial", "pdm.model.review"]
+  ])("requires both drawing and model review when the submitted target has CAD (%s)", async (_label, deniedCode) => {
+    mocks.catalog.mockResolvedValue({
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000030",
+      roles: [{ roleCode: "custom_drawing_review" }]
+    });
+    mocks.entitlement.mockImplementation(async (requests: Array<{ permissionCode: string }>) =>
+      requests.map(request => ({ decisionCode: request.permissionCode === deniedCode
+        ? "permission_not_granted" : "allowed", role: { roleCode: "custom_drawing_review" } })));
+    await expect(selectPrincipalReviewerInSnapshot(client([
+      candidate("principal-reviewer", "profile-reviewer")
+    ]), { ...input, resourceGroup: "drawing", resourceGroups: ["drawing", "model"] }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(mocks.entitlement).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ permissionCode: "pdm.drawing.review" }),
+      expect.objectContaining({ permissionCode: "pdm.model.review" })
+    ]), expect.any(Date));
+  });
+});

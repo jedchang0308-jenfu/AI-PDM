@@ -25,6 +25,7 @@ vi.mock("@/lib/repositories/drawing-recognition-async-repository", () => ({
 vi.mock("@/lib/drawing-recognition-formalization-authorization", () => ({
   requireRecognitionPostReleaseGrantInSnapshot: mocks.requirePostRelease
 }));
+vi.mock('@/lib/principal-recognition-capability', () => ({ requireRecognitionImpactCapabilities: vi.fn(async () => undefined) }));
 
 import {
   cancelDrawingRecognitionAmendment, commitDrawingRecognition,

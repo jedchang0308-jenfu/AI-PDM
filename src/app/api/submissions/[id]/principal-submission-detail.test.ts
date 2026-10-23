@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   token: vi.fn(), authMode: vi.fn(), platformMode: vi.fn(), entitlementMode: vi.fn(), policy: vi.fn(),
   verifiedRead: vi.fn(), decisions: vi.fn(), resource: vi.fn(),
   detail: vi.fn(), actionability: vi.fn(), detailClient: vi.fn(),
-  statusClient: vi.fn(), legacyAuth: vi.fn(), legacyDetail: vi.fn()
+  statusClient: vi.fn(), legacyAuth: vi.fn(), legacyDetail: vi.fn(), dynamic: vi.fn()
 }));
 
 vi.mock("@/lib/auth-config", () => ({ getAuthMode: mocks.authMode,
@@ -23,7 +23,12 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicy: mocks.policy }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
-  evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.decisions
+  evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.decisions,
+  evaluatePrincipalResourcePermissionsInSnapshot: mocks.decisions
+}));
+vi.mock("@/lib/principal-resource-capability", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/principal-resource-capability")>(),
+  isDynamicRolePolicyInSnapshot: mocks.dynamic
 }));
 vi.mock("@/lib/jenfu-entitlement-http", () => ({
   jenfuEntitlementFailureResponse: (code: string) => Response.json({ code }, { status: 403 })
@@ -69,11 +74,13 @@ describe("Principal historical submission detail", () => {
     mocks.authMode.mockReturnValue("firebase_bff");
     mocks.platformMode.mockReturnValue("on");
     mocks.entitlementMode.mockReturnValue("enforce");
+    mocks.dynamic.mockResolvedValue(false);
     mocks.policy.mockReturnValue({ path, authorizationMode: "permission",
       scopeResolver: "submission company" });
     mocks.verifiedRead.mockImplementation(async (_input, read) => read(snapshot, verified));
     mocks.decisions.mockResolvedValue([decision()]);
-    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-1" });
+    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-1",
+      project_code: "P-001", status: "Pending" });
     mocks.detail.mockResolvedValue({ id: "submission-1", company_id: "company-1",
       submitted_by: "profile-1", files: [] });
     mocks.actionability.mockResolvedValue({ code: "read_only" });
@@ -86,7 +93,8 @@ describe("Principal historical submission detail", () => {
     expect(mocks.policy).toHaveBeenCalledWith(path, "GET",
       { expectedPermissionCode: "submission.view" });
     expect(mocks.decisions).toHaveBeenCalledWith(snapshot, verified,
-      [{ permissionKind: "action", permissionCode: "submission.view" }]);
+      [{ permissionKind: "action", permissionCode: "submission.view" }],
+      { workspaceCode: "company-1", projectCode: "P-001" });
     expect(mocks.resource).toHaveBeenCalledWith(expect.stringContaining("ai_pdm_core.submissions"),
       { id: "submission-1" });
     expect(mocks.detailClient).toHaveBeenCalledWith(snapshot);
@@ -96,14 +104,16 @@ describe("Principal historical submission detail", () => {
 
   it("allows an AAL1 published manager role to read another user's submission in the same company", async () => {
     mocks.decisions.mockResolvedValue([decision("rd_manager")]);
-    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-2" });
+    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-2",
+      project_code: "P-001", status: "Pending" });
     mocks.detail.mockResolvedValue({ id: "submission-1", company_id: "company-1",
       submitted_by: "profile-2", files: [] });
     expect((await GET(request(), context)).status).toBe(200);
   });
 
   it("denies an rd cross-owner read before loading the full detail or attachments", async () => {
-    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-2" });
+    mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-2",
+      project_code: "P-001", status: "Pending" });
     const response = await GET(request(), context);
     expect(response.status).toBe(403);
     expect(response.headers.get("x-jenfu-principal-historical")).toBe("1");
@@ -116,25 +126,28 @@ describe("Principal historical submission detail", () => {
     expect(mocks.detail).not.toHaveBeenCalled();
   });
 
-  it("does not query a resource after grant denial or policy drift", async () => {
+  it("does not load full detail after grant denial or policy drift", async () => {
     mocks.decisions.mockResolvedValueOnce([decision("rd", false)]);
     expect((await GET(request(), context)).status).toBe(403);
-    expect(mocks.resource).not.toHaveBeenCalled();
+    expect(mocks.resource).toHaveBeenCalledOnce();
+    expect(mocks.detail).not.toHaveBeenCalled();
     mocks.policy.mockReturnValue(null);
     expect((await GET(request(), context)).status).toBe(503);
-    expect(mocks.resource).not.toHaveBeenCalled();
+    expect(mocks.detail).not.toHaveBeenCalled();
   });
 
   it("fails closed when the published permission decision cardinality drifts", async () => {
     mocks.decisions.mockResolvedValue([decision(), decision()]);
     expect((await GET(request(), context)).status).toBe(503);
-    expect(mocks.resource).not.toHaveBeenCalled();
+    expect(mocks.resource).toHaveBeenCalledOnce();
+    expect(mocks.detail).not.toHaveBeenCalled();
   });
 
   it("refuses an unreviewed role and accepts the published cross-owner grant at AAL1", async () => {
     mocks.decisions.mockResolvedValueOnce([decision("qa")]);
     expect((await GET(request(), context)).status).toBe(503);
-    expect(mocks.resource).not.toHaveBeenCalled();
+    expect(mocks.resource).toHaveBeenCalledOnce();
+    expect(mocks.detail).not.toHaveBeenCalled();
     mocks.decisions.mockResolvedValue([decision("pdm_admin")]);
     mocks.verifiedRead.mockImplementation(async (_input, read) =>
       read(snapshot, { ...verified, session: { ...verified.session, assuranceLevel: "aal1" } }));

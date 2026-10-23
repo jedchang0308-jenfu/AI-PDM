@@ -3,6 +3,7 @@ import {
   JenfuEntitlementRepository,
   type JenfuEntitlementRoleCatalog
 } from "@/lib/repositories/jenfu-entitlement-repository";
+import { buildDefaultRolePolicyCandidate, rolePolicyMappedDenyActions } from "@/lib/role-policy-editor";
 
 const actor = {
   identityIssuer: "https://securetoken.google.com/jenfu-test",
@@ -92,6 +93,23 @@ function fakeClient(options: FakeClientOptions = {}) {
 
 function repository(options: FakeClientOptions = {}, activeCatalog?: JenfuEntitlementRoleCatalog) {
   return new JenfuEntitlementRepository(fakeClient(options), activeCatalog);
+}
+
+type DynamicPermission = { kind: "action"; code: string; allowed: boolean };
+function dynamicRole(stableRoleId: string, roleCode: string, permissions: DynamicPermission[], roleStatus: "active" | "inactive" = "active") {
+  return {
+    stableRoleId, roleCode, displayName: roleCode, assignable: true,
+    risk: "normal" as const, subjectKind: "employee" as const, recommendationAllowed: true,
+    delegationAllowed: true, allowedScopeKinds: ["workspace" as const], assignmentTier: "app_admin" as const,
+    permissions, roleDefinitionHash: `synthetic-${roleCode}`, roleStatus
+  };
+}
+function dynamicCatalog(roles: ReturnType<typeof dynamicRole>[]): JenfuEntitlementRoleCatalog {
+  return { catalogVersion: "ai-pdm.role-policy.synthetic", roles };
+}
+function submissionViewInput(rolePriority: string[]) {
+  return { actor, rolePriority, permissionKind: "action" as const,
+    permissionCode: "submission.view", workspaceCode: "company-jenfu" };
 }
 
 describe("DEV-005 EntitlementRepository", () => {
@@ -272,11 +290,238 @@ describe("DEV-005 EntitlementRepository", () => {
     })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
   });
 
+  it("keeps a higher-priority mapped deny when another required action is absent", async () => {
+    const higher = dynamicRole("role-rd", "rd", [
+      { kind: "action", code: "pdm.drawing.view", allowed: false }
+    ]);
+    const lower = dynamicRole("role-qa", "qa", [
+      { kind: "action", code: "pdm.drawing.view", allowed: true },
+      { kind: "action", code: "pdm.part.view", allowed: true },
+      { kind: "action", code: "pdm.transfer.view", allowed: true }
+    ]);
+    const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, dynamicCatalog([higher, lower])
+      ).evaluatePermission(submissionViewInput(["rd", "qa"])))
+      .rejects.toMatchObject({ code: "permission_explicit_deny" });
+  });
+
+  it("does not let a lower-priority deny override a higher-priority full allow", async () => {
+    const higher = dynamicRole("role-rd", "rd", [
+      { kind: "action", code: "pdm.drawing.view", allowed: true },
+      { kind: "action", code: "pdm.part.view", allowed: true },
+      { kind: "action", code: "pdm.transfer.view", allowed: true }
+    ]);
+    const lower = dynamicRole("role-qa", "qa", [
+      { kind: "action", code: "pdm.drawing.view", allowed: false }
+    ]);
+    const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, dynamicCatalog([higher, lower])
+      ).evaluatePermission(submissionViewInput(["rd", "qa"])))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+  });
+
+  it("skips a higher-priority partial role when all present requirements allow and the rest are absent", async () => {
+    const higher = dynamicRole("role-rd", "rd", [
+      { kind: "action", code: "pdm.drawing.view", allowed: true }
+    ]);
+    const lower = dynamicRole("role-qa", "qa", [
+      { kind: "action", code: "pdm.drawing.view", allowed: true },
+      { kind: "action", code: "pdm.part.view", allowed: true },
+      { kind: "action", code: "pdm.transfer.view", allowed: true }
+    ]);
+    const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, dynamicCatalog([higher, lower])
+      ).evaluatePermission(submissionViewInput(["rd", "qa"])))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "qa" } });
+  });
+
+  it("skips an inactive higher-priority mapped deny before selecting an active role", async () => {
+    const inactive = dynamicRole("role-rd", "rd", [
+      { kind: "action", code: "pdm.drawing.view", allowed: false }
+    ], "inactive");
+    const active = dynamicRole("role-qa", "qa", [
+      { kind: "action", code: "pdm.drawing.view", allowed: true },
+      { kind: "action", code: "pdm.part.view", allowed: true },
+      { kind: "action", code: "pdm.transfer.view", allowed: true }
+    ]);
+    const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, dynamicCatalog([inactive, active])
+      ).evaluatePermission(submissionViewInput(["rd", "qa"])))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "qa" } });
+  });
+
+  it("keeps production planning and procurement assignments isolated across scope, identity, and original role priority", async () => {
+    const sourceCandidate = structuredClone(buildDefaultRolePolicyCandidate(
+      "ai-pdm.role-policy.synthetic-qa05-0000-4000-8000-000000000001"));
+    const planning = sourceCandidate.roles.find(role => role.stableRoleId === "role-production-planning")!;
+    planning.permissions = planning.permissions
+      .filter(permission => permission.code !== "pdm.drawing.view")
+      .map(permission => permission.kind === "page" && permission.code === "numbering.drawings.view"
+        ? { ...permission, allowed: false } : permission);
+    if (!planning.permissions.some(permission => permission.kind === "page" && permission.code === "numbering.drawings.view")) {
+      planning.permissions.push({ kind: "page", code: "numbering.drawings.view", allowed: false });
+    }
+    const beforeDerivedProjection = structuredClone(sourceCandidate);
+    const derivedDenyActions = rolePolicyMappedDenyActions(
+      sourceCandidate.roles, sourceCandidate.roleProfiles, "role-procurement");
+    expect(derivedDenyActions).toContain("pdm.drawing.view");
+    expect(planning.permissions.some(permission => permission.code === "pdm.drawing.view")).toBe(false);
+    expect(sourceCandidate).toEqual(beforeDerivedProjection);
+
+    const procurement = sourceCandidate.roles.find(role => role.stableRoleId === "role-procurement")!;
+    const requiredViewPermissions = ["pdm.drawing.view", "pdm.part.view", "pdm.transfer.view"]
+      .map(code => ({ kind: "action" as const, code, allowed: true }));
+    const effectiveCatalog = {
+      catalogVersion: "ai-pdm.role-policy.synthetic-qa05-0000-4000-8000-000000000001",
+      roles: [
+        {
+          ...planning,
+          allowedScopeKinds: ["workspace" as const],
+          permissions: [
+            ...planning.permissions,
+            ...derivedDenyActions.map(code => ({ kind: "action" as const, code, allowed: false }))
+          ]
+        },
+        { ...procurement, allowedScopeKinds: ["global" as const], permissions: requiredViewPermissions }
+      ]
+    } as unknown as JenfuEntitlementRoleCatalog;
+    const planningAssignment = {
+      ...assignment, assignment_id: "assignment-production-planning",
+      stable_role_id: "role-production-planning", role_code: "production_planning",
+      scope_kind: "workspace" as const, scope_key: "company-jenfu"
+    };
+    const procurementAssignment = {
+      ...assignment, assignment_id: "assignment-procurement",
+      stable_role_id: "role-procurement", role_code: "procurement",
+      scope_kind: "global" as const, scope_key: null
+    };
+    const source = repository({ assignmentRows: [planningAssignment, procurementAssignment] }, effectiveCatalog);
+    const planningFirst = submissionViewInput(["production_planning", "procurement"]);
+    await expect(source.evaluatePermission(planningFirst))
+      .rejects.toMatchObject({ code: "permission_explicit_deny" });
+    await expect(source.evaluatePermission({ ...planningFirst, rolePriority: ["procurement", "production_planning"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "procurement" } });
+
+    await expect(repository({ assignmentRows: [planningAssignment] }, effectiveCatalog).evaluatePermission({
+      ...planningFirst, workspaceCode: "company-other", rolePriority: ["production_planning"]
+    })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
+    await expect(repository({ assignmentRows: [planningAssignment, {
+      ...procurementAssignment, principal_id: "principal-other", employee_id: "employee-other"
+    }] }, effectiveCatalog).evaluatePermission(planningFirst))
+      .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
   it("fails closed if an active assignment role is absent from the priority contract", async () => {
     await expect(repository().evaluatePermission({
       actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager"],
       permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
+  it("maps a dynamic legacy route decision to the required business actions", async () => {
+    const dynamicCatalog: JenfuEntitlementRoleCatalog = {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000011",
+      roles: [{
+        stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+        risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+        delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+        permissions: ["pdm.drawing.view", "pdm.part.view", "pdm.transfer.view"].map(code =>
+          ({ kind: "action" as const, code, allowed: true })), roleDefinitionHash: "dynamic-rd"
+      }]
+    };
+    await expect(repository({}, dynamicCatalog).evaluatePermission({
+      actor, rolePriority: [], permissionKind: "action", permissionCode: "submission.view",
+      workspaceCode: "company-jenfu"
+    })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+    const missingTransfer = { ...dynamicCatalog, roles: [{ ...dynamicCatalog.roles[0],
+      permissions: dynamicCatalog.roles[0].permissions.slice(0, 2) }] };
+    await expect(repository({}, missingTransfer).evaluatePermission({
+      actor, rolePriority: [], permissionKind: "action", permissionCode: "submission.view",
+      workspaceCode: "company-jenfu"
+    })).rejects.toMatchObject({ code: "permission_not_granted" });
+  });
+
+  it("narrows a generic legacy action only to the server-resolved target, retaining model guards", async () => {
+    const custom = {
+      stableRoleId: "role-custom-10000000-0000-4000-8000-000000000099",
+      roleCode: "custom_10000000000040008000000000000099", displayName: "Drawing reviewer",
+      assignable: true, risk: "normal" as const, subjectKind: "employee" as const,
+      recommendationAllowed: true, delegationAllowed: true, allowedScopeKinds: ["workspace" as const],
+      assignmentTier: "app_admin" as const, roleDefinitionHash: "custom-test",
+      permissions: [{ kind: "action" as const, code: "pdm.drawing.review", allowed: true },
+        { kind: "action" as const, code: "pdm.drawing.publish", allowed: true }]
+    };
+    const source = repository({ assignmentRows: [{ ...assignment, stable_role_id: custom.stableRoleId,
+      role_code: custom.roleCode }] }, {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000099", roles: [custom]
+    });
+    const input = { actor, rolePriority: [], permissionKind: "action" as const,
+      permissionCode: "approval.request.decide", workspaceCode: "company-jenfu" };
+    await expect(source.evaluatePermission({ ...input, resourceGroup: "drawing" }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    await expect(source.evaluatePermission({ ...input, resourceGroup: "part" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission(input)).rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroup: "drawing" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    custom.permissions.push({ kind: "action", code: "pdm.model.publish", allowed: true });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroup: "drawing" }))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
+    custom.permissions.pop();
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroups: ["drawing"] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    custom.permissions.push({ kind: "action", code: "pdm.model.publish", allowed: true });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroups: ["drawing"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
+  });
+
+  it("uses an exact server-resolved parent group for generic attachment permissions", async () => {
+    const custom = {
+      stableRoleId: "role-custom-10000000-0000-4000-8000-000000000098",
+      roleCode: "custom_10000000000040008000000000000098", displayName: "Part editor",
+      assignable: true, risk: "normal" as const, subjectKind: "employee" as const,
+      recommendationAllowed: true, delegationAllowed: true, allowedScopeKinds: ["workspace" as const],
+      assignmentTier: "app_admin" as const, roleDefinitionHash: "custom-attachment-test",
+      permissions: [{ kind: "action" as const, code: "pdm.part.edit", allowed: true }]
+    };
+    const source = repository({ assignmentRows: [{ ...assignment, stable_role_id: custom.stableRoleId,
+      role_code: custom.roleCode }] }, {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000098", roles: [custom]
+    });
+    const input = { actor, rolePriority: [], permissionKind: "action" as const,
+      permissionCode: "numbering.attachments.manage", workspaceCode: "company-jenfu" };
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["part"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    // Model-category enforcement is a separate direct pdm.model.edit check in
+    // the attachment command's same-snapshot target adapter.
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["part", "model"] }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    await expect(source.evaluatePermission({ ...input, resourceGroups: ["drawing"] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission({ ...input, resourceGroups: [] }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+  });
+
+  it("skips an inactive high-priority grant without poisoning an active role", async () => {
+    const role = {
+      stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+      risk: "normal" as const, subjectKind: "employee" as const, recommendationAllowed: true,
+      delegationAllowed: true, allowedScopeKinds: ["workspace" as const], assignmentTier: "app_admin" as const,
+      roleDefinitionHash: "rd", permissions: [{ kind: "action" as const, code: "pdm.drawing.view", allowed: true }]
+    };
+    const inactive = { ...role, stableRoleId: "role-qa", roleCode: "qa", roleStatus: "inactive" as const,
+      permissions: [{ kind: "action" as const, code: "pdm.drawing.view", allowed: false }] };
+    const activeCatalog = { catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000012",
+      roles: [role, inactive] };
+    const input = { actor, rolePriority: ["qa", "rd"], permissionKind: "action" as const,
+      permissionCode: "pdm.drawing.view", workspaceCode: "company-jenfu" };
+    const qaGrant = { ...assignment, assignment_id: "qa-assignment", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [qaGrant, assignment] }, activeCatalog).evaluatePermission(input))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+    await expect(repository({ assignmentRows: [qaGrant] }, activeCatalog).evaluatePermission(input))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(repository({ assignmentRows: [{ ...qaGrant, subject_kind: "principal" }] }, activeCatalog)
+      .evaluatePermission(input)).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 
   it("rejects duplicate rows and the 32-row safety bound", async () => {
@@ -328,5 +573,23 @@ describe("DEV-005 EntitlementRepository", () => {
     await expect(repository().listEffectiveAssignments({
       ...actor, identitySubject: "not-published"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+  it("allows transfer metadata with view-only dynamic permission while byte download still requires download", async () => {
+    const viewOnlyCatalog: JenfuEntitlementRoleCatalog = {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000013",
+      roles: [{
+        stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+        risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+        delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+        permissions: [{ kind: "action", code: "pdm.transfer.view", allowed: true }],
+        roleDefinitionHash: "dynamic-transfer-view-only"
+      }]
+    }
+    const source = repository({}, viewOnlyCatalog)
+    const input = { actor, rolePriority: [], permissionKind: "action" as const, workspaceCode: "company-jenfu" }
+    await expect(source.evaluatePermission({ ...input, permissionCode: "transfer.package.view" }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } })
+    await expect(source.evaluatePermission({ ...input, permissionCode: "pdm.transfer.download" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" })
   });
 });

@@ -30,7 +30,7 @@ type PublicShareData = {
     sha256: string;
     file_size: number;
     created_at: string;
-    download_url: string;
+    download_url: string | null;
   } | null;
   files: Array<{
     id: string;
@@ -186,10 +186,10 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
                 <summary>完整性資訊</summary>
                 <span className="diagnostic-value">SHA256 {data.package.sha256}</span>
               </details>
-              <a className="primary-button" href={data.package.download_url}>
+              {data.package.download_url && <a className="primary-button" href={data.package.download_url}>
                 <Download size={16} aria-hidden="true" />
                 下載
-              </a>
+              </a>}
             </>
           ) : (
             <small>目前沒有可用的發布包。</small>

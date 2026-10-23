@@ -9,7 +9,7 @@ export async function readApprovalEvidenceFileSource<T>(client: AsyncDatabaseCli
   return client.queryOne<T>(
     `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
             asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-            asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+            asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
             :companyId AS company_id, asset.linked_entity_type, asset.linked_entity_id,
             NULL AS workspace_id, NULL AS drawing_number_id, NULL AS part_root_id,
             NULL AS source_submission_id, NULL AS owner_user_id, NULL AS work_id

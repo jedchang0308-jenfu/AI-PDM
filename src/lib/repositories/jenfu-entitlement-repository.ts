@@ -1,5 +1,6 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
+import rolePolicyRegistryJson from "../../../config/access-control/role-policy-editor-registry.v2.json" with { type: "json" };
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
@@ -7,7 +8,6 @@ import {
   type JenfuEffectiveRoleAssignment,
   type JenfuVerifiedAuthorizationActor,
   resolveJenfuWorkspaceScopeKey,
-  roleAllowsPermission,
   scopeMatches,
   validateEffectiveRoleAssignment
 } from "@/lib/jenfu-entitlement-contract";
@@ -45,6 +45,10 @@ export type JenfuEnforcedPermissionInput = {
   actor: JenfuVerifiedAuthorizationActor;
   permissionKind: "page" | "action";
   permissionCode: string;
+  /** Set only by a server-owned canonical resource adapter. */
+  resourceGroup?: "drawing" | "part" | "model" | "transfer";
+  /** Exact canonical group union for a server-resolved mixed resource. */
+  resourceGroups?: readonly ("drawing" | "part" | "model" | "transfer")[];
   workspaceCode?: string | null;
   projectCode?: string | null;
   rolePriority: readonly string[];
@@ -59,9 +63,39 @@ type ActiveAccountRow = {
   employee_status: string;
 };
 
-export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[] };
+export type JenfuEntitlementRoleCatalog = {
+  roles: Array<JenfuApplicationRole & { roleStatus?: "active" | "inactive" }>;
+  catalogVersion?: string;
+};
 
 const catalog = roleCatalog as unknown as JenfuEntitlementRoleCatalog;
+const policyRegistry = rolePolicyRegistryJson as {
+  businessActions: Array<{ kind: "action"; code: string; requiredActions: string[] }>;
+  legacyBindings: Array<{ kind: "page" | "action"; code: string;
+    disposition: "protected" | "legacy-reference"; requiredActions: string[] }>;
+};
+
+function permissionRequirements(kind: "page" | "action", code: string,
+  resourceGroup?: JenfuEnforcedPermissionInput["resourceGroup"],
+  resourceGroups?: JenfuEnforcedPermissionInput["resourceGroups"]) {
+  const business = policyRegistry.businessActions.find(action => action.kind === kind && action.code === code);
+  if (business) return business.requiredActions.map(required => ({ kind: "action" as const, code: required }));
+  const legacy = policyRegistry.legacyBindings.find(binding => binding.kind === kind && binding.code === code);
+  if (!legacy) return null;
+  if (legacy.disposition === "protected" || legacy.requiredActions.length === 0) return [{ kind, code }];
+  if (resourceGroups !== undefined) {
+    const groups = [...new Set(resourceGroups)];
+    if (!groups.length || groups.some(group => !["drawing", "part", "model", "transfer"].includes(group))) return null;
+    const required = legacy.requiredActions.filter(action => action.startsWith("pdm.model.") ||
+      groups.some(group => action.startsWith("pdm." + group + ".")));
+    return required.length ? required.map(action => ({ kind: "action" as const, code: action })) : null;
+  }
+  // A generic legacy key can cover several resource types. Narrow only after
+  // the caller resolves the actual target; an unclassified caller keeps AND.
+  const required = resourceGroup ? legacy.requiredActions.filter(action =>
+    action.startsWith("pdm." + resourceGroup + ".") || action.startsWith("pdm.model.")) : legacy.requiredActions;
+  return required.length ? required.map(action => ({ kind: "action" as const, code: action })) : null;
+}
 
 export class JenfuEntitlementRepository {
   constructor(
@@ -187,8 +221,13 @@ export class JenfuEntitlementRepository {
       assignment.publishedAt !== publication.publishedAt)) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
-    const priorityRank = new Map(input.rolePriority.map((roleCode, index) => [roleCode, index]));
-    if (priorityRank.size !== input.rolePriority.length || inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
+    const effectivePriority = [...input.rolePriority];
+    if (this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true) {
+      for (const role of this.activeCatalog.roles) if (!effectivePriority.includes(role.roleCode)) effectivePriority.push(role.roleCode);
+    }
+    const priorityRank = new Map(effectivePriority.map((roleCode, index) => [roleCode, index]));
+    if (new Set(input.rolePriority).size !== input.rolePriority.length ||
+        inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
     const preparedAssignments: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole }> = [];
@@ -214,6 +253,9 @@ export class JenfuEntitlementRepository {
       if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || !role.assignable || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       const validationIssues = validateEffectiveRoleAssignment(assignment, input.actor, decisionAt);
       if (validationIssues.length) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      // Retain and validate tombstones, then omit only their authorization.
+      // A legitimate inactive grant must not deny another active role.
+      if (role.roleStatus === "inactive") continue;
       preparedAssignments.push({ assignment, role });
     }
     return inputs.map((candidate) => {
@@ -223,8 +265,18 @@ export class JenfuEntitlementRepository {
       const decisionCandidates: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole; allowed: boolean }> = [];
       for (const { assignment, role } of preparedAssignments) {
         if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
-        const permission = role.permissions.find((entry) => entry.kind === candidate.permissionKind && entry.code === candidate.permissionCode);
-        if (!permission) continue;
+        const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
+        const requirements = dynamicPolicy
+          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode,
+            candidate.resourceGroup, candidate.resourceGroups)
+          : [{ kind: candidate.permissionKind, code: candidate.permissionCode }];
+        if (!requirements) continue;
+        const permissions = requirements.map(requirement => role.permissions.find(entry =>
+          entry.kind === requirement.kind && entry.code === requirement.code));
+        // A derived explicit deny keeps this role's original priority even
+        // when another required action is absent. Absence alone is skipped.
+        if (!permissions.some(permission => permission?.allowed === false) &&
+            permissions.some(permission => !permission)) continue;
         permissionCandidate = true;
         const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
           ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
@@ -236,7 +288,7 @@ export class JenfuEntitlementRepository {
           scopeCandidate = true;
           continue;
         }
-        decisionCandidates.push({ assignment, role, allowed: permission.allowed && roleAllowsPermission(role, candidate.permissionKind, candidate.permissionCode) });
+        decisionCandidates.push({ assignment, role, allowed: permissions.every(permission => permission?.allowed === true) });
       }
       decisionCandidates.sort((left, right) => (priorityRank.get(left.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER) - (priorityRank.get(right.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER));
       const selected = decisionCandidates[0];

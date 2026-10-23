@@ -74,6 +74,27 @@ try {
       LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog
       AS 'SELECT state.principal_id,state.auth_epoch,state.revoked_before
           FROM platform_contract.principal_state_fixture state WHERE state.principal_id=p_principal_id';
+    CREATE TABLE ai_pdm_core.active_role_catalog (
+      application_id text PRIMARY KEY,catalog_version text NOT NULL);
+    CREATE TABLE ai_pdm_core.role_catalog_publications (
+      catalog_version text PRIMARY KEY,contract_version text NOT NULL,
+      application_id text NOT NULL,published_at timestamptz NOT NULL,
+      catalog_sha256 text NOT NULL,status text NOT NULL,
+      publication_format text,canonicalization_version text,role_schema_id text,
+      role_profile_schema_id text,baseline_role_identity_hash char(64),
+      role_identity_hash char(64),protected_policy_hash char(64),registry_hash char(64),
+      role_profile_hash char(64),role_profiles jsonb,policy_draft_id uuid,
+      base_catalog_version text,base_catalog_sha256 char(64),command_id uuid,
+      publish_reason text);
+    CREATE TABLE ai_pdm_core.role_catalog_entries (
+      catalog_version text NOT NULL,display_order integer NOT NULL,
+      stable_role_id text NOT NULL,role_code text NOT NULL,display_name text NOT NULL,
+      assignable boolean NOT NULL,risk text NOT NULL,subject_kind text NOT NULL,
+      recommendation_allowed boolean NOT NULL,delegation_allowed boolean NOT NULL,
+      allowed_scope_kinds jsonb NOT NULL,assignment_tier text NOT NULL,
+      permissions jsonb NOT NULL,metadata jsonb,role_definition_hash text NOT NULL,
+      role_status text NOT NULL DEFAULT 'active',
+      PRIMARY KEY (catalog_version,stable_role_id));
     CREATE TABLE orgmaster_contract.v_active_principal_accounts_v1 (
       contract_version text,principal_issuer text,principal_subject text,principal_id text,
       employee_id text,employee_status text,account_type text,mapping_version bigint,published_at timestamptz);
@@ -113,6 +134,8 @@ try {
     GRANT SELECT ON ALL TABLES IN SCHEMA orgmaster_contract,ai_pdm_contract
       TO jenfu_ai_pdm_migrator,jenfu_ai_pdm_runtime;
     GRANT SELECT ON ai_pdm_core.role_priority_versions TO jenfu_ai_pdm_runtime;
+    GRANT SELECT ON ai_pdm_core.active_role_catalog,ai_pdm_core.role_catalog_publications,
+      ai_pdm_core.role_catalog_entries TO jenfu_ai_pdm_runtime;
     GRANT SELECT ON ai_pdm_core.principal_accounts,ai_pdm_core.users,ai_pdm_core.principal_session_records
       TO jenfu_ai_pdm_runtime;
     GRANT INSERT ON ai_pdm_core.principal_session_records TO jenfu_ai_pdm_runtime;
@@ -155,13 +178,85 @@ try {
   // Historical v5 SQL/history tests remain separate; no authorization expectation changes.
   const { principalCatalog: catalog } = await import(pathToFileURL(path.join(root,
     'src/lib/jenfu-principal-role-catalog.ts')).href);
+  assert.equal(catalog.catalogVersion,'ai-pdm.role-catalog.2026-10-10.v7');
+  assert.equal(catalog.catalogSha256,'4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9');
+  assert.equal(catalog.roles.length,9);
+  // Reuse the migration's exact 34-column v2 projection. The source rows are
+  // the complete current v7 artifact; dynamic publication/profile fields stay
+  // NULL so the view truthfully exposes the legacy-static-v1 shape.
+  const path086 = 'db/postgres/086_dev123_role_policy_editor_v1.sql';
+  const source086 = fs.readFileSync(path.join(root,path086),'utf8').replaceAll('\r\n','\n');
+  const viewMarker = 'CREATE OR REPLACE VIEW ai_pdm_contract.v_application_role_catalog_v2';
+  const viewStart = source086.indexOf(viewMarker);
+  const viewEnd = source086.indexOf('\n\nCREATE OR REPLACE VIEW ai_pdm_contract.v_role_policy_publications_v1',viewStart);
+  assert.ok(viewStart >= 0 && viewEnd > viewStart);
+  const catalogV2ViewSql = source086.slice(viewStart,viewEnd);
+  await database.query(catalogV2ViewSql);
+  await database.query(`GRANT SELECT ON ai_pdm_contract.v_application_role_catalog_v2
+    TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
+  sourceProof.push({ path:path086,sourceSha256:sha(source086),executedSqlSha256:sha(catalogV2ViewSql),
+    scope:'exact v2 legacy-static-v1 projection only; no policy migration executed' });
+  await database.query(`INSERT INTO ai_pdm_core.role_catalog_publications
+    (catalog_version,contract_version,application_id,published_at,catalog_sha256,status)
+    VALUES ($1,$2,$3,$4,$5,'active')`,
+  [catalog.catalogVersion,catalog.contractVersion,catalog.applicationId,catalog.publishedAt,catalog.catalogSha256]);
   for (const [order, role] of catalog.roles.entries()) {
+    await database.query(`INSERT INTO ai_pdm_core.role_catalog_entries
+      (catalog_version,display_order,stable_role_id,role_code,display_name,assignable,risk,subject_kind,
+       recommendation_allowed,delegation_allowed,allowed_scope_kinds,assignment_tier,permissions,metadata,
+       role_definition_hash,role_status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb,$14::jsonb,$15,'active')`,
+    [catalog.catalogVersion,order,role.stableRoleId,role.roleCode,role.displayName,role.assignable,role.risk,
+      role.subjectKind,role.recommendationAllowed,role.delegationAllowed,JSON.stringify(role.allowedScopeKinds),
+      role.assignmentTier,JSON.stringify(role.permissions),JSON.stringify(role.metadata ?? null),role.roleDefinitionHash]);
     await database.query(`INSERT INTO ai_pdm_contract.v_application_role_catalog_v1
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb)`,
     [catalog.contractVersion,catalog.applicationId,catalog.catalogVersion,catalog.catalogSha256,
       order,role.stableRoleId,role.roleDefinitionHash,role.roleCode,role.assignable,role.subjectKind,
       JSON.stringify(role.allowedScopeKinds),JSON.stringify(role.permissions)]);
   }
+  await database.query(`INSERT INTO ai_pdm_core.active_role_catalog (application_id,catalog_version)
+    VALUES ('ai-pdm',$1)`,[catalog.catalogVersion]);
+  const v2Rows = (await database.query(`SELECT * FROM ai_pdm_contract.v_application_role_catalog_v2
+    ORDER BY display_order`)).rows;
+  assert.equal(v2Rows.length,catalog.roles.length);
+  assert.equal(Object.keys(v2Rows[0]).length,34);
+  for (const [order,row] of v2Rows.entries()) {
+    const role = catalog.roles[order];
+    assert.equal(row.contract_version,catalog.contractVersion);
+    assert.equal(row.application_id,catalog.applicationId);
+    assert.equal(row.catalog_version,catalog.catalogVersion);
+    assert.equal(row.catalog_sha256,catalog.catalogSha256);
+    assert.equal(row.display_order,order);
+    assert.equal(row.stable_role_id,role.stableRoleId);
+    assert.equal(row.role_code,role.roleCode);
+    assert.equal(row.display_name,role.displayName);
+    assert.equal(row.assignable,role.assignable);
+    assert.equal(row.risk,role.risk);
+    assert.equal(row.subject_kind,role.subjectKind);
+    assert.equal(row.recommendation_allowed,role.recommendationAllowed);
+    assert.equal(row.delegation_allowed,role.delegationAllowed);
+    assert.deepEqual(row.allowed_scope_kinds,role.allowedScopeKinds);
+    assert.equal(row.assignment_tier,role.assignmentTier);
+    assert.deepEqual(row.permissions,role.permissions);
+    assert.deepEqual(row.metadata,role.metadata ?? null);
+    assert.equal(row.role_definition_hash,role.roleDefinitionHash);
+    assert.equal(row.publication_format,'legacy-static-v1');
+    for (const field of ['canonicalization_version','role_schema_id','baseline_role_identity_hash',
+      'role_identity_hash','protected_policy_hash','registry_hash','role_profile_schema_id','role_profile_hash']) {
+      assert.equal(row[field],null,`legacy projection must not invent ${field}`);
+    }
+    assert.equal(row.role_status,'active');
+    assert.equal(row.permission_role_id,role.stableRoleId);
+    assert.equal(row.presentation_name,role.displayName);
+    assert.equal(row.presentation_order,order);
+    assert.equal(row.assignment_disposition,role.stableRoleId === 'role-system-admin' ? 'hidden-protected' : 'selectable');
+    assert.equal(row.lifecycle,'active');
+  }
+  assert.equal((await database.query(`SELECT count(*)::integer AS count
+    FROM ai_pdm_contract.v_application_role_catalog_v1`)).rows[0].count,catalog.roles.length,
+  'legacy v1 projection remains available to 074/076');
+  checks.push('current v7 artifact is seeded in full source rows; exact 086 34-column v2 legacy-static-v1 projection and retained v1 consumer contract read back');
   await database.query(`INSERT INTO ai_pdm_core.role_priority_versions VALUES ('active',$1)`,
     [JSON.stringify(catalog.roles.map(role => role.roleCode))]);
   await database.query(`INSERT INTO ai_pdm_core.companies VALUES ('company-jenfu');
@@ -755,9 +850,9 @@ try {
       scope:'actual consumer runtime; only provider I/O mocked, identity/grant/session fixtures synthetic'});
   }
 
-  // Existing 15 cases are preserved. Resource/provider facts and signed sessions
+  // Existing 15 cases plus the v2 projection check are preserved. Resource/provider facts and signed sessions
   // remain synthetic; mounted routes/guard/kernel/binder/repos execute unchanged.
-  assert.equal(checks.length,15);
+  assert.equal(checks.length,16);
   const initialSchema=fs.readFileSync(path.join(root,'db/postgres/001_initial_schema.sql'),'utf8').replaceAll('\r\n','\n');
   const extractTable=(first,last)=>{
     const start=initialSchema.indexOf(first),end=initialSchema.indexOf(last,start);
@@ -767,7 +862,7 @@ try {
     extractTable('CREATE TABLE IF NOT EXISTS supplier_portal_responses (','CREATE TABLE IF NOT EXISTS discussion_comments (');
   await database.query(`CREATE TABLE ai_pdm_core.submissions (
     id text PRIMARY KEY,company_id text NOT NULL REFERENCES ai_pdm_core.companies(id),
-    submitted_by text REFERENCES ai_pdm_core.users(id),status text NOT NULL);
+    submitted_by text REFERENCES ai_pdm_core.users(id),status text NOT NULL,project_code text);
     INSERT INTO ai_pdm_core.companies VALUES ('company-share-other');`);
   await database.query('BEGIN');
   try {await database.query('SET LOCAL search_path=ai_pdm_core,public');await database.query(shareDdl);await database.query('COMMIT');}
@@ -776,6 +871,18 @@ try {
     scope:'unchanged release/share/response table DDL only under own search_path; minimal submissions synthetic, not full migration suite'});
   await database.query(`GRANT SELECT ON ai_pdm_core.submissions,ai_pdm_core.release_packages,ai_pdm_core.supplier_portal_responses TO jenfu_ai_pdm_runtime;
     GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.readonly_shares TO jenfu_ai_pdm_runtime;`);
+  const shareBindingStart=source086.indexOf('ALTER TABLE ai_pdm_core.readonly_shares');
+  const shareBindingEnd=source086.indexOf('REVOKE ALL ON FUNCTION ai_pdm_core.dev123_bind_project_scope_key()',shareBindingStart);
+  assert.ok(shareBindingStart>=0 && shareBindingEnd>shareBindingStart);
+  const shareBindingSql=source086.slice(shareBindingStart,shareBindingEnd);
+  await database.query(shareBindingSql);
+  await database.query(`REVOKE ALL ON FUNCTION ai_pdm_core.dev123_bind_project_scope_key(),
+      ai_pdm_core.dev123_immutable_project_scope_key() FROM PUBLIC,jenfu_ai_pdm_runtime;
+    REVOKE UPDATE ON ai_pdm_core.readonly_shares FROM jenfu_ai_pdm_runtime;
+    GRANT UPDATE (revoked_at,revoked_by,access_count,last_accessed_at,updated_at)
+      ON ai_pdm_core.readonly_shares TO jenfu_ai_pdm_runtime;`);
+  sourceProof.push({path:path086,sourceSha256:sha(source086),executedSqlSha256:sha(shareBindingSql),
+    scope:'unchanged share project-binding column/constraint/triggers; current runtime column ACL, other app roles absent from this fixture'});
   const shareIdentity={principalId:'principal-share-manager',employeeId:'employee-share-manager',
     identityIssuer:'https://securetoken.google.com/dev121-share-fixture',identitySubject:'subject-share-manager'};
   const shareProfile='profile-share-manager';

@@ -244,6 +244,6 @@ test('P03 pre-existing matching execution without sealed prior submission cannot
 
 test('current v7 source with migration085 cannot enter the closed program-only baseline path', () => {
   const currentFull = buildDev117MigrationBundle(currentProfile, buildDev117MigrationPackage(currentProfile, n1c), revision)
-  assert.equal(currentFull.bundle.entries.length, 35)
+  assert.equal(currentFull.bundle.entries.length, 38)
   assert.throws(() => deriveProgramOnlyBundles({ profile: currentProfile, full: currentFull }), /PROGRAM_ONLY/u)
 })

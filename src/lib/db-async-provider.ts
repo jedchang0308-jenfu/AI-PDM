@@ -9,7 +9,7 @@ type RuntimeAsyncDatabaseProviderKind = AsyncDatabaseProviderKind | "cloud_sql_p
 export type AsyncDatabaseQueryParams = readonly unknown[] | Record<string, unknown>;
 export type AsyncDatabaseTransactionOptions = {
   serializable?: boolean;
-  isolationLevel?: "repeatable_read" | "serializable";
+  isolationLevel?: "read_committed" | "repeatable_read" | "serializable";
   readOnly?: boolean;
 };
 
@@ -346,7 +346,7 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
   ): Promise<T> {
     await this.assertStartupReady();
     const client = await this.pool.connect();
-    const isolationLevel = options?.serializable ? "SERIALIZABLE" : options?.isolationLevel === "repeatable_read" ? "REPEATABLE READ" : options?.isolationLevel === "serializable" ? "SERIALIZABLE" : null;
+    const isolationLevel = options?.serializable ? "SERIALIZABLE" : options?.isolationLevel === "repeatable_read" ? "REPEATABLE READ" : options?.isolationLevel === "serializable" ? "SERIALIZABLE" : options?.isolationLevel === "read_committed" ? "READ COMMITTED" : null;
     const retrySerializable = isolationLevel === "SERIALIZABLE" && !options?.readOnly;
     const maxAttempts = retrySerializable ? 3 : 1;
     try {

@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         companyId: access.company.companyId,
         actorId: access.actor.pdmUserId,
         initiatorPrincipalId: verified.session.principalId,
+        verifiedInitiator: verified,
         sourceContextType,
         sourceContextId: requireSafeRecognitionId(body.sourceContextId ?? body.source_context_id, "RECOGNITION_CONTEXT_ID_INVALID"),
         sourceAssetIds, client: snapshot

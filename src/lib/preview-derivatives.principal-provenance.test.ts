@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PrincipalJobInitiator } from "@/lib/principal-job-authority";
 import { createAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { claimPreviewJobAsync, completePreviewJobAsync, enqueuePreviewJobForSourceAsync,
   getPreviewDerivativeBytesForSourceAssetAsync } from "@/lib/preview-derivatives";
@@ -12,6 +13,12 @@ const source = {
   content_hash: "a".repeat(64), hash_algorithm: "SHA-256",
   linked_entity_type: "drawing_revision", linked_entity_id: "revision-one"
 };
+const initiator: PrincipalJobInitiator = {
+  kind: "verified_principal", principalId: "principal-one", employeeId: "employee-one",
+  pdmUserId: "profile-one", companyId: "company-one", identityIssuer: "issuer-one",
+  identitySubject: "subject-one", profileVersion: 3, accountLifecycleVersion: 2,
+  authEpoch: 4, authenticatedAt: "2026-10-21T00:00:00.000Z", sessionIssuedAt: "2026-10-21T00:00:00.000Z"
+};
 
 describe("principal preview job provenance", () => {
   it("uses the linked domain owner's company for enqueue and worker claim", async () => {
@@ -22,7 +29,13 @@ describe("principal preview job provenance", () => {
           linked_entity_id TEXT NOT NULL, deleted_at TEXT, storage_key TEXT, original_path TEXT,
           content_hash TEXT, file_ext TEXT NOT NULL DEFAULT '');
         CREATE TABLE drawing_revisions (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
+        CREATE TABLE drawing_revision_files (id TEXT PRIMARY KEY, company_id TEXT NOT NULL,
+          drawing_revision_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL, removed_at TEXT,
+          role TEXT, sort_order INTEGER);
         CREATE TABLE numbering_candidate_revision_drafts (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
+        CREATE TABLE numbering_candidate_revision_files (id TEXT PRIMARY KEY, company_id TEXT NOT NULL,
+          candidate_revision_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL, removed_at TEXT,
+          role TEXT, sort_order INTEGER);
         CREATE TABLE drawing_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
         CREATE TABLE part_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
         CREATE TABLE file_derivatives (id TEXT PRIMARY KEY, company_id TEXT NOT NULL,
@@ -38,21 +51,26 @@ describe("principal preview job provenance", () => {
           completed_at TEXT, metadata_json TEXT NOT NULL, locked_by TEXT, locked_at TEXT
         );
         INSERT INTO drawing_revisions VALUES ('revision-one', 'company-one');
+        INSERT INTO drawing_revision_files VALUES
+          ('binding-one', 'company-one', 'revision-one', 'asset-one', NULL, 'drawing_2d', 1);
         INSERT INTO file_assets (id, linked_entity_type, linked_entity_id, storage_key, content_hash, file_ext)
           VALUES ('asset-one', 'drawing_revision', 'revision-one', 'source/one', '${source.content_hash}', '${source.file_ext}');
       `);
       const client = createAsyncDatabaseClient({ kind: "sqlite", database });
       await expect(enqueuePreviewJobForSourceAsync(client, {
         source: { ...source, company_id: "company-two" }, actorUserId: "profile-one",
-        initiatorPrincipalId: "principal-one"
+        principalInitiator: { ...initiator, companyId: "company-two" }
       })).rejects.toThrow("PREVIEW_SOURCE_COMPANY_SCOPE_INVALID");
       expect(database.prepare("SELECT count(*) AS count FROM preview_jobs").get()).toEqual({ count: 0 });
 
       const queued = await enqueuePreviewJobForSourceAsync(client, {
-        source, actorUserId: "profile-one", initiatorPrincipalId: "principal-one"
+        source, actorUserId: "profile-one", principalInitiator: initiator
       });
       expect(database.prepare("SELECT company_id FROM preview_jobs WHERE id = ?").get(queued.jobId))
         .toEqual({ company_id: "company-one" });
+      const storedMetadata = database.prepare("SELECT metadata_json FROM preview_jobs WHERE id = ?")
+        .get(queued.jobId) as { metadata_json: string } | undefined;
+      expect(JSON.parse(String(storedMetadata?.metadata_json))).toEqual({ initiator });
 
       const validClaim = await claimPreviewJobAsync(client, {
         leaseProtocolVersion: 2, workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
@@ -62,7 +80,7 @@ describe("principal preview job provenance", () => {
       database.prepare("UPDATE preview_jobs SET company_id = 'company-two', status = 'queued' WHERE id = ?")
         .run(queued.jobId);
       await expect(enqueuePreviewJobForSourceAsync(client, {
-        source, actorUserId: "profile-one", initiatorPrincipalId: "principal-one"
+        source, actorUserId: "profile-one", principalInitiator: initiator
       })).rejects.toThrow("PREVIEW_JOB_COMPANY_CONFLICT");
       const beforeWrongCompanyClaim = database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId);
       expect(beforeWrongCompanyClaim).toMatchObject({ company_id: "company-two", status: "queued" });
@@ -96,20 +114,19 @@ describe("principal preview job provenance", () => {
     }
   });
 
-  it("records verified initiator separately from the historical profile FK and keeps the first initiator on replay", async () => {
+  it("stores the full verified initiator and never reassigns an existing queued job on replay", async () => {
     let existing: Record<string, unknown> | null = null;
-    let firstMetadataJson = "";
     const execute = vi.fn(async (sql: string, params: Record<string, unknown>) => {
-      expect(sql).toContain("INSERT INTO preview_jobs");
-      firstMetadataJson = String(params.metadataJson);
-      existing = {
-        id: params.id, company_id: source.company_id, source_file_asset_id: source.id,
-        source_content_hash: source.content_hash, requested_kind: params.requestedKind,
-        source_extension: "slddrw", status: "queued", attempt_count: 0,
-        locked_by: null, locked_at: null, generator_profile: params.generatorProfile,
-        error_code: null, error_summary: null, created_at: params.now,
-        updated_at: params.now, completed_at: null, metadata_json: params.metadataJson
-      };
+      if (sql.includes("INSERT INTO preview_jobs")) {
+        existing = {
+          id: params.id, company_id: source.company_id, source_file_asset_id: source.id,
+          source_content_hash: source.content_hash, requested_kind: params.requestedKind,
+          source_extension: "slddrw", status: "queued", attempt_count: 0,
+          locked_by: null, locked_at: null, generator_profile: params.generatorProfile,
+          error_code: null, error_summary: null, created_at: params.now,
+          updated_at: params.now, completed_at: null, metadata_json: params.metadataJson
+        };
+      }
     });
     const client = {
       execute,
@@ -118,23 +135,22 @@ describe("principal preview job provenance", () => {
       query: vi.fn(async () => [])
     } as unknown as AsyncDatabaseClient;
     await enqueuePreviewJobForSourceAsync(client, {
-      source, actorUserId: "profile-one", initiatorPrincipalId: "principal-one"
+      source, actorUserId: "profile-one", principalInitiator: initiator
     });
     expect(execute).toHaveBeenCalledOnce();
     const params = vi.mocked(execute).mock.calls[0][1];
     expect(params.actorUserId).toBe("profile-one");
-    expect(JSON.parse(String(params.metadataJson))).toEqual({
-      initiator: { kind: "verified_principal", principalId: "principal-one" }
-    });
+    expect(JSON.parse(String(params.metadataJson))).toEqual({ initiator });
+
+    const replayIdentity = { ...initiator, principalId: "other-principal", identitySubject: "other-subject" };
     await enqueuePreviewJobForSourceAsync(client, {
-      source, actorUserId: "profile-two", initiatorPrincipalId: "principal-two"
+      source, actorUserId: "profile-one", principalInitiator: replayIdentity
     });
     expect(execute).toHaveBeenCalledOnce();
-    expect(JSON.parse(firstMetadataJson).initiator.principalId)
-      .toBe("principal-one");
+    expect(JSON.parse(String((existing as Record<string, unknown> | null)?.metadata_json))).toEqual({ initiator });
   });
 
-  it("rejects a synthetic profile identity presented as the security initiator", async () => {
+  it("rejects a missing or mismatched verified Principal context before persistence", async () => {
     const execute = vi.fn();
     const client = {
       execute,
@@ -142,26 +158,14 @@ describe("principal preview job provenance", () => {
       query: vi.fn()
     } as unknown as AsyncDatabaseClient;
     await expect(enqueuePreviewJobForSourceAsync(client, {
-      source, actorUserId: "profile-one", initiatorPrincipalId: "pdm:profile-one"
-    })).rejects.toThrow("PREVIEW_PRINCIPAL_INVALID");
+      source, actorUserId: "profile-other", principalInitiator: initiator
+    })).rejects.toThrow("PREVIEW_PRINCIPAL_CONTEXT_REQUIRED");
+    await expect(enqueuePreviewJobForSourceAsync(client, {
+      source, actorUserId: "profile-one", principalInitiator: undefined as never
+    })).rejects.toThrow("PREVIEW_PRINCIPAL_CONTEXT_REQUIRED");
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("does not invent a principal when an unattributed historical caller has only a profile ID", async () => {
-    const execute = vi.fn(async (_sql: string, params: Record<string, unknown>) => {
-      expect(params.metadataJson).toBe("{}");
-    });
-    const client = {
-      execute,
-      queryOne: vi.fn(async (sql: string) => sql.includes("SELECT fa.id FROM file_assets")
-        ? { id: source.id } : null),
-      query: vi.fn(async () => [])
-    } as unknown as AsyncDatabaseClient;
-    await enqueuePreviewJobForSourceAsync(client, {
-      source, actorUserId: "profile-only"
-    });
-    expect(execute).toHaveBeenCalledOnce();
-  });
   it("never commits success or file effects for empty or incompatible native preview output", async () => {
     const transaction=vi.fn();const execute=vi.fn();
     const client={kind:"postgres",transaction,execute,queryOne:vi.fn(async (sql:string)=>
@@ -176,7 +180,7 @@ describe("principal preview job provenance", () => {
         leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:"a".repeat(64),attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"},status:"succeeded",sourceContentHash:"a".repeat(64),derivatives:derivatives as never});
       expect(result).toEqual({accepted:false,derivativeIds:[]});
     }
-    expect(transaction).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
   });
-
 });

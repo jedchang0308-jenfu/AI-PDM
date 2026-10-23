@@ -5,6 +5,7 @@ import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract"
 import { parseReviewPackageSnapshot, reviewPackageTargetKey,
   type ReviewPackageEntityType } from "@/lib/pdm-review-package-contract";
 import { readCurrentReviewTarget, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 
@@ -13,11 +14,6 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest, input: {
     requestId: string; entityType: string; entityId: string;
   }) {
-  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-    verified, [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
-  if (!decision?.allowed) {
-    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
-  }
   if (input.entityType !== "drawing" && input.entityType !== "part") {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核對象不存在", 404);
   }
@@ -36,11 +32,25 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
     throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
   }
   const packageValue = verifyReviewPackageIntegrity(item.snapshotPayload, item.snapshotHash);
+  if (item.requestKind === "drawing_revision" || item.requestKind === "drawing_rd_void" ||
+      item.requestKind === "part_change") {
+    await requirePrincipalReviewResourceCapabilitiesInSnapshot(client, verified, {
+      companyId, requestKind: item.requestKind,
+      entityType: item.requestKind === "part_change" ? "part" : "drawing",
+      entityId: item.canonicalEntityId, workId: item.workId, envelope: packageValue
+    }, { strictSnapshot: false });
+  }
   const entityType = input.entityType as ReviewPackageEntityType;
   const target = packageValue.targets.find((candidate) =>
     candidate.targetKey === reviewPackageTargetKey(entityType, input.entityId));
   if (!target) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核對象不存在", 404);
+  }
+  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
+    verified, [{ permissionKind: "action", permissionCode: "approval.request.decide",
+      resourceGroup: entityType }]);
+  if (!decision?.allowed) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
   }
   let basisState: "current" | "stale" | "preproduction" = "current";
   if (item.requestKind === "drawing_revision") {

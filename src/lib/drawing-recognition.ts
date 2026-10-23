@@ -16,6 +16,9 @@ import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-re
 import { createFileStorageServiceForPointer, sha256, storagePointerFromRecord } from "@/lib/file-storage";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { requireRecognitionPostReleaseGrantInSnapshot } from "@/lib/drawing-recognition-formalization-authorization";
+import { requireRecognitionImpactCapabilities } from '@/lib/principal-recognition-capability';
+import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard';
+import { auditStorageAccess } from '@/lib/storage-access-audit';
 
 type ImpactTokenPayload = {
   sessionId: string;
@@ -79,6 +82,7 @@ export async function createDrawingRecognitionSession(input: {
   companyId: string;
   actorId: string;
   initiatorPrincipalId?: string;
+  verifiedInitiator?: VerifiedPrincipalRequest;
   sourceContextType: DrawingRecognitionSourceContextType;
   sourceContextId: string;
   sourceAssetIds?: string[];
@@ -93,6 +97,7 @@ export async function createDrawingRecognitionSession(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     initiatorPrincipalId: input.initiatorPrincipalId,
+    verifiedInitiator: input.verifiedInitiator,
     sourceContextType: input.sourceContextType,
     sourceContextId: requireSafeRecognitionId(input.sourceContextId, "RECOGNITION_CONTEXT_ID_INVALID"),
     sourceAssetIds: input.sourceAssetIds?.map((id) => requireSafeRecognitionId(id, "RECOGNITION_SOURCE_ID_INVALID")),
@@ -106,6 +111,7 @@ export async function ensureDrawingRecognitionSessionForSourceContext(input: {
   companyId: string;
   actorId: string;
   initiatorPrincipalId?: string;
+  verifiedInitiator?: VerifiedPrincipalRequest;
   sourceContextType: DrawingRecognitionSourceContextType;
   sourceContextId: string;
   sourceAssetIds?: string[];
@@ -145,6 +151,7 @@ export async function readDrawingRecognitionPdfSource(input: {
   principalId?: string;
   roles: string[];
   client?: AsyncDatabaseClient;
+  reauthorize?: (source: { expectedHash: string; sourceId: string; canonicalSourceIdentity: string }) => Promise<void>;
 }) {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   const sourceId = requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID");
@@ -166,10 +173,23 @@ export async function readDrawingRecognitionPdfSource(input: {
   if (!metadata || metadata.bytes !== source.expectedBytes || metadata.bytes > maxBytes) {
     throw new DrawingRecognitionError("RECOGNITION_SOURCE_METADATA_MISMATCH", "辨識來源檔案狀態已改變，請重新辨識。", 409, true);
   }
+  await input.reauthorize?.(source);
   const bytes = await storage.readObject(pointer.key);
+  await input.reauthorize?.(source);
   const pdfMagic = Buffer.from(bytes.subarray(0, 5)).toString("ascii");
   if (bytes.byteLength !== source.expectedBytes || sha256(bytes) !== source.expectedHash.toLowerCase() || pdfMagic !== "%PDF-") {
     throw new DrawingRecognitionError("RECOGNITION_PDF_SOURCE_INVALID", "PDF 來源格式或內容指紋不一致，請重新上傳。", 409, true);
+  }
+  if (input.principalId && input.reauthorize) {
+    const access = await storage.createDownloadUrl({ key: pointer.key, filename: source.fileName,
+      forceDownload: false, purpose: 'download' });
+    await auditStorageAccess({ principalId: input.principalId, historicalProfileId: input.actorId,
+      companyId: input.companyId, accessKind: 'canonical_file', fileId: source.fileAssetId,
+      filename: source.fileName, bytes: bytes.byteLength, disposition: 'inline',
+      provider: access.provider, storageKey: pointer.key, bucket: pointer.bucket, access,
+      route: '/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content',
+      resourceContext: { context: 'browser_recognition_original', contextId: input.sessionId,
+        bindingId: input.sourceId, derivativeId: null } });
   }
   return { fileName: source.fileName, mimeType: "application/pdf", bytes, contentHash: source.expectedHash };
 }
@@ -305,6 +325,7 @@ export async function createDrawingRecognitionAmendment(input: {
         companyId: input.companyId,
         actorId: input.actorId,
         initiatorPrincipalId: verified?.session.principalId,
+        verifiedInitiator: verified ?? undefined,
         sourceContextType: projection.sourceContextType,
         sourceContextId: projection.sourceContextId,
         sourceAssetIds: projection.sources.map((source) => source.fileAssetId),
@@ -380,7 +401,8 @@ export async function commitDrawingRecognition(input: {
         expectedRowVersion: input.expectedRowVersion,
         decisions: input.decisions,
         idempotencyKey: input.metadata.idempotencyKey,
-        requirePostReleaseReason: null
+        requirePostReleaseReason: null,
+        verified: verified ?? undefined
       });
     },
     event: (result) => ({
@@ -467,6 +489,7 @@ export async function rerunDrawingRecognition(input: {
   companyId: string;
   actorId: string;
   initiatorPrincipalId?: string;
+  verifiedInitiator?: VerifiedPrincipalRequest;
   roles: string[];
   client?: AsyncDatabaseClient;
 }) {
@@ -482,6 +505,7 @@ export async function rerunDrawingRecognition(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     initiatorPrincipalId: input.initiatorPrincipalId,
+    verifiedInitiator: input.verifiedInitiator,
     sourceContextType: previous.sourceContextType,
     sourceContextId: previous.sourceContextId,
     sourceAssetIds: previous.sources.map((source) => source.fileAssetId),
@@ -566,6 +590,7 @@ export async function formalizeDrawingRecognition(input: {
           throw new DrawingRecognitionError("RECOGNITION_IMPACT_STALE",
             "正式資料已改變，請返回核對並重新計算寫入內容。", 409);
         }
+        await requireRecognitionImpactCapabilities(transaction, verified, currentImpact.changes);
         await requireRecognitionPostReleaseGrantInSnapshot(transaction, verified,
           currentImpact.requiresPostReleaseChange);
       }
@@ -618,12 +643,13 @@ export async function readClaimedDrawingRecognitionSource(input: {
   workerId: string;
   client?: AsyncDatabaseClient;
 }) {
-  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
-  const source = await repository.getClaimedSourceForWorker({
+  const client = input.client ?? getAsyncDatabaseClient();
+  const readSource = () => client.transaction(snapshot => new DrawingRecognitionAsyncRepository(snapshot).getClaimedSourceForWorker({
     sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
     sourceId: requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
     workerId: requireSafeRecognitionId(input.workerId, "RECOGNITION_WORKER_ID_INVALID")
-  });
+  }), { readOnly: true, isolationLevel: 'repeatable_read' });
+  const source = await readSource();
   const maxBytes = Math.max(1_024, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_SOURCE_MAX_BYTES ?? 268_435_456), 268_435_456));
   if (!Number.isFinite(source.expectedBytes) || source.expectedBytes < 0 || source.expectedBytes > maxBytes) {
     throw new DrawingRecognitionError("RECOGNITION_SOURCE_SIZE_LIMIT", "辨識來源檔超過允許大小。", 413, false);
@@ -637,6 +663,12 @@ export async function readClaimedDrawingRecognitionSource(input: {
   const bytes = await storage.readObject(pointer.key);
   if (bytes.byteLength !== source.expectedBytes || sha256(bytes) !== source.expectedHash.toLowerCase()) {
     throw new DrawingRecognitionError("RECOGNITION_SOURCE_HASH_MISMATCH", "辨識來源內容指紋不一致，請重新辨識。", 409, true);
+  }
+  const fresh = await readSource();
+  if (fresh.expectedHash !== source.expectedHash || fresh.sourceId !== source.sourceId ||
+      fresh.companyId !== source.companyId || fresh.canonicalSourceIdentity !== source.canonicalSourceIdentity ||
+      JSON.stringify(fresh.storage) !== JSON.stringify(source.storage)) {
+    throw new DrawingRecognitionError('RECOGNITION_SOURCE_STALE', '辨識來源或授權已改變，請重新辨識。', 409);
   }
   return { fileName: source.fileName, mimeType: source.mimeType || "application/octet-stream", bytes, contentHash: source.expectedHash };
 }

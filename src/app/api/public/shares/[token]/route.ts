@@ -17,7 +17,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           expires_at: publicShare.share.expires_at,
           created_at: publicShare.share.created_at
         },
-        ...(await serializePublicShareAsync(publicShare.submission, token, publicShare.share.id, snapshot))
+        ...(await (publicShare.externalProjectContext
+          ? serializePublicShareAsync(publicShare.submission, token, publicShare.share.id, snapshot, false)
+          : serializePublicShareAsync(publicShare.submission, token, publicShare.share.id, snapshot)))
       }, { headers: { "cache-control": "private, no-store" } });
     }, { readOnly: false });
 }

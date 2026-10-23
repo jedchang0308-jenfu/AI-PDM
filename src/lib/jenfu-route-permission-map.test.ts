@@ -10,7 +10,7 @@ import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 describe("DEV-121 route authorization manifest", () => {
   it("auxiliary context GET/POST/cancel bind only published review/run and preserve the exact denominator", () => {
-    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 140, uniqueMethods: 161, policyEntries: 171 });
+    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 150, uniqueMethods: 172, policyEntries: 182 });
     const path = "src/app/api/numbering/openswx-metadata/drawing_revision/own-context/route.ts";
     expect(resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "numbering.recognition.review" })).toMatchObject({ permissionCode: "numbering.recognition.review" });
     expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });
@@ -93,6 +93,15 @@ describe("DEV-121 route authorization manifest", () => {
     expect(resolveJenfuRoutePolicyFromRequest(obsolete, "numbering.draft.obsolete")).toMatchObject({
       path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
     });
+  });
+  it("binds drawing preview POST to the Principal attachment command permission", () => {
+    const request = new Request("https://ai-pdm.test/api/numbering/drawings/D-1/attachments/asset-1/previews",
+      { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.attachments.manage")).toMatchObject({
+      path: "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+      permissionCode: "numbering.attachments.manage", scopeResolver: "workspace"
+    });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.attachments.manage", "search:part")).toBeNull();
   });
   it("requires the exact transfer-review discriminator for its Principal command", () => {
     const request = new Request("https://ai-pdm.test/api/approvals/requests/APR-TRF-1/decisions",

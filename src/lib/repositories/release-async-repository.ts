@@ -147,6 +147,14 @@ export const INSERT_ASYNC_READONLY_SHARE_SQL = `
   ) VALUES (:id, :submissionId, :tokenHash, :label, :expiresAt, :createdBy, 0, :now, :now)
 `;
 
+export const INSERT_ASYNC_READONLY_SHARE_WITH_PROJECT_SCOPE_SQL = `
+  INSERT INTO readonly_shares (
+    id, submission_id, token_hash, label, project_scope_key, expires_at, created_by, access_count, created_at, updated_at
+  ) SELECT :id, submission.id, :tokenHash, :label, NULLIF(BTRIM(submission.project_code), ''),
+      :expiresAt, :createdBy, 0, :now, :now
+    FROM submissions submission WHERE submission.id=:submissionId
+`;
+
 export const REVOKE_ASYNC_READONLY_SHARE_SQL = `
   UPDATE readonly_shares
   SET revoked_at = COALESCE(revoked_at, :now),
@@ -438,7 +446,8 @@ export class AsyncReleaseRepository {
     }
     const id = this.idFactory();
     const now = this.clock();
-    await this.client.execute(INSERT_ASYNC_READONLY_SHARE_SQL, {
+    await this.client.execute(this.client.kind === "postgres"
+      ? INSERT_ASYNC_READONLY_SHARE_WITH_PROJECT_SCOPE_SQL : INSERT_ASYNC_READONLY_SHARE_SQL, {
       id,
       submissionId: input.submissionId,
       tokenHash: input.tokenHash,
@@ -607,6 +616,7 @@ function normalizeReadonlyShare(row: ReadonlyShareRow): ReadonlyShare {
     id: row.id,
     submission_id: row.submission_id,
     label: row.label,
+    project_scope_key: row.project_scope_key ?? null,
     expires_at: row.expires_at,
     created_by: row.created_by,
     created_by_name: row.created_by_name ?? row.created_by,

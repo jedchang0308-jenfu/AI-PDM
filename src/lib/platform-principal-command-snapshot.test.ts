@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
-import { createPdmCommand, createPlatformActorContext } from "@/lib/platform-command";
+import type { PrincipalWorkspacePermission } from "@/lib/jenfu-principal-permission-service";
+import { createPdmCommand, createPlatformActorContext, type PdmCommand } from "@/lib/platform-command";
 
 const mocks = vi.hoisted(() => ({
   withRequest: vi.fn(),
@@ -11,7 +12,13 @@ const mocks = vi.hoisted(() => ({
   findCompleted: vi.fn(),
   claim: vi.fn(),
   enqueue: vi.fn(),
-  complete: vi.fn()
+  complete: vi.fn(),
+  getActiveAttachment: vi.fn(),
+  listDeletedAttachments: vi.fn(),
+  resolveCompanyEntity: vi.fn(),
+  attachmentSnapshot: vi.fn(),
+  attachmentContext: vi.fn(),
+  dynamicPolicy: vi.fn()
 }));
 
 vi.mock("@/lib/jenfu-principal-request-guard", () => ({
@@ -38,6 +45,29 @@ vi.mock("@/lib/repositories/platform-outbox-async-repository", () => ({
     completeCommand = mocks.complete;
   }
 }));
+vi.mock("@/lib/repositories/master-attachment-async-repository", () => ({
+  AsyncMasterAttachmentRepository: class {
+    constructor(snapshot: AsyncDatabaseClient, _clock: unknown, _idFactory: unknown, context: unknown) {
+      mocks.attachmentSnapshot(snapshot);
+      mocks.attachmentContext(context);
+    }
+    getMasterAttachmentInCompany = mocks.getActiveAttachment;
+    listDeletedMasterAttachmentsInCompany = mocks.listDeletedAttachments;
+    resolveCompanyEntity = mocks.resolveCompanyEntity;
+  },
+  normalizeMasterAttachmentCategory: (entityType: string, value: string) => {
+    const categories = entityType === "drawing_number"
+      ? ["cad_3d", "intermediate", "drawing_2d", "dwg", "pdf", "other"]
+      : ["cad_3d", "intermediate", "catalog", "spec_sheet", "supplier_doc", "test_report", "part_preview_image", "other"];
+    const normalized = value.trim();
+    if (!categories.includes(normalized)) throw new Error("MASTER_ATTACHMENT_CATEGORY_INVALID");
+    return normalized;
+  }
+}));
+vi.mock("@/lib/principal-resource-capability", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/principal-resource-capability")>();
+  return { ...actual, isDynamicRolePolicyInSnapshot: mocks.dynamicPolicy };
+});
 
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 
@@ -80,18 +110,19 @@ function client(isolation = "repeatable read") {
   }), execute: vi.fn(), query: vi.fn() } as unknown as AsyncDatabaseClient;
 }
 
-function input(database: AsyncDatabaseClient,
-  mutate: (snapshot: AsyncDatabaseClient) => Promise<{ ok: boolean }> = async () => ({ ok: true })) {
-  return { client: database, command: command(), execute: mutate,
+function input<TPayload = { value: number }>(database: AsyncDatabaseClient,
+  mutate: (snapshot: AsyncDatabaseClient) => Promise<{ ok: boolean }> = async () => ({ ok: true }),
+  commandOverride: PdmCommand<TPayload> = command() as PdmCommand<TPayload>, authorization = route) {
+  return { client: database, command: commandOverride, execute: mutate,
     event: () => ({ aggregateType: "test", aggregateId: "one", eventType: "changed", payload: {} }),
     principalRequest: { token, keyRing: {} as never,
       identityIssuer: "issuer", trustPolicy: {} as never, database },
-    principalAuthorization: route };
+    principalAuthorization: authorization };
 }
 
 describe("principal command and mutation use one verified snapshot", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mocks.withRequest.mockImplementation(async (_input, run, options) => {
       expect(options).toMatchObject({ readOnly: false });
       expect(["repeatable_read", "serializable"]).toContain(options.isolationLevel);
@@ -104,6 +135,10 @@ describe("principal command and mutation use one verified snapshot", () => {
       platformOrganizationId: "organization-one" });
     mocks.findCompleted.mockResolvedValue({ completed: false });
     mocks.claim.mockResolvedValue(true);
+    mocks.getActiveAttachment.mockResolvedValue({ id: "asset-one", entityType: "part_number", documentCategory: "spec_sheet" });
+    mocks.listDeletedAttachments.mockResolvedValue({ attachments: [] });
+    mocks.resolveCompanyEntity.mockResolvedValue({ entityType: "part_number", entityCode: "PN-1" });
+    mocks.dynamicPolicy.mockResolvedValue(true);
   });
 
   it("rechecks route permission, active account and actor in the write snapshot before the command", async () => {
@@ -124,6 +159,266 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(vi.mocked(database.queryOne).mock.calls.some(([sql]) =>
       String(sql).includes("read_principal_cutover_for_command_v1"))).toBe(false);
     expect(mocks.claim.mock.calls[0][0].actor.platformOrganizationId).toBeNull();
+  });
+
+  it.each([
+    {
+      label: "part attachment delete",
+      commandName: "pdm.master_attachment.delete",
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+      method: "DELETE", url: "https://ai-pdm.test/api/parts/PN-1/attachments/asset-one",
+      entityType: "part_number" as const, entityCode: "PN-1", category: "spec_sheet", groups: ["part"], deleted: false
+    },
+    {
+      label: "part attachment restore uses deleted row CAD category",
+      commandName: "pdm.master_attachment.restore",
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+      method: "POST", url: "https://ai-pdm.test/api/parts/PN-1/attachments/asset-one/restore",
+      entityType: "part_number" as const, entityCode: "PN-1", category: "cad_3d", groups: ["part", "model"], deleted: true
+    },
+    {
+      label: "part preview uses the persisted intermediate category",
+      commandName: "pdm.master_attachment.preview",
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+      method: "POST", url: "https://ai-pdm.test/api/parts/PN-1/attachments/asset-one/previews",
+      entityType: "part_number" as const, entityCode: "PN-1", category: "intermediate", groups: ["part", "model"], deleted: false
+    },
+  ])("derives $label groups from the company-bound attachment in the write snapshot", async (scenario: {
+    label: string; commandName: string; routePath: string; method: string; url: string;
+    entityType: "part_number" | "drawing_number"; entityCode: string; category: string;
+    groups: string[]; deleted?: boolean
+  }) => {
+    const database = client();
+    const authRoute = {
+      request: new Request(scenario.url, { method: scenario.method,
+        headers: { cookie: `pdm_session=${token}` } }),
+      routePath: scenario.routePath, method: scenario.method,
+      permissionCode: "numbering.attachments.manage"
+    };
+    const attachment = { id: "asset-one", entityType: scenario.entityType,
+      entityCode: scenario.entityCode, documentCategory: scenario.category };
+    if (scenario.deleted) mocks.listDeletedAttachments.mockResolvedValueOnce({
+      attachments: [{ attachment, policy: {} }]
+    });
+    else mocks.getActiveAttachment.mockResolvedValueOnce(attachment);
+    mocks.evaluate.mockImplementationOnce(async (_snapshot: AsyncDatabaseClient, _verified: VerifiedPrincipalRequest,
+      permissions: PrincipalWorkspacePermission[]) =>
+      permissions.map(permission => ({ allowed: true, principalId, permissionCode: permission.permissionCode })));
+    const attachmentCommand = createPdmCommand({
+      commandName: scenario.commandName, idempotencyKey: "attachment-operation",
+      actor: command().actor,
+      payload: { kind: scenario.commandName.slice("pdm.master_attachment.".length),
+        entityType: scenario.entityType, entityCode: scenario.entityCode, attachmentId: "asset-one" }
+    });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, attachmentCommand, authRoute), execute
+    })).resolves.toMatchObject({ result: { ok: true }, reusedFromCommandReceipt: false });
+    expect(mocks.attachmentSnapshot).toHaveBeenCalledWith(database);
+    expect(mocks.attachmentContext).toHaveBeenCalledWith({ companyId, principalId,
+      profileId: pdmUserId, profileVersion: undefined });
+    const parentGroup = scenario.entityType === "drawing_number" ? "drawing" : "part";
+    const expectedPermissions: PrincipalWorkspacePermission[] = [{ permissionKind: "action", permissionCode: "numbering.attachments.manage",
+      resourceGroups: [parentGroup] }];
+    if (scenario.groups.includes("model")) expectedPermissions.push({
+      permissionKind: "action", permissionCode: "pdm.model.edit"
+    });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, expectedPermissions);
+    expect(scenario.deleted ? mocks.listDeletedAttachments : mocks.getActiveAttachment).toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { requestedCategory: " cad_3d ", normalizedCategory: "cad_3d", groups: ["part", "model"] },
+    { requestedCategory: "intermediate", normalizedCategory: "intermediate", groups: ["part", "model"] },
+    { requestedCategory: "other", normalizedCategory: "other", groups: ["part"] },
+    { requestedCategory: "catalog", normalizedCategory: "catalog", groups: ["part"] }
+  ])("validates upload category in the command snapshot and passes that category to the writer: $requestedCategory", async scenario => {
+    const database = client();
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    mocks.evaluate.mockImplementationOnce(async (_snapshot: AsyncDatabaseClient, _verified: VerifiedPrincipalRequest,
+      permissions: PrincipalWorkspacePermission[]) =>
+      permissions.map(permission => ({ allowed: true, principalId, permissionCode: permission.permissionCode })));
+    const uploadCommand = createPdmCommand({ commandName: "pdm.master_attachment.upload",
+      idempotencyKey: "attachment-upload", actor: command().actor,
+      payload: { entityType: "part_number", entityCode: "PN-1", documentCategory: scenario.requestedCategory } });
+    const execute = vi.fn(async (_snapshot: AsyncDatabaseClient, _decision?: unknown,
+      _verified?: VerifiedPrincipalRequest | null, context?: { validatedAttachmentCategory?: string }) => ({
+      ok: true, category: context?.validatedAttachmentCategory
+    }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, uploadCommand, authRoute), execute
+    })).resolves.toMatchObject({ result: { ok: true, category: scenario.normalizedCategory }, reusedFromCommandReceipt: false });
+    expect(mocks.resolveCompanyEntity).toHaveBeenCalledWith({ entityType: "part_number", entityCode: "PN-1", companyId });
+    const expectedPermissions: PrincipalWorkspacePermission[] = [{ permissionKind: "action",
+      permissionCode: "numbering.attachments.manage", resourceGroups: ["part"] }];
+    if (scenario.groups.includes("model")) expectedPermissions.push({
+      permissionKind: "action", permissionCode: "pdm.model.edit"
+    });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, expectedPermissions);
+    expect(execute.mock.calls[0]?.[3]).toEqual({ validatedAttachmentCategory: scenario.normalizedCategory });
+  });
+
+  it("requires model edit for CAD upload before claiming or writing the command", async () => {
+    const database = client();
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    mocks.evaluate.mockImplementationOnce(async (_snapshot: AsyncDatabaseClient, _verified: VerifiedPrincipalRequest,
+      permissions: PrincipalWorkspacePermission[]) => permissions.map(permission => ({
+      allowed: permission.permissionCode !== "pdm.model.edit", principalId, permissionCode: permission.permissionCode
+    })));
+    const uploadCommand = createPdmCommand({ commandName: "pdm.master_attachment.upload",
+      idempotencyKey: "cad-upload-without-model-edit", actor: command().actor,
+      payload: { entityType: "part_number", entityCode: "PN-1", documentCategory: "cad_3d" } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, uploadCommand, authRoute), execute
+    })).rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [
+      { permissionKind: "action", permissionCode: "numbering.attachments.manage", resourceGroups: ["part"] },
+      { permissionKind: "action", permissionCode: "pdm.model.edit" }
+    ]);
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("requires the upload parent to resolve inside the verified company snapshot", async () => {
+    const database = client();
+    mocks.resolveCompanyEntity.mockResolvedValueOnce(null);
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    const uploadCommand = createPdmCommand({ commandName: "pdm.master_attachment.upload",
+      idempotencyKey: "missing-upload-parent", actor: command().actor,
+      payload: { entityType: "part_number", entityCode: "PN-1", documentCategory: "other" } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, uploadCommand, authRoute), execute
+    })).rejects.toThrow();
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: "unknown category", entityType: "part_number", entityCode: "PN-1", documentCategory: "pdf" },
+    { label: "wrong parent type", entityType: "drawing_number", entityCode: "PN-1", documentCategory: "other" },
+    { label: "route parent mismatch", entityType: "part_number", entityCode: "PN-2", documentCategory: "other" }
+  ])("rejects upload $label before permission or command effects", async scenario => {
+    const database = client();
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    const uploadCommand = createPdmCommand({ commandName: "pdm.master_attachment.upload",
+      idempotencyKey: "invalid-upload-binding", actor: command().actor,
+      payload: { entityType: scenario.entityType, entityCode: scenario.entityCode,
+        documentCategory: scenario.documentCategory } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, uploadCommand, authRoute), execute
+    })).rejects.toThrow(scenario.label === "unknown category"
+      ? "MASTER_ATTACHMENT_CATEGORY_INVALID" : "PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on an unknown persisted attachment category before permission or command effects", async () => {
+    const database = client();
+    mocks.getActiveAttachment.mockResolvedValueOnce({ id: "asset-one", entityType: "part_number",
+      entityCode: "PN-1", documentCategory: "unregistered-category" });
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments/asset-one/previews", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    const attachmentCommand = createPdmCommand({ commandName: "pdm.master_attachment.preview",
+      idempotencyKey: "unknown-category", actor: command().actor,
+      payload: { kind: "preview", entityType: "part_number", entityCode: "PN-1", attachmentId: "asset-one" } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, attachmentCommand, authRoute), execute
+    })).rejects.toThrow("MASTER_ATTACHMENT_CATEGORY_INVALID");
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("requires pdm.model.edit for a persisted CAD attachment before command effects", async () => {
+    const database = client();
+    mocks.getActiveAttachment.mockResolvedValueOnce({ id: "asset-one", entityType: "part_number",
+      entityCode: "PN-1", documentCategory: "cad_3d" });
+    mocks.evaluate.mockImplementationOnce(async (_snapshot, _verified, permissions) =>
+      permissions.map((permission: {permissionCode: string}) => ({ allowed: permission.permissionCode !== "pdm.model.edit",
+        principalId, permissionCode: permission.permissionCode })));
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments/asset-one/previews", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+      method: "POST", permissionCode: "numbering.attachments.manage"
+    };
+    const attachmentCommand = createPdmCommand({ commandName: "pdm.master_attachment.preview",
+      idempotencyKey: "cad-without-model-edit", actor: command().actor,
+      payload: { kind: "preview", entityType: "part_number", entityCode: "PN-1", attachmentId: "asset-one" } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, attachmentCommand, authRoute), execute
+    })).rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [
+      { permissionKind: "action", permissionCode: "numbering.attachments.manage", resourceGroups: ["part"] },
+      { permissionKind: "action", permissionCode: "pdm.model.edit" }
+    ]);
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("keeps the legacy catalog attachment permission and write path unchanged", async () => {
+    const database = client();
+    mocks.dynamicPolicy.mockResolvedValueOnce(false);
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId,
+      permissionCode: "numbering.attachments.manage" }]);
+    const authRoute = {
+      request: new Request("https://ai-pdm.test/api/parts/PN-1/attachments/asset-one", {
+        method: "DELETE", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+      method: "DELETE", permissionCode: "numbering.attachments.manage"
+    };
+    const attachmentCommand = createPdmCommand({ commandName: "pdm.master_attachment.delete",
+      idempotencyKey: "legacy-attachment-delete", actor: command().actor,
+      payload: { kind: "delete", entityType: "part_number", entityCode: "PN-1", attachmentId: "asset-one" } });
+    const execute = vi.fn(async () => ({ ok: true }));
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, execute, attachmentCommand, authRoute), execute
+    })).resolves.toMatchObject({ result: { ok: true } });
+    expect(mocks.getActiveAttachment).not.toHaveBeenCalled();
+    expect(mocks.listDeletedAttachments).not.toHaveBeenCalled();
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [{
+      permissionKind: "action", permissionCode: "numbering.attachments.manage"
+    }]);
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it("allows only exact Principal-bound submission-share create with company and Released-package checks", async () => {

@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   getApprovalDetail: vi.fn(), queryOne: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
-  readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn()
+  readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn(),
+  dynamic: vi.fn(), dynamicAuthorize: vi.fn()
 }));
 const tx = { kind: "postgres", transactionScope: "postgres", queryOne: mocks.queryOne };
 vi.mock("@/lib/db-async-provider", async (importOriginal) => ({
@@ -48,6 +49,11 @@ vi.mock("@/lib/auth-async", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/storage-access-audit", () => ({ auditStorageAccess: mocks.audit }));
+vi.mock('@/lib/principal-resource-capability', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/principal-resource-capability')>(),
+  isDynamicRolePolicyInSnapshot: mocks.dynamic,
+  authorizeDynamicResourceCapabilityInSnapshot: mocks.dynamicAuthorize
+}));
 import { GET } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
 
 function request(context = "review_package") {
@@ -65,12 +71,14 @@ function request(context = "review_package") {
 }
 const params = { params: Promise.resolve({ fileAssetId: "asset-one" }) };
 const source = { id: "asset-one", company_id: "company-one",
-  linked_entity_id: "drawing-one", content_hash: createHash("sha256").update("review-file").digest("hex"),
+  linked_entity_id: "drawing-one", linked_entity_type: 'drawing_revision', content_hash: createHash("sha256").update("review-file").digest("hex"),
   storage_provider: "test", storage_key: "object-one",
   file_name: "drawing.pdf", file_ext: "pdf", mime_type: "application/pdf" };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.dynamic.mockResolvedValue(false);
+  mocks.dynamicAuthorize.mockResolvedValue(null);
   mocks.audit.mockResolvedValue(undefined);
   mocks.createDownload.mockResolvedValue({ provider:"local_repository", bucket:null, key:"object-one",
     mode:"server_stream", url:null, expiresAt:null, expiresInSeconds:0,
@@ -150,8 +158,8 @@ describe("principal review package file read", () => {
     expect(mocks.withVerified).toHaveBeenCalledWith({ token: expect.any(String) },
       expect.any(Function), { readOnly: true, isolationLevel: "repeatable_read" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.any(Object), [
-      { permissionKind: "action", permissionCode: "approval.inbox.view" },
-      { permissionKind: "action", permissionCode: "approval.request.decide" }
+      { permissionKind: "action", permissionCode: "approval.inbox.view", resourceGroup: 'drawing' },
+      { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: 'drawing' }
     ]);
     expect(mocks.queryOne.mock.calls.some(([sql]) =>
       String(sql).includes("revision.drawing_id = :contextId") &&
@@ -176,7 +184,7 @@ describe("principal review package file read", () => {
     expect(await response.text()).toBe("review-file");
     expect(mocks.getApprovalDetail).toHaveBeenCalledWith("approval-one", "company-one");
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.any(Object), [
-      { permissionKind: "action", permissionCode: "approval.request.decide" }
+      { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: 'drawing' }
     ]);
     expect(mocks.queryOne.mock.calls.some(([sql]) =>
       String(sql).includes("asset.id = :bindingId") &&
@@ -224,7 +232,7 @@ describe("principal review package file read", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("review-file");
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.any(Object), [
-      { permissionKind: "page", permissionCode }
+      { permissionKind: "page", permissionCode, resourceGroup: context === 'part_attachment' ? 'part' : 'drawing' }
     ]);
     expect(mocks.getReview).not.toHaveBeenCalled();
     expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
@@ -249,13 +257,13 @@ describe("principal review package file read", () => {
   });
 
   it("lets the current principal-owned work read its exact file without a legacy role", async () => {
-    mocks.queryOne.mockResolvedValueOnce({ ...source,
+    mocks.queryOne.mockResolvedValue({ ...source,
       work_id: "work-one", owner_user_id: "profile-one" });
     const response = await GET(request("drawing_revision_work"), params);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("review-file");
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.any(Object), [
-      { permissionKind: "action", permissionCode: "numbering.workspace.view" }
+      { permissionKind: "action", permissionCode: "numbering.workspace.view", resourceGroup: 'drawing' }
     ]);
     expect(mocks.getReview).not.toHaveBeenCalled();
     expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
@@ -317,4 +325,28 @@ it("does not write a successful access audit for corrupt bytes", async () => {
   mocks.readObject.mockResolvedValueOnce(Buffer.from("other-file!"));
   expect((await GET(request(), params)).status).toBe(503);
   expect(mocks.audit).not.toHaveBeenCalled();
+});
+
+it("rechecks dynamic download immediately before reading original bytes", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.dynamicAuthorize.mockImplementation(async (_tx, _verified, _groups, action) =>
+    action === 'download' ? Response.json({ code: 'permission_not_granted' }, { status: 403 }) : null);
+  expect((await GET(request('drawing_attachment'), params)).status).toBe(403);
+  expect(mocks.dynamicAuthorize.mock.calls.map(call => call[3])).toEqual(['view', 'download']);
+  expect(mocks.readObject).not.toHaveBeenCalled();
+  expect(mocks.audit).not.toHaveBeenCalled();
+});
+
+it("rejects a revoked parent capability at the second authorization snapshot", async () => {
+  mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]).mockResolvedValueOnce([{ allowed: false }]);
+  expect((await GET(request('drawing_attachment'), params)).status).toBe(404);
+  expect(mocks.withVerified).toHaveBeenCalledTimes(2);
+  expect(mocks.readObject).not.toHaveBeenCalled();
+});
+
+it("requires model download as well as drawing download for canonical CAD members", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.queryOne.mockResolvedValue({ ...source, capability_role: 'cad_3d' });
+  expect((await GET(request('drawing_revision'), params)).status).toBe(200);
+  expect(mocks.dynamicAuthorize).toHaveBeenLastCalledWith(tx, expect.any(Object), ['drawing', 'model'], 'download');
 });

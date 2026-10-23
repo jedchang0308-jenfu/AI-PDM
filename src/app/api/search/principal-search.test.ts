@@ -109,6 +109,14 @@ describe("Principal dashboard search", () => {
     expect(mocks.scope).not.toHaveBeenCalled();
   });
 
+  it("passes server-computed dynamic visible IDs into submission search", async () => {
+    mocks.scope.mockResolvedValue({ visibleSubmissionIds: ["drawing-one"] });
+    expect((await GET(request("q=drawing"))).status).toBe(200);
+    expect(mocks.search).toHaveBeenCalledWith(expect.objectContaining({
+      visibleSubmissionIds: ["drawing-one"], companyId: "company-jenfu"
+    }));
+  });
+
   it("denies missing grants, wrong principal, and wrong company before content reads", async () => {
     mocks.decisions.mockResolvedValueOnce([{ allowed: false, permissionCode: "numbering.search",
       principalId: "principal-1", decisionCode: "permission_not_granted" }]);

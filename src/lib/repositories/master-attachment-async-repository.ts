@@ -657,7 +657,7 @@ export class AsyncMasterAttachmentRepository {
       targetRefs: [{ type: input.entityType, id: entity.id }]
     });
 
-    const category = normalizeCategory(entity.type, input.documentCategory);
+    const category = normalizeMasterAttachmentCategory(entity.type, input.documentCategory);
     const revision = normalizeAttachmentRevision(input.revision);
     const fileBuffer = Buffer.from(await input.file.arrayBuffer());
     validateAttachmentFile(input.file.name, fileBuffer.byteLength);
@@ -925,6 +925,14 @@ export class AsyncMasterAttachmentRepository {
     return this.getMasterAttachment({ entityType: entity.type, entityCode: entity.code, attachmentId: row.id });
   }
 
+  /** Resolve only the canonical, company-bound parent identity for a caller-owned transaction. */
+  async resolveCompanyEntity(input: {
+    entityType: MasterAttachmentEntityType; entityCode: string; companyId: string
+  }): Promise<{ entityType: MasterAttachmentEntityType; entityCode: string } | null> {
+    const entity = await this.resolveEntityInCompany(input);
+    return entity ? { entityType: entity.type, entityCode: entity.code } : null;
+  }
+
   private async resolveEntityInCompany(input: { entityType: MasterAttachmentEntityType; entityCode: string; companyId: string }): Promise<EntityRef | null> {
     const code = input.entityCode.trim();
     if (!code || !input.companyId.trim()) return null;
@@ -1053,7 +1061,7 @@ export class AsyncMasterAttachmentRepository {
   }
 }
 
-function normalizeCategory(entityType: MasterAttachmentEntityType, value: string): MasterAttachmentCategory {
+export function normalizeMasterAttachmentCategory(entityType: MasterAttachmentEntityType, value: string): MasterAttachmentCategory {
   const normalized = value.trim();
   const allowed = entityType === "drawing_number" ? drawingCategories : partCategories;
   if (allowed.has(normalized as MasterAttachmentCategory)) return normalized as MasterAttachmentCategory;

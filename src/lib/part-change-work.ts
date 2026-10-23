@@ -11,7 +11,10 @@ import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev0
 import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
+import { resolvePrincipalReviewResourceGroupsInSnapshot,
+  requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { assertReviewPackagePrimaryRoot, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import type { ReviewPackageEnvelope } from "@/lib/pdm-review-package-contract";
 import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
 
 export type PartChangeActor = {
@@ -35,7 +38,7 @@ export class PartChangeWorkService {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
     const [capability] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-      verified, [{ permissionKind: "action", permissionCode }]);
+      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "part" }]);
     if (!capability?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -75,7 +78,7 @@ export class PartChangeWorkService {
     const { companyId, actorId } = await this.requirePrincipalCapability(verified,
       "numbering.workspace.view");
     const [update] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update" }]);
+      verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "part" }]);
     const result = await this.read(workId, {
       id: actorId, companyId, canEditNonOwned: false,
       permissions: { create: false, update: false, submit: false,
@@ -203,11 +206,6 @@ export class PartChangeWorkService {
       ? await new PartChangeWorkAsyncRepository(tx).readLifecycleBasis(tx, companyId, locked)
       : undefined;
     const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
-    const reviewerUserId = principalOnly
-      ? await selectPrincipalReviewerInSnapshot(tx,
-        { companyId, ownerUserId: locked.owner_user_id, ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {}) })
-      : await reviewRepository.selectReviewer(tx,
-        { companyId, ownerUserId: locked.owner_user_id });
     const snapshotPayload = typeof locked.proposed_payload === "string"
       ? JSON.parse(locked.proposed_payload) as PartChangePayload : locked.proposed_payload;
     const workRowVersion = principalOnly ? Number(locked.row_version) : undefined;
@@ -220,6 +218,18 @@ export class PartChangeWorkService {
           ...(workRowVersion === undefined ? {} : { workRowVersion }) }
       })
       : snapshotPayload;
+    const reviewerUserId = principalOnly
+      ? await selectPrincipalReviewerInSnapshot(tx, {
+        companyId, ownerUserId: locked.owner_user_id, resourceGroup: "part",
+        resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+          companyId, requestKind: "part_change", entityType: "part",
+          entityId: locked.part_id, workId,
+          envelope: packagePayload as ReviewPackageEnvelope
+        }),
+        ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {})
+      })
+      : await reviewRepository.selectReviewer(tx,
+        { companyId, ownerUserId: locked.owner_user_id });
     const request = await reviewRepository.create(tx, {
       companyId, requestKind: "part_change", entityType: "part",
       canonicalEntityId: locked.part_id, workId, reviewerUserId,
@@ -317,6 +327,13 @@ export class PartChangeWorkService {
       throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
     }
     const verifiedPackage = parsedPackage.kind === "v2" ? verifyReviewPackageIntegrity(locked.snapshotPayload, locked.snapshotHash) : null;
+    if (principalOnly && verifiedPackage) {
+      await requirePrincipalReviewResourceCapabilitiesInSnapshot(tx, verified!, {
+        companyId, requestKind: "part_change", entityType: "part",
+        entityId: locked.canonicalEntityId, workId: locked.workId,
+        envelope: verifiedPackage
+      }, { strictSnapshot: decision !== "return_for_correction" });
+    }
     if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked);
     if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
     const workRepository = new PartChangeWorkAsyncRepository(tx);

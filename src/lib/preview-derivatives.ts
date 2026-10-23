@@ -17,6 +17,12 @@ import type {
   MasterAttachmentPreviewJobStatus,
   MasterAttachmentRecord
 } from "@/lib/repositories/master-attachment-repository";
+import {
+  parsePrincipalJobInitiator,
+  PrincipalJobAuthorityError,
+  requireCurrentPrincipalJobAuthority,
+  type PrincipalJobInitiator
+} from "@/lib/principal-job-authority";
 
 export type PreviewRequestedKind = "native_thumbnail_png" | "drawing_pdf";
 type PreviewDerivativeKind = "thumbnail_png" | "drawing_pdf" | "sheet_png" | "model_preview_png";
@@ -35,6 +41,8 @@ type PreviewSourceRow = {
   hash_algorithm: string;
   linked_entity_type: string;
   linked_entity_id: string;
+  document_category?: string | null;
+  capability_role?: string | null;
 };
 
 // file_assets has no company_id. Resolve its owner from the canonical linked entity;
@@ -43,10 +51,16 @@ const previewSourceCompanyPredicate = (companyExpression: string) => `(
   (fa.linked_entity_type = 'drawing_revision' AND EXISTS (
     SELECT 1 FROM drawing_revisions revision
     WHERE revision.id = fa.linked_entity_id AND revision.company_id = ${companyExpression}
+      AND EXISTS (SELECT 1 FROM drawing_revision_files binding
+        WHERE binding.drawing_revision_id=revision.id AND binding.company_id=revision.company_id
+          AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL)
   )) OR
   (fa.linked_entity_type = 'numbering_candidate_revision' AND EXISTS (
     SELECT 1 FROM numbering_candidate_revision_drafts candidate
     WHERE candidate.id = fa.linked_entity_id AND candidate.company_id = ${companyExpression}
+      AND EXISTS (SELECT 1 FROM numbering_candidate_revision_files binding
+        WHERE binding.candidate_revision_id=candidate.id AND binding.company_id=candidate.company_id
+          AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL)
   )) OR
   (fa.linked_entity_type = 'drawing_number' AND EXISTS (
     SELECT 1 FROM drawing_numbers drawing
@@ -244,9 +258,14 @@ export function canonicalPreviewJobResponse(job: MasterAttachmentPreviewJob | nu
  */
 export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
   client: AsyncDatabaseClient,
-  input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; initiatorPrincipalId?: string; requireQueued?: boolean; runFakeWorker?: boolean }
+  input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; principalInitiator?: PrincipalJobInitiator; requireQueued?: boolean; runFakeWorker?: boolean }
 ): Promise<AutomaticPreviewPreparationResult[]> {
   assertRealPreviewWorker(input.runFakeWorker);
+  if (!input.principalInitiator || input.principalInitiator.pdmUserId !== input.actorUserId ||
+      input.principalInitiator.companyId !== input.companyId) {
+    if (input.requireQueued) throw new Error("PREVIEW_PRINCIPAL_CONTEXT_REQUIRED");
+    return [];
+  }
   const sourceFileAssetIds = [...new Set(input.sourceFileAssetIds.map((value) => value.trim()).filter(Boolean))];
   if (sourceFileAssetIds.length === 0) return [];
 
@@ -257,7 +276,17 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
     `SELECT fa.id, :companyId AS company_id,
             COALESCE(fa.storage_provider, 'local_repository') AS storage_provider,
             fa.original_path, fa.storage_key, fa.file_name, fa.file_ext, fa.mime_type,
-            fa.file_size, fa.content_hash, fa.hash_algorithm,
+            fa.file_size, fa.content_hash, fa.hash_algorithm, fa.document_category,
+            COALESCE(
+              (SELECT binding.role FROM drawing_revision_files binding
+                WHERE binding.drawing_revision_id=fa.linked_entity_id
+                  AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL
+                ORDER BY binding.sort_order,binding.id LIMIT 1),
+              (SELECT binding.role FROM numbering_candidate_revision_files binding
+                WHERE binding.candidate_revision_id=fa.linked_entity_id
+                  AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL
+                ORDER BY binding.sort_order,binding.id LIMIT 1),
+              fa.document_category) AS capability_role,
             fa.linked_entity_type, fa.linked_entity_id
        FROM file_assets fa
       WHERE fa.id IN (${idClause.sql})
@@ -311,7 +340,7 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
       const prepared = await enqueuePreviewJobForSourceAsync(client, {
         source,
         actorUserId: input.actorUserId,
-        initiatorPrincipalId: input.initiatorPrincipalId,
+        principalInitiator: input.principalInitiator,
         requestedKind,
         generatorProfile,
         forceRegenerate: false
@@ -333,7 +362,7 @@ export async function enqueuePreviewJobForAttachmentAsync(
     entityCode: string;
     attachmentId: string;
     actorUserId: string;
-    initiatorPrincipalId?: string;
+    principalInitiator: PrincipalJobInitiator;
     companyId?: string;
     requestedKind?: PreviewRequestedKind;
     generatorProfile?: string;
@@ -341,7 +370,9 @@ export async function enqueuePreviewJobForAttachmentAsync(
     forceRegenerate?: boolean;
   }
 ) {
-  if (client.kind === "postgres" && (!input.initiatorPrincipalId?.trim() || !input.companyId?.trim())) {
+  if (!input.companyId?.trim() || !input.principalInitiator ||
+      input.principalInitiator.pdmUserId !== input.actorUserId ||
+      input.principalInitiator.companyId !== input.companyId) {
     throw new Error("PREVIEW_PRINCIPAL_COMPANY_CONTEXT_REQUIRED");
   }
   const source = await resolvePreviewSource(client, input);
@@ -350,7 +381,7 @@ export async function enqueuePreviewJobForAttachmentAsync(
   return enqueuePreviewJobForSourceAsync(client, {
     source,
     actorUserId: input.actorUserId,
-    initiatorPrincipalId: input.initiatorPrincipalId,
+    principalInitiator: input.principalInitiator,
     requestedKind: input.requestedKind,
     generatorProfile: input.generatorProfile,
     runFakeWorker: input.runFakeWorker,
@@ -363,7 +394,7 @@ export async function enqueuePreviewJobForSourceAsync(
   input: {
     source: PreviewSourceRow;
     actorUserId: string;
-    initiatorPrincipalId?: string;
+    principalInitiator: PrincipalJobInitiator;
     requestedKind?: PreviewRequestedKind;
     generatorProfile?: string;
     runFakeWorker?: boolean;
@@ -372,12 +403,9 @@ export async function enqueuePreviewJobForSourceAsync(
 ) {
   assertRealPreviewWorker(input.runFakeWorker, input.generatorProfile);
   const source = input.source;
-  if (input.initiatorPrincipalId !== undefined &&
-      (!input.initiatorPrincipalId.trim() || input.initiatorPrincipalId.length > 255 ||
-        input.initiatorPrincipalId.startsWith("pdm:") ||
-        /[\u0000-\u001f\u007f]/u.test(input.initiatorPrincipalId))) {
-    throw new Error("PREVIEW_PRINCIPAL_INVALID");
-  }
+  const principalInitiator = parsePrincipalJobInitiator(input.principalInitiator);
+  if (!principalInitiator || principalInitiator.pdmUserId !== input.actorUserId ||
+      principalInitiator.companyId !== input.source.company_id) throw new Error("PREVIEW_PRINCIPAL_CONTEXT_REQUIRED");
   const companyId = source.company_id?.trim();
   if (!companyId || !await previewSourceBelongsToCompany(client, source.id, companyId)) {
     throw new Error("PREVIEW_SOURCE_COMPANY_SCOPE_INVALID");
@@ -404,7 +432,7 @@ export async function enqueuePreviewJobForSourceAsync(
     errorCode,
     errorSummary,
     actorUserId: input.actorUserId,
-    initiatorPrincipalId: input.initiatorPrincipalId,
+    principalInitiator,
     forceRegenerate: input.forceRegenerate === true,
     now
   });
@@ -728,6 +756,11 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
     const derivativeIds = await client.transaction(async (transactionClient) => {
       const owned = await readPreviewLease(transactionClient, input, true);
       if (!owned || sourceSnapshot(owned.source) !== sourceSnapshot(observed.source)) return null;
+      if (transactionClient.kind === "postgres") {
+        const current = await readClaimedPreviewSourceInSnapshot(transactionClient, input);
+        const original = previewJobInitiatorFromMetadata(observed.job.metadata_json);
+        if (!current || !original || JSON.stringify(current.initiator) !== JSON.stringify(original)) return null;
+      }
     const ids: string[] = [];
     for (const derivative of input.derivatives) {
       const bytes = Buffer.from(derivative.contentBase64, "base64");
@@ -894,7 +927,7 @@ async function upsertPreviewJob(
     errorCode: string | null;
     errorSummary: string | null;
     actorUserId: string;
-    initiatorPrincipalId?: string;
+    principalInitiator: PrincipalJobInitiator;
     forceRegenerate: boolean;
     now: string;
   }
@@ -915,6 +948,7 @@ async function upsertPreviewJob(
           SET status = :status,
               error_code = :errorCode,
               error_summary = :errorSummary,
+              metadata_json = :metadataJson,
               locked_by = NULL,
               locked_at = NULL,
               updated_at = :now,
@@ -928,6 +962,7 @@ async function upsertPreviewJob(
           status: input.status,
           errorCode: input.errorCode,
           errorSummary: input.errorSummary,
+          metadataJson: JSON.stringify({ initiator: input.principalInitiator }),
           now: input.now
         }
       );
@@ -953,9 +988,7 @@ async function upsertPreviewJob(
     {
       ...input,
       idempotencyKey,
-      metadataJson: input.initiatorPrincipalId
-        ? JSON.stringify({ initiator: { kind: "verified_principal", principalId: input.initiatorPrincipalId } })
-        : "{}",
+      metadataJson: JSON.stringify({ initiator: input.principalInitiator }),
       completedAt: input.status === "skipped" ? input.now : null
     }
   );
@@ -1202,16 +1235,76 @@ function sanitizeDerivativeFilename(value: string) {
   return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim().slice(0, 120) || "preview.png";
 }
 
+type ClaimedPreviewSourceSnapshot = {
+  job: PreviewJobRow & { metadata_json: unknown };
+  source: PreviewSourceRow;
+  initiator: PrincipalJobInitiator;
+};
+
+function previewSourceIdentity(source: PreviewSourceRow) {
+  return JSON.stringify([
+    source.id, source.company_id, source.storage_provider, source.original_path, source.storage_key,
+    source.file_name, source.file_ext, source.mime_type, source.file_size, source.content_hash,
+    source.hash_algorithm, source.linked_entity_type, source.linked_entity_id,
+    source.document_category, source.capability_role ?? null
+  ]);
+}
+
+function previewJobInitiatorFromMetadata(value: unknown): PrincipalJobInitiator | null {
+  let metadata: unknown = value;
+  if (typeof metadata === "string") {
+    try { metadata = JSON.parse(metadata) as unknown; } catch { return null; }
+  }
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  return parsePrincipalJobInitiator((metadata as Record<string, unknown>).initiator);
+}
+
+async function readClaimedPreviewSourceInSnapshot(snapshot: AsyncDatabaseClient, input: PreviewLeaseInput): Promise<ClaimedPreviewSourceSnapshot | null> {
+  if (snapshot.kind !== "postgres") return null;
+  const owned = await readPreviewLease(snapshot, input);
+  if (!owned) return null;
+  const { job } = owned;
+  const initiator = previewJobInitiatorFromMetadata(job.metadata_json);
+  if (!initiator || initiator.companyId !== job.company_id) return null;
+  const source = await snapshot.queryOne<PreviewSourceRow>(
+    `SELECT fa.*,job.company_id AS company_id,
+        COALESCE(
+          (SELECT binding.role FROM drawing_revision_files binding
+            WHERE binding.drawing_revision_id=fa.linked_entity_id
+              AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL
+            ORDER BY binding.sort_order,binding.id LIMIT 1),
+          (SELECT binding.role FROM numbering_candidate_revision_files binding
+            WHERE binding.candidate_revision_id=fa.linked_entity_id
+              AND binding.source_file_asset_id=fa.id AND binding.removed_at IS NULL
+            ORDER BY binding.sort_order,binding.id LIMIT 1),
+          fa.document_category) AS capability_role
+       FROM file_assets fa JOIN preview_jobs job ON job.source_file_asset_id=fa.id
+      WHERE job.id=:jobId AND job.company_id=:companyId AND fa.deleted_at IS NULL
+        AND fa.content_hash=job.source_content_hash
+        AND ${previewSourceCompanyPredicate("job.company_id")}`,
+    { jobId: job.id, companyId: job.company_id }
+  );
+  if (!source || source.id !== job.source_file_asset_id || source.content_hash !== job.source_content_hash ||
+      normalizeExtension(source.file_ext) !== normalizeExtension(job.source_extension)) return null;
+  try {
+    await requireCurrentPrincipalJobAuthority(snapshot, initiator, {
+      linkedEntityType: source.linked_entity_type,
+      documentCategory: source.document_category,
+      capabilityRole: source.capability_role
+    });
+  } catch (error) {
+    if (error instanceof PrincipalJobAuthorityError && error.status === 403) return null;
+    throw error;
+  }
+  return { job, source, initiator };
+}
+
 /** A workload token is not access to every asset: only the running claim holder
  * may read this job's same-company immutable source, preserving its Principal. */
 export async function readClaimedPreviewSourceAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput) {
   const observe = async (snapshot: AsyncDatabaseClient) => {
-    const state = await readPreviewLease(snapshot, input);
-    if (!state) return null;
-    const metadata = typeof state.job.metadata_json === "string" ? JSON.parse(state.job.metadata_json || "{}") : state.job.metadata_json;
-    if (metadata?.initiator?.kind !== "verified_principal" ||
-      typeof metadata.initiator.principalId !== "string" || !metadata.initiator.principalId.trim()) return null;
-    return { ...state, principalId: metadata.initiator.principalId as string };
+    const state = await readClaimedPreviewSourceInSnapshot(snapshot, input);
+    return state ? { ...state, principalId: state.initiator.principalId } : null;
   };
   const resolved = await client.transaction(observe, { isolationLevel: "repeatable_read", readOnly: true });
   if (!resolved) throw new Error("PREVIEW_JOB_CLAIM_LOST");
@@ -1220,7 +1313,7 @@ export async function readClaimedPreviewSourceAsync(client: AsyncDatabaseClient,
   assertStoredFileIntegrity(bytes, resolved.source);
   // A new transaction after storage I/O, not the old repeatable-read snapshot.
   const current = await client.transaction(observe, { isolationLevel: "repeatable_read", readOnly: true });
-  if (!current || current.principalId !== resolved.principalId || sourceSnapshot(current.source) !== sourceSnapshot(resolved.source)) {
+  if (!current || JSON.stringify(current.initiator) !== JSON.stringify(resolved.initiator) || previewSourceIdentity(current.source) !== previewSourceIdentity(resolved.source)) {
     throw new Error("PREVIEW_JOB_CLAIM_LOST");
   }
   return { bytes, contentHash: resolved.job.source_content_hash, fileName: resolved.source.file_name,

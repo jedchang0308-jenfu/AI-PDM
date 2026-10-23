@@ -16,6 +16,16 @@ const dataCutoverConfigPath = 'config/release/dev012-ai-pdm-production-data-cuto
 
 export const createContinuousReleaseSourceReader = createFrozenWorkerSourceReader
 
+export function migrationDispositionFromStageResult(result) {
+  const disposition = result?.value?.facts?.disposition
+  if (!/^[A-Z][A-Z0-9_]{2,127}$/u.test(disposition ?? '')) {
+    const error = new Error('MIGRATION_DISPOSITION_INVALID')
+    error.code = 'MIGRATION_DISPOSITION_INVALID'
+    throw error
+  }
+  return disposition
+}
+
 async function main() {
   const [profileBytes, dataCutoverConfig, v1, n1c] = await Promise.all([fs.readFile(path.join(root, profilePath)), fs.readFile(path.join(root, dataCutoverConfigPath), 'utf8').then(JSON.parse), ...['config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse))])
   const profile = JSON.parse(profileBytes.toString('utf8'))
@@ -41,6 +51,10 @@ async function main() {
     readWorkerSource: createContinuousReleaseSourceReader(root),
     buildMigrationBundle: async (sourceRevision, context) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision, context),
   })
+  if (args.stage === 'migrate') {
+    const migrationDisposition = migrationDispositionFromStageResult(result)
+    if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `migration_disposition=${migrationDisposition}\n`, 'utf8')
+  }
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }
 

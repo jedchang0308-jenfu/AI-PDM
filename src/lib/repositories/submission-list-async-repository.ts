@@ -26,6 +26,8 @@ export type ListSubmissionsAsyncInput = {
   limit?: number;
   offset?: number;
   includeHistory?: boolean;
+  /** Present only for dynamic Principal publication; filtered in SQL before paging. */
+  visibleSubmissionIds?: string[];
 };
 
 export type SubmissionSearchFiltersAsync = {
@@ -50,6 +52,8 @@ export type SearchSubmissionsAsyncInput = {
   filters?: SubmissionSearchFiltersAsync;
   limit?: number;
   includeHistory?: boolean;
+  /** Present only for dynamic Principal publication; filtered in SQL before paging. */
+  visibleSubmissionIds?: string[];
 };
 
 type SubmissionSummaryRow = SubmissionSummary & {
@@ -122,6 +126,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
     AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
     AND (CAST(:submittedBy AS text) IS NULL OR s.submitted_by = CAST(:submittedBy AS text))
     AND (CAST(:companyId AS text) IS NULL OR s.company_id = CAST(:companyId AS text))
+    AND __CAPABILITY_FILTER__
   GROUP BY
     s.id,
     s.company_id,
@@ -180,6 +185,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
     AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
     AND (CAST(:submittedBy AS text) IS NULL OR s.submitted_by = CAST(:submittedBy AS text))
     AND (CAST(:companyId AS text) IS NULL OR s.company_id = CAST(:companyId AS text))
+    AND __CAPABILITY_FILTER__
   GROUP BY
     s.id,
     s.company_id,
@@ -636,13 +642,16 @@ export class AsyncSubmissionListRepository {
   async listSubmissions(input: ListSubmissionsAsyncInput = {}): Promise<SubmissionSummary[]> {
     const limit = input.limit && input.limit > 0 ? Math.min(input.limit, 500) : 500;
     const offset = Math.max(input.offset ?? 0, 0);
-    const sql = this.client.kind === "postgres" ? SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES : SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE;
+    const filter = submissionCapabilityFilter(this.client.kind, input.visibleSubmissionIds);
+    const template = this.client.kind === "postgres" ? SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES : SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE;
+    const sql = template.replace("__CAPABILITY_FILTER__", filter.sql);
     const rows = await this.client.query<SubmissionSummaryRow>(sql, {
       now: new Date().toISOString(),
       status: input.status ?? null,
       includeHistory: input.includeHistory ? 1 : 0,
       submittedBy: input.submittedBy ?? null,
       companyId: input.companyId ?? null,
+      ...filter.params,
       limit,
       offset
     });
@@ -656,10 +665,12 @@ export class AsyncSubmissionListRepository {
     if (!query && Object.keys(normalizedFilters).length === 0) return [];
 
     const { whereSql, params } = buildSearchWhere(input, normalizedFilters, query);
+    const filter = submissionCapabilityFilter(this.client.kind, input.visibleSubmissionIds);
     const template = this.client.kind === "postgres" ? SELECT_ASYNC_SUBMISSION_SEARCH_POSTGRES : SELECT_ASYNC_SUBMISSION_SEARCH_SQLITE;
-    const sql = template.replace("__SEARCH_WHERE__", whereSql);
+    const sql = template.replace("__SEARCH_WHERE__", `(${whereSql}) AND ${filter.sql}`);
     const rows = await this.client.query<SubmissionSummaryRow>(sql, {
       ...params,
+      ...filter.params,
       now: new Date().toISOString(),
       limit: Math.min(Math.max(input.limit ?? 25, 1), 100)
     });
@@ -763,6 +774,14 @@ export class AsyncSubmissionListRepository {
     return candidates.slice(0, Math.min(Math.max(input.limit ?? 6, 1), 20));
   }
 
+}
+
+function submissionCapabilityFilter(kind: AsyncDatabaseClient["kind"], ids?: string[]) {
+  if (ids === undefined) return { sql: "TRUE", params: {} };
+  const sql = kind === "postgres"
+    ? "s.id IN (SELECT jsonb_array_elements_text(CAST(:visibleSubmissionIdsJson AS jsonb)))"
+    : "s.id IN (SELECT value FROM json_each(:visibleSubmissionIdsJson))";
+  return { sql, params: { visibleSubmissionIdsJson: JSON.stringify(ids) } };
 }
 
 function normalizeSubmissionSummaryRow(row: SubmissionSummaryRow): SubmissionSummary {

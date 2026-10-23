@@ -21,7 +21,9 @@ export type PrincipalReviewerSelection = Readonly<{ principalId: string; profile
 /** Candidate eligibility is not a login. The eventual decision route must verify its own AAL2 session. */
 export async function selectPrincipalReviewerInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string; requirePublish?: boolean }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean;
+    resourceGroup?: 'drawing' | 'part' | 'transfer';
+    resourceGroups?: readonly ('drawing' | 'part' | 'model' | 'transfer')[] }
 ): Promise<string> {
   return (await selectPrincipalReviewerIdentityInSnapshot(tx, input)).profileId;
 }
@@ -29,7 +31,9 @@ export async function selectPrincipalReviewerInSnapshot(
 /** Keep the security subject alongside the historical review/profile FK. */
 export async function selectPrincipalReviewerIdentityInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string; requirePublish?: boolean }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean;
+    resourceGroup?: 'drawing' | 'part' | 'transfer';
+    resourceGroups?: readonly ('drawing' | 'part' | 'model' | 'transfer')[] }
 ): Promise<PrincipalReviewerSelection> {
   if (tx.kind !== "postgres" || tx.transactionScope !== "postgres" ||
       !input.companyId || !input.ownerUserId) {
@@ -64,7 +68,13 @@ export async function selectPrincipalReviewerIdentityInSnapshot(
   if (rows.length > 64) throw new Error("PRINCIPAL_REVIEWER_CANDIDATE_LIMIT");
   const rolePriority = await new AsyncAccessControlRepository(tx)
     .getEnforcedRolePriority([...reviewerRoles]);
-  const entitlement = new JenfuEntitlementRepository(tx, await requirePublishedPrincipalCatalog(tx));
+  const catalog = await requirePublishedPrincipalCatalog(tx);
+  const dynamic = catalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
+  const effectivePriority = [...rolePriority];
+  if (dynamic) for (const role of catalog.roles) {
+    if (!effectivePriority.includes(role.roleCode)) effectivePriority.push(role.roleCode);
+  }
+  const entitlement = new JenfuEntitlementRepository(tx, catalog);
   const groups = new Map<string, ReviewerCandidate[]>();
   for (const row of rows) {
     if (!row.principal_id || !row.pdm_user_id || !row.employee_id ||
@@ -92,11 +102,21 @@ export async function selectPrincipalReviewerIdentityInSnapshot(
     if (!actor) throw new Error("PRINCIPAL_REVIEWER_CANDIDATE_INVALID");
     let role: string | null = null;
     try {
-      const permissions = [reviewerPermission, ...(input.requirePublish
-        ? [{ permissionKind: "action" as const, permissionCode: "numbering.publish" }] : [])];
+      const selectedGroups = dynamic && input.resourceGroups?.length
+        ? [...new Set(input.resourceGroups)] : [];
+      const reviews = selectedGroups.length
+        ? selectedGroups.map(group => ({ permissionKind: "action" as const,
+          permissionCode: `pdm.${group}.review`, resourceGroup: group }))
+        : [dynamic && input.resourceGroup
+          ? { permissionKind: "action" as const, permissionCode: `pdm.${input.resourceGroup}.review` }
+          : reviewerPermission];
+      const publishGroup = input.resourceGroup ?? selectedGroups.find(group => group !== "model");
+      const permissions = [...reviews, ...(input.requirePublish
+        ? [{ permissionKind: "action" as const, permissionCode: dynamic && publishGroup
+          ? `pdm.${publishGroup}.publish` : "numbering.publish" }] : [])];
       const results = await entitlement.evaluatePermissions(permissions.map(permission => ({
         actor, ...permission, workspaceCode: input.companyId,
-        projectCode: null, rolePriority
+        projectCode: null, rolePriority: effectivePriority
       })), decisionAt);
       role = results.length === permissions.length && results.every(result => result.decisionCode === "allowed")
         ? results[0].role.roleCode : null;
@@ -108,9 +128,9 @@ export async function selectPrincipalReviewerIdentityInSnapshot(
       // A principal without published authority cannot review; it must not
       // disqualify a different principal whose authority is proved.
     }
-    if (!role || !reviewerRoles.has(role) || first.pdm_user_id === input.ownerUserId) continue;
+    if (!role || (!dynamic && !reviewerRoles.has(role)) || first.pdm_user_id === input.ownerUserId) continue;
     eligible.push({ profileId: first.pdm_user_id, principalId,
-      rank: rolePriority.indexOf(role) });
+      rank: effectivePriority.indexOf(role) });
   }
   eligible.sort((a, b) => a.rank - b.rank ||
     a.principalId.localeCompare(b.principalId));

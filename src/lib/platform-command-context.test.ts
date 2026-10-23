@@ -81,4 +81,40 @@ describe("DEV-121 command ingress", () => {
       routePath: "src/app/api/numbering/records/route.ts", method: "POST", permissionCode: "numbering.create"
     });
   });
+
+  it("uses only the fixed part attachment route as the ingress parent group", async () => {
+    const routePath = "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts";
+    mocks.resolvePolicy.mockReturnValue({ path: routePath, method: "POST",
+      permissionCode: "numbering.attachments.manage", authorizationMode: "permission", scopeResolver: "workspace" });
+    mocks.requirePrincipal.mockResolvedValue({
+      user: { id: "profile-one", role: "Principal", company_id: "company-one", authorizationActor: verified },
+      company: { companyId: "company-one", companyCode: "JENFU", companyKind: "business" },
+      permission: { allowed: true, roleCode: "rd", evaluatedRoles: ["rd"] }, response: null
+    });
+    const request = new Request("https://ai-pdm.test/api/parts/PN-1/attachments/asset-one/previews", { method: "POST" });
+    const result = await requireNumberingPlatformCommandAsync(request, {
+      action: "numbering.attachments.manage", body: { resourceGroup: "drawing" }
+    });
+    expect(result.response).toBeNull();
+    expect(mocks.requirePrincipal).toHaveBeenCalledWith(request, "action", "numbering.attachments.manage",
+      null, { resourceGroups: ["part"] });
+  });
+
+  it("scopes part upload ingress only for dynamic policies; category-specific model authorization stays in the command snapshot", async () => {
+    const routePath = "src/app/api/parts/[partNumber]/attachments/route.ts";
+    mocks.resolvePolicy.mockReturnValue({ path: routePath, method: "POST",
+      permissionCode: "numbering.attachments.manage", authorizationMode: "permission", scopeResolver: "workspace" });
+    mocks.requirePrincipal.mockResolvedValue({
+      user: { id: "profile-one", role: "Principal", company_id: "company-one", authorizationActor: verified },
+      company: { companyId: "company-one", companyCode: "JENFU", companyKind: "business" },
+      permission: { allowed: true, roleCode: "rd", evaluatedRoles: ["rd"] }, response: null
+    });
+    const request = new Request("https://ai-pdm.test/api/parts/PN-1/attachments", { method: "POST" });
+    const result = await requireNumberingPlatformCommandAsync(request, {
+      action: "numbering.attachments.manage", body: { resourceGroup: "model" }
+    });
+    expect(result.response).toBeNull();
+    expect(mocks.requirePrincipal).toHaveBeenCalledWith(request, "action", "numbering.attachments.manage",
+      null, { resourceGroups: ["part"], resourceGroupsDynamicOnly: true });
+  });
 });

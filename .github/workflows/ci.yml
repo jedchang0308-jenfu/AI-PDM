@@ -130,6 +130,10 @@ jobs:
           PDM_SLICE_HEAD_SHA: ${{ github.sha }}
         run: npm run test:production-slice:affected -- --profile ci
 
+      - name: Verify role-policy editor and affected capability callers
+        if: steps.slice.outputs.authorization == 'true'
+        run: npm run test:dev-123:contracts
+
       - name: Verify release and infrastructure slice
         if: steps.slice.outputs.infrastructure == 'true'
         env:

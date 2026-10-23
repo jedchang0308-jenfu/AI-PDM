@@ -253,6 +253,14 @@ describe("DEV-121 principal request verification", () => {
     expect(observed.options).toEqual({ isolationLevel: "serializable", readOnly: false });
   });
 
+  it("allows the policy apply fence to refresh statements in one read-committed write transaction", async () => {
+    const { client, observed } = database();
+    await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+      identityIssuer: claims.identityIssuer, trustPolicy, database: client, nowSeconds: now },
+    async () => undefined, { readOnly: false, isolationLevel: "read_committed" });
+    expect(observed.options).toEqual({ isolationLevel: "read_committed", readOnly: false });
+  });
+
   it("keeps a permission evaluator's explicit denial distinct from an unavailable dependency", async () => {
     const denied = new Error("permission_denied");
     await expect(withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,

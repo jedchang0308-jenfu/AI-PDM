@@ -1,14 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  token: vi.fn(),
   principalRead: vi.fn(), exportList: vi.fn(), exportOne: vi.fn(),
   auditList: vi.fn(), auditOne: vi.fn(), companyGuard: vi.fn(), legacyAction: vi.fn(),
+  dynamicPolicy: vi.fn(), authorizeExportResult: vi.fn(),
   legacyExportList: vi.fn(), legacyExportOne: vi.fn(),
   legacyAuditList: vi.fn(), legacyAuditOne: vi.fn()
 }));
 
+vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
 vi.mock("@/lib/principal-numbering-read", () => ({
   withPrincipalNumberingCompanyRead: mocks.principalRead
+}));
+vi.mock("@/lib/principal-resource-capability", () => ({
+  isDynamicRolePolicyInSnapshot: mocks.dynamicPolicy
+}));
+vi.mock("@/lib/numbering-export-job-capability", () => ({
+  authorizeNumberingExportJobResultInSnapshot: mocks.authorizeExportResult
 }));
 vi.mock("@/lib/repositories/numbering-async-repository", () => ({
   AsyncNumberingRepository: class {
@@ -50,10 +59,13 @@ const url = (path: string) => new Request(`https://example.test/api/numbering/${
 describe("principal report read snapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.token.mockReturnValue("principal-session");
     mocks.principalRead.mockImplementation(async (_request, _code, read) => read(snapshot, company));
     mocks.exportList.mockResolvedValue([{ id: "export-1" }]);
     mocks.auditList.mockResolvedValue([{ id: "audit-1" }]);
     mocks.exportOne.mockResolvedValue({ id: "export-1" });
+    mocks.dynamicPolicy.mockResolvedValue(false);
+    mocks.authorizeExportResult.mockResolvedValue(null);
     mocks.auditOne.mockResolvedValue({ id: "audit-1" });
   });
 

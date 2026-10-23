@@ -15,6 +15,7 @@ import { verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-aut
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import { reconcileSldasmAssemblyEvidence } from "@/lib/sldasm-assembly-evidence";
+import { principalJobInitiatorFromVerifiedRequest, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
 
 type CommandContext = {
   idempotencyKey: string;
@@ -216,7 +217,10 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
       effectKey: `drawing-work:${input.workId}:file:${role}`,
       correlationId: commandCorrelation
     };
-    const execute = async (tx: AsyncDatabaseClient) => {
+    let durablePrincipalInitiator: PrincipalJobInitiator | undefined;
+    const execute = async (tx: AsyncDatabaseClient, verified?: VerifiedPrincipalRequest) => {
+      const principalInitiator = verified ? principalJobInitiatorFromVerifiedRequest(verified) : undefined;
+      if (principalInitiator) durablePrincipalInitiator = principalInitiator;
       const rootScope = await tx.queryOne<{ part_root_id: string }>(
         `SELECT drawing.part_root_id
            FROM drawing_revision_works work
@@ -264,12 +268,12 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         }
       );
       if (exact) {
-        if (isNativeSolidWorksPreviewSource(fileExt)) {
+        if (isNativeSolidWorksPreviewSource(fileExt) && principalInitiator) {
           await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
             companyId: input.actor.companyId,
             sourceFileAssetIds: [exact.source_file_asset_id],
             actorUserId: input.actor.id,
-            initiatorPrincipalId: input.actor.principalId,
+            principalInitiator,
             requireQueued: true,
             runFakeWorker: false
           });
@@ -392,12 +396,12 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
          VALUES (:workId, :fileBindingId, :ordinal, :contentHash)`,
         { workId: input.workId, fileBindingId, ordinal, contentHash }
       );
-      if (isNativeSolidWorksPreviewSource(fileExt)) {
+      if (isNativeSolidWorksPreviewSource(fileExt) && principalInitiator) {
         await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
           companyId: input.actor.companyId,
           sourceFileAssetIds: [fileAssetId],
           actorUserId: input.actor.id,
-          initiatorPrincipalId: input.actor.principalId,
+          principalInitiator,
           requireQueued: true,
           runFakeWorker: false
         });
@@ -450,19 +454,20 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
             request: commandInput.request,
             effectKey: commandInput.effectKey,
             correlationId: commandInput.correlationId
-          }, execute);
+          }, client => execute(client, verified));
         }, { readOnly: false, isolationLevel: "serializable" })
       : await runDev087IdempotentCommand(input.client, commandInput, execute);
     if (result.reused && cleanupTarget && !input.principalToken) {
       try { await storage.deleteObject(cleanupTarget.key); } catch { /* best-effort orphan cleanup */ }
     }
     cleanupTarget = null;
-    if (isNativeSolidWorksPreviewSource(fileExt) && process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1") {
+    if (isNativeSolidWorksPreviewSource(fileExt) && durablePrincipalInitiator &&
+        process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1") {
       await ensureAutomaticPreviewJobsForSourceAssetsAsync(input.client, {
         companyId: input.actor.companyId,
         sourceFileAssetIds: [result.file.sourceFileAssetId],
         actorUserId: input.actor.id,
-        initiatorPrincipalId: input.actor.principalId,
+        principalInitiator: durablePrincipalInitiator,
         runFakeWorker: true
       });
     }

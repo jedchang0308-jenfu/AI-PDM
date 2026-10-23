@@ -26,7 +26,7 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
 import { evaluatePrincipalWorkspacePermissions } from "@/lib/jenfu-principal-permission-service";
 import { principalCatalog as principalRoleCatalog } from "@/lib/jenfu-principal-role-catalog";
 
-const snapshot = { query: vi.fn(async (_sql: string): Promise<Array<Record<string, string | number>>> =>
+const snapshot = { query: vi.fn(async (_sql: string): Promise<Array<Record<string, unknown>>> =>
   [{ decision_at: "2026-09-24T12:00:00Z" }]) };
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
@@ -46,17 +46,31 @@ const publishedCatalogRows = principalRoleCatalog.roles.map((role, displayOrder)
   contract_version: principalRoleCatalog.contractVersion,
   application_id: principalRoleCatalog.applicationId,
   catalog_version: principalRoleCatalog.catalogVersion,
+  published_at: "2026-10-10T00:00:00.000Z",
   catalog_sha256: principalRoleCatalog.catalogSha256,
   display_order: displayOrder,
   stable_role_id: role.stableRoleId,
-  role_definition_hash: role.roleDefinitionHash
+  role_code: role.roleCode,
+  display_name: role.displayName,
+  assignable: role.assignable,
+  risk: role.risk,
+  subject_kind: role.subjectKind,
+  recommendation_allowed: role.recommendationAllowed,
+  delegation_allowed: role.delegationAllowed,
+  allowed_scope_kinds: role.allowedScopeKinds,
+  assignment_tier: role.assignmentTier,
+  permissions: role.permissions,
+  metadata: role.metadata ?? null,
+  role_definition_hash: role.roleDefinitionHash,
+  publication_format: "legacy-static-v1",
+  role_status: "active"
 }));
 
 describe("DEV-121 principal workspace permission decision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     snapshot.query.mockImplementation(async (sql: string) =>
-      sql.includes("v_application_role_catalog_v1")
+      sql.includes("v_application_role_catalog_v2")
         ? publishedCatalogRows : [{ decision_at: "2026-09-24T12:00:00Z" }]);
     mocks.withVerified.mockImplementation(async (_request, evaluate) => evaluate(snapshot, verified));
     mocks.priority.mockResolvedValue(["system_admin", "rd_manager", "rd"]);
@@ -118,7 +132,7 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.catalogInput).toHaveBeenCalledWith(principalRoleCatalog);
 
     snapshot.query.mockImplementation(async (sql: string) =>
-      sql.includes("v_application_role_catalog_v1")
+      sql.includes("v_application_role_catalog_v2")
         ? [{ catalog_version: "ai-pdm.role-catalog.2026-09-03.v3" }]
         : [{ decision_at: "2026-09-24T12:00:00Z" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input))
