@@ -49,7 +49,7 @@ export async function requireRecognitionSourceCapabilities(snapshot: AsyncDataba
          AND source.company_id=session.company_id
        JOIN ai_pdm_core.file_assets asset ON asset.id=source.file_asset_id AND asset.deleted_at IS NULL
       WHERE session.id=:sessionId AND session.company_id=:companyId
-        AND (:sourceId IS NULL OR source.id=:sourceId)`,
+        AND (CAST(:sourceId AS text) IS NULL OR source.id=CAST(:sourceId AS text))`,
     { sessionId, sourceId: sourceId ?? null, companyId: verified.profile.companyId })
   if (!sources.length) throw new DrawingRecognitionError('RECOGNITION_SOURCE_SCOPE_INVALID', '找不到可授權的辨識來源。', 404)
   const groups: PrincipalCapabilityGroup[] = ['drawing']

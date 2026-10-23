@@ -160,6 +160,10 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 
 `dev123-native-recognition-authority-current-r1.json`：真PG durable initiator→claim→completeJob正例review_ready／1 candidate；真apply停用RD後，另一已claim job的completeJob拒絕且canonical/history計數不變，所有task資源清理完成。只支持worker採用，未驗recognition正式化HTTP；其首敗fixture修正記錄保留。
 
+同型nullable query查核：新增fileId／sourceId兩helper改明確text CAST；`nullable-source-file-focused-r1.log` 12 PASS。`dev123-native-capability-helper-current-r1.json`真PG驗sourceId未指定／指定合法來源允許，真apply停用RD後同source拒絕403；submission helper未有現成合法fixture，標NOT_RUN，未冒稱整段下載已驗。兩次runner前提失敗保留；所有資源清理完成。靜態檢查本PR新增／修改SQL已無相同首用IS NULL／IS NOT NULL的未定型參數。
+
+CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇ECONNRESET，尚未進產品測試，保留該失敗。以上兩行query後來源須刷新兩個required checks，不把舊QC或網路失敗改判為新來源PASS。DB boundary的staged對branch前一commit檢查曾拒087改寫；以既有`--base=origin/main`驗整個未合併slice PASS，086–088均為新增、無main migration改刪，檢查器未變（`assurance-db-boundary-source-scope.json`）。
+
 補充實際HTTP限制：`dev123-native-http-byte-range-oneoff.json`只證無session的完整／Range請求401與recognition PDF Range416；未有合法HTTP principal正例，不認列bytes／Range撤權旅程PASS。其task-owned Next runtime、port及生成的next-env差異已清理；既有native delivery/adopt bytes證據仍有效。
 
 發布相容首敗保留：`release-prefix-regression-r1.log`為current38誤用舊profile，r2為舊probe profile邊界；修正明確投影後r3通過。r4為舊workflow測試仍期待寬條件，更新相同權威契約後r5通過。沒有執行失敗producer或provider寫入。

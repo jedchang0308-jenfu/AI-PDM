@@ -31,7 +31,7 @@ export async function authorizeSubmissionOriginalsInSnapshot(snapshot: AsyncData
        JOIN ai_pdm_core.submissions s ON s.id=f.submission_id AND s.company_id=:companyId
        LEFT JOIN ai_pdm_core.file_assets a
          ON a.id=COALESCE(f.source_file_asset_id,f.source_master_attachment_id)
-      WHERE f.submission_id=:submissionId AND (:fileId IS NULL OR f.id=:fileId)
+      WHERE f.submission_id=:submissionId AND (CAST(:fileId AS text) IS NULL OR f.id=CAST(:fileId AS text))
       ORDER BY f.id`,
     { companyId: verified.profile.companyId, submissionId, fileId: fileId ?? null })
   const project = await snapshot.queryOne<{ project_code: string }>(
