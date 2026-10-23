@@ -84,7 +84,7 @@ const nativeTestPattern=nativeSelection==='preview-lease-v2'?previewLeaseV2Patte
   ?'minor with another numbering|subsequent major after actual production pointer':nativeSelection==='file-authority-gaps'
   ?'Part attachment normal|worker claim excludes native|claimed content rejects native':nativeSelection==='recognition-protocol'
   ?'recognition real-source signed session':nativeSelection==='recognition-access'
-  ?'B43 recognition Admin access':nativeSelection==='drawing-identity-gaps'
+  ?'B43 recognition access':nativeSelection==='drawing-identity-gaps'
   ?'Drawing actual frozen|Drawing malformed root|Drawing cross-company master|Drawing immutable assigned':nativeSelection==='drawing-revision-identity'
   ?'Drawing actual frozen revision identity':nativeSelection==='legacy-compatibility'?'historical v1 .* nonrelease basis':nativeSelection==='legacy-part'?'historical v1 part nonrelease basis':nativeSelection==='preview-protocol-gaps'
   ?previewProtocolGapPattern:nativeSelection==='preview-get-boundaries'?previewGetPattern:nativeSelection==='file-route-gaps'
