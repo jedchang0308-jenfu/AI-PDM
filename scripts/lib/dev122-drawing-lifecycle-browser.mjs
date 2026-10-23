@@ -184,10 +184,13 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
     }else {
       const decisionPath=`/api/pdm/review-requests/${requestId}/decisions`;
       for(const deniedMode of ['denied-actor','expired-assignment']) {
+        const window={mode:deniedMode,requestId,actor:deniedMode==='denied-actor'?'denied':'reviewer',active:true};control.denialWindow=window;
         if(deniedMode==='denied-actor')await asActor('denied');else {await asActor('reviewer');expired=true;evidence.expiredAssignment=await channel('expire');save();}
         const before=await snapshot(deniedMode+'-before');control.deniedPaths.add(decisionPath);control.allowedAlerts.add(drawingDecisionDeniedMessage);
         const body=await decide(requestId,'approve',403,deniedMode);assert.equal(body.error,'permission_not_granted');await page.getByRole('alert').filter({hasText:drawingDecisionDeniedMessage}).waitFor();
-        assert.equal(new URL(page.url()).pathname,'/approvals/'+requestId);assert.deepEqual(await snapshot(deniedMode+'-after'),before,'G_DENIED_DECISION_MUTATED_ROWS');await dom(deniedMode);
+        assert.equal(new URL(page.url()).pathname,'/approvals/'+requestId);assert.deepEqual(await snapshot(deniedMode+'-after'),before,'G_DENIED_DECISION_MUTATED_ROWS');
+        window.proof={all165TablesUnchanged:true,before:evidence.snapshots.find(item=>item.label===deniedMode+'-before'),after:evidence.snapshots.find(item=>item.label===deniedMode+'-after')};
+        await dom(deniedMode);window.active=false;control.denialWindow=null;
         control.deniedPaths.delete(decisionPath);
         if(expired){evidence.assignmentRestored=await channel('restore');expired=false;save();}await asActor('reviewer');
       }
@@ -207,6 +210,7 @@ export async function runDrawingLifecycleUI({fixture,page,context,sessions,origi
     await dom('final-reload');assert.deepEqual(await snapshot('after-final-reload'),beforeReload,'G_RELOAD_CHANGED_ROWS');await healthy();
     evidence.status='PASS';progress('G lifecycle mode complete',{variant:fixture.variant,width:fixture.width,requestId,masterStatus:master(after).record_status});save();return evidence;
   } finally {
+    if(control.denialWindow)control.denialWindow.active=false;control.denialWindow=null;
     if(expired){try{evidence.assignmentFinalRecovery=await channel('restore');expired=false;save();}catch(error){control.recoveryFailed=true;throw error;}}
     control.deniedPaths.clear();control.allowedAlerts.clear();
   }
