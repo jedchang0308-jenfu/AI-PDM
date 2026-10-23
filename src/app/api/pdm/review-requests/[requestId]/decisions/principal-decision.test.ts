@@ -148,6 +148,8 @@ describe("principal DEV-087 decision route", () => {
       }));
     const response = await POST(request(), params);
     expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "permission_not_granted" });
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(mocks.getReview).not.toHaveBeenCalled();
     expect(mocks.verifyContract).not.toHaveBeenCalled();
     expect(mocks.replay).not.toHaveBeenCalled();

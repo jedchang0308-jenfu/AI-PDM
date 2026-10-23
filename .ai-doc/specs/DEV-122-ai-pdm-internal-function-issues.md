@@ -73,6 +73,12 @@ B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 sessi
 
 登入查證曾錯用 Firebase password provider，兩次 `INVALID_LOGIN_CREDENTIALS` 不代表使用者提供的 Google 帳密失效；同一授權檔密碼已於正常 Google popup 成功登入。該診斷更正不修改任何帳密、grant 或 IAM。測試圖號仍顯示預覽失敗，按既有 drawing-preview／native-CAD 待辦保留，未納入 RD 權限阻擋。本次只關閉優先項目 2 的權限切片；管理員辨識、PDF、supplier、完整原生 CAD 與原 7 issues／29 groups 仍未完成。
 
+### P-03B／F-01A 決策拒絕與附件重載提示（2026-10-23）
+
+修前 exact deployed tree `8a586471e5eb9b29a5ca53654468a35ab2e6dba5` 的決策 API 回覆 403 `{error:"permission_not_granted"}`，但審核包只解析 nested message，造成通用失敗提示。本切片只在決策回應對此 exact code 顯示請公司管理員確認有效工作區指派與 `approval.request.decide`、更新後重新整理的提示；留在原 `/approvals/:requestId`、保留選取與快照，不導向未證實的設定頁。API 拒絕及既有寫入前權限檢查不變。
+
+同一切片修正附件 POST 成功後吞掉清單 GET 失敗的問題：只有重載成功才顯示上傳成功；重載失敗會提示「上傳已接收，但附件清單重新載入失敗，請重新整理後確認」、撤下舊清單與預覽，重新載入不重送 POST。隔離 DOM component 與 route 測試覆蓋這兩個原始失敗及成功／相容路徑；required CI 納入相同測試。此為本地修正與 PR 待交付狀態，不是正式上傳／下載、bytes／hash／audit 或 P-03B／F-01A／UI-01 整組 PASS。保留 B79 synthetic、hard-deadline／EBUSY 與原失敗，原 7／29、F-01F 使用者待驗及 supplier 延期不變；不透過正式撤權、上傳或 409 替代 403 製造案例。
+
 ### Part 附件正常入口（2026-10-23，修正待正式驗收）
 
 正式 RD 正常料號抽屜仍顯示「管理附件」，但附件頁被早期 production slice 改寫為「未開放」；一般附件 GET 可讀，頁面及後續寫入入口不一致。此為原 D05／F-01A／UI-01 正常附件上傳、重載與下載範圍，不能以隱藏入口刪除驗收。

@@ -121,7 +121,12 @@ export function CanonicalReviewPackageWorkspace({ requestId, returnTo, initialSh
     setBusy(true); setError("");
     const response = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}/decisions`, { method: "POST", headers: { "content-type": "application/json", "if-match": `"${shell.rowVersion}"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": contractToken }, body: JSON.stringify({ decision }) });
     const body = await response.json().catch(() => null); setBusy(false);
-    if (!response.ok) { setError(apiMessage(body, "審核決策未完成。")); return; }
+    if (!response.ok) {
+      setError(body?.error === "permission_not_granted"
+        ? "目前帳號沒有此審核的決策權限。請公司管理員確認有效的工作區指派與 approval.request.decide 權限；權限更新後重新整理本頁。"
+        : apiMessage(body, "審核決策未完成。"));
+      return;
+    }
     router.push(safeReturn);
   }
 
