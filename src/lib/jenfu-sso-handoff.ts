@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { GoogleAuth } from "google-auth-library";
+import { GoogleAuth, Impersonated } from "google-auth-library";
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cookies";
@@ -93,7 +93,21 @@ function callbackFailureCode(errorValue: unknown) {
 
 const setup = getJenfuSsoHandoffConfig;
 
-async function token(audience: string) {
+export async function jenfuSsoServiceToken(audience: string, environment: NodeJS.ProcessEnv = process.env) {
+  const configuredTarget = environment.JENFU_SSO_IMPERSONATE_SERVICE_ACCOUNT;
+  if (configuredTarget !== undefined) {
+    const targetPrincipal = configuredTarget.trim();
+    const origin = new URL(audience);
+    if (environment.NODE_ENV !== "development" || environment.K_SERVICE || origin.origin !== audience
+      || !["http:", "https:"].includes(origin.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
+      || !/^[a-z0-9][a-z0-9-]*@[a-z0-9][a-z0-9-]*\.iam\.gserviceaccount\.com$/u.test(targetPrincipal)) {
+      throw new Error("SSO_SERVICE_IMPERSONATION_INVALID");
+    }
+    const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    const client = new Impersonated({ sourceClient: await auth.getClient(), targetPrincipal,
+      targetScopes: ["https://www.googleapis.com/auth/cloud-platform"], lifetime: 300 });
+    return client.fetchIdToken(audience);
+  }
   const auth = new GoogleAuth();
   const client = await auth.getIdTokenClient(audience);
   return client.idTokenProvider.fetchIdToken(audience);
@@ -152,7 +166,7 @@ export async function jenfuSsoCallback(request: Request) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
-    const service = await token(config.broker);
+    const service = await jenfuSsoServiceToken(config.broker);
     stage = "broker_exchange";
     const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) }).finally(() => clearTimeout(timeout));
     if (!brokerResponse.ok) throw new Error("BROKER_DENIED");
