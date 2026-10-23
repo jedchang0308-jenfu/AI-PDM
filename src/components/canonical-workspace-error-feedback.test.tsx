@@ -98,6 +98,28 @@ const attachment = (id: string) => ({ id, entityId: "part-one", displayName: `${
   fileName: `${id}.png`, fileExt: "png", mimeType: "image/png", fileSize: 5,
   uploadedByName: null, createdAt: "2026-10-23T00:00:00Z" });
 describe("attachment upload followed by list refresh", () => {
+  it("distinguishes an accepted upload from a confirmed list when the actor can manage but cannot read", async () => {
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/numbering/permissions") return json({
+        pages: { "numbering.search": false }, actions: { "numbering.attachments.manage": true }
+      });
+      if (init?.method === "POST") return json({ attachment: attachment("new") }, 201);
+      if (String(input).endsWith("?surface=deleted_data")) return json({ attachments: [] });
+      throw new Error("Active list must not be requested without its page permission");
+    });
+    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["bytes"], "new.png", { type: "image/png" })] });
+    await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+    await act(async () => button("上傳 1 個附件").click());
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("上傳已接收；目前沒有查看有效附件的權限，請公司管理員確認有效指派後重新整理。");
+    expect(container.textContent).not.toContain("已上傳");
+    expect(container.textContent).toContain("目前沒有查看有效附件的權限。");
+    expect(container.querySelector(".part-attachment-list")).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url, init]) => String(url) === "/api/parts/A0002-P01/attachments" && init?.method !== "POST")).toHaveLength(0);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+  });
+
   it.each(["network", "http", "deleted-list", "success", "delayed-success"])("reports the actual refresh outcome: %s", async outcome => {
     let posted = false;
     let failRefresh = !outcome.endsWith("success");

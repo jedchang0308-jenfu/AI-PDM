@@ -177,7 +177,9 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
     } finally {
       try {
         await refreshAttachments(canManageAttachments, canReadAttachments);
-        if (uploadedCount === pendingFiles.length) setNotice(`已上傳 ${uploadedCount} 個附件。`);
+        if (uploadedCount === pendingFiles.length) setNotice(canReadAttachments
+          ? `已上傳 ${uploadedCount} 個附件。`
+          : "上傳已接收；目前沒有查看有效附件的權限，請公司管理員確認有效指派後重新整理。");
       } catch {
         setNotice("");
         setAttachments([]);
