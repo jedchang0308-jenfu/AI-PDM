@@ -6,6 +6,7 @@ import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinua
 import { readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
+import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
 import { buildRdLedgerProbeBundles, buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProfileSha256, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 
@@ -172,6 +173,43 @@ test('C96 production-shaped applied migration continuation selects ledger35 and 
   assert.equal(selected.sourceRevision, appliedSource)
   assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
   assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
+})
+
+test('DEV-123 authenticates the installed35 prefix while current38 remains a real forward migration', async () => {
+  const f = fixture()
+  const current = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), currentSource)
+  const runnerCurrent = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
+  const files = new Map([['config/release/dev117-ai-pdm-independent-production-v3.json', Buffer.from(canonicalize(profile))],
+    ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
+  const currentContent = assertAiPdmMigrationContent({ files, bundle: current.bundle, sourceRevision: currentSource, deadlineAt: f.currentIntent.deadlineAt })
+  const selected = await readAppliedMigrationContinuationHistory({ intent: { ...f.currentIntent, migrationManifestSha256: current.bundle.manifestSha256 },
+    profile, transport: f.transport, readSource: (path, revision) => { assert.equal(revision, currentSource); return files.get(path) },
+    buildMigrationBundle: async revision => { assert.equal(revision, runnerSource); return runnerCurrent },
+    ancestorRunner: () => true, compatibilityRunner: () => true })
+  assert.equal(selected.installed.bundle.entries.length, 35)
+  assert.equal(assertAiPdmRepairMigrationMode(selected, currentContent), 'FORWARD_APPLIED')
+  assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
+})
+
+test('DEV-123 rejects a changed retained declaration or runner SQL before forward admission', async () => {
+  for (const scenario of ['source-declaration', 'runner-sql']) {
+    const f = fixture(), declared = structuredClone(profile)
+    if (scenario === 'source-declaration') declared.migrations.entries[34].sha256 = '0'.repeat(64)
+    const files = new Map([['config/release/dev117-ai-pdm-independent-production-v3.json', Buffer.from(canonicalize(declared))],
+      ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
+    let runnerCurrent = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
+    if (scenario === 'runner-sql') {
+      const entries = structuredClone(runnerCurrent.bundle.entries)
+      const bytes = Buffer.concat([Buffer.from(entries[34].sqlBase64, 'base64'), Buffer.from('\n-- substituted retained SQL\n')])
+      entries[34].sqlBase64 = bytes.toString('base64'); entries[34].appliedSha256 = sha256(bytes)
+      runnerCurrent = createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: 'ai_pdm_core.schema_migrations', baselineCount: 15 }, sourceRevision: runnerSource, entries })
+    }
+    await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile,
+      transport: f.transport, readSource: (path, revision) => { assert.equal(revision, currentSource); return files.get(path) },
+      buildMigrationBundle: async () => runnerCurrent, ancestorRunner: () => true, compatibilityRunner: () => true }),
+      /MIGRATION_HISTORICAL_PREFIX_INVALID/u, scenario)
+    assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
+  }
 })
 
 test('applied migration continuation ignores unrelated current release-profile drift while preserving ledger35 evidence', async () => {

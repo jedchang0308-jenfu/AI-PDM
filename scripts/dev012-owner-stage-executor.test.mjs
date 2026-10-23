@@ -470,6 +470,92 @@ test('principal-only migration intent refuses a fence without a safe recovery re
     /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
+async function appliedContinuationDailyInput(h, releaseId, mutate = value => value) {
+  const aiBucket = 'jenfu-platform-prod-aipdm-release'
+  const profile = { ...h.profile,
+    application: { ...h.profile.application, id: 'ai-pdm' },
+    artifact: { ...h.profile.artifact, releaseBucket: aiBucket },
+    schemas: { ...h.profile.schemas, releaseIntent: 'owner.intent.v2' },
+  }
+  const ref = name => ({ uri: `gs://${aiBucket}/receipts/prerequisites/${releaseId}-${name}.json`, sha256: 'a'.repeat(64) })
+  const appliedRoot = `gs://${aiBucket}/receipts/releases/${releaseId}/${'b'.repeat(64)}`
+  const appliedMigrationContinuation = {
+    schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: H40,
+    prepareRef: { uri: `${appliedRoot}/prepare.json`, sha256: 'b'.repeat(64) },
+    migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: 'c'.repeat(64) },
+    ledgerReadbackResultRef: { uri: `${appliedRoot}/ledger-readback-result.json`, sha256: 'd'.repeat(64) },
+  }
+  const intent = mutate({
+    schemaVersion: 'owner.intent.v2', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: H40,
+    sourceSha256: 'e'.repeat(64), sourceLockRef: ref('source-lock'), authorizationPolicyRef: ref('authorization'),
+    readinessReceiptRef: ref('readiness'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'),
+    runtimeConfigRef: ref('runtime'), migrationManifestSha256: 'f'.repeat(64), previousRevision: 'ai-pdm-prod-old',
+    deadlineAt: '2999-01-01T00:00:00.000Z',
+    postAbortLedgerReadbackRef: appliedMigrationContinuation.ledgerReadbackResultRef,
+    principalOnlyFenceRef: { uri: `gs://${aiBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`, sha256: '1'.repeat(64) },
+    principalOnlyRecovery: { revision: 'ai-pdm-prod-recovery', serviceUid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+      imageDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'2'.repeat(64)}`,
+      receiptRef: { uri: `gs://${aiBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/proof.json`, sha256: '3'.repeat(64) } },
+    appliedMigrationContinuation,
+  })
+  const capsule = await h.transport.putJson(`gs://${aiBucket}/receipts/intents/${releaseId}.json`, intent, { bucket: aiBucket, prefix: 'receipts' })
+  return {
+    profile, intent, capsule,
+    input: { capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256, profile, transport: h.transport,
+      environment: { ...h.environment, PDM_ENFORCE_DAILY_MODE_BOUNDARY: 'true' }, validateIntent: value => value },
+    paths: releasePaths(profile, intent, capsule.ref.sha256),
+  }
+}
+
+test('full owner applied continuation requires the sealed prior prepare and migration admission before any new write', async () => {
+  const h = recordedHarness()
+  const fixture = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-MISSING')
+  const objectCount = h.objects.size
+  await assert.rejects(executeOwnerStage({ ...fixture.input, stage: 'prepare' }), /APPLIED_CONTINUATION_PRIOR_MIGRATION_REQUIRED/u)
+  assert.equal(h.objects.size, objectCount)
+})
+
+test('full owner applied continuation reuses a sealed special prepare without changing its mode or bytes', async () => {
+  const h = recordedHarness()
+  const fixture = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-SEALED')
+  const runtimeConfig = buildRuntimeConfig(fixture.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
+  const prepare = stageReceipt({ profile: fixture.profile, intent: fixture.intent, stage: 'prepare', facts: {
+    releaseEvidence: { schemaVersion: 'jenfu.dev117.release-evidence.v1', mode: 'special_recovery',
+      source: { applicationRevision: fixture.intent.sourceRevision, applicationSha256: fixture.intent.sourceSha256, migrationManifestSha256: fixture.intent.migrationManifestSha256 },
+      deadlineAt: fixture.intent.deadlineAt, runtimeConfig, readiness: {} },
+  }, observedAt: '2026-09-08T00:00:00.000Z' })
+  const admission = stageReceipt({ profile: fixture.profile, intent: fixture.intent, stage: 'migrate', facts: {
+    migrationReceiptRef: fixture.intent.appliedMigrationContinuation.migrateRef, disposition: 'FORWARD_APPLIED',
+    sourceRevision: fixture.intent.sourceRevision, manifestSha256: fixture.intent.migrationManifestSha256,
+  }, observedAt: '2026-09-08T00:00:00.000Z' })
+  await h.transport.putJson(fixture.paths.prepare, prepare, { bucket: fixture.profile.artifact.releaseBucket, prefix: 'receipts' })
+  await h.transport.putJson(fixture.paths.migrationAdmission, admission, { bucket: fixture.profile.artifact.releaseBucket, prefix: 'receipts' })
+  const prepareBytes = Buffer.from(h.objects.get(fixture.paths.prepare).bytes)
+  const objectCount = h.objects.size
+  const transport = { ...h.transport, async getService() { throw new Error('AFTER_PRIOR_EVIDENCE') } }
+  await assert.rejects(executeOwnerStage({ ...fixture.input, transport, stage: 'prepare' }), /AFTER_PRIOR_EVIDENCE/u)
+  assert.deepEqual(h.objects.get(fixture.paths.prepare).bytes, prepareBytes)
+  assert.equal(h.objects.size, objectCount)
+})
+
+test('full owner applied continuation keeps the daily workflow and malformed capsules fail before prior evidence reads', async () => {
+  const h = recordedHarness()
+  const wrongContext = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-WRONG-CONTEXT')
+  await assert.rejects(executeOwnerStage({ ...wrongContext.input, stage: 'prepare', environment: {
+    ...wrongContext.input.environment,
+    GITHUB_WORKFLOW_REF: 'owner/repo/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main',
+  } }), /DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID/u)
+
+  const malformed = await appliedContinuationDailyInput(h, 'REL-DAILY-APPLIED-MALFORMED', value => ({
+    ...value, appliedMigrationContinuation: { ...value.appliedMigrationContinuation, migrateRef: null },
+  }))
+  let priorEvidenceReads = 0
+  const readBytes = h.transport.readBytes
+  const transport = { ...h.transport, async readBytes(...args) { priorEvidenceReads++; return readBytes(...args) } }
+  await assert.rejects(executeOwnerStage({ ...malformed.input, transport, stage: 'prepare' }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
+  assert.equal(priorEvidenceReads, 0)
+})
+
 test('daily workflow rejects missing context and special intent before deep continuation parsing', async () => {
   const h = recordedHarness()
   const ordinary = await authorizedRecordedInput(h, 'REL-DAILY-BOUNDARY')

@@ -1,12 +1,12 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-23（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；本輪已授權PDM branch／PR／required CI及既有protected release workflow的發布與驗收；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。結果與缺口統一見QA§6，尚未整體驗收。
+建立：2026-10-12；修訂：2026-10-23（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；本輪已授權PDM branch／PR／required CI及既有protected release workflow的發布與驗收；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。結果與缺口統一見QA§6，尚未整體驗收。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
 
 ## 1. 人類決策與第一版邊界
 
-人類來源：2026-10-12確認JF-FMS操作、OrgMaster人員指派分工、七日常角色／五作業及合併動作，並選擇停用停止授權但保留指派與歷史。10/19同意自用五點精簡；10/22要求COO繼續精簡；10/23授權AI-PDM與OrgMaster隔離工作樹協同開發，並授權PDM branch／PR／required CI／既有protected release workflow發布與驗收；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。產品與必要權限保護不變，技術提案替換見§14。
+人類來源：2026-10-12確認JF-FMS操作、OrgMaster人員指派分工、七日常角色／五作業及合併動作，並選擇停用停止授權但保留指派與歷史。10/19同意自用五點精簡；10/22要求COO繼續精簡；10/23授權AI-PDM與OrgMaster隔離工作樹協同開發，並授權PDM branch／PR／required CI／既有protected release workflow發布與驗收；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。產品與必要權限保護不變，技術提案替換見§14。
 
 AI-PDM 定義角色業務能力，OrgMaster 唯一管理人員指派、scope、有效期、代理、撤銷及特權任用。權限目錄是 application-global：一次啟用影響所有公司的相同角色，實際存取仍受各指派的公司／專案範圍限制；第一版沒有 company overlay。只有符合 §4 的直接 global 系統管理員能改動這份全系統設定。
 
@@ -56,7 +56,7 @@ AI-PDM 定義角色業務能力，OrgMaster 唯一管理人員指派、scope、�
 
 ## 2. 權威資料路徑與歷史盤點
 
-以下是2026-10-12／19設計盤點，**不是正式環境讀回**。10/23起可在AI-PDM與OrgMaster隔離工作樹協同開發；PDM protected workflow發布與驗收依既有要求認列，正式OrgMaster migration/deploy、正式資料／環境操作仍受partner既有人類禁止，兩端正式驗證仍須實際證據。當時AI-PDM main為d3fc1bf72b3630f8a748746c40584e595d396dac，source v7屬開發候選；實作時核對真實installed基線，不用文件釘選的未部署候選替代。現況及原批次狀態依[DEV-121](DEV-121-target-authorization-boundary.md)。
+以下是2026-10-12／19設計盤點，**不是正式環境讀回**。10/23起可在AI-PDM與OrgMaster隔離工作樹協同開發；PDM protected workflow發布與驗收依既有要求認列，OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets，兩端正式驗證仍須實際證據。當時AI-PDM main為d3fc1bf72b3630f8a748746c40584e595d396dac，source v7屬開發候選；實作時核對真實installed基線，不用文件釘選的未部署候選替代。現況及原批次狀態依[DEV-121](DEV-121-target-authorization-boundary.md)。
 
 先前外部只讀盤點metadata（2026-10-12）：OrgMaster `master / 49e25a7e422ef6f224037b497693a2732429a447`，JF-FMS `codex/對接orgmaster及platform / 5c970c734c02d75f9675757fd9adaeec672b7308`；HEAD不代表正式部署。讀取的是現有工作區檔案；兩repo dirty status因sandbox限制未能可靠讀回，標UNKNOWN，不宣稱clean或檔案全等於HEAD，後續owner重新核對。10/23協同開發限隔離工作樹與本機證據，不延伸為正式migration/deploy。
 
@@ -327,7 +327,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 9. OrgMaster 相容範圍（另案執行）
 
-OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節只列AI-PDM所需外部相容；**10/23起可在授權隔離工作樹協同開發／驗證相容reader與caller，但OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止；PDM branch／PR／required CI／既有protected release workflow發布與驗收屬本輪授權，仍須實際證據**，不推定DEV-121 v7授權已包含此功能。canonical repo為`C:\VIBE CODING\OrgMaster`；來源`AIPDM/DEV-123#orgmaster-compatibility`，由其owner核對規範與現況。
+OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節只列AI-PDM所需外部相容；**10/23起可在授權隔離工作樹協同開發／驗證相容reader與caller，但10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets；PDM branch／PR／required CI／既有protected release workflow發布與驗收屬本輪授權，仍須實際證據**，不推定DEV-121 v7授權已包含此功能。canonical repo為`C:\VIBE CODING\OrgMaster`；來源`AIPDM/DEV-123#orgmaster-compatibility`，由其owner核對規範與現況。
 
 | 對照 | 外部必需結果／範圍 |
 |---|---|
@@ -357,9 +357,9 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 本變更涉及DB格式／ACL及consumer，沿專案既有forward-only、required CI與release執行；先具相容consumer，再交付PDM writer，migration與部署均不自動套用矩陣。**不新增DEV-123專屬release gate、enablement receipt、owner mode或正式操作腳本**，也不用此文件繞過現行執行器。
 
-首次發布固定recipe為：**PDM086-088 schema-only（保留v1／legacy授權）→ Org034-036 compatible consumer → 確認真實consumer已相容 → PDM writer full release → 人類設定apply**。既有protected principal migration workflow支援普通release capsule的prepare／build／migrate；continuous-release test `S1B-20`已驗證此能力，不新增mode、workflow或IAM。
+首次發布固定recipe為：**PDM086-088 schema-only（保留v1／legacy授權）→ Org034-036 compatible consumer → 確認真實consumer已相容 → PDM writer full release → 人類設定apply**。既有protected principal migration workflow支援prepare／build／migrate；現行baseline保留舊worker及已安裝35筆的continuation時，歷史證據只驗精確35筆前綴，完整38筆仍以既有`FORWARD_APPLIED`執行真migration。workflow依sealed migration-admission的disposition定範圍：forward只做三stage；consumer就緒後，由完整owner workflow續接同capsule已有的prepare／native migration-admission，不重寫舊prepared model、不重送已知完成migration或重新啟動worker。歷史等價重用原路徑不變；缺收據／未知disposition不進candidate。不新增mode、workflow、actor input或IAM。
 
-本輪文件同步與已授權隔離工作樹本機實作／證據並行；PDM branch／PR／required CI／既有protected release workflow發布與驗收已授權並仍須遵守既有requirements；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。只停止未知基線、破壞歷史／保護內容、漏判權或不相容所影響的動作，安全的獨立診斷／修正可繼續。新責任／環境、未授權不可逆效果或人員指派責任改變才回送人類決策；內部等效修正不逐項簽核。
+本輪文件同步與已授權隔離工作樹本機實作／證據並行；PDM branch／PR／required CI／既有protected release workflow發布與驗收已授權並仍須遵守既有requirements；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。只停止未知基線、破壞歷史／保護內容、漏判權或不相容所影響的動作，安全的獨立診斷／修正可繼續。新責任／環境、未授權不可逆效果或人員指派責任改變才回送人類決策；內部等效修正不逐項簽核。
 
 ## 12. 驗收條件
 
@@ -409,4 +409,4 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 ## 15. 2026-10-23 Implementation in progress
 
-本輪已在對齊最新main的獨立branch實作，提交[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，required CI結果只記於下列QA入口。資料集維持三個，無state/readiness/generation；DEV-035 manager fence保留。結果、來源與未驗證層級只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。PDM既有protected發布／驗收已授權；OrgMaster正式操作仍受原人類禁止，未自動啟用政策或變更人員任用。
+本輪已在對齊最新main的獨立branch實作，提交[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，required CI結果只記於下列QA入口。資料集維持三個，無state/readiness/generation；DEV-035 manager fence保留。結果、來源與未驗證層級只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。PDM既有protected發布／驗收已授權；OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets，未自動啟用政策或變更人員任用。

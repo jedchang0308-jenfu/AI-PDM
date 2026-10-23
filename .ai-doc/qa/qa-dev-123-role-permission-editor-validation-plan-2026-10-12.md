@@ -13,7 +13,7 @@
 | L3 正常UI | 正常導航/真實控制完成設定、matrix/workbench同值、狀態與viewport；同一旅程留代表畫面/操作及必要API/DB對照，不逐case重拍 |
 | L4 真實兩端 | 實際PDM producer與OrgMaster reader/正常任用往返；可用一個連續旅程覆蓋29/30/44/52，simulator不能代替 |
 
-可先完成獨立PDM本地slice；缺L4只阻止相關整合/首次切換或whole宣告。10/23起可在兩專案授權隔離工作樹做本機開發／驗證；PDM branch／PR／required CI／既有protected release workflow發布與驗收已授權並須遵守既有要求；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。未來如需角色化QC，同一人可依序工作，證據不可稱獨立。只在相關source/角色/fixture/路徑/假設改變時補驗受影響案例；SHA或無關文件更新不自動全量重跑，provider-required CI保持。
+可先完成獨立PDM本地slice；缺L4只阻止相關整合/首次切換或whole宣告。10/23起可在兩專案授權隔離工作樹做本機開發／驗證；PDM branch／PR／required CI／既有protected release workflow發布與驗收已授權並須遵守既有要求；10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。未來如需角色化QC，同一人可依序工作，證據不可稱獨立。只在相關source/角色/fixture/路徑/假設改變時補驗受影響案例；SHA或無關文件更新不自動全量重跑，provider-required CI保持。
 
 ## 2. Fixture 與正常旅程
 
@@ -133,19 +133,33 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 
 | 證據 | 已驗結果／限制 |
 |---|---|
-| [PR #474 CI 39969794230](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/39969794230)，head `0bf1ad9c4d4b05cb9b7bca37240d2ebed7240385` | provider readback：DEV-012 Isolated PostgreSQL Cutover、Production Slice QC 均 SUCCESS；包含其實際選片所需檢查，不等同正式 migration／部署或真實使用者驗收 |
+| [PR #474 CI 39972128497](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/39972128497)，head `5aee8dd44b72ae7ea991996973919123aab14cc6` | provider readback：DEV-012 Isolated PostgreSQL Cutover、Production Slice QC 均 SUCCESS；支持該來源的產品及發布實作；後續本節forward-prefix相容修正須刷新CI，不等同正式 migration／部署或真實使用者驗收 |
 | `output/qa/dev-123/dev123-contracts-final-20261023-1792763201613.log`、`typecheck-app-final-20261023-1792763201613.log` | pure contracts：Node 8＋Vitest 520 PASS；registry 九身份／20 action／66 legacy binding；typecheck PASS。單元／source 接線證據，未驗正常 SSO |
 | `output/qa/dev-123/ci-cutover-native-replay-r6.log`；OrgMaster completion 的 `output/qa/dev-058/native-policy-20261023-final-r5.log` | 前者 2 tests／22 native assertions PASS；後者 12 native cases PASS：real SQL／ACL、原子 rollback、CAS／replay、actual Org reader／history、inactive／alias、pagination、Platform epoch 與等待鎖期間撤權；cluster／port／temp 清理 PASS。身分為 synthetic-local-only，非 IdP 登入 |
 | OrgMaster completion 的 `output/qa/dev-058/native-org-journey-20261023-r12.log` | 7 cases PASS：真 HTTP commit 後丟回應／查回／重播、實際指派與發布後 PDM guard 允許、D1/D2 stale 與真雙連線停用競爭、未發布草稿中間版 history、Org writer 等待時撤銷 session 零效果；source bytes／cleanup PASS。synthetic issuance＋real cookie auth／DB，非正常 SSO 或正式 L4；其後 r13 失敗保留，未執行的 QA12 擴充不認列 |
-| `output/playwright/dev123-20261023/report-r2.json`、`screenshots/r2-style/` | 實際 component＋tokens／globals／responsive CSS／app shell，在 1440×900 與 390×844 查核 matrix／workbench、dirty／save／cancel、一次 apply、history、409／503／unknown、停用恢復與焦點；document 無橫向 overflow，source bytes 不變，runtime 已清理。mock API／actor，僅 L3 局部證據 |
+| `output/playwright/dev123-20261023/report.json`／`request-log.json`＋`report-r2.json`／`screenshots/r2-style/` | R1實際 component 的 mock `/applications` POST一次及dirty／復原子斷言可沿未變source重用；R2補 tokens／globals／responsive CSS／app shell，在 1440×900 與 390×844 查核 matrix／workbench、dirty／save／cancel、一次 apply、history、409／503／unknown、停用恢復與焦點；document 無橫向 overflow，source bytes 不變，runtime 已清理。mock API／actor，僅 L3 局部證據 |
 | `output/qa/dev-123/app-ci-local-01..08.log`、`output/qa/dev-117/` | application 初跑 773 中 772 PASS；補原 fixture 的 drawing resourceGroup 後 focused 16 PASS。continuous 初跑 472 中 471、QC 523 中 521 PASS；修正歷史 closed35 fixture／舊 current35 預期後，診斷 13＋worker owner 42 PASS，abort 6 PASS。歷史負例保留，現行 38 仍被 closed35 live diagnostic 拒絕，不聲稱該 probe 可讀 current38 ledger |
 | `output/qa/dev-123/build-isolated-20261023.log`、`lint-20261023-r1.log` | 隔離 build 的 artifact／primary invariant／cleanup PASS（primary database absent）；該 build 早於最後服務修正，不作 final artifact 證據。lint 0 errors／9 warnings（含本功能 hook warning）；final source 以以上 provider CI 為準 |
 | 既有 `unit9`／preview 43／route 6、bilateral Node 1＋Vitest 1、release 14＋31＋107 | 保留可重用的實際子項，不另作新 gate 或重複完整旅程；bilateral 是 contract 層，不能代替正常雙端操作 |
+
+後續共享證據（來源仍為5aee產品snapshot，release接線修改未變這些app輸入）：
+
+| 證據 | 已驗結果／限制 |
+|---|---|
+| Org `native-org-journey-20261023-r15.log`、`delegation-inactive-regression-20261023-r1.log` | 8 native cases＋41 focused tests及typecheck PASS；補 direct/delegated inactive Deny、active sibling Allow與歷史delegation可讀可撤；r14真產品失敗保留。非正常SSO |
+| Org `native-manager-acl-20261023-r1.log`、`native-catalog-integrity-20261023-r2.log`、`schema-first-20261023-r3.log` | 真PG ACL／current-history malformed拒絕／schema-first安裝順序 PASS。086–088先安裝時Org035 helpers尚不存在、v1九列19欄及舊pointer/publication/read grants不變；之後034–036與runtime contract可讀。非provider發布或GO |
+| `output/qa/dev-123/dev123-native-byte-authority-oneoff.json`、`dev123-native-preview-adopt-oneoff.json` | 真PG actual worker source delivery 39bytes/hash相符，真apply撤權後下次配送拒絕；`completePreviewJobAsync`正例accepted／1 derivative、2581bytes/hash讀回，另一先claim的job撤權後accepted=false／零derivative。既有合法PNG payload，未啟cloud/CAD worker；不冒稱Range／recognition formalization |
+| Org `output/qa/dev-123/reviewer-principal-isolation-native-r19-run.log` | 9 native cases PASS：B經實際selector成為reviewer且HTTP200完成，合法A/C通過part review判權後由非指定reviewer fence回404且pending不改；這是authenticated business concealment，不是permission-deny或獨立no-self branch證據。A apply成功、C於service讀／重用command得MANAGER_REQUIRED且ledger仍1；不稱C HTTP403已驗。r1–r18為loader／fixture前提失敗保留 |
+| `output/qa/dev-123/release-preparation/normal-sso-entry-readback.json` | 正式現serving入口正常PDM→Platform Google-only login，未提交帳密、未取得session；只證入口，不證DEV123／L4／SSO成功。瀏覽器／PID／lease已清理 |
+| `output/qa/dev-123/release-compatibility-final-r1.log`；前置 `release-prefix-routing-r5.log`、`release-owner-compatibility-r1.log` | 最終337 PASS：35-prefix→38 forward、prefix/runner SQL漂移拒絕、historical reuse限定、closed35拒current38，以及full-owner精確daily-entry沿用sealed special prepare／migration-admission；缺證據與錯誤workflow先拒絕。前置48／286結果保留；新版provider CI另驗 |
+| Org `native-org-journey-20261023-r19.log`；PDM `nullable-submission-focused-20261023-r1.log` | 9 native cases PASS，包含真GET /api/submissions非空200→停止Org HTTP並證ECONNREFUSED→同PDM資料200→恢復Org；grants／audit不變，PG／port／temp清理PASS。r18真PG42P08由共用nullable submissionId加text CAST修正，既有兩測試檔10 PASS及DB boundary PASS；synthetic session，非正常SSO |
+
+發布相容首敗保留：`release-prefix-regression-r1.log`為current38誤用舊profile，r2為舊probe profile邊界；修正明確投影後r3通過。r4為舊workflow測試仍期待寬條件，更新相同權威契約後r5通過。沒有執行失敗producer或provider寫入。
 
 首敗與修正：PR 首輪 DEV012 fixture 缺 v2 projection／project 分享欄位；087 CRLF source hash 與 Git LF 不符，已統一 LF，SQL 語意及 applied hash 未改，`release-lf-final-r2.log` 51 PASS。`contracts-20261023-r1..r3.log`、早期 typecheck、native r1..r11、UI R1 及原 CI 失敗均保留。UI R1 缺 app CSS；R2 已補齊，產品採 plain CSS，無 Tailwind。上述 final CI 驗最終來源，不將舊失敗改為 PASS。
 
 覆蓋採§4共用映射：contracts 支持 schema／hash／20 action／舊 66 key、scope／資格與實際 caller 子項；native PG 支持交易／ACL／history／撤權與競爭；UI 支持實際列舉的操作與 viewport。每案的其餘必要斷言仍未自動關閉。52 QA／17 AC／CG 是目的及覆蓋索引，不是固定測試檔數、52 次旅程或額外簽核；與 OrgMaster 的 24 目的／OM-C／H 索引可引用同一有效結果。
 
-剩餘交付：正常 IdP／SSO 與真實管理者／任用往返、需要實際 bytes／長任務採用的未覆蓋子項，以及 schema／consumer／writer 正式 rollout 與正式驗收仍未完成。OrgMaster 正式 migration／部署／資料操作禁令持續；只停止依賴它的 rollout，不阻止獨立 PDM 工作。沒有宣稱 52 QA／17 AC／CG 整體 PASS，也未自動套用新矩陣或改人員指派。
+剩餘交付：正常 IdP／SSO 與真實管理者／任用往返、需要實際 bytes／長任務採用的未覆蓋子項，以及 schema／consumer／writer 正式 rollout 與正式驗收仍未完成。10/23人類已允許 jenfu-platform-prod／orgmaster-prod 的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱 52 QA／17 AC／CG 整體 PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。

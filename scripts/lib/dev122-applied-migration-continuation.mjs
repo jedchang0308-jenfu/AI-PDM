@@ -1,4 +1,4 @@
-import { canonicalize } from './dev012-production-migration-runner.mjs'
+import { assertMigrationBundle, canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
@@ -93,12 +93,20 @@ export function assertAppliedMigrationSource(binding, currentSourceRevision, isA
   return binding
 }
 
-export function assertAppliedMigrationReadbackSource({ readbackIntent, profile, fullMigration, root, ancestorRunner = null, compatibilityRunner = null }) {
+export function assertAppliedMigrationReadbackSource({ readbackIntent, profile, fullMigration, installedBundle, root, ancestorRunner = null, compatibilityRunner = null }) {
   assertRdReadbackSourceCompatibility({ profile, root,
     workflowSourceRevision: readbackIntent?.workflowSourceRevision,
     runnerSourceRevision: readbackIntent?.runnerSourceRevision,
     ancestorRunner, compatibilityRunner })
-  const probes = buildRdLedgerProbeBundles(fullMigration)
+  // The sealed readback proves only the installed35 prefix. Newly reviewed
+  // migrations must run through the normal forward migrator, never that probe.
+  if (installedBundle?.entries?.length !== 35) fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
+  const target = { ownerApplicationId: installedBundle.ownerApplicationId, ledger: installedBundle.ledger, baselineCount: installedBundle.baselineCount }
+  assertMigrationBundle(fullMigration?.bundle, { target, sourceRevision: fullMigration?.bundle?.sourceRevision,
+    bytes: fullMigration?.bytes, bundleSha256: fullMigration?.bundleSha256 })
+  if (canonicalize(fullMigration.bundle.entries.slice(0, 35)) !== canonicalize(installedBundle.entries)) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
+  const historical = createMigrationBundle({ target, sourceRevision: fullMigration.bundle.sourceRevision, entries: structuredClone(installedBundle.entries) })
+  const probes = buildRdLedgerProbeBundles(historical)
   // The readback intent already seals the exact historical profile used by its
   // producer. A later release may change unrelated runtime or workflow fields;
   // those fields are not evidence about whether migrations 083-085 are

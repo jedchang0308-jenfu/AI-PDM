@@ -249,7 +249,7 @@ test('RD07 readback stays read-only while the same protected workflow confines s
     ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
   assert.match(workflow, /name: Execute RD ledger readback\r?\n        if: \$\{\{ steps\.classify\.outputs\.kind == 'rd_readback' \}\}/u)
   for (const stage of ['candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) {
-    assert.match(workflow, new RegExp(`name: Execute ${stage}\\r?\\n        if: \\$\\{\\{ steps\\.classify\\.outputs\\.kind == 'applied_release' \\}\\}`, 'u'))
+    assert.match(workflow, new RegExp(`name: Execute ${stage}\\r?\\n        if: \\$\\{\\{ steps\\.classify\\.outputs\\.kind == 'applied_release' && steps\\.migrate\\.outputs\\.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' \\}\\}`, 'u'))
   }
   assert.match(workflow, /name: Recover applied-continuation release failure\r?\n        if: \$\{\{ failure\(\) && steps\.classify\.outputs\.kind == 'applied_release'/u)
   assert.equal((workflow.match(/releaseCapsuleRef:/gu) ?? []).length, 1)

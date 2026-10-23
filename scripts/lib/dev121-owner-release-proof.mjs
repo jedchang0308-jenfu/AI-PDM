@@ -1,3 +1,4 @@
+import { requiresPrincipalOnlyMigrationFence } from './dev117-release-control-policy.mjs'
 import { assertUnlinkedProfileCleanupBundleBinding, assertUnlinkedProfileCleanupRef, assertUnlinkedProfileCleanupReceipt } from './dev121-unlinked-profile-cleanup.mjs'
 import { assertProgramOnlyPolicy, deriveProgramOnlyBundles, readProgramOnlyAssociation, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { spawnSync } from 'node:child_process'
@@ -1366,7 +1367,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
       if (!programOnly && !historicalMigrationReuse && migrate) {
         assertMigration(migrate.value, 'ai-pdm', config, sourceRevision,
           intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef,
-          intent.principalOnlyFenceRef ?? null)
+          requiresPrincipalOnlyMigrationFence(intent) ? intent.principalOnlyFenceRef : null)
       }
       let terminal = null, chain
       if (refs.terminal) {

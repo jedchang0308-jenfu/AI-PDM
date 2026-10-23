@@ -25,7 +25,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
 - [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
 - [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
-- [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：required CI與缺口見QA；PDM發布已授權，OrgMaster正式操作仍受原禁止，尚未宣稱正式驗收／啟用。
+- [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：required CI與缺口見QA；PDM發布已授權，OrgMaster 034–036相容migration與reader部署已授權，不含人員指派改寫、IAM或Secrets，尚未宣稱正式驗收／啟用。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

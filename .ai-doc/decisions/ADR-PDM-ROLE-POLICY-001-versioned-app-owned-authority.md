@@ -22,7 +22,7 @@
 
 apply後新請求採新policy，已判權短請求可完成；browser暫存可失效，server保存與CAS負責正確性。OrgMaster人員任用／published-grant、DB及IdP依賴仍存在，這不是改成各系統配人或宣稱離線可用。
 
-52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。10/23起可在授權隔離工作樹協同開發／驗證[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)所列相容範圍，PDM既有protected發布／驗收已獲本輪授權；OrgMaster正式migration/deploy及正式資料操作仍受原人類禁止。
+52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。10/23起可在授權隔離工作樹協同開發／驗證[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)所列相容範圍，PDM既有protected發布／驗收已獲本輪授權；OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets。
 
 ## 替換與退出
 
@@ -32,4 +32,6 @@ apply後新請求採新policy，已判權短請求可完成；browser暫存可�
 
 ## 2026-10-23 Implementation in progress
 
-本輪已在AI-PDM／OrgMaster隔離工作樹實作，產品及驗證仍在收斂；required CI與其他結果只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。三資料集、34欄對外契約、無state/readiness/generation與DEV-035 fence的決策不變。PDM既有protected發布已授權，OrgMaster正式操作仍受原人類禁止；未宣稱52目的／17AC／CG整體通過。
+本輪已在AI-PDM／OrgMaster隔離工作樹實作，產品及驗證仍在收斂；required CI與其他結果只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。三資料集、34欄對外契約、無state/readiness/generation與DEV-035 fence的決策不變。PDM既有protected發布已授權，OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets；未宣稱52目的／17AC／CG整體通過。
+
+首次rollout沿既有35-prefix證據與38-entry真forward migration；保留worker runtime及sealed prepared分類，schema-only完成後才由full owner續接同capsule，詳SPEC§11及既有release spec§26.4／26.6。不新增mode、workflow、簽核或readiness狀態。

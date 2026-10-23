@@ -143,7 +143,7 @@ async function loadSubmissionCapabilityRecords(
     FROM ${schema}submissions s
     LEFT JOIN ${schema}submission_files f ON f.submission_id=s.id
     LEFT JOIN ${schema}file_assets a ON a.id=COALESCE(f.source_file_asset_id,f.source_master_attachment_id)
-    WHERE s.company_id=:companyId AND (:submissionId IS NULL OR s.id=:submissionId)
+    WHERE s.company_id=:companyId AND (CAST(:submissionId AS text) IS NULL OR s.id=CAST(:submissionId AS text))
     ORDER BY s.id,f.id`, { companyId, submissionId: submissionId ?? null });
   const byId = new Map<string, SubmissionCapabilityRecord & { sourceType: string | null; invalid: boolean; hasMember: boolean }>();
   for (const row of rows) {

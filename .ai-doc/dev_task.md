@@ -74,7 +74,7 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 七角色、五作業、20動作、角色增停恢復與原子套用已在獨立工作樹實作；保留九歷史身份、system保護與OrgMaster任用責任。[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)的required CI與測試、PG、瀏覽器結果及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)，不在任務板複製結果清單。
 
-下一步：收斂雙端未覆蓋驗證及正常旅程，沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)交付。PDM既有protected發布／驗收已獲本輪授權；OrgMaster正式migration/deploy／正式資料操作仍受原人類禁止。52 QA／17 AC／CG目的保留，尚未整體驗收或啟用。
+下一步：收斂雙端未覆蓋驗證及正常旅程，沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)交付。PDM既有protected發布／驗收已獲本輪授權；OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets。52 QA／17 AC／CG目的保留，尚未整體驗收或啟用。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

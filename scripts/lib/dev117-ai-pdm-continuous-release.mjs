@@ -266,6 +266,7 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.(?:bind|effective)\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
   const releaseOrApplied = "if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}"
   const appliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' }}"
+  const historicalAppliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}"
   const rollbackOnly = "if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}"
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
@@ -281,7 +282,8 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       !source.includes('PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: "true"') ||
       !source.includes("if: ${{ steps.classify.outputs.kind == 'rd_readback' }}") ||
       source.split(releaseOrApplied).length - 1 !== 5 ||
-      source.split(appliedOnly).length - 1 !== 13 ||
+      source.split(appliedOnly).length - 1 !== 0 ||
+      source.split(historicalAppliedOnly).length - 1 !== 13 ||
       source.split(rollbackOnly).length - 1 !== 3 ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"') ||
       !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
