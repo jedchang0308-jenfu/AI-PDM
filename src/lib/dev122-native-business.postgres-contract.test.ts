@@ -2810,6 +2810,24 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "part-journeys-ui") {
+      // Each original group and viewport owns a separate Draft/work lifecycle.
+      // Review, return and release outcomes are produced later by the mounted UI.
+      const fixtures = [];
+      for (const group of ["R-01A", "P-02B", "P-03A"]) for (const width of [1440, 390]) {
+        const label = group + "-" + width;
+        const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+          { coreName: "DEV122 " + label + " Part", itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+        const started = await ok<{ data: { workId: string } }>(await createPartWork(request("/api/pdm/parts/" + part.partNumber.id + "/change-works", ownerToken, "POST", {},
+          1, await contract("dev122-profile-owner"), label + "-part-work"), { params: Promise.resolve({ partId: part.partNumber.id }) }));
+        fixtures.push({ group, width, height: width === 1440 ? 900 : 844, partId: part.partNumber.id,
+          partNumber: part.partNumber.partNumber, partWorkId: started.data.workId, terminalAssetIds: [] });
+      }
+      expect(new Set(fixtures.map(item => item.partId)).size).toBe(6);
+      expect(new Set(fixtures.map(item => item.partWorkId)).size).toBe(6);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.
