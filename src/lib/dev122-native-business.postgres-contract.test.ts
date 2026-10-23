@@ -22,7 +22,7 @@ import type { PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient, type AsyncDatabaseQueryParams, type AsyncDatabaseTransactionOptions } from "@/lib/db-async-provider";
 import { GET as readProcurement } from "@/app/api/integrations/procurement/releases/route";
 import { GET as readProcurementPackage } from "@/app/api/integrations/procurement/releases/[id]/package/route";
@@ -158,11 +158,11 @@ beforeAll(async () => {
 });
 afterAll(async()=>{await db?.close();});
 
-async function fixtureMutation(purpose: string, sql: string, params: Record<string, unknown>) {
+async function fixtureMutation(purpose: string, sql: string, params: Record<string, unknown>, client: AsyncDatabaseClient = db!) {
   await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "fixture-mutations.jsonl"), JSON.stringify({
     project: "AIPDM", purpose, scope: "own disposable native PG", sql, params, producerBoundary: "FIXTURE"
   }) + "\n");
-  await db!.execute(sql, params);
+  await client.execute(sql, params);
 }
 
 let fixtureRequestOutstanding = false;
@@ -433,6 +433,7 @@ async function nativePreviewClaim(send: (url: string, body?: object) => Request)
 
 type FileFixture = { workId: string; bindingId: string; assetId: string; bytes: Buffer; url: string;
   asset: { id: string; content_hash: string; file_size: number | string; storage_key: string; original_path: string } };
+let ownedFileCaseSources: Map<string, { label: string; companyId: string }> | undefined;
 async function normalDrawingFile(label: string, extension = "SLDDRW", actualSourceBytes?: Buffer, fixtureToken = ownerToken): Promise<FileFixture> {
   const created = await ok<{ drawingNumber: { id: string } }>(await createRecord(request("/api/numbering/records", fixtureToken, "POST",
     { coreName: "DEV122 file " + label, itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" }, 1, "", "file-number-" + label)), 201);
@@ -447,6 +448,7 @@ async function normalDrawingFile(label: string, extension = "SLDDRW", actualSour
       cookie: "__session=" + fixtureToken, "if-match": String(work.data.rowVersion), "x-pdm-workbench-contract": work.meta.contractToken,
       "idempotency-key": label + "-file-upload" }, body: form }), params));
   const bindingId = uploaded.data.file.id, assetId = uploaded.data.file.sourceFileAssetId;
+  ownedFileCaseSources?.set(assetId, { label, companyId: "company-jenfu" });
   const asset = await db!.queryOne<FileFixture["asset"]>("SELECT id,content_hash,file_size,storage_key,original_path FROM file_assets WHERE id=:id", { id: assetId });
   expect(asset).toBeTruthy(); expect(asset!.content_hash).toBe(createHash("sha256").update(bytes).digest("hex"));
   expect(Number(asset!.file_size)).toBe(bytes.length);
@@ -560,6 +562,57 @@ async function resetFileJob(fixture: FileFixture, status: string, attempt = 2, a
   return next;
 }
 describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, storage and native worker protocol", () => {
+  let recognitionAccessSessionId: string | undefined;
+  beforeEach(() => { ownedFileCaseSources = new Map(); recognitionAccessSessionId = undefined; });
+  afterEach(async () => {
+    const sources = ownedFileCaseSources!;
+    ownedFileCaseSources = undefined;
+    const cleanups: Array<() => Promise<void>> = [];
+    if (recognitionAccessSessionId) {
+      const id = recognitionAccessSessionId;
+      cleanups.push(async () => {
+        const params = { id, companyId: "company-jenfu", principalId: "dev122-principal-owner" };
+        const before = await db!.query("SELECT id,company_id,initiator_principal_id,status FROM drawing_recognition_sessions WHERE id=:id", { id });
+        const sourceRows = await db!.query("SELECT id,company_id FROM drawing_recognition_sources WHERE session_id=:id", { id });
+        await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "fixture-mutations.jsonl"), JSON.stringify({
+          producerBoundary: "FIXTURE", purpose: "B43 exact successful session teardown after original assertions/evidence", params, before, sourceRows }) + "\n");
+        expect(before).toEqual([expect.objectContaining({ id, company_id: params.companyId, initiator_principal_id: params.principalId, status: "queued" })]);
+        expect(sourceRows).toEqual([expect.objectContaining({ company_id: params.companyId })]);
+        // RESTRICT foreign keys retain unexpected dependent outcomes; both deletes roll back together.
+        await db!.transaction(async tx => {
+          await tx.execute(`DELETE FROM drawing_recognition_sources WHERE session_id=:id AND company_id=:companyId
+            AND EXISTS (SELECT 1 FROM drawing_recognition_sessions WHERE id=:id AND company_id=:companyId AND initiator_principal_id=:principalId AND status='queued')`, params);
+          await tx.execute("DELETE FROM drawing_recognition_sessions WHERE id=:id AND company_id=:companyId AND initiator_principal_id=:principalId AND status='queued'", params);
+        });
+        const remaining = await db!.query("SELECT id,company_id FROM drawing_recognition_sessions WHERE id=:id", { id });
+        await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "B43-recognition-fixture-teardown.json"),
+          JSON.stringify({ producerBoundary: "FIXTURE", params, before, remaining, exactSessionCountZero: remaining.length === 0 }));
+        expect(remaining).toHaveLength(0);
+      });
+    }
+    for (const [id, { label, companyId }] of sources) cleanups.push(async () => {
+      const before = await db!.query("SELECT id,company_id,status,source_file_asset_id FROM preview_jobs WHERE source_file_asset_id=:id", { id });
+      const derivativesBefore = await db!.query("SELECT id,company_id,preview_job_id FROM file_derivatives WHERE source_file_asset_id=:id", { id });
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "fixture-mutations.jsonl"), JSON.stringify({
+        producerBoundary: "FIXTURE", purpose: "F01 owned source teardown precondition readback", sourceFileAssetId: id,
+        deletionCompanyId: companyId, before, derivativesBefore }) + "\n");
+      await db!.transaction(async tx => {
+        await fixtureMutation("F01 exact owned job derivatives teardown after original assertions/evidence; preserve other references",
+          `DELETE FROM file_derivatives WHERE source_file_asset_id=:id AND company_id=:companyId AND preview_job_id IN
+            (SELECT id FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId)`, { id, companyId }, tx);
+        await fixtureMutation("F01 per-case exact uploaded-source preview queue teardown after original assertions/evidence; not product recovery",
+          "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId", { id, companyId }, tx);
+      });
+      const remaining = await db!.query("SELECT id,company_id FROM preview_jobs WHERE source_file_asset_id=:id", { id });
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "file-case-fixture-teardown.jsonl"), JSON.stringify({
+        producerBoundary: "FIXTURE", label, sourceFileAssetId: id, deletionCompanyId: companyId, before, derivativesBefore, remaining,
+        exactSourceJobCountZero: remaining.length === 0 }) + "\n");
+      expect(remaining, label).toHaveLength(0);
+    });
+    const results = await Promise.allSettled(cleanups.map(cleanup => cleanup()));
+    const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
+    if (failures.length) throw new AggregateError(failures, "DEV122 exact owned fixture teardown failed");
+  });
   it("canonical preview rejects stale derivative source hash after actual protocol completion",async()=>{
     const fixture=await normalDrawingFile("stale-derivative-source");await resetFileJob(fixture,"queued",0);
     const token=Buffer.alloc(32,126).toString("base64url"),previous=process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
@@ -677,9 +730,16 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       if(variant==="heartbeat")expect(await currentFileJob(fixture)).toMatchObject({status:"queued",locked_by:null,attempt_count:1});
       else{expect(await currentFileJob(fixture)).toEqual(fresh);expect(fresh).toMatchObject({status:"running",locked_by:worker,attempt_count:2});}
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+".json"),JSON.stringify({variant,jobId,stale,fresh,selected,casRows,status:response.status,body,layer:"ACTUAL_SIGNED_CANONICAL_GET_AND_ACTUAL_WORKLOAD_ROUTE"}));
+      await fixtureMutation("F01 exact recovery-race fixture teardown after assertions and original evidence; not product recovery",
+        "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId",{id:fixture.assetId,companyId:"company-jenfu"});
+      const remainingSourceJobs=await db!.query<{id:string;company_id:string}>("SELECT id,company_id FROM preview_jobs WHERE source_file_asset_id=:id",{id:fixture.assetId});
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+"-fixture-teardown.json"),JSON.stringify({
+        layer:"ACTUAL_NATIVE_POSTGRES_LOCAL_FIXTURE_TEARDOWN",producerBoundary:"FIXTURE",variant,jobId,sourceFileAssetId:fixture.assetId,
+        deletionCompanyId:"company-jenfu",remainingSourceJobs,remainingSourceJobCount:remainingSourceJobs.length,exactSourceJobCountZero:remainingSourceJobs.length===0}));
+      expect(remainingSourceJobs).toHaveLength(0);
     }finally{restoreObserver?.();if(previous===undefined)delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=previous;}
   });
-  it("B43 recognition Admin access uses real v4 pdm_admin grants for initial and write checks, with zero-queue negatives", async () => {
+  it("B43 recognition access uses the published Principal fixture grant for initial and write checks, with zero-queue negatives", async () => {
     const flags={PDM_DRAWING_RECOGNITION_V1:"true",PDM_UNIFIED_DRAWING_WORKBENCH_V1:"true",PDM_NUMBER_LIFECYCLE_V2:"true"};
     const previous=Object.fromEntries(Object.keys(flags).map(name=>[name,process.env[name]]));
     let restoreObserver:(()=>void)|undefined;
@@ -703,12 +763,18 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       restoreObserver=()=>observer.mockRestore();
       const response=await createRecognition(request("/api/numbering/recognition-sessions",ownerToken,"POST",body));
       const created=await ok<{session:{id:string;status:string;initiatorPrincipalId:string}}>(response,201);
+      recognitionAccessSessionId=created.session.id;
       const runCalls=observer.mock.calls.map((args,index)=>({args,result:observer.mock.results[index]}))
         .filter(({args})=>args[0].length===1&&args[0][0].permissionCode==="numbering.recognition.run");
       expect(runCalls).toHaveLength(2);
-      for(const call of runCalls){expect(call.result.type).toBe("return");expect(await call.result.value).toEqual([
-        expect.objectContaining({decisionCode:"allowed",assignment:expect.objectContaining({
-          roleCode:"pdm_admin",catalogVersion:"ai-pdm.role-catalog.2026-09-03.v3",scopeKey:"current"})})]);}
+      // The focused historical Admin fixture differs from the full-suite current RD fixture.
+      const expectedGrant=process.env.DEV122_NATIVE_SELECTION==="recognition-access"
+        ?{roleCode:"pdm_admin",catalogVersion:"ai-pdm.role-catalog.2026-09-03.v3",scopeKind:"workspace",scopeKey:"current"}
+        :{roleCode:"rd_manager",catalogVersion:"ai-pdm.role-catalog.2026-10-10.v7",scopeKind:"workspace",scopeKey:"company-jenfu"};
+      const runResults=await Promise.all(runCalls.map(async call=>{expect(call.result.type).toBe("return");return await call.result.value;}));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"B43-grant-evaluation-readback.json"),JSON.stringify({expectedGrant,runResults}));
+      for(const result of runResults)expect(result).toEqual([
+        expect.objectContaining({decisionCode:"allowed",assignment:expect.objectContaining(expectedGrant)})]);
       restoreObserver();restoreObserver=undefined;
       expect(await count()).toBe(before+1);
       const saved=await db!.queryOne("SELECT id,company_id,initiator_principal_id,status FROM drawing_recognition_sessions WHERE id=:id",{id:created.session.id});
@@ -841,6 +907,7 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       source_hash: "UPDATE file_assets SET content_hash=:hash WHERE id=:id"
     };
     await fixtureMutation("F01 native claim source eligibility negative input", edits[variant], { id: variant === "source_hash" ? fixture.assetId : job.id, hash: "f".repeat(64) });
+    if (variant === "company") ownedFileCaseSources!.set(fixture.assetId, { label: "claim-negative-company", companyId: "company-dev122-other" });
     const token = Buffer.alloc(32, 112).toString("base64url"), previous = process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
     process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [
       { id: "dev122-negative-claim-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] } ] });
@@ -2279,10 +2346,11 @@ async function uploadNativeProtocolPair(workId: string, label: string) {
     const form = new FormData();
     // Only storage/protocol evidence. Actual CAD output is a separate native worker gate.
     form.set("file", new File(["DEV122 protocol fixture " + fileName], fileName, { type: "application/octet-stream" }));
-    await ok(await uploadDrawingFile(new Request("https://ai-pdm.test/api/pdm/drawing-revision-works/" + workId + "/files", {
+    const uploaded = await ok<{ data: { file: { sourceFileAssetId: string } } }>(await uploadDrawingFile(new Request("https://ai-pdm.test/api/pdm/drawing-revision-works/" + workId + "/files", {
       method: "POST", headers: { cookie: "__session=" + ownerToken, "if-match": String(work.data.rowVersion),
         "x-pdm-workbench-contract": work.meta.contractToken, "idempotency-key": `${workId}-${fileName}` }, body: form
     }), params));
+    ownedFileCaseSources?.set(uploaded.data.file.sourceFileAssetId, { label: fileName, companyId: "company-jenfu" });
   }
 }
 
