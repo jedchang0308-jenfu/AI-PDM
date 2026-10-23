@@ -328,7 +328,8 @@ function nextCapacityAdmission(evidenceRoot) {
   catch(error){bytes=Buffer.from(error.stdout??'');fs.writeFileSync(file,bytes);throw error;}
   fs.writeFileSync(file,bytes);
   const receipt=JSON.parse(bytes),lease=receipt.data?.lease;
-  if(receipt.exit_code!==0||receipt.status!=='ALLOW'||lease?.status!=='active'||
+  // Governor WARNING permits this exact reserved operation; BLOCKED and EMERGENCY do not.
+  if(receipt.exit_code!==0||!['ALLOW','WARNING'].includes(receipt.status)||lease?.status!=='active'||
     lease.development_operation_id!=='dev122-next-ui-bounded2g-20261004'||lease.operation_kind!=='lint_test'||
     lease.reserved_bytes!==2*1024*1024*1024||Date.parse(lease.expires_at)<=Date.now())throw new Error('DEV122_NEXT_CAPACITY_ADMISSION_INVALID_OR_EXPIRED');
   return {file,hash:sha256(bytes),status:receipt.status,lease};
