@@ -47,7 +47,7 @@ describe("development SSO service identity", () => {
     expect(google.getIdTokenClient).not.toHaveBeenCalled();
   });
 
-  it.each([
+  const rejectedConfigurationCases: Array<[audience: string, environment: NodeJS.ProcessEnv]> = [
     [audience, { ...local, NODE_ENV: "production" }],
     [audience, { ...local, K_SERVICE: "ai-pdm-prod" }],
     ["http://example.test", local],
@@ -55,7 +55,8 @@ describe("development SSO service identity", () => {
     ["http://user:password@localhost:11000", local],
     [audience, { ...local, JENFU_SSO_IMPERSONATE_SERVICE_ACCOUNT: "human@example.test" }],
     [audience, { ...local, JENFU_SSO_IMPERSONATE_SERVICE_ACCOUNT: " " }],
-  ])("rejects unsupported runtime or identity configuration without credential fallback", async (value, environment) => {
+  ]
+  it.each(rejectedConfigurationCases)("rejects unsupported runtime or identity configuration without credential fallback", async (value, environment) => {
     await expect(jenfuSsoServiceToken(value, environment)).rejects.toThrow();
     expect(google.impersonated).not.toHaveBeenCalled();
     expect(google.getIdTokenClient).not.toHaveBeenCalled();
