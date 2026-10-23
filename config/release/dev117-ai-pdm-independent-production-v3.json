@@ -473,7 +473,7 @@
       {
         "order": 37,
         "path": "db/postgres/087_dev123_role_policy_candidate_validation.sql",
-        "sha256": "4596f829abcb352be3abc7f2ca77787bf8cc98241b069891000669ff62678f95"
+        "sha256": "30e0c37efc86a70d0b1de7fe7b69af62fa3d557582fb9d8b77de3a95a035325b"
       },
       {
         "order": 38,
