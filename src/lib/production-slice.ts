@@ -72,6 +72,10 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/claim$/u },
   { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
   { method: "POST", pattern: /^\/api\/recognition-workers\/heartbeat$/u },
+  // Technical executor dispatch only; workload purpose, holder and source
+  // checks remain in the existing recognition owner.
+  { method: "POST", pattern: /^\/api\/recognition-jobs\/claim$/u },
+  { method: "POST", pattern: /^\/api\/recognition-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
   // Canonical work commands remain protected by their Principal capability,
   // resource, ownership, review assignment and transactional owner boundaries.
   { method: "POST", pattern: /^\/api\/pdm\/parts\/[^\/]+\/change-works$/u },
