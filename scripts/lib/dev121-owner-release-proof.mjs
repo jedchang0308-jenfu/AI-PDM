@@ -785,7 +785,7 @@ function assertContentBundle(bundle, sourceRevision) {
   if (bundle.entries.length === 38) {
     const rolePolicySuffix = [
       ['086_dev123_role_policy_editor_v1', '015749244315fb25e362770fc0a18bdab051655434b29a4d2a7cdc684345359f', '9b7f395c96cbd61699eb0deb1479ca9814fe69ad5a11bc07a0a302d9dc213272'],
-      ['087_dev123_role_policy_candidate_validation', '30e0c37efc86a70d0b1de7fe7b69af62fa3d557582fb9d8b77de3a95a035325b', 'e3500a10075532d9f486f04e4b39b7301ad4bca0d2f7c2352a50fc1b0d10ea3b'],
+      ['087_dev123_role_policy_candidate_validation', 'ce9e3dfd8591e106788faf23bbfdcbcdd6cdf00c4c4aa299e6cfe9f99a9406d6', '3923d099c72df031484da755889d0a89d8e279b70ad9f686c6ea35e211a2a0d4'],
       ['088_dev123_recognition_job_authority', '16f1a1b4655afc493ebdcb724e7a1c3bd239d9f34c581845e2de49b419728f83', '03749e82efb6d808ee54d55534ca35ea5a472d6c44e20cd462eb10c94b6cad9b'],
     ]
     for (const [index, [name, sourceHash, appliedHash]] of rolePolicySuffix.entries()) {

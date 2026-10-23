@@ -285,7 +285,7 @@ BEGIN
     ON epoch.principal_id=account.principal_id AND epoch.auth_epoch=session.principal_auth_epoch
   WHERE account.principal_id=p_actor_principal_id AND account.account_status='active'
     AND account.system_role_enabled AND account.account_type='human_privileged'
-    AND session.revoked_at IS NULL AND session.assurance_level='aal2'
+    AND session.revoked_at IS NULL AND session.assurance_level IN ('aal1','aal2')
     AND session.issued_at <= clock_timestamp() AND session.expires_at > clock_timestamp()
     AND session.lifecycle_version=account.lifecycle_version AND session.profile_version=account.profile_version
     AND (epoch.revoked_before IS NULL OR session.authenticated_at>epoch.revoked_before)

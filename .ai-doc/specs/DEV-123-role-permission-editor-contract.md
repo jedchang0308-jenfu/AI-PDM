@@ -181,6 +181,8 @@ source现況：`submissions.project_code`已有專案字串，`readonly_shares`�
 
 保留既有session v2、typed active Principal、account/company/authEpoch、session registry及published-grant檢查；不另建任用或可自行勾選的管理grant。
 
+2026-10-23人類確認：沿用現有公司Google管理員登入政策，本功能不額外要求MFA或新增驗證系統。已通過既有Principal admission的aal1／aal2均可依下列管理資格操作；不把aal1升記為aal2。等待管理鎖後仍須以新statement核對registered session與signed claims的assurance完全一致，以及當前account／epoch／profile／有效期與OrgMaster direct global任用。其他既有管理API的驗證規則不在此變更範圍。
+
 | 操作 | 必要資格 |
 |---|---|
 | workspace／草稿／差異／歷史 | 當前合法settings.admin_matrix或下列管理者；server裁剪actor/reason及跨公司人員資訊 |

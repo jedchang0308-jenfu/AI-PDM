@@ -340,7 +340,7 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
     sha256: '015749244315fb25e362770fc0a18bdab051655434b29a4d2a7cdc684345359f' })
   assert.deepEqual(profile.migrations.entries[36], { order: 37,
     path: 'db/postgres/087_dev123_role_policy_candidate_validation.sql',
-    sha256: '30e0c37efc86a70d0b1de7fe7b69af62fa3d557582fb9d8b77de3a95a035325b' })
+    sha256: 'ce9e3dfd8591e106788faf23bbfdcbcdd6cdf00c4c4aa299e6cfe9f99a9406d6' })
   assert.deepEqual(profile.migrations.entries[37], { order: 38,
     path: 'db/postgres/088_dev123_recognition_job_authority.sql',
     sha256: '16f1a1b4655afc493ebdcb724e7a1c3bd239d9f34c581845e2de49b419728f83' })

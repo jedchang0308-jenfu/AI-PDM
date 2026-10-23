@@ -45,14 +45,15 @@ export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, v
   { principalId: claims.principalId, sessionHash })
   const epoch = await new JenfuAuthEpochRepository(client).readCanonicalPrincipalState(claims.principalId)
   const now = Date.now()
-  if (claims.assuranceLevel !== 'aal2' || account.accountType !== 'human_privileged' ||
+  const validAssuranceLevel = claims.assuranceLevel === 'aal1' || claims.assuranceLevel === 'aal2'
+  if (!validAssuranceLevel || account.accountType !== 'human_privileged' ||
       account.employeeId !== claims.employeeId || account.pdmUserId !== verified.profile.pdmUserId ||
       account.companyId !== verified.profile.companyId || account.lifecycleVersion !== claims.accountLifecycleVersion ||
       account.profileVersion !== claims.profileVersion ||
       (account.sessionInvalidBefore && Date.parse(claims.issuedAt) <= Date.parse(account.sessionInvalidBefore)) ||
       epoch.authEpoch !== claims.authEpoch ||
       (epoch.revokedBefore && Date.parse(claims.authenticatedAt) <= Date.parse(epoch.revokedBefore)) ||
-      !session || session.revoked_at !== null || session.assurance_level !== 'aal2' ||
+      !session || session.revoked_at !== null || session.assurance_level !== claims.assuranceLevel ||
       Number(session.principal_auth_epoch) !== claims.authEpoch ||
       Number(session.lifecycle_version) !== claims.accountLifecycleVersion || Number(session.profile_version) !== claims.profileVersion ||
       new Date(session.issued_at).getTime() !== Date.parse(claims.issuedAt) ||

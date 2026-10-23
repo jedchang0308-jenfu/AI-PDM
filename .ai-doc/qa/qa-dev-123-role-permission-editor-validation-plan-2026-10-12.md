@@ -156,6 +156,10 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 
 最後唯讀審查另找出第二個normalize daily gate與另一proof caller未適配歷史prefix；修正共用readback boundary、補installed bundle join及受限daily admission後，`release-compatibility-second-boundary-r1.log` 228 PASS。正例通過第二normalize gate再由缺native proof拒絕，sealed prepare bytes與物件數不變；錯workflow、LOCAL_TEST、source、deadline、混用special均有拒絕斷言。`release-final-affected-r1.log` 的planner／release-core／database／authorization四組PASS支持cc79版本，後續改動仍由新版CI驗證。
 
+新增受影響驗證：2026-10-23人類確認沿用現有公司Google管理員登入政策後，service／post-lock既有兩檔29 tests PASS，涵蓋aal1合法manager及session強度不一致／非法值、revoked／epoch／profile與不合資格actor拒絕。未部署087與release source/applied pins同步；`assurance-policy-release-contract-r1.log` 30 PASS、typecheck PASS。`dev123-native-aal1-role-policy-current-r1.json` 真PG以簽發／驗證且registered為aal1的合法direct global manager完成create/save/apply，session撤銷後下一write拒絕且零domainmutation；首敗為fixture用runtime讀core計數被ACL拒絕，改用task owner唯讀計數，未新增grant。仍非正常SSO；新版required CI另驗。`release-preparation/existing-browser-session-readback.json`只證現serving正常既有session與單因素UI，非fresh SSO或新版matrix套用。
+
+`dev123-native-recognition-authority-current-r1.json`：真PG durable initiator→claim→completeJob正例review_ready／1 candidate；真apply停用RD後，另一已claim job的completeJob拒絕且canonical/history計數不變，所有task資源清理完成。只支持worker採用，未驗recognition正式化HTTP；其首敗fixture修正記錄保留。
+
 補充實際HTTP限制：`dev123-native-http-byte-range-oneoff.json`只證無session的完整／Range請求401與recognition PDF Range416；未有合法HTTP principal正例，不認列bytes／Range撤權旅程PASS。其task-owned Next runtime、port及生成的next-env差異已清理；既有native delivery/adopt bytes證據仍有效。
 
 發布相容首敗保留：`release-prefix-regression-r1.log`為current38誤用舊profile，r2為舊probe profile邊界；修正明確投影後r3通過。r4為舊workflow測試仍期待寬條件，更新相同權威契約後r5通過。沒有執行失敗producer或provider寫入。

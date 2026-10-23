@@ -88,19 +88,19 @@ function legacyV7Rows() {
   }))
 }
 
-function managerVerified(principalId = actor) {
+function managerVerified(principalId = actor, assuranceLevel: 'aal1' | 'aal2' = 'aal2') {
   return {
     session: {
       principalId,
       sessionId: 'test-role-policy-session-0001',
       identityIssuer: 'test-issuer', identitySubject: 'test-subject',
       employeeId: principalId === actor ? 'employee-admin' : 'employee-other',
-      assuranceLevel: 'aal2'
+      assuranceLevel
     }
   } as never
 }
 
-function unitClientFixture(options: { rejectCatalogOrDraft?: boolean } = {}) {
+function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountType?: string; directGrant?: boolean } = {}) {
   const drafts = new Map<string, DraftRow>()
   const commands = new Map<string, Record<string, unknown>>()
   const currentRows = legacyV7Rows()
@@ -113,7 +113,7 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean } = {}) {
   const queryOne = vi.fn(async (sql: string, params?: Params) => {
     querySql.push(sql)
     if (sql.includes('principal_accounts')) {
-      return { account_type: 'human_privileged', account_status: 'active' }
+      return { account_type: options.accountType ?? 'human_privileged', account_status: 'active' }
     }
     if (sql.includes('role_policy_commands')) {
       return commands.get(String(param(params, 'requestId'))) ?? null
@@ -137,7 +137,7 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean } = {}) {
       return currentRows
     }
     if (sql.includes('v_ai_pdm_principal_effective_grants_v4')) {
-      return authorizedManagers.has(String(param(params, 'principalId')))
+      return (options.directGrant ?? authorizedManagers.has(String(param(params, 'principalId'))))
         ? [{ assignment_id: 'direct-global-system-admin' }]
         : []
     }
@@ -253,6 +253,32 @@ describe('DEV-123 role-policy service contract', () => {
     await expect(createRolePolicyDraft(fixture.client as never, managerVerified(), {
       ...body, expectedActive: { ...activeTuple(), catalogSha256: 'f'.repeat(64) }
     })).rejects.toMatchObject({ code: 'DRAFT_ID_REUSE', status: 409 })
+  })
+
+  it('allows a verified AAL1 human privileged direct manager under the existing login policy', async () => {
+    const fixture = unitClientFixture()
+    const verified = managerVerified(actor, 'aal1')
+    const created = await createRolePolicyDraft(fixture.client as never, verified, {
+      draftId, expectedActive: activeTuple()
+    })
+    const saved = await saveRolePolicyDraft(fixture.client as never, verified, draftId, {
+      expectedRevision: created.revision, roleChanges: [], changes: []
+    })
+    expect(saved.revision).toBe(created.revision)
+    expect(fixture.querySql.some(sql => sql.includes("grant_kind='direct'") &&
+      sql.includes('delegation_id IS NULL') && sql.includes("scope_kind='global'") &&
+      sql.includes('target_principal_id=:principalId'))).toBe(true)
+  })
+
+  it.each([
+    ['ordinary account', { accountType: 'human_personal' }],
+    ['delegated grant', { directGrant: false }],
+    ['workload account', { accountType: 'workload' }],
+  ])('rejects a %s from role-policy management', async (_label, options) => {
+    const fixture = unitClientFixture(options)
+    await expect(createRolePolicyDraft(fixture.client as never, managerVerified(), {
+      draftId, expectedActive: activeTuple()
+    })).rejects.toMatchObject({ code: 'ROLE_POLICY_MANAGER_REQUIRED', status: 403 })
   })
 
   it('saves a mixed new-role/client-binding change, reads the binding back, and rejects a stale revision', async () => {

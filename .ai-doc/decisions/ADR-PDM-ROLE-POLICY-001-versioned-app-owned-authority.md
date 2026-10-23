@@ -35,3 +35,5 @@ apply後新請求採新policy，已判權短請求可完成；browser暫存可�
 本輪已在AI-PDM／OrgMaster隔離工作樹實作，產品及驗證仍在收斂；required CI與其他結果只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。三資料集、34欄對外契約、無state/readiness/generation與DEV-035 fence的決策不變。PDM既有protected發布已授權，OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets；未宣稱52目的／17AC／CG整體通過。
 
 首次rollout沿既有35-prefix證據與38-entry真forward migration；保留worker runtime及sealed prepared分類，schema-only完成後才由full owner續接同capsule，詳SPEC§11及既有release spec§26.4／26.6。不新增mode、workflow、簽核或readiness狀態。
+
+2026-10-23登入政策決策：人類選擇沿用現有公司Google管理員登入政策，移除本次實作額外加入的AAL2硬限制；不新增MFA系統，也不把AAL1冒記為AAL2。既有verified Principal/session及human_privileged、direct global exact-Principal system_admin資格保持，post-lock assurance須與registered session一致。此決策僅限DEV-123，不修改其他DEV-121管理API或SSO信任契約。

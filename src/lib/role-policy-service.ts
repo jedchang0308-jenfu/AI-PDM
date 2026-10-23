@@ -134,8 +134,10 @@ async function requireRolePolicyManager(client: AsyncDatabaseClient, verified: V
     WHERE principal_id=:principalId AND employee_id=:employeeId`, {
       principalId: verified.session.principalId, employeeId: verified.session.employeeId
     })
-  if (!account || account.account_type !== 'human_privileged' || account.account_status !== 'active' ||
-      verified.session.assuranceLevel !== 'aal2') throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+  const validAssuranceLevel = verified.session.assuranceLevel === 'aal1' || verified.session.assuranceLevel === 'aal2'
+  if (!validAssuranceLevel || !account || account.account_type !== 'human_privileged' || account.account_status !== 'active') {
+    throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+  }
   const grants = await client.query<{ assignment_id: string }>(`
     SELECT assignment_id FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
     WHERE application_id='ai-pdm' AND principal_id=:principalId AND employee_id=:employeeId
