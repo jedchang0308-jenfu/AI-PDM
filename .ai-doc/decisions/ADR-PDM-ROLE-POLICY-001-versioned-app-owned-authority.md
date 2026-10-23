@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-24。狀態：架構決策已實作並合併，兩端正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-24。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
