@@ -2810,6 +2810,46 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "preview-cancelled-ui") {
+      const fixtures = [];
+      for (const width of [1440, 390]) {
+        const file = await normalDrawingFile("cancelled-ui-" + width);
+        let jobId = "";
+        await withPreviewLeaseWorker(async send => {
+          const claim = await nativePreviewClaim(send); expect(claim.sourceFileAssetId).toBe(file.assetId); jobId = claim.jobId;
+          const params = { params: Promise.resolve({ jobId }) }, events = new EventEmitter(), shutdown = createPreviewWorkerShutdown(events);
+          let entered!: () => void, release!: () => void;
+          const ready = new Promise<void>(resolve => { entered = resolve; }), rendered = new Promise<void>(resolve => { release = resolve; });
+          const statuses: string[] = [];
+          try {
+            const running = runClaimedPreviewJob({ baseUrl: "https://ai-pdm.test", token: "unused-handler-bridge", workerId: "dev122-lease-worker", claim, shutdown,
+              request: async (url, init) => {
+                const body = JSON.parse(String(init.body));
+                if (url.endsWith("/heartbeat")) return heartbeatWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+                statuses.push(body.status); return completeWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+              }, render: async () => { entered(); await rendered; return []; },
+              rendererFailure: () => ({ errorCode: "unexpected_ui_fixture_failure", errorSummary: "unexpected" }) });
+            await ready; events.emit("SIGTERM"); release(); expect((await running).status).toBe("cancelled");
+            expect(statuses).toEqual(["cancelled"]);
+          } finally { release?.(); shutdown.dispose(); }
+        });
+        const job = await currentFileJob(file);
+        expect(job).toMatchObject({ id: jobId, status: "cancelled", attempt_count: 1, locked_by: null, locked_at: null });
+        expect(job.completed_at).toBeTruthy();
+        const drawing = await db!.queryOne<{ id: string; drawing_number: string }>(`SELECT drawing.id,number.drawing_number FROM drawing_revision_works work
+          JOIN drawings drawing ON drawing.id=work.drawing_id JOIN drawing_numbers number ON number.id=drawing.formal_drawing_number_id WHERE work.id=:id`, { id: file.workId });
+        expect(drawing).toBeTruthy();
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "preview-cancelled", drawingId: drawing!.id,
+          drawingWorkId: file.workId, drawingNumber: drawing!.drawing_number, terminalAssetIds: [file.assetId],
+          cancelled: { assetId: file.assetId, bindingId: file.bindingId, jobId, sourceHash: file.asset.content_hash, sourceBytes: file.bytes.length,
+            producer: "NORMAL_SIGNED_UPLOAD_V2_CLAIM_SHARED_SHUTDOWN_HANDLER_ACTUAL_ROUTES", signalSource: "NODE_EVENTEMITTER_NOT_OS_SIGNAL",
+            actualCADOutput: "NOT_RUN", parentLock: "NOT_RUN_SEPARATE_GAP" } });
+      }
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-cancelled-ui-producers.json"), JSON.stringify({ fixtures,
+        terminalStateSeeded: false, production: "NOT_RUN", workerRollout: "NOT_RUN" }, null, 2));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.

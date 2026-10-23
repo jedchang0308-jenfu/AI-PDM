@@ -19,7 +19,7 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer','preview-cancelled'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
 const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -190,7 +190,12 @@ try {
         const assetId=decodeURIComponent(responseUrl.pathname.split('/').at(-1));
         const expectedTerminal=response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
           && previewContexts.has(assetId) && responseUrl.searchParams.get('preview')==='1'
-          && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.code==='PREVIEW_FAILED' && body.error.retryable===false;
+          && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.retryable===false
+          && (flowSelection==='preview-cancelled'
+            ? response.request().method()==='GET' && responseUrl.searchParams.get('context')==='drawing_revision_work'
+              && responseUrl.searchParams.get('contextId')===fixture.drawingWorkId && responseUrl.searchParams.get('bindingId')===fixture.cancelled.bindingId
+              && body.error.code==='PREVIEW_CANCELLED' && response.headers()['x-pdm-preview-state']==='cancelled' && !response.headers()['retry-after']
+            : body.error.code==='PREVIEW_FAILED');
         const expectedAuthFailure=expectedSaveFailure===responseUrl.pathname&&response.request().method()==='PATCH'
           &&response.status()===401&&body?.code==='auth_session_invalid';
         const expectedSettingsFailure=flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
@@ -556,6 +561,90 @@ try {
           passwordEmpty:true,passwordFilled:false,secretMutationRequests,providerConnection:'NOT_RUN_LOCAL_GATES_CLOSED',
           nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',summaryOnlyRole:'UNIT_LAYER_ONLY_NO_LEGAL_COMMITTED_CATALOG_ROLE',
           keyboard:true,overflowMetrics,navigationRoutes,requests});save();continue;
+      }
+      if(flowSelection==='preview-cancelled') {
+        assert.equal(fixture.flow,'preview-cancelled');
+        const expected=fixture.cancelled,assetPath='/api/pdm/file-assets/'+expected.assetId;
+        const readbacks=[],pendingReadbacks=[],requestStarts=[],requestFailures=[];
+        const isAsset=response=>new URL(response.url()).pathname===assetPath;
+        const exactContext=(target,method)=>method==='GET' && target.searchParams.get('context')==='drawing_revision_work'
+          &&target.searchParams.get('contextId')===fixture.drawingWorkId&&target.searchParams.get('bindingId')===expected.bindingId;
+        page.on('request',request=>{const target=new URL(request.url());if(target.pathname===assetPath&&target.searchParams.get('preview')==='1'){
+          const item={at:Date.now(),method:request.method(),url:target.pathname+target.search,exactContext:exactContext(target,request.method())};
+          requestStarts.push(item);receipt.cancelledRequestStarts??=[];receipt.cancelledRequestStarts.push({viewport:fixture.width,...item});save();}});
+        page.on('requestfailed',request=>{const target=new URL(request.url());if(target.pathname===assetPath)
+          requestFailures.push({at:Date.now(),method:request.method(),url:target.pathname+target.search,error:request.failure()?.errorText??null});});
+        page.on('response',response=>{if(isAsset(response)&&new URL(response.url()).searchParams.get('preview')==='1')pendingReadbacks.push((async()=>{
+          const target=new URL(response.url()),headers=response.headers();
+          assert.ok(exactContext(target,response.request().method()),'CANCELLED_PREVIEW_CONTEXT_DRIFT');
+          const item={method:response.request().method(),url:target.pathname+target.search,status:response.status(),preview:true,
+            headers:{mime:headers['content-type']??null,length:headers['content-length']??null,disposition:headers['content-disposition']??null,
+              cacheControl:headers['cache-control']??null,state:headers['x-pdm-preview-state']??null,retryAfter:headers['retry-after']??null}};
+          if(item.preview){const bytes=await response.body();item.body=JSON.parse(bytes.toString('utf8'));item.actualBytes=bytes.length;item.sha256=createHash('sha256').update(bytes).digest('hex');}
+          else item.bodyCapture='DOWNLOAD_EVENT_SAVED_ARTIFACT';
+          readbacks.push(item);receipt.cancelledPreviewReadbacks??=[];receipt.cancelledPreviewReadbacks.push({viewport:fixture.width,...item});save();
+        })().catch(error=>{errors.push('CANCELLED_ASSET_READBACK_FAILED:'+error.message);}));});
+        const previewCount=()=>requestStarts.length;
+        const settle=async()=>{await Promise.all(pendingReadbacks);await healthy();};
+        const openWorkspace=async()=>{
+          await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+          await page.locator('.clean-workbench-list').getByRole('link',{name:'圖號工作台',exact:true}).click();
+          await page.waitForURL(location=>location.pathname==='/numbering/drawings');
+          const listed=waitResponse(response=>new URL(response.url()).pathname==='/api/numbering/drawings/workbench'
+            &&new URL(response.url()).searchParams.get('query')===fixture.drawingNumber);
+          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.drawingNumber);
+          assert.equal((await listed).status(),200);
+          const row=page.locator('tr[data-canonical-workbench-row="true"].is-rd').filter({hasText:fixture.drawingNumber});
+          await row.waitFor({state:'visible'});await row.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();
+          await page.getByRole('button',{name:'進行編輯',exact:true}).click();
+          await page.waitForURL('**/numbering/drawings/**/workspace?**');
+          await page.getByText('預覽已取消；可下載原檔。',{exact:true}).first().waitFor();await settle();
+        };
+        await openWorkspace();assert.ok(previewCount()>0,'CANCELLED_PREVIEW_HTTP_MISSING');
+        for(const item of readbacks.filter(item=>item.preview)) {
+          assert.equal(item.status,409);assert.equal(item.headers.state,'cancelled');assert.equal(item.headers.retryAfter,null);
+          const directives=(item.headers.cacheControl??'').split(',').map(value=>value.trim().toLowerCase());
+          assert.ok(directives.includes('private')&&directives.includes('no-store')&&!directives.includes('public'),'CANCELLED_CACHE_PROTECTION_MISSING');
+          assert.equal(item.body.error.code,'PREVIEW_CANCELLED');assert.equal(item.body.error.retryable,false);
+        }
+        await screenshot('cancelled-mounted');
+        const count=previewCount();for(const period of [2100,2100]){await page.waitForTimeout(period);await settle();assert.equal(previewCount(),count,'CANCELLED_TERMINAL_REPOLLED');}
+        const downloadLink=page.locator('a[href^="'+assetPath+'?"]').filter({hasText:/下載/u}).first();
+        await downloadLink.waitFor({state:'visible'});
+        const downloadEvent=waitDownload();await downloadLink.click();const download=await downloadEvent;
+        const file=path.join(output,fixture.width+'-cancelled-original-'+path.basename(download.suggestedFilename()));await download.saveAs(file);
+        assert.equal(await download.failure(),null);const bytes=fs.readFileSync(file);
+        assert.equal(bytes.length,expected.sourceBytes);assert.equal(createHash('sha256').update(bytes).digest('hex'),expected.sourceHash);await settle();
+        receipt.cancelledUiDownloads??=[];receipt.cancelledUiDownloads.push({viewport:fixture.width,path:file,bytes:bytes.length,
+          sha256:createHash('sha256').update(bytes).digest('hex'),failure:null,capture:'NORMAL_UI_CLICK_DOWNLOAD_EVENT_SAVED_ARTIFACT'});save();
+        // Separate HTTP metadata proof from the UI download event and saved bytes.
+        // Chromium attachment navigations need not emit a page response event.
+        const downloadUrl=new URL(await downloadLink.getAttribute('href'),origin);
+        assert.equal(downloadUrl.origin,origin);assert.equal(downloadUrl.pathname,assetPath);
+        assert.ok(exactContext(downloadUrl,'GET')&&!downloadUrl.searchParams.has('preview'),'CANCELLED_DOWNLOAD_CONTEXT_DRIFT');
+        const actual=await context.request.get(downloadUrl.href,{maxRedirects:0}),headers=actual.headers(),httpBytes=await actual.body();
+        assert.equal(actual.url(),downloadUrl.href,'CANCELLED_DOWNLOAD_REDIRECT');
+        readbacks.push({method:'GET',url:downloadUrl.pathname+downloadUrl.search,status:actual.status(),preview:false,
+          capture:'INDEPENDENT_AUTHENTICATED_GET_SAME_BROWSER_CONTEXT_EXACT_UI_HREF_NOT_UI_DOWNLOAD_RESPONSE',
+          headers:{mime:headers['content-type']??null,length:headers['content-length']??null,disposition:headers['content-disposition']??null,
+            cacheControl:headers['cache-control']??null},actualBytes:httpBytes.length,sha256:createHash('sha256').update(httpBytes).digest('hex')});
+        receipt.cancelledDownloadHttpReadbacks??=[];receipt.cancelledDownloadHttpReadbacks.push({viewport:fixture.width,...readbacks.at(-1)});save();
+        const downloaded=readbacks.filter(item=>!item.preview);assert.equal(downloaded.length,1);
+        assert.equal(downloaded[0].status,200);assert.equal(downloaded[0].headers.mime,'application/octet-stream');
+        assert.equal(downloaded[0].headers.length,String(expected.sourceBytes));assert.match(downloaded[0].headers.disposition,/^attachment;.*filename=/u);
+        assert.equal(downloaded[0].actualBytes,bytes.length);assert.equal(downloaded[0].sha256,createHash('sha256').update(bytes).digest('hex'));
+        const downloadDirectives=(downloaded[0].headers.cacheControl??'').split(',').map(value=>value.trim().toLowerCase());
+        assert.ok(downloadDirectives.includes('private')&&downloadDirectives.includes('no-store')&&!downloadDirectives.includes('public'));
+        const reloadResponse=waitResponse(response=>isAsset(response)&&new URL(response.url()).searchParams.get('preview')==='1');
+        await page.reload({waitUntil:'domcontentloaded'});assert.equal((await reloadResponse).status(),409);
+        await page.getByText('預覽已取消；可下載原檔。',{exact:true}).first().waitFor();await settle();await screenshot('cancelled-reload');
+        assert.ok(requestStarts.every(item=>item.exactContext),'CANCELLED_PREVIEW_REQUEST_SCOPE_DRIFT');
+        const beforeUnmount=previewCount();await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+        for(const period of [2100,2100]){await page.waitForTimeout(period);await settle();assert.equal(previewCount(),beforeUnmount,'CANCELLED_UNMOUNTED_REQUEST');}
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'preview-cancelled',
+          normalNavigation:true,normalProducer:expected.producer,signalSource:expected.signalSource,parentLock:'NOT_RUN_SEPARATE_GAP',actualCADOutput:'NOT_RUN',
+          workId:fixture.drawingWorkId,source:expected,readbacks,requestStarts,requestFailures,download:{path:file,bytes:bytes.length,sha256:expected.sourceHash},
+          terminalQuietPeriodsMs:[2100,2100],unmountedQuietPeriodsMs:[2100,2100],reload:true,overflowMetrics,navigationRoutes,requests});save();continue;
       }
       if(flowSelection==='preview-polling') {
         assert.equal(fixture.flow,'preview-polling');
@@ -1144,16 +1233,21 @@ try {
         await page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
       }
+      if(flowSelection==='preview-cancelled') {
+        receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'FAIL',flow:'preview-cancelled',message:error.message});save();continue;
+      }
       throw error;
     } finally {
       if(boundedSettingsFlow)await settingsAwait('context close',()=>context.close(),fixture.width);
       else await context.close();
     }
   }
+  if(flowSelection==='preview-cancelled'&&(receipt.cases.length!==2||receipt.cases.some(item=>item.status!=='PASS')))throw new Error('DEV122_CANCELLED_UI_REQUIRED_VIEWPORTS_FAILED');
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.coverage={partial:preflight?[]:flowSelection==='preview-cancelled'?['F-01B normal cancellation mounted subset; parent-lock and OS rollout NOT_RUN','UI-01']:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||flowSelection==='preview-cancelled'){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
     if(boundedSettingsFlow) {
