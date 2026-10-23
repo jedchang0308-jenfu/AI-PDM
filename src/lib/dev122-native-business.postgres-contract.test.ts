@@ -18,7 +18,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { createPreviewWorkerShutdown, runClaimedPreviewJob } from "../../scripts/lib/preview-worker-lease.mjs";
 import { recoverStalePreviewJobsAsync, type PreviewWorkerClaim } from "@/lib/preview-derivatives";
-import type { PreviewLeaseBasis } from "@/lib/preview-worker-lease";
+import { previewLeaseVersionHeader, type PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
@@ -937,6 +937,77 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
         status: response.status, body, allOwnedRowsUnchanged: JSON.stringify(after) === JSON.stringify(before) }) + "\n");
       expect(response.status).toBe(409); expect(body).toEqual({ error: "PREVIEW_JOB_CLAIM_LOST" }); expect(after).toEqual(before);
     } finally { if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; }
+  });
+  it.each(["replaced", "deleted"] as const)("claimed content rejects physically %s source bytes without owned effects", async variant => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("physical-source-" + variant), claim = await nativePreviewClaim(send);
+      expect(claim.sourceFileAssetId).toBe(fixture.assetId);
+      const params = { params: Promise.resolve({ jobId: claim.jobId }) };
+      const content = () => readWorkerContent(send("/api/preview-jobs/" + claim.jobId + "/content", undefined, claim.leaseBasis), params);
+      const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+      const source = await content();
+      expect(source.status).toBe(200); expect(source.headers.get("content-hash")).toBe(fixture.asset.content_hash);
+      expect(source.headers.get("content-length")).toBe(String(fixture.bytes.length));
+      expect(source.headers.get(previewLeaseVersionHeader)).toBe("2");
+      expect(Buffer.from(await source.arrayBuffer())).toEqual(fixture.bytes);
+
+      // Fault injection is physical and confined to the runner's disposable repository.
+      // Neither metadata UPDATE nor a mocked storage reader can satisfy these cases.
+      const runtime = await fs.realpath(process.env.DEV122_RUNTIME_ROOT!);
+      const repository = await fs.realpath(process.env.PDM_REPOSITORY_DIR!);
+      const inside = (root: string, target: string) => {
+        const relative = path.relative(root, target);
+        return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+      };
+      expect(inside(runtime, repository)).toBe(true);
+      const target = path.resolve(repository, fixture.asset.storage_key);
+      expect(inside(repository, target)).toBe(true);
+      expect(path.resolve(fixture.asset.original_path)).toBe(target);
+      expect(await fs.realpath(target)).toBe(target);
+      const stat = await fs.lstat(target);
+      expect(stat.isFile() && !stat.isSymbolicLink()).toBe(true);
+      const original = await fs.readFile(target);
+      expect(original).toEqual(fixture.bytes);
+      const pristineRows = await ownedLifecycleSnapshot(), pristineObjects = await previewRepositorySnapshot();
+      const replacement = Buffer.from(original); replacement[0] ^= 0xff;
+      expect(replacement.length).toBe(original.length); expect(digest(replacement)).not.toBe(fixture.asset.content_hash);
+      const observations: Array<{ status: number; body: unknown; cacheControl: string | null; hash: string | null;
+        ownedRowsUnchanged: boolean; repositoryUnchanged: boolean }> = [];
+      try {
+        if (variant === "replaced") await fs.writeFile(target, replacement);
+        else await fs.unlink(target);
+        const faultObjects = await previewRepositorySnapshot();
+        const entry = faultObjects.find(row => row.path === path.relative(repository, target));
+        if (variant === "replaced") expect(entry?.hash).toBe(digest(replacement));
+        else expect(entry).toBeUndefined();
+        expect(await ownedLifecycleSnapshot()).toEqual(pristineRows);
+        const faultRows = await ownedLifecycleSnapshot();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const response = await content(), body = await response.json();
+          const rows = await ownedLifecycleSnapshot(), objects = await previewRepositorySnapshot();
+          observations.push({ status: response.status, body, cacheControl: response.headers.get("cache-control"),
+            hash: response.headers.get("content-hash"), ownedRowsUnchanged: JSON.stringify(rows) === JSON.stringify(faultRows),
+            repositoryUnchanged: JSON.stringify(objects) === JSON.stringify(faultObjects) });
+        }
+        await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-physical-source-readbacks.jsonl"), JSON.stringify({
+          variant, producerBoundary: "NORMAL_SIGNED_UPLOAD_THEN_LOCAL_PHYSICAL_FAULT", actualCADOutput: "NOT_RUN",
+          sourceAssetId: fixture.assetId, jobId: claim.jobId, leaseBasis: claim.leaseBasis,
+          expectedHash: fixture.asset.content_hash, originalBytes: original.length,
+          sameSizeReplacementHash: variant === "replaced" ? digest(replacement) : null, observations }) + "\n");
+        for (const observation of observations) expect(observation).toEqual({ status: 503, body: { error: "PREVIEW_SOURCE_READ_FAILED" },
+          cacheControl: "private, no-store", hash: null, ownedRowsUnchanged: true, repositoryUnchanged: true });
+      } finally {
+        await fs.writeFile(target, original);
+      }
+      expect(digest(await fs.readFile(target))).toBe(fixture.asset.content_hash);
+      expect(await previewRepositorySnapshot()).toEqual(pristineObjects);
+      expect(await ownedLifecycleSnapshot()).toEqual(pristineRows);
+      const restored = await content(); expect(restored.status).toBe(200);
+      expect(Buffer.from(await restored.arrayBuffer())).toEqual(original);
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-physical-source-readbacks.jsonl"), JSON.stringify({
+        variant, restoration: { hash: digest(await fs.readFile(target)), status: restored.status, originalBytesRestored: true,
+          ownedRowsUnchanged: true, repositoryRestored: true } }) + "\n");
+    });
   });
   it("uploads through the normal signed command and reads exact source bytes with Principal/company/binding audit", async () => {
     const fixture = await normalDrawingFile("signed-bytes");

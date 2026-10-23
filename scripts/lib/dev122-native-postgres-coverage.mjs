@@ -3,6 +3,27 @@ const principal = title => `Signed Principal session + real request guard -> act
 const partRollback = lifecycle('rolls back a post-formalize failure and then replays the same request exactly once');
 const drawingRollback = lifecycle('keeps a minor master Draft, then atomically releases the exact major master after post-formalize rollback and replay');
 
+const fileProtocol = title => `DEV122 F01 actual signed canonical file routes, storage and native worker protocol ${title}`;
+export const previewSourceBytesCaseNames = [
+  ...['replaced', 'deleted'].map(variant => fileProtocol(`claimed content rejects physically ${variant} source bytes without owned effects`)),
+  ...['company', 'kind', 'extension', 'source_hash'].map(variant => fileProtocol(`worker claim excludes native ${variant} source input without effects`)),
+  ...['holder', 'provenance'].map(variant => fileProtocol(`claimed content rejects native ${variant} mismatch without storage or DB effects`)),
+  fileProtocol('claims once under actual workload authentication, heartbeats and reads source bytes, then completes protocol-only PNG'),
+];
+
+export function assertPreviewSourceBytesCoverage(assertions) {
+  const nameOf = test => test.fullName || [...(test.ancestorTitles || []), test.title].join(' ');
+  const executed = assertions.filter(test => !['pending', 'skipped'].includes(test.status));
+  if (previewSourceBytesCaseNames.length !== 9 || executed.length !== 9 ||
+      previewSourceBytesCaseNames.some(name => {
+        const matches = assertions.filter(test => nameOf(test) === name);
+        return matches.length !== 1 || matches[0].status !== 'passed';
+      }) ||
+      new Set(executed.map(nameOf)).size !== 9 || executed.some(test => !previewSourceBytesCaseNames.includes(nameOf(test)))) {
+    throw new Error('DEV122_PREVIEW_SOURCE_BYTES_CASES_MISSING_SKIPPED_FAILED_OR_UNEXPECTED');
+  }
+}
+
 // Minimum native evidence only. These names do not close the original 29 groups:
 // P-02A needs UI failure evidence; P-02C covers the Drawing helper, not Part HTTP/UI.
 // TX-01D is a bounded audit attribution, not an additional contract gate.

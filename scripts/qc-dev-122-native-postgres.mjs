@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { compileOwnMigrations, bootstrapOwnSchemas, installOwnFixture, installContractFixture, marker, fixtureVersion, sha256 } from './lib/dev122-own-postgres-fixture.mjs';
 import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation-fixture.mjs';
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
-import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
+import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage, previewSourceBytesCaseNames, assertPreviewSourceBytesCoverage } from './lib/dev122-native-postgres-coverage.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nextCopyFiles=['scripts/prepare-dev-082-ocr-assets.mjs','package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
@@ -72,9 +72,10 @@ const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
-const nativeTestPattern=nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+if(nativeSelection==='preview-source-bytes'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_SOURCE_BYTES_EXACT_SUITE_REQUIRED');
+const nativeTestPattern=nativeSelection==='preview-source-bytes'?exactCasePattern(previewSourceBytesCaseNames):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
   ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -114,7 +115,7 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -537,7 +538,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -597,6 +598,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
     assertLifecycleCaseCoverage(manifest.lifecycleCaseCoverage);
+    if(nativeSelection==='preview-source-bytes')assertPreviewSourceBytesCoverage(assertions);
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
     if(['ui','settings','settings-automation','all'].includes(suite)) {
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
@@ -745,7 +747,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:manifest.lifecycleCaseCoverage.partial,
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:nativeSelection==='preview-source-bytes'?['F-01E physical source integrity and protocol-only workload subset; actual CAD output NOT_RUN']:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
