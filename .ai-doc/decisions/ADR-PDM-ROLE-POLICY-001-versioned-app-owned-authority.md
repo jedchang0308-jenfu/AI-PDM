@@ -28,8 +28,8 @@ apply後新請求採新policy，已判權短請求可完成；browser暫存可�
 
 本決策取代前版兩階段、全站policy鎖、browser硬門檻及本輪撤回的state/readiness／私有hash／三種命令ledger；它們不是未完成的待補gate。既有已發布契約不可直接刪欄或降版，breaking變更仍按版本／相容窗口處理。
 
-本輪可核對的是設計存量減少（SPEC§14）及下列本機證據，未量測執行時間或正式成果，不宣稱效率提升。後續唯一成果負責人是承接DEV-123的RD；COO完成此次精簡後退出，日常實作、驗證與發布依既有流程。
+本輪設計存量減少見SPEC§14，實際驗證見QA，未量測執行時間或正式成果，不宣稱效率提升。後續唯一成果負責人是承接DEV-123的RD；COO完成此次精簡後退出，日常實作、驗證與發布依既有流程。
 
 ## 2026-10-23 Implementation in progress
 
-本輪已在AI-PDM／OrgMaster隔離工作樹實作，required CI與雙端旅程仍收斂；結果只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。三資料集、34欄對外契約、無state/readiness/generation與DEV-035 fence的決策不變。PDM既有protected發布已授權，OrgMaster正式操作仍受原人類禁止；未宣稱52目的／17AC／CG整體通過。
+本輪已在AI-PDM／OrgMaster隔離工作樹實作，產品及驗證仍在收斂；required CI與其他結果只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。三資料集、34欄對外契約、無state/readiness/generation與DEV-035 fence的決策不變。PDM既有protected發布已授權，OrgMaster正式操作仍受原人類禁止；未宣稱52目的／17AC／CG整體通過。

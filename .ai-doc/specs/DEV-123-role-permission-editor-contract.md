@@ -1,6 +1,6 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-23（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；本輪已授權PDM branch／PR／required CI及既有protected release workflow的發布與驗收；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。unit9／preview43／route6只作本機證據，不代表整體PASS。
+建立：2026-10-12；修訂：2026-10-23（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；本輪已授權PDM branch／PR／required CI及既有protected release workflow的發布與驗收；OrgMaster正式migration/deploy、正式資料／環境操作仍受partner既有人類禁止。結果與缺口統一見QA§6，尚未整體驗收。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
 
@@ -343,7 +343,7 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 ## 10. 一個成果切片的實作與交接
 
-後續取得實作指示後，由**承接DEV-123的RD作唯一成果負責人**，在同一切片收斂資料／API／UI／所有受影響caller及驗證；PM沿任務板記狀態，專業QA/QC及Release依既有需要參與，不新增COO簽核或固定串行交接。
+由**承接DEV-123的RD作唯一成果負責人**，在同一切片收斂資料／API／UI／所有受影響caller及驗證；PM沿任務板記狀態，專業QA/QC及Release依既有需要參與，不新增COO簽核或固定串行交接。
 
 | 實作面向 | 必需結果（原代號只供引用） |
 |---|---|
@@ -355,7 +355,7 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 ## 11. 發布邊界
 
-未來有DB格式／ACL及consumer影響，沿專案既有forward-only、required CI與release執行；先具相容consumer，再交付PDM writer，migration與部署均不自動套用矩陣。**不新增DEV-123專屬release gate、enablement receipt、owner mode或正式操作腳本**，也不用此文件繞過現行執行器。
+本變更涉及DB格式／ACL及consumer，沿專案既有forward-only、required CI與release執行；先具相容consumer，再交付PDM writer，migration與部署均不自動套用矩陣。**不新增DEV-123專屬release gate、enablement receipt、owner mode或正式操作腳本**，也不用此文件繞過現行執行器。
 
 首次發布固定recipe為：**PDM086-088 schema-only（保留v1／legacy授權）→ Org034-036 compatible consumer → 確認真實consumer已相容 → PDM writer full release → 人類設定apply**。既有protected principal migration workflow支援普通release capsule的prepare／build／migrate；continuous-release test `S1B-20`已驗證此能力，不新增mode、workflow或IAM。
 
@@ -405,8 +405,8 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 以上有意取代舊技術提案，舊anchor保留供連結，不是重新啟動歷史要求。七角色／五作業／20action、system保護、scope/期間/priority/no-self、explicit-deny、下載／外部分享與DB邊界均不變；52目的/17AC/CG保留，受影響oracle見QA§4。
 
-可直接核對的**設計存量**：參考新資料集4→3；額外owner mode 3→0；每次apply讀consumer readiness/revision→不讀；命令ledger涵蓋3種寫入→只記apply；draft hash／confirmation hash／activation generation均取消。未實作與量測，不宣稱工時、效能或正式交付已改善。後續RD依QA驗證正常套用、衝突／unknown、無OrgMaster readiness依賴及必要拒絕後按既有流程交付；COO不成為日常節點。
+可直接核對的**設計存量**：參考新資料集4→3；額外owner mode 3→0；每次apply讀consumer readiness/revision→不讀；命令ledger涵蓋3種寫入→只記apply；draft hash／confirmation hash／activation generation均取消。這是設計機制減量；實作結果見QA，尚未量測工時、效能或正式交付改善。後續RD依QA驗證正常套用、衝突／unknown、無OrgMaster readiness依賴及必要拒絕後按既有流程交付；COO不成為日常節點。
 
 ## 15. 2026-10-23 Implementation in progress
 
-本輪已在對齊最新main的獨立branch實作，提交[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，required CI仍在收斂。資料集維持三個，無state/readiness/generation；DEV-035 manager fence保留。結果、來源與未驗證層級只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。PDM既有protected發布／驗收已授權；OrgMaster正式操作仍受原人類禁止，未自動啟用政策或變更人員任用。
+本輪已在對齊最新main的獨立branch實作，提交[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，required CI結果只記於下列QA入口。資料集維持三個，無state/readiness/generation；DEV-035 manager fence保留。結果、來源與未驗證層級只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。PDM既有protected發布／驗收已授權；OrgMaster正式操作仍受原人類禁止，未自動啟用政策或變更人員任用。

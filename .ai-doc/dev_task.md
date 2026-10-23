@@ -70,11 +70,11 @@ C70 的 prepare／build 已完成而 migration outcome 為 `UNKNOWN`；其 immut
 
 Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、完整下游 130／130、required continuous QC 479／479、catalog v7 3／3、abort 6／6、DB boundary、typecheck及 isolated build均 PASS；首次 runner 失敗保留為 sandbox Temp `.git/config` 拒絕，第二次在建立臨時 worktree時被 sandbox及長路徑拒絕，改用 `C:\tmp\aipdm-c78-tests` 後 25／25 PASS且臨時 worktree清理完成。獨立 GPT-5.6 Luna xhigh 唯讀 QA 判定無 permissive fallback或 commit blocker。required CI、protected merge、新 exact-main immutable evidence、full35、085、active catalog與專用測試 RD actor UI／API正負驗收仍待完成；不宣稱正式 RD acceptance或 DEV-122 PASS。
 
-## DEV-123#role-permission-editor — implementation / PR and CI in progress (2026-10-23)
+## DEV-123#role-permission-editor — implementation / rollout pending (2026-10-23)
 
-七角色、五作業、20動作、角色增停恢復與原子套用已在獨立工作樹實作；保留九歷史身份、system保護與OrgMaster任用責任。[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)正在既有required CI收斂；測試、PG與瀏覽器證據及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)，不在任務板複製結果清單。
+七角色、五作業、20動作、角色增停恢復與原子套用已在獨立工作樹實作；保留九歷史身份、system保護與OrgMaster任用責任。[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)的required CI與測試、PG、瀏覽器結果及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)，不在任務板複製結果清單。
 
-下一步：完成required CI與兩端正常旅程，沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)交付。PDM既有protected發布／驗收已獲本輪授權；OrgMaster正式migration/deploy／正式資料操作仍受原人類禁止。52 QA／17 AC／CG目的保留，尚未整體驗收或啟用。
+下一步：收斂雙端未覆蓋驗證及正常旅程，沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)交付。PDM既有protected發布／驗收已獲本輪授權；OrgMaster正式migration/deploy／正式資料操作仍受原人類禁止。52 QA／17 AC／CG目的保留，尚未整體驗收或啟用。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
