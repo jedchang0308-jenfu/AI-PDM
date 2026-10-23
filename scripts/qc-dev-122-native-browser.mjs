@@ -33,8 +33,13 @@ if(gLifecycle) {
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const gGroup=process.env.DEV122_BROWSER_G_GROUP??'all';
 assert.ok(['all','G-01','G-02'].includes(gGroup)&&(gLifecycle||gGroup==='all'),'DEV122_BROWSER_G_GROUP_REJECTED');
+const gCase=process.env.DEV122_BROWSER_G_CASE??'all';
+assert.ok(['all',...drawingLifecycleVariants.flatMap(variant=>[1440,390].map(width=>variant+':'+width))].includes(gCase)
+  &&(gLifecycle||gCase==='all'),'DEV122_BROWSER_G_CASE_REJECTED');
 const selectedFixtures=fixtures.filter(item=>(viewportSelection==='all'||item.width===390)
-  &&(gGroup==='all'||(item.variant.endsWith('major')?'G-01':'G-02')===gGroup));
+  &&(gGroup==='all'||(item.variant.endsWith('major')?'G-01':'G-02')===gGroup)
+  &&(gCase==='all'||item.variant+':'+item.width===gCase));
+assert.ok(selectedFixtures.length,'DEV122_BROWSER_EMPTY_SELECTION');
 const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
 const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
@@ -43,7 +48,7 @@ const output=path.join(root,'output','playwright','dev122',path.basename(runtime
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
     processTreeOwner:process.pid,cleanupCondition:'finally close verified task-owned browser and contexts'},status:'RUNNING',cases:[],cleanup:false};
-if(gLifecycle){receipt.production='NOT_ASSERTED';receipt.selection.lifecycleProfile=lifecycleProfile;receipt.selection.gGroup=gGroup;}
+if(gLifecycle){receipt.production='NOT_ASSERTED';receipt.selection.lifecycleProfile=lifecycleProfile;receipt.selection.gGroup=gGroup;receipt.selection.gCase=gCase;}
 let gSharedPrerequisiteFailure=null;
 const save=()=>fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));save();
 let browser,browserServer,browserIdentity,browserRegistered=false;
@@ -233,14 +238,18 @@ try {
         if(gPreviewCandidate)gControl.previewReadbacks.push(readback);
         const denialWindow=gDeniedRequests.get(response.request());
         const readKey=JSON.stringify([assetId,responseUrl.searchParams.get('context'),responseUrl.searchParams.get('contextId'),responseUrl.searchParams.get('bindingId'),responseUrl.searchParams.get('reviewRequestId')]);
+        const maskedDeniedRead=response.status()===404&&denialWindow?.mode==='denied-actor'
+          &&body?.error?.code==='PDM_FILE_NOT_FOUND'&&body.error.message==='找不到這筆審核檔案。'&&body.error.retryable===false;
         let expectedGDeniedRead=false;
-        if(gLifecycle&&denialWindow&&response.request().method()==='GET'&&response.status()===403
+        if(gLifecycle&&denialWindow&&response.request().method()==='GET'
+          &&responseUrl.pathname==='/api/pdm/file-assets/'+encodeURIComponent(assetId)
+          &&((response.status()===403&&body?.error==='permission_not_granted')||maskedDeniedRead)
+          &&/\bprivate\b.*\bno-store\b/iu.test(readback.cacheControl??'')&&/^application\/json(?:;|$)/iu.test(readback.contentType??'')
           &&responseUrl.searchParams.get('preview')==='1'&&responseUrl.searchParams.get('context')==='review_package'
-          &&responseUrl.searchParams.get('reviewRequestId')===denialWindow.requestId&&gControl.previewBindings.has(readKey)
-          &&body?.error==='permission_not_granted') {
+          &&responseUrl.searchParams.get('reviewRequestId')===denialWindow.requestId&&gControl.previewBindings.has(readKey)) {
           const cookie=await response.request().headerValue('cookie');
           expectedGDeniedRead=Boolean(cookie?.split(';').some(item=>item.trim()==='__session='+sessions[denialWindow.actor]));
-          if(expectedGDeniedRead)gControl.deniedReadbacks.push({readback,window:denialWindow,readKey});
+          if(expectedGDeniedRead)gControl.deniedReadbacks.push({readback,window:denialWindow,readKey,kind:maskedDeniedRead?'MASKED_RESOURCE_DENIAL':'CAPABILITY_DENIAL'});
         }
         readback.expectedClassification=expectedGDecision?'exact synthetic denied/expired Drawing decision with owned-row proof':expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
           expectedSettingsFailure?'exact lawful Principal missing settings permission':null;save();
@@ -268,11 +277,11 @@ try {
         assert.ok(gControl.previewBindings.has(key),'G_UNBOUND_PREVIEW_WORKER_FAILURE:'+key);
         item.expectedClassification='exact fixture asset/context/binding; CAD preview NOT_ASSERTED; worker unavailable';
       }
-      for(const {readback,window,readKey} of gControl.deniedReadbacks) {
+      for(const {readback,window,readKey,kind} of gControl.deniedReadbacks) {
         assert.ok(window.proof?.all165TablesUnchanged,'G_DENIED_PREVIEW_ZERO_EFFECT_PROOF_MISSING');
         assert.ok(gControl.previewBindings.has(readKey),'G_DENIED_PREVIEW_BINDING_MISSING');
         readback.expectedClassification='exact bound review preview refused under verified denied/expired session; no bytes; owned rows unchanged';
-        readback.deniedReadProof={mode:window.mode,actor:window.actor,requestId:window.requestId,cookieMatchesSignedFixture:true,...window.proof};
+        readback.deniedReadProof={kind,mode:window.mode,actor:window.actor,requestId:window.requestId,cookieMatchesSignedFixture:true,...window.proof};
       }
       if(flowSelection==='settings'&&settingsDeniedHeaders.length) {
         assert.ok(settingsDeniedProof,'SETTINGS_DENIED_DUAL_PROOF_MISSING');
