@@ -132,7 +132,7 @@ function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
   const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
-  assert.equal(currentProfile.migrations.entries.length, 35)
+  assert.equal(currentProfile.migrations.entries.length, 38)
   // Keep the historical exact 32 -> 33 regression vector. Later authenticated
   // installed prefixes are exercised by the generic history tests.
   currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)

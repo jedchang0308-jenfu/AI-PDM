@@ -36,9 +36,14 @@ export function validateHistoricalBaselineIntent(value, profile, validateIntent)
     return validateIntent(value, profile)
   } catch (error) {
     const entries = profile.migrations?.entries
-    const currentHasDeferred085 = entries?.length === 35
-      && entries.at(-1)?.order === 35
-      && entries.at(-1)?.path === 'db/postgres/085_dev121_principal_role_catalog_v7.sql'
+    const currentHasDeferred085 = [35, 38].includes(entries?.length)
+      && entries[34]?.order === 35
+      && entries[34]?.path === 'db/postgres/085_dev121_principal_role_catalog_v7.sql'
+      && (entries.length === 35 || [
+        '086_dev123_role_policy_editor_v1.sql',
+        '087_dev123_role_policy_candidate_validation.sql',
+        '088_dev123_recognition_job_authority.sql',
+      ].every((name, index) => entries[35 + index]?.order === 36 + index && entries[35 + index]?.path === `db/postgres/${name}`))
     if (error?.code !== 'PROGRAM_ONLY_BASELINE_INVALID'
       || profile.application?.id !== 'ai-pdm'
       || !value?.programOnlyBaseline

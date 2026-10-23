@@ -6,11 +6,11 @@ export const runtime = 'nodejs'
 const path = 'src/app/api/settings/access/role-policies/drafts/route.ts'
 export async function GET(request: Request) {
   const limit = Number(new URL(request.url).searchParams.get('limit') ?? 20)
-  return rolePolicyReadRoute(request, path, client => listRolePolicyDrafts(client, limit))
+  return rolePolicyReadRoute(request, path, client => listRolePolicyDrafts(client, limit, new URL(request.url).searchParams.get('cursor')))
 }
 export async function POST(request: Request) {
   return rolePolicyWriteRoute(request, path, async (client, _company, verified, body) => {
-    assertExactKeys(body, ['requestId', 'expectedActive'], ['sourceHistoryVersion'])
+    assertExactKeys(body, ['draftId', 'expectedActive'], ['sourceHistoryVersion'])
     return createRolePolicyDraft(client, verified, body)
   }, 201)
 }

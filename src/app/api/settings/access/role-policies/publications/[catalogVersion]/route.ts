@@ -5,5 +5,5 @@ export const runtime = 'nodejs'
 const path = 'src/app/api/settings/access/role-policies/publications/[catalogVersion]/route.ts'
 export async function GET(request: Request, context: { params: Promise<{ catalogVersion: string }> }) {
   const { catalogVersion } = await context.params
-  return rolePolicyReadRoute(request, path, client => readRolePolicyPublication(client, catalogVersion))
+  return rolePolicyReadRoute(request, path, (client, _company, verified) => readRolePolicyPublication(client, catalogVersion, verified))
 }

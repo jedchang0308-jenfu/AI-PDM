@@ -3,9 +3,12 @@ import type { JenfuApplicationRole } from "@/lib/jenfu-entitlement-contract";
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
 import { baselineRoleIdentityHash, protectedPolicyHash, rebuildRolePolicyCandidate,
   ROLE_POLICY_CANONICALIZATION, ROLE_POLICY_PUBLICATION_FORMAT, rolePolicyRegistry,
-  rolePolicyRegistryHash, type RolePolicyProfile, type RolePolicyRole } from "@/lib/role-policy-editor";
+  rolePolicyRegistryHash, rolePolicyMappedDenyActions, type RolePolicyProfile, type RolePolicyRole } from "@/lib/role-policy-editor";
 import type { JenfuEntitlementRoleCatalog } from "@/lib/repositories/jenfu-entitlement-repository";
 import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v7.json" with { type: "json" };
+import legacyV5 from "../../config/access-control/jenfu-role-catalog.v5.json" with { type: "json" };
+import legacyV6 from "../../config/access-control/jenfu-role-catalog.v6.json" with { type: "json" };
+import { sha256CanonicalJson } from "@/lib/role-capability-canonical-hash.server";
 
 export const principalCatalog = principalRoleCatalog as JenfuEntitlementRoleCatalog & {
   contractVersion: string; applicationId: string; catalogVersion: string; catalogSha256: string;
@@ -20,7 +23,7 @@ const catalogColumns = `contract_version,application_id,catalog_version,publishe
   display_order,stable_role_id,role_code,display_name,assignable,risk,subject_kind,
   recommendation_allowed,delegation_allowed,allowed_scope_kinds,assignment_tier,permissions,
   metadata,role_definition_hash,publication_format,canonicalization_version,role_schema_id,
-  activation_generation,baseline_role_identity_hash,role_identity_hash,protected_policy_hash,
+  baseline_role_identity_hash,role_identity_hash,protected_policy_hash,
   registry_hash,role_profile_schema_id,role_profile_hash,role_status,permission_role_id,
   presentation_name,presentation_order,assignment_disposition,lifecycle`;
 
@@ -32,22 +35,31 @@ function json<T>(value: unknown): T {
   return value as T;
 }
 function same(value: unknown, expected: unknown) { return JSON.stringify(value) === JSON.stringify(expected); }
-function legacyCatalog(rows: CatalogRow[]): PublishedPrincipalCatalog {
-  if (rows.length !== principalCatalog.roles.length || rows.some((row, index) =>
-      row.contract_version !== principalCatalog.contractVersion || row.application_id !== principalCatalog.applicationId ||
-      row.catalog_version !== principalCatalog.catalogVersion || row.catalog_sha256 !== principalCatalog.catalogSha256 ||
-      Number(row.display_order) !== index || row.stable_role_id !== principalCatalog.roles[index].stableRoleId ||
-      row.role_definition_hash !== principalCatalog.roles[index].roleDefinitionHash || row.role_status !== "active")) invalid();
-  return principalCatalog;
+function legacyCatalog(rows: CatalogRow[], historical = false): PublishedPrincipalCatalog {
+  const approved = historical ? [legacyV5, legacyV6, principalCatalog] : [principalCatalog];
+  const source = approved.find(item => item.catalogVersion === rows[0]?.catalog_version);
+  if (!source || rows.length !== source.roles.length || rows.some((row, index) => {
+    const role = source.roles[index];
+    return row.contract_version !== source.contractVersion || row.application_id !== source.applicationId ||
+      row.catalog_version !== source.catalogVersion || row.catalog_sha256 !== source.catalogSha256 ||
+      Number(row.display_order) !== index || row.stable_role_id !== role.stableRoleId ||
+      row.role_code !== role.roleCode || row.display_name !== role.displayName || row.assignable !== role.assignable ||
+      row.risk !== role.risk || row.subject_kind !== role.subjectKind ||
+      row.recommendation_allowed !== role.recommendationAllowed || row.delegation_allowed !== role.delegationAllowed ||
+      row.assignment_tier !== role.assignmentTier || row.role_definition_hash !== role.roleDefinitionHash || row.role_status !== "active" ||
+      sha256CanonicalJson(json(row.allowed_scope_kinds)) !== sha256CanonicalJson(role.allowedScopeKinds) ||
+      sha256CanonicalJson(json(row.permissions)) !== sha256CanonicalJson(role.permissions) ||
+      sha256CanonicalJson(row.metadata == null ? null : json(row.metadata)) !== sha256CanonicalJson(role.metadata ?? null);
+  })) invalid();
+  return source as PublishedPrincipalCatalog;
 }
 
-export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): PublishedPrincipalCatalog {
+export function decodePublishedRolePolicyCandidateRows(rows: CatalogRow[], lifecycle: "active" | "retired" = "active") {
   if (rows.length < 1 || rows.length > rolePolicyRegistry.limits.maxRoles) invalid();
   const first = rows[0];
-  if (first.publication_format === "legacy-static-v1") return legacyCatalog(rows);
   if (first.publication_format !== ROLE_POLICY_PUBLICATION_FORMAT) invalid();
   const metadataFields = ["contract_version", "application_id", "catalog_version", "catalog_sha256",
-    "publication_format", "canonicalization_version", "role_schema_id", "activation_generation",
+    "publication_format", "canonicalization_version", "role_schema_id",
     "baseline_role_identity_hash", "role_identity_hash", "protected_policy_hash", "registry_hash",
     "role_profile_schema_id", "role_profile_hash", "lifecycle"];
   if (first.contract_version !== "jenfu.platform-entitlement.v1" || first.application_id !== "ai-pdm" ||
@@ -55,10 +67,9 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): Publish
       first.role_schema_id !== rolePolicyRegistry.roleSchemaId ||
       first.role_profile_schema_id !== rolePolicyRegistry.roleProfileSchemaId ||
       first.registry_hash !== rolePolicyRegistryHash || first.baseline_role_identity_hash !== baselineRoleIdentityHash ||
-      first.protected_policy_hash !== protectedPolicyHash || first.lifecycle !== "active" ||
+      first.protected_policy_hash !== protectedPolicyHash || first.lifecycle !== lifecycle ||
       typeof first.catalog_version !== "string" || !/^ai-pdm\.role-policy\.[a-f0-9-]{36}$/u.test(first.catalog_version) ||
-      !/^[a-f0-9]{64}$/u.test(String(first.catalog_sha256)) ||
-      !/^(0|[1-9][0-9]*)$/u.test(String(first.activation_generation))) invalid();
+      !/^[a-f0-9]{64}$/u.test(String(first.catalog_sha256))) invalid();
   const roles = rows.map((row, index): RolePolicyRole => {
     if (Number(row.display_order) !== index || metadataFields.some(field => !same(row[field], first[field]))) invalid();
     return {
@@ -81,6 +92,13 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): Publish
   if (rebuilt.contentHash !== first.catalog_sha256 || rebuilt.roleIdentityHash !== first.role_identity_hash ||
       rebuilt.roleProfileHash !== first.role_profile_hash || roles.some((role, index) =>
         role.roleDefinitionHash !== rebuilt.roles[index].roleDefinitionHash)) invalid();
+  return rebuilt;
+}
+
+export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[], options: { historical?: boolean } = {}): PublishedPrincipalCatalog {
+  if (rows[0]?.publication_format === "legacy-static-v1") return legacyCatalog(rows, options.historical);
+  const rebuilt = decodePublishedRolePolicyCandidateRows(rows);
+  const first = rows[0];
   const roleById = new Map(rebuilt.roles.map(role => [role.stableRoleId, role]));
   const expectedBuiltinProfiles = new Map(rolePolicyRegistry.roleProfiles.map(profile => [profile.stableRoleId, profile]));
   const effectiveRoles: JenfuEntitlementRoleCatalog["roles"] = [];
@@ -95,20 +113,24 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): Publish
       if (!same(profile, expected)) invalid();
     } else if (!profile.stableRoleId.startsWith("role-custom-") || profile.permissionRoleId !== profile.stableRoleId ||
         profile.presentationName !== identityRole.displayName || profile.assignmentDisposition !== "selectable") invalid();
+    const permissions = new Map(permissionRole.permissions.map(permission => [`${permission.kind}:${permission.code}`, permission]));
+    for (const code of rolePolicyMappedDenyActions(rebuilt.roles, rebuilt.roleProfiles, profile.permissionRoleId)) {
+      permissions.set(`action:${code}`, { kind: "action", code, allowed: false });
+    }
     effectiveRoles.push({
       roleStatus: identityRole.roleStatus === "inactive" || permissionRole.roleStatus === "inactive" ? "inactive" : "active",
       stableRoleId: identityRole.stableRoleId, roleCode: identityRole.roleCode, displayName: identityRole.displayName,
       assignable: identityRole.assignable, risk: identityRole.risk, subjectKind: identityRole.subjectKind,
       recommendationAllowed: identityRole.recommendationAllowed, delegationAllowed: identityRole.delegationAllowed,
       allowedScopeKinds: identityRole.allowedScopeKinds as JenfuApplicationRole["allowedScopeKinds"],
-      assignmentTier: identityRole.assignmentTier, permissions: permissionRole.permissions,
+      assignmentTier: identityRole.assignmentTier, permissions: [...permissions.values()],
       metadata: (identityRole.metadata ?? undefined) as JenfuApplicationRole["metadata"],
       roleDefinitionHash: identityRole.roleDefinitionHash
     });
   }
   if (profileIds.size !== rebuilt.roles.length || rebuilt.roles[4]?.roleStatus !== rebuilt.roles[5]?.roleStatus) invalid();
   return { contractVersion: "jenfu.platform-entitlement.v1", applicationId: "ai-pdm",
-    catalogVersion: first.catalog_version, catalogSha256: String(first.catalog_sha256), roles: effectiveRoles };
+    catalogVersion: rebuilt.candidateCatalogVersion, catalogSha256: String(first.catalog_sha256), roles: effectiveRoles };
 }
 
 /** Read and verify the current owner publication in the caller's authorization snapshot. */

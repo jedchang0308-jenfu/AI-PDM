@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { restoreRolePolicyHistory, assertRolePolicyCandidate, rebuildRolePolicyCandidate, applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate, rolePolicyDiff,
-  rolePolicyRegistryHash, rolePolicySource } from '@/lib/role-policy-editor'
+  rolePolicyMappedDenyActions, rolePolicyRegistryHash, rolePolicySource } from '@/lib/role-policy-editor'
 
 const fixedUuid = () => '11111111-1111-4111-8111-111111111111'
 
 describe('DEV-123 role policy domain', () => {
-  it('binds the metadata-view forward correction to the actual semantic registry hash', () => {
-    const sql = readFileSync('db/postgres/089_dev123_transfer_metadata_view_registry.sql', 'utf8')
-    expect(sql).toContain(`registry_hash='${rolePolicyRegistryHash}'`)
-    expect(sql).toContain(`payload_sha256='${rolePolicyRegistryHash}'`)
-    expect(sql).toContain("mode='DISABLED' AND activation_generation=0")
-    expect(sql).toContain('OR EXISTS(SELECT 1 FROM ai_pdm_core.role_policy_drafts)')
+  it('binds the unpublished SQL definition to the actual semantic registry and profile source', () => {
+    const sql = readFileSync('db/postgres/087_dev123_role_policy_candidate_validation.sql', 'utf8')
+    const literal = /SELECT '(.+)'::jsonb\r?\n\$definition\$/u.exec(sql)?.[1]
+    expect(literal).toBeDefined()
+    const definition = JSON.parse(literal!)
+    const source = rolePolicySource()
+    expect(definition.registry_hash).toBe(rolePolicyRegistryHash)
+    expect(definition.registry_payload.roleProfiles).toEqual(source.registry.roleProfiles)
+    expect(definition.baseline_role_identity_hash).toBe(source.baselineRoleIdentityHash)
+    expect(definition.protected_policy_hash).toBe(source.protectedPolicyHash)
   })
   it('builds a stable nine identity, seven profile and 20 action default candidate', () => {
     const source = rolePolicySource()
@@ -60,12 +64,56 @@ describe('DEV-123 role policy domain', () => {
     expect(changed.roles.find(role => role.stableRoleId === 'role-production-planning')?.roleStatus).toBe('inactive')
   })
 
+  it('saves edits made before deactivation in one batch while keeping an already inactive role read-only', () => {
+    const candidate = buildDefaultRolePolicyCandidate()
+    const input = {roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'edit',enabled:false}
+    const changed = applyRolePolicyDraftChanges({candidate,
+      roleChanges:[{type:'deactivate',stableRoleId:'role-rd'}],changes:[input]}).candidate
+    const role = changed.roles.find(role=>role.stableRoleId==='role-rd')!
+    expect(role.roleStatus).toBe('inactive')
+    expect(role.permissions.some(permission=>permission.code==='pdm.drawing.edit')).toBe(false)
+    expect(()=>applyRolePolicyDraftChanges({candidate:changed,roleChanges:[],changes:[{...input,enabled:true}]}))
+      .toThrow('ROLE_POLICY_ROLE_READONLY')
+    const restored = applyRolePolicyDraftChanges({candidate:changed,
+      roleChanges:[{type:'reactivate',stableRoleId:'role-rd'}],changes:[]}).candidate
+    expect(restored.roles.find(role=>role.stableRoleId==='role-rd')?.permissions).toEqual(role.permissions)
+  })
+
   it('rejects system changes, alias edits, duplicate names and unsupported external actions', () => {
     const candidate = buildDefaultRolePolicyCandidate()
     expect(() => applyRolePolicyDraftChanges({ candidate, roleChanges: [{ type: 'deactivate', stableRoleId: 'role-system-admin' }], changes: [] })).toThrow('ROLE_POLICY_ROLE_READONLY')
     expect(() => applyRolePolicyDraftChanges({ candidate, roleChanges: [], changes: [{ roleRef: { stableRoleId: 'role-production-planning' }, groupId: 'drawing', actionId: 'view', enabled: true }] })).toThrow('ROLE_POLICY_ROLE_READONLY')
     expect(() => applyRolePolicyDraftChanges({ candidate, uuid: fixedUuid, roleChanges: [{ type: 'create', clientRoleId: 'client-rd', displayName: 'RD' }], changes: [] })).toThrow('ROLE_DISPLAY_NAME_CONFLICT')
     expect(() => applyRolePolicyDraftChanges({ candidate, roleChanges: [], changes: [{ roleRef: { stableRoleId: 'role-external-specialist' }, groupId: 'drawing', actionId: 'download', enabled: true }] })).toThrow('ROLE_POLICY_SCOPE_UNSUPPORTED')
+  })
+
+  it('derives a deny for every member of a mapped profile without adding an overlay', () => {
+    for (const memberId of ['role-production-planning', 'role-procurement']) {
+      const candidate = structuredClone(buildDefaultRolePolicyCandidate())
+      const member = candidate.roles.find(role => role.stableRoleId === memberId)!
+      member.permissions = member.permissions.filter(permission =>
+        permission.code !== 'numbering.drawings.view' && permission.code !== 'pdm.drawing.view')
+      member.permissions.push({ kind: 'page', code: 'numbering.drawings.view', allowed: false })
+      const before = structuredClone(candidate)
+
+      expect(rolePolicyMappedDenyActions(candidate.roles, candidate.roleProfiles, 'role-procurement'))
+        .toContain('pdm.drawing.view')
+      expect(member.permissions.find(permission => permission.code === 'pdm.drawing.view')).toBeUndefined()
+      expect(candidate).toEqual(before)
+    }
+
+    const oldTrue = structuredClone(buildDefaultRolePolicyCandidate())
+    for (const memberId of ['role-production-planning', 'role-procurement']) {
+      const member = oldTrue.roles.find(role => role.stableRoleId === memberId)!
+      member.permissions = member.permissions.filter(permission => permission.code !== 'pdm.drawing.view')
+      member.permissions = member.permissions.map(permission =>
+        permission.kind === 'page' && permission.code === 'numbering.drawings.view'
+          ? { ...permission, allowed: true } : permission)
+    }
+    const beforeOldTrue = structuredClone(oldTrue)
+    expect(rolePolicyMappedDenyActions(oldTrue.roles, oldTrue.roleProfiles, 'role-procurement'))
+      .not.toContain('pdm.drawing.view')
+    expect(oldTrue).toEqual(beforeOldTrue)
   })
 })
 

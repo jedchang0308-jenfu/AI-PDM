@@ -28,7 +28,6 @@
       "publication_format",
       "canonicalization_version",
       "role_schema_id",
-      "activation_generation",
       "baseline_role_identity_hash",
       "role_identity_hash",
       "protected_policy_hash",
@@ -42,28 +41,7 @@
       "assignment_disposition",
       "lifecycle"
     ],
-    "signatureSha256": "d58fb8139a378b35d7ed9623a274c6ba3846bccf24556a2c2e154079c8ca0254"
+    "signatureSha256": "eb6a72e51ec738cd854a0d4c25749edd7f1f434927b1fb1d916998367025aaa8"
   },
-  "consumer": {
-    "contractVersion": "ai-pdm.role-policy-consumer-compatibility.v2",
-    "view": "orgmaster_contract.v_ai_pdm_role_policy_compatibility_v2",
-    "columns": [
-      "application_id",
-      "consumer_id",
-      "contract_version",
-      "compatibility_revision",
-      "supported_publication_format",
-      "supported_canonicalization_version",
-      "supported_role_schema_id",
-      "supported_role_profile_schema_id",
-      "accepted_registry_hash",
-      "accepted_baseline_role_identity_hash",
-      "accepted_protected_policy_hash",
-      "consumer_source_revision",
-      "enablement_ref",
-      "readiness"
-    ],
-    "signatureSha256": "398d6c501c7f69e609750774a40b093be8197129fe73115e51b77ad22c34b94c"
-  },
-  "initialReadiness": "NOT_READY"
+  "compatibility": "Verified consumer before first writer rollout or external semantic change; no per-apply readiness query."
 }

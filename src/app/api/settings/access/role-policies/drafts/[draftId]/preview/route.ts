@@ -7,5 +7,5 @@ export async function GET(request: Request, context: { params: Promise<{ draftId
   const { draftId } = await context.params
   const params = new URL(request.url).searchParams
   return rolePolicyReadRoute(request, path, client => previewRolePolicyDraft(client, draftId,
-    Number(params.get('expectedDraftRevision')), params.get('expectedDraftHash') ?? ''))
+    Number(params.get('expectedRevision'))))
 }

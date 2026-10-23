@@ -1,33 +1,19 @@
 -- DB-CHANGE
 -- owner: ai-pdm
 -- schemas: ai_pdm_core
--- contract-impact: corrective candidate validation and initial project-share binding
--- compatibility: backward-compatible
+-- contract-impact: validated atomic apply; published v2 shape remains versioned
+-- compatibility: new-version
 -- governance-review: AIPDM/DEV-123
--- 086 is immutable. This correction runs before the first dynamic enablement.
+-- Unreleased function installation; no role activation or share/grant rewrite.
 BEGIN;
-SET LOCAL lock_timeout = '5s';
-SET LOCAL statement_timeout = '30s';
-SELECT pg_advisory_xact_lock(hashtext('dev123-role-policy-editor-v1'),hashtext(current_database()));
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='30s';
 SET LOCAL ROLE jenfu_ai_pdm_migrator;
 
-DO $initial_only$
-BEGIN
-  PERFORM 1 FROM ai_pdm_core.role_policy_state
-    WHERE application_id='ai-pdm' AND mode='DISABLED' AND activation_generation=0
-      AND registry_hash='fb824e6ddedc5d0590bef6f1bed730bd579d27e11af89b5a8760a5d6a426239c'
-    FOR UPDATE;
-  IF NOT FOUND OR EXISTS(SELECT 1 FROM ai_pdm_core.role_catalog_publications
-      WHERE application_id='ai-pdm' AND publication_format='dynamic-policy-v1') THEN
-    RAISE EXCEPTION 'DEV123_CORRECTION_REQUIRES_UNENABLED_BASELINE' USING ERRCODE='55000';
-  END IF;
-END;
-$initial_only$;
-
-UPDATE ai_pdm_core.role_policy_state
-SET registry_payload=registry_payload || jsonb_build_object('roleProfiles','[{"stableRoleId":"role-rd","permissionRoleId":"role-rd","presentationName":"RD","presentationOrder":0,"assignmentDisposition":"selectable"},{"stableRoleId":"role-rd-manager","permissionRoleId":"role-rd-manager","presentationName":"RD主管","presentationOrder":1,"assignmentDisposition":"selectable"},{"stableRoleId":"role-qa","permissionRoleId":"role-qa","presentationName":"QA/QC","presentationOrder":2,"assignmentDisposition":"selectable"},{"stableRoleId":"role-manufacturing","permissionRoleId":"role-manufacturing","presentationName":"生產人員","presentationOrder":3,"assignmentDisposition":"selectable"},{"stableRoleId":"role-production-planning","permissionRoleId":"role-procurement","presentationName":"採購／生管（舊生管指派）","presentationOrder":4,"assignmentDisposition":"legacy-only"},{"stableRoleId":"role-procurement","permissionRoleId":"role-procurement","presentationName":"採購／生管","presentationOrder":4,"assignmentDisposition":"selectable"},{"stableRoleId":"role-external-specialist","permissionRoleId":"role-external-specialist","presentationName":"外部專員","presentationOrder":5,"assignmentDisposition":"selectable"},{"stableRoleId":"role-pdm-admin","permissionRoleId":"role-pdm-admin","presentationName":"PDM管理員","presentationOrder":6,"assignmentDisposition":"selectable"},{"stableRoleId":"role-system-admin","permissionRoleId":"role-system-admin","presentationName":"系統管理員","presentationOrder":8,"assignmentDisposition":"hidden-protected"}]'::jsonb)
-WHERE application_id='ai-pdm';
-
+CREATE FUNCTION ai_pdm_core.dev123_policy_definition_v1() RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog AS $definition$
+SELECT '{"baseline_catalog_version":"ai-pdm.role-catalog.2026-10-10.v7","baseline_catalog_sha256":"4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9","baseline_role_identity_hash":"265483921bbdadfdf8933f1d0cdcbebc1b4df42983c84784a7176fdd5f05d55c","protected_policy_hash":"604184ece311dabaf4cc7c0fec8ac802425f79363933d2d66ea67c82369803a6","role_schema_id":"ai-pdm.role-schema.flexible.v2","role_profile_schema_id":"ai-pdm.role-profile-schema.v1","registry_hash":"c2340c96a64004538b11fd59b1a1c4f03a88779c7db722f583037b4dc6c49869","registry_payload":{"roleProfiles":[{"stableRoleId":"role-rd","permissionRoleId":"role-rd","presentationName":"RD","presentationOrder":0,"assignmentDisposition":"selectable"},{"stableRoleId":"role-rd-manager","permissionRoleId":"role-rd-manager","presentationName":"RD主管","presentationOrder":1,"assignmentDisposition":"selectable"},{"stableRoleId":"role-qa","permissionRoleId":"role-qa","presentationName":"QA/QC","presentationOrder":2,"assignmentDisposition":"selectable"},{"stableRoleId":"role-manufacturing","permissionRoleId":"role-manufacturing","presentationName":"生產人員","presentationOrder":3,"assignmentDisposition":"selectable"},{"stableRoleId":"role-production-planning","permissionRoleId":"role-procurement","presentationName":"採購／生管（舊生管指派）","presentationOrder":4,"assignmentDisposition":"legacy-only"},{"stableRoleId":"role-procurement","permissionRoleId":"role-procurement","presentationName":"採購／生管","presentationOrder":4,"assignmentDisposition":"selectable"},{"stableRoleId":"role-external-specialist","permissionRoleId":"role-external-specialist","presentationName":"外部專員","presentationOrder":5,"assignmentDisposition":"selectable"},{"stableRoleId":"role-pdm-admin","permissionRoleId":"role-pdm-admin","presentationName":"PDM管理員","presentationOrder":6,"assignmentDisposition":"selectable"},{"stableRoleId":"role-system-admin","permissionRoleId":"role-system-admin","presentationName":"系統管理員","presentationOrder":8,"assignmentDisposition":"hidden-protected"}]}}'::jsonb
+$definition$;
 -- This bounded canonicalizer implements the already-versioned integer-only JSON
 -- contract. It never trusts a client-supplied hash or JSONB key order.
 CREATE FUNCTION ai_pdm_core.dev123_canonical_json_v1(p_value jsonb)
@@ -64,7 +50,7 @@ CREATE FUNCTION ai_pdm_core.dev123_assert_candidate_v1(p_candidate jsonb)
 RETURNS void LANGUAGE plpgsql
 SET search_path = ai_pdm_core, pg_catalog AS $validate$
 DECLARE
-  state ai_pdm_core.role_policy_state%ROWTYPE;
+  state record;
   role_value jsonb; profile jsonb; expected_profile jsonb; identity_value jsonb;
   permission_value jsonb; frozen_permissions jsonb; expected_permissions jsonb;
   normalized_permissions jsonb; prior_identity jsonb; builtin_role jsonb;
@@ -73,7 +59,13 @@ DECLARE
   seen_ids text[] := '{}'; seen_codes text[] := '{}'; seen_names text[] := '{}';
   known_actions text[]; expected_identity jsonb;
 BEGIN
-  SELECT * INTO STRICT state FROM ai_pdm_core.role_policy_state WHERE application_id='ai-pdm';
+  SELECT * INTO STRICT state FROM jsonb_to_record(ai_pdm_core.dev123_policy_definition_v1()) AS source(
+    baseline_catalog_version text, baseline_catalog_sha256 text, baseline_role_identity_hash text,
+    protected_policy_hash text, role_schema_id text, role_profile_schema_id text, registry_hash text, registry_payload jsonb);
+  IF jsonb_typeof(p_candidate)='object' AND NOT p_candidate ? 'contentHash' THEN
+    p_candidate := p_candidate || jsonb_build_object('contentHash',
+      ai_pdm_core.dev123_json_sha256_v1(p_candidate - 'identityHashes'));
+  END IF;
   SELECT array_agg('pdm.' || group_id || '.' || action_id ORDER BY group_id,action_id)
     INTO known_actions FROM unnest(ARRAY['drawing','part','model','transfer']) group_id
     CROSS JOIN unnest(ARRAY['view','download','edit','review','publish']) action_id;
@@ -227,7 +219,7 @@ BEGIN
   PERFORM 1 FROM ai_pdm_core.principal_session_records
     WHERE principal_id=p_actor_principal_id AND session_id_hash=p_session_id_hash FOR SHARE;
   PERFORM 1 FROM ai_pdm_core.role_policy_commands WHERE request_id=p_request_id FOR UPDATE;
-  PERFORM 1 FROM ai_pdm_core.role_policy_state WHERE application_id='ai-pdm' FOR UPDATE;
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_request_id::text,0));
   PERFORM 1 FROM ai_pdm_core.active_role_catalog active
     JOIN ai_pdm_core.role_catalog_publications publication ON publication.catalog_version=active.catalog_version
     WHERE active.application_id='ai-pdm' FOR UPDATE OF active, publication;
@@ -242,17 +234,14 @@ GRANT EXECUTE ON FUNCTION ai_pdm_core.role_policy_lock_apply_v1(uuid,uuid,text,t
 CREATE OR REPLACE FUNCTION ai_pdm_core.role_policy_apply_v1(
   p_request_id uuid,
   p_actor_principal_id text,
-  p_request_hash char(64),
+  p_session_id_hash text,
+  p_identity_issuer text,
+  p_identity_subject text,
   p_draft_id uuid,
   p_expected_revision integer,
-  p_expected_content_hash char(64),
   p_expected_catalog_version text,
   p_expected_catalog_sha256 char(64),
-  p_expected_activation_generation bigint,
-  p_expected_compatibility_revision bigint,
-  p_confirmation_hash char(64),
-  p_reason text,
-  p_diff jsonb
+  p_reason text
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -260,43 +249,71 @@ SET search_path = ai_pdm_core, orgmaster_contract, pg_catalog
 AS $function$
 DECLARE
   existing ai_pdm_core.role_policy_commands%ROWTYPE;
-  policy ai_pdm_core.role_policy_state%ROWTYPE;
+  policy record;
   draft ai_pdm_core.role_policy_drafts%ROWTYPE;
   active_version text;
   active_hash text;
-  compatibility record;
-  next_generation bigint;
   role_value jsonb;
   role_order bigint;
   result jsonb;
+  published_hash text;
+  request_hash text;
+  actual_diff jsonb;
+  role_changes jsonb := '[]'::jsonb;
+  capability_changes jsonb := '[]'::jsonb;
+  previous_role ai_pdm_core.role_catalog_entries%ROWTYPE;
+  action record;
+  previous_allowed jsonb;
+  next_allowed jsonb;
+  previous_format text;
+  actor_employee_id text;
 BEGIN
+  -- The runtime cannot bypass manager/session fencing by invoking this entry
+  -- directly. The signed HTTP identity is still verified by the app; this entry
+  -- enforces the current owner rows as well as the publication transaction.
+  IF p_session_id_hash IS NULL OR p_session_id_hash !~ '^[a-f0-9]{64}$'
+     OR p_actor_principal_id IS NULL OR p_identity_issuer IS NULL OR p_identity_subject IS NULL THEN
+    RAISE EXCEPTION 'DEV123_MANAGER_REQUIRED' USING ERRCODE='42501';
+  END IF;
+  PERFORM ai_pdm_core.role_policy_lock_apply_v1(p_request_id,p_draft_id,p_actor_principal_id,p_session_id_hash);
+  SELECT account.employee_id INTO actor_employee_id
+  FROM ai_pdm_core.principal_accounts account
+  JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id AND profile.company_id=account.company_id
+  JOIN ai_pdm_core.principal_session_records session ON session.principal_id=account.principal_id
+    AND session.session_id_hash=p_session_id_hash
+  JOIN LATERAL platform_contract.read_principal_auth_state_v3(account.principal_id) epoch
+    ON epoch.principal_id=account.principal_id AND epoch.auth_epoch=session.principal_auth_epoch
+  WHERE account.principal_id=p_actor_principal_id AND account.account_status='active'
+    AND account.system_role_enabled AND account.account_type='human_privileged'
+    AND session.revoked_at IS NULL AND session.assurance_level='aal2'
+    AND session.issued_at <= clock_timestamp() AND session.expires_at > clock_timestamp()
+    AND session.lifecycle_version=account.lifecycle_version AND session.profile_version=account.profile_version
+    AND (epoch.revoked_before IS NULL OR session.authenticated_at>epoch.revoked_before)
+    AND (account.session_invalid_before IS NULL OR session.issued_at>account.session_invalid_before);
+  IF actor_employee_id IS NULL OR NOT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(
+      p_actor_principal_id,actor_employee_id,p_identity_issuer,p_identity_subject) THEN
+    RAISE EXCEPTION 'DEV123_MANAGER_REQUIRED' USING ERRCODE='42501';
+  END IF;
+  IF p_reason IS NULL OR p_reason<>normalize(btrim(p_reason),NFC)
+     OR char_length(p_reason) NOT BETWEEN 1 AND 240 THEN
+    RAISE EXCEPTION 'DEV123_APPLY_INPUT_INVALID' USING ERRCODE='22023';
+  END IF;
+  request_hash := ai_pdm_core.dev123_json_sha256_v1(jsonb_build_object(
+    'contractVersion','ai-pdm.role-policy-command.v3','operation','apply','resource','ai-pdm:role-policy',
+    'actorPrincipalId',p_actor_principal_id,'payload',jsonb_build_object('reason',p_reason,
+      'confirmation',jsonb_build_object('draftId',p_draft_id::text,'draftRevision',p_expected_revision,
+        'expectedActive',jsonb_build_object('catalogVersion',p_expected_catalog_version,'catalogSha256',p_expected_catalog_sha256::text)))));
   SELECT * INTO existing FROM ai_pdm_core.role_policy_commands WHERE request_id = p_request_id FOR UPDATE;
   IF FOUND THEN
-    IF existing.actor_principal_id <> p_actor_principal_id OR existing.operation <> 'apply'
-       OR existing.request_hash <> p_request_hash THEN
+    IF existing.actor_principal_id <> p_actor_principal_id OR existing.request_hash <> request_hash THEN
       RAISE EXCEPTION 'DEV123_REQUEST_ID_REUSE' USING ERRCODE = '23505';
     END IF;
     RETURN existing.result_json;
   END IF;
 
-  SELECT * INTO policy FROM ai_pdm_core.role_policy_state WHERE application_id = 'ai-pdm' FOR UPDATE;
-  IF NOT FOUND OR policy.mode <> 'ENABLED' THEN
-    RAISE EXCEPTION 'DEV123_POLICY_NOT_ENABLED' USING ERRCODE = '55000';
-  END IF;
-  SELECT * INTO compatibility
-  FROM orgmaster_contract.v_ai_pdm_role_policy_compatibility_v2
-  WHERE application_id = 'ai-pdm' AND consumer_id = 'orgmaster';
-  IF NOT FOUND OR compatibility.readiness <> 'READY'
-     OR compatibility.compatibility_revision <> p_expected_compatibility_revision
-     OR compatibility.supported_publication_format <> 'dynamic-policy-v1'
-     OR compatibility.supported_canonicalization_version <> 'jenfu.canonical-json.v1'
-     OR compatibility.supported_role_schema_id <> policy.role_schema_id
-     OR compatibility.supported_role_profile_schema_id <> policy.role_profile_schema_id
-     OR compatibility.accepted_registry_hash <> policy.registry_hash
-     OR compatibility.accepted_baseline_role_identity_hash <> policy.baseline_role_identity_hash
-     OR compatibility.accepted_protected_policy_hash <> policy.protected_policy_hash THEN
-    RAISE EXCEPTION 'DEV123_CONSUMER_NOT_READY' USING ERRCODE = '55000';
-  END IF;
+  SELECT * INTO STRICT policy FROM jsonb_to_record(ai_pdm_core.dev123_policy_definition_v1()) AS source(
+    baseline_catalog_version text, baseline_catalog_sha256 text, baseline_role_identity_hash text,
+    protected_policy_hash text, role_schema_id text, role_profile_schema_id text, registry_hash text, registry_payload jsonb);
 
   SELECT publication.catalog_version, publication.catalog_sha256
     INTO active_version, active_hash
@@ -304,31 +321,59 @@ BEGIN
   JOIN ai_pdm_core.role_catalog_publications publication ON publication.catalog_version = active.catalog_version
   WHERE active.application_id = 'ai-pdm' FOR UPDATE OF active, publication;
   IF active_version IS DISTINCT FROM p_expected_catalog_version
-     OR active_hash IS DISTINCT FROM p_expected_catalog_sha256
-     OR policy.activation_generation <> p_expected_activation_generation THEN
+     OR active_hash IS DISTINCT FROM p_expected_catalog_sha256 THEN
     RAISE EXCEPTION 'DEV123_ACTIVE_CONFLICT' USING ERRCODE = '40001';
   END IF;
 
   SELECT * INTO draft FROM ai_pdm_core.role_policy_drafts WHERE draft_id = p_draft_id FOR UPDATE;
   IF NOT FOUND OR draft.status <> 'OPEN' OR draft.revision <> p_expected_revision
-     OR draft.content_hash <> p_expected_content_hash OR draft.registry_hash <> policy.registry_hash
+     OR draft.registry_hash <> policy.registry_hash
      OR draft.base_catalog_version <> active_version OR draft.base_catalog_sha256 <> active_hash
-     OR draft.base_activation_generation <> policy.activation_generation
-     OR draft.candidate_json->>'contentHash' <> draft.content_hash
      OR draft.candidate_json->>'candidateCatalogVersion' <> draft.candidate_catalog_version
      OR draft.candidate_json->>'registryHash' <> policy.registry_hash
      OR draft.candidate_json->>'baselineRoleIdentityHash' <> policy.baseline_role_identity_hash
      OR draft.candidate_json->>'protectedPolicyHash' <> policy.protected_policy_hash THEN
     RAISE EXCEPTION 'DEV123_DRAFT_CONFLICT' USING ERRCODE = '40001';
   END IF;
-  IF p_confirmation_hash !~ '^[a-f0-9]{64}$' OR char_length(btrim(p_reason)) NOT BETWEEN 1 AND 240
-     OR jsonb_typeof(p_diff) <> 'object' THEN
-    RAISE EXCEPTION 'DEV123_APPLY_INPUT_INVALID' USING ERRCODE = '22023';
-  END IF;
-
   PERFORM ai_pdm_core.dev123_assert_candidate_v1(draft.candidate_json);
 
-  next_generation := policy.activation_generation + 1;
+  -- Audit content is derived from the locked source and saved candidate. No
+  -- caller can supply a fabricated diff or request fingerprint.
+  SELECT coalesce(publication_format,'legacy-static-v1') INTO previous_format
+    FROM ai_pdm_core.role_catalog_publications WHERE catalog_version=active_version;
+  FOR role_value IN SELECT value FROM jsonb_array_elements(draft.candidate_json->'roles') LOOP
+    SELECT * INTO previous_role FROM ai_pdm_core.role_catalog_entries
+      WHERE catalog_version=active_version AND stable_role_id=role_value->>'stableRoleId';
+    IF NOT FOUND THEN
+      role_changes := role_changes || jsonb_build_array(jsonb_build_object('type','create',
+        'stableRoleId',role_value->>'stableRoleId','displayName',role_value->>'displayName'));
+    ELSIF previous_role.role_status IS DISTINCT FROM role_value->>'roleStatus' THEN
+      role_changes := role_changes || jsonb_build_array(jsonb_build_object(
+        'type',CASE WHEN role_value->>'roleStatus'='active' THEN 'reactivate' ELSE 'deactivate' END,
+        'stableRoleId',role_value->>'stableRoleId'));
+    END IF;
+    FOR action IN SELECT group_id,action_id FROM unnest(ARRAY['drawing','part','model','transfer']) WITH ORDINALITY groups(group_id,group_order)
+      CROSS JOIN unnest(ARRAY['view','download','edit','review','publish']) WITH ORDINALITY actions(action_id,action_order)
+      ORDER BY group_order,action_order LOOP
+      SELECT value->'allowed' INTO previous_allowed FROM jsonb_array_elements(coalesce(previous_role.permissions,'[]'::jsonb))
+        WHERE value->>'kind'='action' AND value->>'code'='pdm.'||action.group_id||'.'||action.action_id;
+      SELECT value->'allowed' INTO next_allowed FROM jsonb_array_elements(role_value->'permissions')
+        WHERE value->>'kind'='action' AND value->>'code'='pdm.'||action.group_id||'.'||action.action_id;
+      IF previous_allowed IS DISTINCT FROM next_allowed THEN
+        capability_changes := capability_changes || jsonb_build_array(jsonb_build_object(
+          'stableRoleId',role_value->>'stableRoleId','groupId',action.group_id,'actionId',action.action_id,
+          'before',coalesce(previous_allowed='true'::jsonb,false),'after',coalesce(next_allowed='true'::jsonb,false)));
+      END IF;
+    END LOOP;
+  END LOOP;
+  actual_diff := jsonb_build_object('roleChanges',role_changes,'capabilityChanges',capability_changes,
+    'profileChanges','[]'::jsonb,'policyTransition',CASE WHEN previous_format='dynamic-policy-v1' THEN 'dynamic-update' ELSE 'legacy-to-dynamic' END,
+    'scopeImpact','application-global');
+  IF previous_format='dynamic-policy-v1' AND role_changes='[]'::jsonb AND capability_changes='[]'::jsonb THEN
+    RAISE EXCEPTION 'DEV123_NO_CHANGE' USING ERRCODE='22023';
+  END IF;
+
+  published_hash := ai_pdm_core.dev123_json_sha256_v1(draft.candidate_json - 'identityHashes');
   UPDATE ai_pdm_core.role_catalog_publications SET status = 'retired', retired_at = clock_timestamp()
    WHERE application_id = 'ai-pdm' AND catalog_version = active_version AND status = 'active';
 
@@ -337,15 +382,14 @@ BEGIN
     publication_format, canonicalization_version, role_schema_id, role_profile_schema_id,
     baseline_role_identity_hash, role_identity_hash, role_profile_hash, protected_policy_hash,
     registry_hash, role_profiles, policy_draft_id, base_catalog_version, base_catalog_sha256,
-    base_activation_generation, activation_generation, confirmation_hash, command_id, publish_reason
+    command_id, publish_reason
   ) VALUES (
     draft.candidate_catalog_version, 'jenfu.platform-entitlement.v1', 'ai-pdm', clock_timestamp(),
-    draft.content_hash, 'active', p_actor_principal_id, 'dynamic-policy-v1', 'jenfu.canonical-json.v1',
+    published_hash, 'active', p_actor_principal_id, 'dynamic-policy-v1', 'jenfu.canonical-json.v1',
     policy.role_schema_id, policy.role_profile_schema_id, policy.baseline_role_identity_hash,
     draft.candidate_json->>'roleIdentityHash', draft.candidate_json->>'roleProfileHash',
     policy.protected_policy_hash, policy.registry_hash, draft.candidate_json->'roleProfiles',
-    draft.draft_id, active_version, active_hash, policy.activation_generation, next_generation,
-    p_confirmation_hash, p_request_id, btrim(p_reason)
+    draft.draft_id, active_version, active_hash, p_request_id, btrim(p_reason)
   );
 
   FOR role_value, role_order IN
@@ -380,9 +424,6 @@ BEGIN
    WHERE application_id = 'ai-pdm' AND catalog_version = active_version;
   IF NOT FOUND THEN RAISE EXCEPTION 'DEV123_ACTIVE_POINTER_CONFLICT' USING ERRCODE = '40001'; END IF;
 
-  UPDATE ai_pdm_core.role_policy_state
-     SET activation_generation = next_generation, updated_at = clock_timestamp()
-   WHERE application_id = 'ai-pdm';
   UPDATE ai_pdm_core.role_policy_drafts
      SET status = 'APPLIED', updated_by = p_actor_principal_id, updated_at = clock_timestamp(),
          applied_catalog_version = candidate_catalog_version, applied_command_id = p_request_id
@@ -390,38 +431,30 @@ BEGIN
 
   result := jsonb_build_object(
     'status', 'ACTIVE', 'catalogVersion', draft.candidate_catalog_version,
-    'catalogSha256', draft.content_hash, 'activationGeneration', next_generation::text,
-    'previousActive', jsonb_build_object('catalogVersion', active_version, 'catalogSha256', active_hash,
-      'activationGeneration', policy.activation_generation::text),
+    'catalogSha256', published_hash,
+    'previousActive', jsonb_build_object('catalogVersion', active_version, 'catalogSha256', active_hash),
     'applyCommandId', p_request_id::text
   );
   INSERT INTO ai_pdm_core.role_policy_commands (
-    request_id, actor_principal_id, operation, request_hash, outcome, original_http_status,
+    request_id, actor_principal_id, request_hash,
     result_json, draft_id, catalog_version, before_tuple, after_tuple, diff_json, reason
   ) VALUES (
-    p_request_id, p_actor_principal_id, 'apply', p_request_hash, 'SUCCEEDED', 200, result,
+    p_request_id, p_actor_principal_id, request_hash, result,
     draft.draft_id, draft.candidate_catalog_version,
-    jsonb_build_object('catalogVersion', active_version, 'catalogSha256', active_hash,
-      'activationGeneration', policy.activation_generation::text),
-    jsonb_build_object('catalogVersion', draft.candidate_catalog_version, 'catalogSha256', draft.content_hash,
-      'activationGeneration', next_generation::text),
-    p_diff, btrim(p_reason)
+    jsonb_build_object('catalogVersion', active_version, 'catalogSha256', active_hash),
+    jsonb_build_object('catalogVersion', draft.candidate_catalog_version, 'catalogSha256', published_hash),
+    actual_diff, p_reason
   );
   RETURN result;
 END;
 $function$;
 
--- All shares existing before this first-enable correction are legacy shares.
--- Undo only 086's derived-field backfill; tokens, packages and business rows stay.
--- The table lock prevents a writer observing the temporary trigger replacement.
-LOCK TABLE ai_pdm_core.readonly_shares IN ACCESS EXCLUSIVE MODE;
-DROP TRIGGER trg_dev123_readonly_share_project_scope_immutable ON ai_pdm_core.readonly_shares;
-UPDATE ai_pdm_core.readonly_shares SET project_scope_key=NULL WHERE project_scope_key IS NOT NULL;
-CREATE TRIGGER trg_dev123_readonly_share_project_scope_immutable
-BEFORE UPDATE OF project_scope_key ON ai_pdm_core.readonly_shares
-FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.dev123_immutable_project_scope_key();
-
 REVOKE ALL ON FUNCTION ai_pdm_core.dev123_canonical_json_v1(jsonb),
-  ai_pdm_core.dev123_json_sha256_v1(jsonb), ai_pdm_core.dev123_assert_candidate_v1(jsonb)
+  ai_pdm_core.dev123_json_sha256_v1(jsonb), ai_pdm_core.dev123_assert_candidate_v1(jsonb),
+  ai_pdm_core.dev123_policy_definition_v1()
 FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime, jenfu_r1_verifier;
+REVOKE ALL ON FUNCTION ai_pdm_core.role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,char,text)
+FROM PUBLIC,jenfu_platform_runtime,jenfu_orgmaster_runtime,jenfu_ai_pdm_runtime,jenfu_r1_verifier;
+GRANT EXECUTE ON FUNCTION ai_pdm_core.role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,char,text)
+TO jenfu_ai_pdm_runtime;
 COMMIT;

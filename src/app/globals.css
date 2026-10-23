@@ -17088,3 +17088,41 @@ select.dropdown-select:focus-visible,
 .dev122-pdf-scroll canvas { display: block; margin: 0 auto; max-width: none; background: #fff; }
 .dev122-pdf-render-status { position: absolute; inset: 45px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
 .dev122-pdf-document:not(:has(.dev122-pdf-controls)) { grid-template-rows: minmax(0, 1fr); }
+
+/* DEV-123: the matrix owns horizontal scrolling; page and toolbar remain bounded. */
+.role-policy-settings { --surface: var(--panel, #fff); min-width: 0; max-width: 100%; position: relative; }
+.role-policy-toolbar { flex-wrap: wrap; }
+.role-policy-toolbar select { max-width: min(100%, 25rem); min-height: 2.5rem; }
+.role-policy-matrix { overflow: auto; max-width: 100%; max-height: 70vh; padding: 0; }
+.role-policy-matrix table { min-width: 940px; table-layout: auto; }
+.role-policy-matrix th:first-child, .role-policy-matrix th:last-child { width: auto; }
+.role-policy-matrix th:first-child { min-width: 110px; position: sticky; left: 0; z-index: 1; background: var(--surface); }
+.role-policy-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); }
+.role-policy-matrix td { min-width: 106px; vertical-align: top; padding: 12px; }
+.role-policy-role-name { color: inherit; background: transparent; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.role-policy-action { display: flex; align-items: center; gap: 8px; white-space: nowrap; margin: 4px 0; min-height: 26px; }
+.role-policy-action input { width: 17px; height: 17px; flex: none; }
+.role-policy-matrix small { display: block; }
+.role-policy-confirmation { max-height: 50vh; overflow: auto; }
+.role-policy-confirmation input { display: block; width: min(100%, 30rem); }
+.role-policy-leave-dialog { margin: auto; padding: 24px; width: min(92vw, 440px); max-width: calc(100vw - 24px); color: inherit; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 48px #0005; }
+.role-policy-leave-dialog::backdrop { background: #0006; }
+.role-policy-leave-dialog .access-actions { flex-wrap: wrap; }
+.role-policy-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.role-policy-more { margin-top: 12px; }
+.role-policy-history-detail { margin-top: 16px; padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+.role-policy-history-detail dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; }
+.role-policy-history-detail dl > div { min-width: 0; }
+.role-policy-history-detail dt { font-weight: 600; }
+.role-policy-history-detail dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.role-policy-history-detail li { margin: 4px 0; }
+.role-policy-alias-status, .role-policy-draft-role-status { display: block; flex-basis: 100%; color: var(--muted, #5b6573); }
+.role-policy-single-role table { min-width: 0; width: 100%; }
+.role-policy-single-role td { min-width: 0; }
+.role-policy-settings :is(button, select, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (max-width: 720px) {
+  .role-policy-history-detail { padding: 12px; }
+  .role-policy-leave-dialog { padding: 18px; }
+  .role-policy-leave-dialog .access-actions > button { flex: 1 1 100%; }
+}

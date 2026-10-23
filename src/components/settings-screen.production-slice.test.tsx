@@ -57,7 +57,8 @@ describe("DEV122 actual settings presentation respects the server slice status",
     fixture.limited = true;
     const html = renderToStaticMarkup(<SettingsScreen initialArea="workflow" />);
     expect(html).toContain('id="settings-workflow"');
-    expect(html).toContain('data-testid="role-capability-loading"');
+    expect(html).toContain('class="access-governance-state"');
+    expect(html).toContain("載入中");
     expect(html).not.toContain('id="settings-integrations"');
     expect(html).not.toContain('id="settings-system"');
   });

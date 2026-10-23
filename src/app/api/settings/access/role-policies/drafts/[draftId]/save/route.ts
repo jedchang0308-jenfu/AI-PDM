@@ -7,7 +7,7 @@ const path = 'src/app/api/settings/access/role-policies/drafts/[draftId]/save/ro
 export async function POST(request: Request, context: { params: Promise<{ draftId: string }> }) {
   const { draftId } = await context.params
   return rolePolicyWriteRoute(request, path, async (client, _company, verified, body) => {
-    assertExactKeys(body, ['requestId', 'expectedDraftRevision', 'expectedDraftHash', 'roleChanges', 'changes'])
+    assertExactKeys(body, ['expectedRevision', 'roleChanges', 'changes'])
     return saveRolePolicyDraft(client, verified, draftId, body)
   })
 }

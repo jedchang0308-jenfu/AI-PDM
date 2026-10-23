@@ -26,7 +26,7 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
 import { evaluatePrincipalWorkspacePermissions } from "@/lib/jenfu-principal-permission-service";
 import { principalCatalog as principalRoleCatalog } from "@/lib/jenfu-principal-role-catalog";
 
-const snapshot = { query: vi.fn(async (_sql: string): Promise<Array<Record<string, string | number>>> =>
+const snapshot = { query: vi.fn(async (_sql: string): Promise<Array<Record<string, unknown>>> =>
   [{ decision_at: "2026-09-24T12:00:00Z" }]) };
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
@@ -46,9 +46,21 @@ const publishedCatalogRows = principalRoleCatalog.roles.map((role, displayOrder)
   contract_version: principalRoleCatalog.contractVersion,
   application_id: principalRoleCatalog.applicationId,
   catalog_version: principalRoleCatalog.catalogVersion,
+  published_at: "2026-10-10T00:00:00.000Z",
   catalog_sha256: principalRoleCatalog.catalogSha256,
   display_order: displayOrder,
   stable_role_id: role.stableRoleId,
+  role_code: role.roleCode,
+  display_name: role.displayName,
+  assignable: role.assignable,
+  risk: role.risk,
+  subject_kind: role.subjectKind,
+  recommendation_allowed: role.recommendationAllowed,
+  delegation_allowed: role.delegationAllowed,
+  allowed_scope_kinds: role.allowedScopeKinds,
+  assignment_tier: role.assignmentTier,
+  permissions: role.permissions,
+  metadata: role.metadata ?? null,
   role_definition_hash: role.roleDefinitionHash,
   publication_format: "legacy-static-v1",
   role_status: "active"

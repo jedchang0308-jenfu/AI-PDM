@@ -5,7 +5,7 @@ import { requestedPdmCompanyCodeFromRequest } from '@/lib/company-context'
 import { withPrincipalCompanyRead, withPrincipalCompanyWrite } from '@/lib/principal-company-read'
 import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard'
 import { resolveJenfuRoutePolicy } from '@/lib/jenfu-route-permission-map'
-import { readRolePolicyJson, rolePolicyErrorResponse } from '@/lib/role-policy-http'
+import { readRolePolicyJson, rolePolicyErrorResponse, RolePolicyHttpError } from '@/lib/role-policy-http'
 
 const permission = 'settings.admin_matrix'
 const headers = { 'cache-control': 'private, no-store' }
@@ -23,7 +23,11 @@ export async function rolePolicyReadRoute(request: Request, routePath: string, h
   }
   const response = await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
     [{ permissionKind: 'action', permissionCode: permission }], async (client, company, verified) => {
-      try { return dataResponse(await handler(client, company, verified)) }
+      try {
+        const expected = request.headers.get('x-pdm-policy-principal')
+        if (expected && expected !== verified.session.principalId) throw new RolePolicyHttpError('PRINCIPAL_CONTEXT_CONFLICT',409)
+        return dataResponse(await handler(client, company, verified))
+      }
       catch (error) { return rolePolicyErrorResponse(error) }
     })
   return response ?? Response.json({ code: 'auth_session_invalid' }, { status: 401, headers })
@@ -35,8 +39,12 @@ export async function rolePolicyWriteRoute(request: Request, routePath: string,
   let body: Record<string, unknown>
   try { body = await readRolePolicyJson(request) } catch (error) { return rolePolicyErrorResponse(error) }
   return withPrincipalCompanyWrite(request, routePath, permission, async (client, company, verified) => {
-    try { return dataResponse(await handler(client, company, verified, body), status) }
+    try {
+      if (request.headers.get('x-pdm-policy-principal') !== verified.session.principalId) {
+        throw new RolePolicyHttpError('PRINCIPAL_CONTEXT_CONFLICT',409)
+      }
+      return dataResponse(await handler(client, company, verified, body), status)
+    }
     catch (error) { return rolePolicyErrorResponse(error) }
-  }, { isolationLevel: routePath === 'src/app/api/settings/access/role-policies/applications/route.ts'
-    ? 'read_committed' : 'serializable' })
+  }, { isolationLevel: 'read_committed' })
 }

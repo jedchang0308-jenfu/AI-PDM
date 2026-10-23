@@ -59,6 +59,19 @@ test('authorization-only changes do not imply database or migration work', () =>
   assert.deepEqual(plan.evidenceRequirements, ['actor-grant-allow-deny'])
 })
 
+test('DEV-123 editor and contract files select their authorization responsibility without unknown fallback', () => {
+  for (const file of ['src/lib/role-policy-service.ts', 'src/components/access-governance/role-capability-settings.tsx',
+    'src/app/api/settings/access/role-policies/drafts/route.ts', 'scripts/dev123-build-role-policy-registry.mjs',
+    'scripts/dev123-role-policy-contract.test.mjs']) {
+    const plan = createProductionSlicePlan([file])
+    assert.equal(plan.gates.authorization, true, file)
+    assert.equal(plan.gates.full, false, file)
+  }
+  const release = createProductionSlicePlan(['scripts/dev123-role-policy-release-contract.test.mjs'])
+  assert.equal(release.gates.releaseCore, true)
+  assert.equal(release.gates.full, false)
+})
+
 test('PDF preview remains independent from worker and authorization gates', () => {
   const plan = createProductionSlicePlan(['src/components/pdf-document-viewport.tsx'])
   assert.equal(plan.gates.preview, true)

@@ -24,6 +24,7 @@ export type RolePolicyBusinessAction = {
   groupId: 'drawing' | 'part' | 'model' | 'transfer'; groupLabel: string; groupOrder: number;
   actionId: 'view' | 'download' | 'edit' | 'review' | 'publish'; actionLabel: string; actionOrder: number;
   kind: 'action'; code: string; supportedScopeKinds: string[]; requiredActions: string[];
+  legacyOperationBindings: Array<{ kind: 'page' | 'action'; code: string }>;
 }
 export type RolePolicyRegistry = {
   contractVersion: 'ai-pdm.role-policy-editor-registry.v2'; applicationId: 'ai-pdm';
@@ -43,7 +44,7 @@ export type RolePolicyCandidate = {
   protectedPolicyHash: string; roles: RolePolicyRole[]; roleProfiles: RolePolicyProfile[];
   identityHashes: Record<string, string>; contentHash: string;
 }
-export type ActiveRolePolicyTuple = { catalogVersion: string; catalogSha256: string; activationGeneration: string }
+export type ActiveRolePolicyTuple = { catalogVersion: string; catalogSha256: string }
 export type RolePolicyRoleChange =
   | { type: 'create'; clientRoleId: string; displayName: string }
   | { type: 'deactivate' | 'reactivate'; stableRoleId: string }
@@ -262,6 +263,15 @@ function actionFor(groupId: string, actionId: string) {
   return action
 }
 
+/** A read-only deny projection; never persist another permission overlay. */
+export function rolePolicyMappedDenyActions(roles: RolePolicyRole[], profiles: RolePolicyProfile[], permissionRoleId: string) {
+  const members = new Set(profiles.filter(profile => profile.permissionRoleId === permissionRoleId).map(profile => profile.stableRoleId))
+  const denied = new Set(roles.filter(role => members.has(role.stableRoleId)).flatMap(role =>
+    role.permissions.filter(permission => !permission.allowed).map(permissionKey)))
+  return rolePolicyRegistry.businessActions.filter(action => action.legacyOperationBindings.some(binding =>
+    denied.has(permissionKey({ ...binding, allowed: false })))).map(action => action.code)
+}
+
 export function applyRolePolicyDraftChanges(input: {
   candidate: RolePolicyCandidate; roleChanges: RolePolicyRoleChange[]; changes: RolePolicyCapabilityChange[];
   uuid?: () => string
@@ -322,8 +332,9 @@ export function applyRolePolicyDraftChanges(input: {
     if (!stableRoleId) throw new Error('ROLE_POLICY_ROLE_REF_UNKNOWN')
     const role = roleById.get(stableRoleId)
     const profile = profiles.find(candidate => candidate.stableRoleId === stableRoleId)
+    const wasActive = input.candidate.roles.some(candidate => candidate.stableRoleId === stableRoleId && candidate.roleStatus === 'active')
     if (!role || !profile || profile.permissionRoleId !== stableRoleId || profile.assignmentDisposition !== 'selectable' ||
-        role.stableRoleId === 'role-system-admin' || role.roleStatus !== 'active') throw new Error('ROLE_POLICY_ROLE_READONLY')
+        role.stableRoleId === 'role-system-admin' || (role.roleStatus !== 'active' && !wasActive)) throw new Error('ROLE_POLICY_ROLE_READONLY')
     if (role.stableRoleId === 'role-external-specialist' && action.actionId !== 'view') throw new Error('ROLE_POLICY_SCOPE_UNSUPPORTED')
     const key = `${stableRoleId}:${action.groupId}:${action.actionId}`
     if (seenCapabilities.has(key)) throw new Error('ROLE_POLICY_DUPLICATE_CHANGE')
@@ -331,6 +342,7 @@ export function applyRolePolicyDraftChanges(input: {
     const permissionKeyValue = `action:${action.code}`
     const existing = role.permissions.findIndex(permission => permissionKey(permission) === permissionKeyValue)
     if (change.enabled) {
+      if (rolePolicyMappedDenyActions(roles, profiles, stableRoleId).includes(action.code)) throw new Error('ROLE_POLICY_EXPLICIT_DENY_PROTECTED')
       if (existing < 0) role.permissions.push({ kind: 'action', code: action.code, allowed: true })
       else if (role.permissions[existing].allowed !== true) throw new Error('ROLE_POLICY_EXPLICIT_DENY_PROTECTED')
     } else if (existing >= 0 && role.permissions[existing].allowed) role.permissions.splice(existing, 1)
@@ -387,14 +399,6 @@ export function rolePolicyDiff(before: { roles: RolePolicyRole[]; format: 'legac
   return { roleChanges, capabilityChanges, profileChanges: [],
     policyTransition: before.format === after.format ? 'dynamic-update' : 'legacy-to-dynamic',
     scopeImpact: 'application-global' as const }
-}
-
-export function rolePolicyConfirmationHash(input: {
-  draftId: string; revision: number; contentHash: string; expectedActive: ActiveRolePolicyTuple;
-  compatibilityRevision: string; diff: ReturnType<typeof rolePolicyDiff>
-}) {
-  return sha256CanonicalJson({ contractVersion: 'ai-pdm.role-policy-confirmation.v1', ...input,
-    registryHash: rolePolicyRegistryHash })
 }
 
 export function rolePolicySource() {

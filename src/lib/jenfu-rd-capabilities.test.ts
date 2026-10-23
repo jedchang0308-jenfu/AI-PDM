@@ -31,8 +31,12 @@ function snapshot(rows: unknown[] = [grant], accounts: unknown[] = [account], ca
     if (sql.includes("v_application_role_catalog_v2")) return catalog.roles.map((role, index) => ({
       contract_version: catalog.contractVersion, application_id: catalog.applicationId,
       catalog_version: catalog.catalogVersion, catalog_sha256: catalog.catalogSha256, display_order: index,
-      stable_role_id: role.stableRoleId, role_definition_hash: role.roleDefinitionHash,
-      publication_format: "legacy-static-v1", role_status: "active" })) as T[];
+      stable_role_id: role.stableRoleId, role_code: role.roleCode, display_name: role.displayName,
+      assignable: role.assignable, risk: role.risk, subject_kind: role.subjectKind,
+      recommendation_allowed: role.recommendationAllowed, delegation_allowed: role.delegationAllowed,
+      allowed_scope_kinds: role.allowedScopeKinds, assignment_tier: role.assignmentTier,
+      permissions: role.permissions, metadata: role.metadata ?? null,
+      role_definition_hash: role.roleDefinitionHash, publication_format: "legacy-static-v1", role_status: "active" })) as T[];
     throw new Error("unexpected dependency");
   } } as AsyncDatabaseClient;
 }

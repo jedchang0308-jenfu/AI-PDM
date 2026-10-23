@@ -5,7 +5,7 @@ import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-gua
 import { hashJenfuPrincipalSessionId } from '@/lib/jenfu-principal-session-registry'
 import { RolePolicyHttpError } from '@/lib/role-policy-http'
 
-/** Apply alone uses READ COMMITTED. Hold owner fences through commit, then
+/** Policy writes use READ COMMITTED. Hold owner fences through commit, then
  * recheck the signed identity, current account/session/epoch and exact manager. */
 export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest, requestId: string, draftId: string) {
@@ -18,6 +18,13 @@ export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClie
     CAST(:requestId AS uuid),CAST(:draftId AS uuid),:principalId,:sessionHash)`,
   { requestId, draftId, principalId: claims.principalId, sessionHash })
 
+  await revalidateRolePolicyManager(client, verified)
+}
+
+/** Recheck after a create/save row or advisory lock wait as well. */
+export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  const claims = verified.session
+  const sessionHash = hashJenfuPrincipalSessionId(claims.sessionId)
   // The preceding statement may have waited. These statements use new snapshots.
   let account
   try { account = await new JenfuPrincipalAccountRepository(client).requireActive(claims.principalId) }

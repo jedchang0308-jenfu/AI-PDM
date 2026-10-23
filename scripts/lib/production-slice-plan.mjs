@@ -25,6 +25,7 @@ const RELEASE_CONTROL = [
   /^scripts\/(?:lib\/)?dev122-applied-continuation-capsule-refresh(?:\.|-)/u,
   /^scripts\/lib\/dev121-owner-release-proof\.mjs$/u,
   /^scripts\/qc-dev-117-/u,
+  /^scripts\/dev123-role-policy-release-contract\.test\.mjs$/u,
   /^scripts\/(?:lib\/)?production-slice-/u,
   /^scripts\/(?:plan|run)-production-slice(?:-|\.)/u,
 ]
@@ -60,6 +61,8 @@ const RD_PERMISSION_DATABASE = [
 ]
 
 const AUTHORIZATION = [
+  /^scripts\/dev123-(?:build-role-policy-registry|role-policy)/u,
+  /^src\/(?:lib\/role-policy-|components\/access-governance\/role-capability-settings|app\/api\/settings\/access\/role-policies\/)/u,
   /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,
   /^config\/access-control\//u,
   /^scripts\/.*(?:role-catalog|rd-permission|principal|permission|grant|session|sso|acl)/u,

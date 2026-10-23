@@ -273,7 +273,10 @@ export class JenfuEntitlementRepository {
         if (!requirements) continue;
         const permissions = requirements.map(requirement => role.permissions.find(entry =>
           entry.kind === requirement.kind && entry.code === requirement.code));
-        if (permissions.some(permission => !permission)) continue;
+        // A derived explicit deny keeps this role's original priority even
+        // when another required action is absent. Absence alone is skipped.
+        if (!permissions.some(permission => permission?.allowed === false) &&
+            permissions.some(permission => !permission)) continue;
         permissionCandidate = true;
         const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
           ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
