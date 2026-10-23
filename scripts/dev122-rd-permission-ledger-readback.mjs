@@ -98,8 +98,15 @@ async function readCapsule(transport, args) {
   return { value, ref: { uri: args.capsuleRef, sha256: args.capsuleSha256 } }
 }
 
-async function publish({ args, transport, authorityReader = readGitAuthority, identityReader = createGitSourceIdentity, compatibilityVerifier = assertRdReadbackSourceCompatibility }) {
-  const configuration = await loadConfiguration()
+async function publish({
+  args,
+  transport,
+  authorityReader = readGitAuthority,
+  identityReader = createGitSourceIdentity,
+  compatibilityVerifier = assertRdReadbackSourceCompatibility,
+  configurationReader = loadConfiguration,
+}) {
+  const configuration = await configurationReader()
   const { profile } = configuration
   const authority = authorityReader(root, profile)
   if (Date.parse(args.deadlineAt) <= Date.now() || Date.parse(args.deadlineAt) > Date.now() + 4 * 60 * 60 * 1000) fail('RD_READBACK_DEADLINE_INVALID')

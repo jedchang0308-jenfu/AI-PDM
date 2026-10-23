@@ -338,6 +338,7 @@ test('RD11 publish entrypoint builds the immutable probe capsule from the instal
     publishOptions: {
       authorityReader: () => ({ sourceRevision: workflowSourceRevision, sourceTree: 'c'.repeat(40), branch: 'main', remoteRevision: workflowSourceRevision, clean: true }),
       identityReader: async () => Buffer.from('workflow-source-identity', 'utf8'),
+      configurationReader: async () => ({ profile: historicalProfile, n1c, profileSha256: rdReadbackProfileSha256(historicalProfile) }),
       compatibilityVerifier: (input) => {
         compatibilityCalls.push(input)
         assert.equal(input.workflowSourceRevision, workflowSourceRevision)
@@ -353,4 +354,36 @@ test('RD11 publish entrypoint builds the immutable probe capsule from the instal
   assert.equal(published.workflowSourceRevision, workflowSourceRevision)
   assert.equal(published.runnerSourceRevision, runnerSourceRevision)
   assert.deepEqual(published.probes.map((probe) => probe.migrationBundleRef.uri.split('/').at(-2)), [runnerSourceRevision, runnerSourceRevision, runnerSourceRevision])
+})
+
+test('RD11 default current38 configuration rejects the closed35 probe before publication or Job submission', async () => {
+  let requests = 0
+  let puts = 0
+  const transport = {
+    request: async (url) => {
+      requests++
+      assert.equal(url, 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner')
+      return job()
+    },
+    putBytes: async () => {
+      puts++
+      throw new Error('UNEXPECTED_PUBLICATION')
+    },
+    putJson: async () => {
+      puts++
+      throw new Error('UNEXPECTED_PUBLICATION')
+    },
+  }
+  const deadlineAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  await assert.rejects(runRdLedgerReadbackMain({
+    argv: ['--stage', 'publish', '--release-id', 'DEV122-RD-READBACK-DEFAULT38-TEST', '--deadline-at', deadlineAt],
+    environment: { GOOGLE_OAUTH_ACCESS_TOKEN: 'test-only' },
+    transport,
+    publishOptions: {
+      authorityReader: () => ({ sourceRevision: workflowSourceRevision, sourceTree: 'c'.repeat(40), branch: 'main', remoteRevision: workflowSourceRevision, clean: true }),
+      identityReader: async () => Buffer.from('workflow-source-identity', 'utf8'),
+      compatibilityVerifier: () => ({ workflowSourceRevision, runnerSourceRevision }),
+    },
+  }), { code: 'RD_READBACK_FULL_BUNDLE_INVALID' })
+  assert.deepEqual({ requests, puts }, { requests: 1, puts: 0 })
 })

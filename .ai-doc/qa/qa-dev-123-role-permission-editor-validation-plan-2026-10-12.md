@@ -151,6 +151,10 @@ UI樣式補驗見`output/playwright/dev123-20261023/report-r2.json`及`screensho
 
 PR #474首輪CI失敗保留：DEV012原fixture缺v2 projection／project分享欄位，已沿原SQL與完整v7角色補齊，`output/qa/dev-123/ci-cutover-native-replay-r6.log`的2項測試／22項原生斷言通過；release-core拒絕087的CRLF source hash，已依既有gitattributes統一LF（SQL語意與applied hash不變），`release-lf-final-r2.log`的51項通過。修正後required CI結果仍以provider當次readback為準。
 
+後續本機CI application/authorization共8組：773項中的772項首次通過，唯一舊fixture缺`resourceGroup=drawing`，補齊後focused 16項通過。既有continuous完整472項初跑471通過，QC完整523項初跑521通過；失敗為歷史closed35診斷fixture與B24舊current35預期。修正後診斷13項／worker owner42項通過，原33/34/35歷史負例保留，新增current38拒絕；正式closed35診斷入口仍拒絕current38，不宣稱可驗現行38 ledger。完整獨立結果可重用，required CI仍驗最終source。上述首敗與結果見`output/qa/dev-117/`及`app-ci-local-01..08.log`；abort6項通過。
+
+OrgMaster原生HTTP／PG連續旅程見其`native-org-journey-20261023-r12.log`：7項通過，涵蓋commit後丟HTTP查回／重播、真consumer指派發布後PDM guard允許、雙連線D1/D2競爭與停用後新請求拒絕、未發布草稿的中間版本來源、Org writer等待時撤銷session零效果；source bytes與cleanup通過。`identityEvidence=synthetic-issuance-real-cookie-auth-and-db`，仍不冒充正常IdP登入或正式環境。
+
 L1部分證據可對照QA123-03、09、10、26、27、28、36、45、46的registry／legacy mapping／hash／current-history及manager-fence子項；它們只關閉實際斷言，不關閉各案的UI、真實actor或跨owner合取條件。L2部分證據來自native cases 3–5、7–12：save/apply CAS與replay、commit前rollback、atomic apply／audit／idempotency、direct-entry ACL、inactive/history與alias、concurrent winner、keyset pagination、canonical auth epoch及lock等待中撤權；可部分支援QA123-13–25、27–30、36、39、45、46、52的對應原生子項，不能把同一列其餘缺項改判PASS。actual OrgMaster contract/history已在native reader查核，Platform/session仍是synthetic-local-only。
 
 UI report只補L3的局部斷言：matrix／七profile／action controls對應QA123-03、31、45、47；draft建立、獨立勾選、save/cancel/discard、離開焦點與單次apply對應QA123-04、05、14、20、22、37、43、46；history pagination/detail與read-only pending對應QA123-06、13、27、33、42；409 dirty、503 pending及unknown storage recovery對應QA123-16、17、19、22、35、41；planning/procurement停用恢復只支持QA123-39、40、45、52的DOM／互動子項，styled viewport visual仍待刷新。這些都仍是mock API／mock actor，不能關閉同列的server、DB、scope、身份或L4合取條件。
