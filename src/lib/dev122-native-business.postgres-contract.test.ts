@@ -2311,30 +2311,68 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
   it("rolls back a post-formalize failure and then replays the same request exactly once",async()=>{
     const fixture=await draftReleaseFixture("rollback"),id=fixture.submission.data.requestId;
     const before = await ownedLifecycleSnapshot();
+    const commandKey = id + "-post-formalize-rollback";
+    const reviewerContract = await contract("dev122-profile-reviewer");
+    const perform = () => decideReview(request("/api/pdm/review-requests/"+id+"/decisions",reviewerToken,"POST",{decision:"approve"},
+      fixture.submission.data.rowVersion,reviewerContract,commandKey),{params:Promise.resolve({requestId:id})});
     const original=PartChangeWorkAsyncRepository.prototype.formalize;
     let originalCompleted = false;
+    let inTransactionPart: unknown = null;
+    let failure: { status: number; body: unknown; cacheControl: string | null } | undefined;
     const fault=vi.spyOn(PartChangeWorkAsyncRepository.prototype,"formalize").mockImplementationOnce(async function(this: PartChangeWorkAsyncRepository,tx,input){
       await original.call(this,tx,input);originalCompleted = true;
+      // Observe actual uncommitted formalization before throwing, not a guard or
+      // a mocked response before the transaction has performed any mutation.
+      inTransactionPart = await tx.queryOne("SELECT id,record_status FROM part_numbers WHERE id=:id",{id:fixture.partId});
       throw new Error("DEV122_TASK_OWNED_POST_FORMALIZE_FAULT");
     });
     try{
-      const result=await decideReview(request("/api/pdm/review-requests/"+id+"/decisions",reviewerToken,"POST",{decision:"approve"},
-        fixture.submission.data.rowVersion,await contract("dev122-profile-reviewer")),{params:Promise.resolve({requestId:id})});
+      const result=await perform();
       expect(fault).toHaveBeenCalledTimes(1);
       expect(originalCompleted).toBe(true);
+      expect(inTransactionPart).toMatchObject({id:fixture.partId,record_status:"Released"});
       expect(result.status).toBe(500);
       expect(result.headers.get("cache-control")).toBe("private, no-store");
       const body = await result.json();
       expect(body).toMatchObject({error:{code:"WORKBENCH_INTERNAL_ERROR",message:"操作失敗，請稍後再試"}});
       expect(body.error.correlationId).toMatch(/^[0-9a-f-]{36}$/u);
       expect(JSON.stringify(body)).not.toMatch(/POST_FORMALIZE|SQL|stack/u);
+      expect(result.headers.get("content-type")).toContain("application/json");
+      failure = {status:result.status,body,cacheControl:result.headers.get("cache-control")};
     }finally{fault.mockRestore();}
-    expect(await ownedLifecycleSnapshot()).toEqual(before);
+    const afterFailure = await ownedLifecycleSnapshot();
+    expect(afterFailure).toEqual(before);
     expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:fixture.partId})).toMatchObject({record_status:"Draft"});
     expect(await db!.queryOne("SELECT id FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId})).toBeNull();
     expect(await db!.queryOne("SELECT id FROM part_change_works WHERE id=:id",{id:fixture.workId})).toBeTruthy();
-    await completeReview(fixture.submission,"approve");
+    // Fresh Requests retain the failed command's exact key/body/version. Rollback
+    // must leave that key available; the following replay must add no DB effect.
+    const successResponse = await perform(), success = await ok<{data:unknown}>(successResponse);
+    const afterSuccess = await ownedLifecycleSnapshot();
+    const replayResponse = await perform(), replay = await ok<{data:unknown}>(replayResponse);
+    const afterReplay = await ownedLifecycleSnapshot();
+    expect(replay.data).toEqual(success.data);
+    expect(afterReplay).toEqual(afterSuccess);
+    expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:fixture.partId})).toMatchObject({record_status:"Released"});
+    expect(await db!.queryOne("SELECT id FROM part_change_works WHERE id=:id",{id:fixture.workId})).toBeNull();
+    expect(await db!.queryOne("SELECT id FROM pdm_work_review_requests WHERE id=:id",{id})).toBeNull();
     expect(await db!.queryOne("SELECT count(*)::int AS count FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId})).toMatchObject({count:1});
+    const receipts = await db!.query("SELECT command_name,principal_id,actor_id,command_status FROM platform_command_receipts WHERE effect_key=:effect",{effect:"review:"+id});
+    expect(receipts).toEqual([expect.objectContaining({command_name:"dev087:review.decision",principal_id:"dev122-principal-reviewer",actor_id:"dev122-profile-reviewer",command_status:"completed"})]);
+    const stages = {before,afterFailure,afterSuccess,afterReplay};
+    for (const [stage,rows] of Object.entries(stages)) {
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"tx-post-formalize-owned-"+stage+".json"),JSON.stringify(rows));
+    }
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"tx-route-post-formalize-rollback-replay.json"),JSON.stringify({
+      layer:"ACTUAL_ROUTE_FUNCTION_AND_ISOLATED_NATIVE_POSTGRES",producerBoundary:"FIXTURE",production:"NOT_RUN",
+      route:"/api/pdm/review-requests/"+id+"/decisions",method:"POST",actor:"dev122-principal-reviewer",companyId:"company-jenfu",
+      requestId:id,workId:fixture.workId,partId:fixture.partId,commandKey,
+      fault:{calls:1,originalCompleted,inTransactionPart,failure},
+      retry:{status:successResponse.status,body:success,sameKeyAfterRollback:true},
+      replay:{status:replayResponse.status,body:replay,sameKey:true,noAdditionalOwnedEffects:true},receipts,
+      snapshots:Object.fromEntries(Object.entries(stages).map(([stage,rows])=>[stage,{tableCount:Object.keys(rows).length,
+        sha256:createHash("sha256").update(JSON.stringify(rows)).digest("hex"),file:"tx-post-formalize-owned-"+stage+".json"}]))
+    }));
   });
 });
 
