@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeMediaType } from "@/lib/media-type";
 
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
@@ -31,7 +32,7 @@ export function detectCandidateRevisionFileRole(input: {
   if (extension === "pdf") return { role: "pdf", source: "extension" };
   if (candidateDwgDxfExtensions.has(extension)) return { role: "dwg_dxf", source: "extension" };
 
-  const mimeType = String(input.mimeType ?? "").trim().toLowerCase();
+  const mimeType = normalizeMediaType(input.mimeType);
   if (hasPdfSignature(input.bytes)) return { role: "pdf", source: "system" };
   if (mimeType === "application/pdf") return { role: "pdf", source: "system" };
   if (mimeType === "application/acad" || mimeType === "application/dxf" || mimeType === "image/vnd.dxf") {

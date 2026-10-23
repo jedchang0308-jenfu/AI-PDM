@@ -1,4 +1,5 @@
 import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
+import { normalizeMediaType } from "@/lib/media-type";
 
 export type CanonicalPreviewState = "ready" | "pending" | "delayed" | "missing" | "failed" | "unavailable";
 
@@ -98,7 +99,7 @@ export function selectCanonicalTwoDSource(
 }
 
 function isCanonicalPdfSource(source: CanonicalPreviewSourceRow) {
-  return source.fileExt === "pdf" && source.mimeType === "application/pdf";
+  return source.fileExt === "pdf" && normalizeMediaType(source.mimeType) === "application/pdf";
 }
 
 export type WorkspacePreviewFile = {
@@ -113,7 +114,7 @@ export type WorkspacePreviewFile = {
 };
 
 export function isWorkspacePdf(file: WorkspacePreviewFile) {
-  const mime = file.mime_type?.split(";", 1)[0].trim().toLowerCase();
+  const mime = normalizeMediaType(file.mime_type);
   if (mime) return mime === "application/pdf";
   return file.file_ext?.toLowerCase().replace(/^\./u, "") === "pdf"
     || /\.pdf$/iu.test(file.file_name || file.display_name || "");

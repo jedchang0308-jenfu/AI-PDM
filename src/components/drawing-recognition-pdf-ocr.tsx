@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, FileSearch, LoaderCircle, RefreshCcw } from "lucide-react";
 import type { BrowserPdfOcrProgress } from "@/lib/browser-pdf-ocr";
+import { normalizeMediaType } from "@/lib/media-type";
 
 export type DrawingRecognitionPendingClientAdapter = {
   sourceId: string;
@@ -165,7 +166,7 @@ export function useDrawingRecognitionBrowserOcr<T extends DrawingRecognitionBrow
           const body = await contentResponse.json().catch(() => ({}));
           throw new Error(messageFrom(body, "PDF 內容目前無法取得。"));
         }
-        if (!String(contentResponse.headers.get("content-type") ?? "").toLowerCase().startsWith("application/pdf")) throw new Error("pdf_content_type_invalid");
+        if (normalizeMediaType(contentResponse.headers.get("content-type")) !== "application/pdf") throw new Error("pdf_content_type_invalid");
         if (String(contentResponse.headers.get("content-hash") ?? "").toLowerCase() !== pending.contentHash.toLowerCase()) throw new Error("pdf_content_hash_changed");
         const bytes = await contentResponse.arrayBuffer();
         const { runBrowserPdfOcr } = await import("@/lib/browser-pdf-ocr");

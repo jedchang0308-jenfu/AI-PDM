@@ -1,3 +1,4 @@
+import { normalizeMediaType } from "./media-type.ts";
 import type {
   DrawingRecognitionAdapterCompletion,
   DrawingRecognitionCategory,
@@ -58,7 +59,7 @@ export function drawingRecognitionAdapterPlanForSource(source: { fileExt: string
 }
 
 export function isBrowserPdfRecognitionSource(source: { fileExt: string; mimeType: string }) {
-  return normalizedRecognitionSourceExtension(source.fileExt) === "pdf" && String(source.mimeType ?? "").trim().toLowerCase() === "application/pdf";
+  return normalizedRecognitionSourceExtension(source.fileExt) === "pdf" && normalizeMediaType(source.mimeType) === "application/pdf";
 }
 
 function text(value: unknown, max = 4_000) {

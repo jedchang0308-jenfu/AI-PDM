@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { PdfDocumentViewport } from "@/components/pdf-document-viewport";
 import { PdfPageViewport, type PdfPageFocusRegion } from "@/components/pdf-page-viewport";
+import { normalizeMediaType } from "@/lib/media-type";
 
 export type CanonicalPreviewMediaModel = {
   href: string;
@@ -99,7 +100,7 @@ export function CanonicalPreviewMedia({
         if (requiresFullPdf) {
           const header = await blob.slice(0, 5).text();
           if (cancelled) return;
-          if (blob.type.split(";", 1)[0].trim().toLowerCase() !== "application/pdf" || header !== "%PDF-") {
+          if (normalizeMediaType(blob.type) !== "application/pdf" || header !== "%PDF-") {
             if (readDeadline) clearTimeout(readDeadline);
             setTerminalReason("PDF 預覽無法顯示，可下載原檔。");
             setLoadState("failed");

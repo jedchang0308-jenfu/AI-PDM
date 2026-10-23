@@ -15,6 +15,7 @@ import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import { ensureAutomaticPreviewJobsForSourceAssetsAsync } from "@/lib/preview-derivatives";
+import { normalizeMediaType } from "@/lib/media-type";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
 
@@ -550,7 +551,7 @@ function pickPreviewSource(sources: CanonicalPreviewSource[], kind: "three-d" | 
   return selectCanonicalTwoDSource(sources, sources[0]?.revisionId ?? "", derivatives);
 }
 
-function canonicalPreviewSlot(
+export function canonicalPreviewSlot(
   kind: "three-d" | "two-d",
   title: string,
   source: CanonicalPreviewSource | null,
@@ -580,8 +581,8 @@ function canonicalPreviewSlot(
     const text = state === "ready" ? "可直接開啟預覽。" : state === "queued" ? "工作已排入佇列。" : state === "delayed" ? "請稍後重新整理或確認預覽服務。" : state === "failed" ? "可先下載原始檔查看。" : state === "missing" ? "3D 原檔已存在，預覽工作尚未建立。" : "3D 原檔已存在，但目前沒有可看的預覽。";
     return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "預覽尚未建立" : "預覽暫時無法顯示", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
   }
-  if (kind === "two-d" && source.fileExt === "pdf" && source.mimeType === "application/pdf") {
-    return { kind, title, fileName: displayName, state: "ready", mediaMimeType: source.mimeType, stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
+  if (kind === "two-d" && source.fileExt === "pdf" && normalizeMediaType(source.mimeType) === "application/pdf") {
+    return { kind, title, fileName: displayName, state: "ready", mediaMimeType: normalizeMediaType(source.mimeType), stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
   }
   const accepted = new Set(["drawing_pdf", "sheet_png", "thumbnail_png"]);
   const derivative = derivatives.find((item) => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash && accepted.has(item.derivativeKind));
@@ -596,6 +597,10 @@ function canonicalPreviewSlot(
   }
   if (job?.status === "queued") return { kind, title, fileName: displayName, state: "queued", stateTitle: "等待預覽服務", stateText: "工作已排入佇列。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
   if (job?.status === "failed") return { kind, title, fileName: displayName, state: "failed", stateTitle: "預覽產生失敗", stateText: "可先下載原始檔查看。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
+  const terminalTitle = job?.status === "cancelled" ? "預覽已取消" : job?.status === "skipped" ? "預覽已略過" : job?.status === "succeeded" ? "預覽結果無法讀取" : null;
+  if (terminalTitle) return { kind, title, fileName: displayName, state: "unavailable", stateTitle: terminalTitle,
+    stateText: job?.status === "succeeded" ? "工作已完成，但未取得可顯示的預覽結果。可下載原檔。" : "可下載原檔查看。",
+    mediaHref: null, downloadHref: readHref, retryCommandRef: null };
   return { kind, title, fileName: displayName, state: "unavailable", stateTitle: "尚未產生可看的預覽", stateText: "可先下載原始檔查看。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
 }
 
