@@ -133,10 +133,10 @@ try {
     if(gLifecycle){context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(60000);}
     const gControl={deniedPaths:new Set(),allowedAlerts:new Set(),previewBindings:new Set(),previewReadbacks:[],denialWindow:null,deniedReadbacks:[],recoveryFailed:false};
     const gDeniedRequests=new WeakMap();
+    const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
     if(gLifecycle)page.on('request',request=>{
       if(gControl.denialWindow?.active&&new URL(request.url()).pathname.startsWith('/api/pdm/file-assets/'))gDeniedRequests.set(request,gControl.denialWindow);
     });
-    const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
     const workbenchQueryState=[];
     // Passive observation begins before any workbench input; no timer/response/click is changed.
     await page.addInitScript(()=>{
