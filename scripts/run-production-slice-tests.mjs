@@ -35,6 +35,7 @@ const CORE_TESTS = [
 
 const DATABASE_TESTS = [
   'scripts/dev117-production-migration-runner.test.mjs',
+  'scripts/dev122-native-postgres-coverage.test.mjs',
 ]
 
 const RD_PERMISSION_DATABASE_TESTS = [

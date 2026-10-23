@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { compileOwnMigrations, bootstrapOwnSchemas, installOwnFixture, installContractFixture, marker, fixtureVersion, sha256 } from './lib/dev122-own-postgres-fixture.mjs';
 import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation-fixture.mjs';
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
+import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nextCopyFiles=['scripts/prepare-dev-082-ocr-assets.mjs','package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
@@ -34,6 +35,7 @@ const cuaHandoff = uiMode === 'cua-handoff';
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.argv.find(arg=>arg.startsWith('--native-selection='))?.slice('--native-selection='.length)??process.env.DEV122_NATIVE_SELECTION??'suite';
+const fullLifecycleSelection=['lifecycle','all'].includes(suite)&&nativeSelection==='suite';
 const rdPermissionCaseName='DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny';
 if (!['automatic','cua-handoff'].includes(uiMode) ||
     cuaHandoff !== (nativeSelection === 'preview-ui-handoff') ||
@@ -112,7 +114,7 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -368,8 +370,8 @@ function postgresBin() {
 
 function captureControlledSource() {
   const files=['package.json','package-lock.json','next.config.mjs','next-env.d.ts','tsconfig.json','tsconfig.app.json','tsconfig.next.json',
-    'scripts/qc-dev-122-native-postgres.mjs','scripts/qc-dev-122-native-browser.mjs','scripts/qc-ts-path-loader.mjs',
-    'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
+    'scripts/qc-dev-122-native-postgres.mjs','scripts/dev122-native-postgres-coverage.test.mjs','scripts/qc-dev-122-native-browser.mjs','scripts/qc-ts-path-loader.mjs',
+    'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/dev122-native-postgres-coverage.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
     'scripts/lib/preview-worker-lease.mjs','scripts/lib/preview-worker-lease.d.mts','scripts/lib/preview-worker-source.mjs',
     'scripts/run-windows-shell-preview-worker.mjs','scripts/run-solidworks-document-manager-preview-worker.mjs','scripts/run-drawing-recognition-worker.mjs','scripts/run-solidworks-document-manager-credential-probe.mjs',
     'scripts/run-solidworks-document-manager-metadata-extractor.mjs','scripts/solidworks-document-manager-credential-probe.cs','scripts/solidworks-document-manager-metadata-exporter.cs',
@@ -535,7 +537,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -556,6 +558,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     const firstFailed=completed.find(test=>test.status==='failed');
     if(firstFailed)manifest.firstFailure={message:firstFailed.failureMessages?.[0]||firstFailed.fullName||firstFailed.title,
       stack:firstFailed.failureMessages?.join('\n')??null,code:null,test:firstFailed.fullName||firstFailed.title};
+    manifest.lifecycleCaseCoverage=evaluateLifecycleCaseCoverage(assertions,{suite,selection:nativeSelection});
     save();
     const exactNativeFile=path.join(root,'src/lib/dev122-native-business.postgres-contract.test.ts');
     if(tests.testResults.some(result=>path.resolve(result.name)!==exactNativeFile&&result.assertionResults.some(test=>['passed','failed'].includes(test.status))))throw new Error('DEV122_NATIVE_EXECUTED_SOURCE_PATH_MISMATCH');
@@ -593,6 +596,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     }
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
+    assertLifecycleCaseCoverage(manifest.lifecycleCaseCoverage);
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
     if(['ui','settings','settings-automation','all'].includes(suite)) {
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
@@ -739,10 +743,10 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       }
     }
     manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
-    const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
+    const implementedCoverage={lifecycle:manifest.lifecycleCaseCoverage.partial,
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
     manifest.coverage={partial:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
-      notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
+      notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
   } catch(error) {
@@ -956,7 +960,7 @@ async function seedPrincipals(admin,evidenceRoot) {
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
     ('company-jenfu','JENFU','DEV122 isolated Jenfu'),('company-dev122-other','DEV122OTHER','DEV122 isolated other') ON CONFLICT DO NOTHING;
     UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',schema_hash='dev090-v1',expected_commit='local-dev';`);
-  for(const [index,identity] of ((['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope','openswx-work-cancel'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
+  for(const [index,identity] of ((fullLifecycleSelection||['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope','openswx-work-cancel'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
     const profile='dev122-profile-'+identity,principal='dev122-principal-'+identity,employee='dev122-employee-'+identity;
     const company=identity==='other'?'company-dev122-other':'company-jenfu';
     await admin.query(`INSERT INTO ai_pdm_core.users(id,display_name,email,role,company_id,account_status,system_role_enabled)
