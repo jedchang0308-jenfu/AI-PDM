@@ -35,4 +35,16 @@ describe("procurement release response contract", () => {
     const response = await GET(request());expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: { message: "safe reason", retryable: true } });
   });
+  it.each(["1970-01-01", "1970-01-01T00:00:00.000Z"])("filters releases strictly after the valid epoch boundary %s", async since => {
+    mocks.list.mockResolvedValueOnce([
+      { id: "before", released_at: "1969-12-31T23:59:59.999Z" },
+      { id: "equal", released_at: "1970-01-01T00:00:00.000Z" },
+      { id: "after", released_at: "1970-01-01T00:00:00.001Z" }
+    ].map(release => ({ ...release, part_number: "P-01", files: [], approvals: [], release_package: null })));
+    const response = await GET(request("?since=" + encodeURIComponent(since)));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ count: 1, entries: [{ submission_id: "after" }] });
+    expect(mocks.access).toHaveBeenCalledWith(expect.any(Request), "integration.procurement.view");
+    expect(mocks.list).toHaveBeenCalledWith({ companyId: "company-one", limit: 200 });
+  });
 });

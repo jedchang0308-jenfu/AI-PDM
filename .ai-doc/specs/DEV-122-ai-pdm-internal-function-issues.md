@@ -95,6 +95,12 @@ B65 在正式 revision `ai-pdm-prod-18d3df5a0bfd` 觀察管理員的辨識 sessi
 
 最終 diff audit 補齊 heartbeat／complete JSON echo 與 binary header handshake；缺版／錯版停止，unknown terminal 不重送。真實 PG 新增第六案，以實際 source row lock 各等待超過 30 秒，核對 claim 無 mutation／heartbeat 409，再正常 recovery、reclaim／cancel；原五案及 closed13 案例保留。首次新案在既有 30s SQL timeout 安全拒絕，原 FAIL 保留；後續只於該隔離測試 transaction 以 SET LOCAL 將 statement timeout 設為 40s，以實際等待 31s 到達獨立 lease-age 守門，driver 35s limit 與 production 設定／schema 均不變。skew 案讀回實際 migration 安裝且啟用的 BEFORE UPDATE now() trigger，Node +31 秒持續到 accepted cancellation 與 terminal cancelled／locks null／completed_at／DB basis 斷言完成。結果依 `output/qa/dev122-cancelled/` 與各 native manifest 原始讀回，不將先前五案當新增鎖等待案。FULL gate 曾於既有 sealed READY-chain fixture 缺 `entrypointSnapshot` 首敗；只補 verifier 方法承接，不放寬 production transport 或 required gate，原 FAIL 保留。 最終本地 focused 174／174、materializer 8／8、typecheck／lint／DB boundary 通過；native `b3286b9c2da8a3f9` 六案及 `3ffd6f56208773da` closed13 全部選定案例 passed、firstFailure=null、cleanup 全 true。runner 仍為 PARTIAL_NOT_ACCEPTED；先前 `98a02d0e52225f16` SQL timeout 首敗不覆寫。兩份 native before/after source binding 各自相同；本段後補結果只改文件，server／worker／SQL 測試輸入未變，不當新 raw source binding。
 
+### I-01A／I-01C 採購讀取一致性（2026-10-23，本地切片）
+
+以 protected main `06874f97` 為基準，隔離 PostgreSQL 重現同 item 的兩筆 Released 歷史在有效時間相等時同時進入 latest 清單；使用與既有排序相同的 `(COALESCE(released_at, updated_at, created_at), id)` 比較，時間相等只保留 ID 較大的一筆。公司、Released 狀態、submitter 與 200 筆上限不變。另以 route fixture 重現有效 `since=1970-01-01` 解析為 0 後被 truthiness 略過，改以 `since !== null` 套用原嚴格晚於語意；缺少／invalid since 的既有行為不變。
+
+新增 native 案分別驗 released_at 同時與 released_at 為 null 時的 updated_at 同時，並核對較大 ID 的舊時間、未發行與其他公司資料不能取代當前合法結果，清單讀取不改 lifecycle。第一輪 fixture 違反既有版本唯一性限制的 FAIL `61898dc8317a55f5` 保留；改成不同合法 revision 後的真實 SQL red `9ed35dc04451157a` 與 route epoch red 保留。結果見 `output/qa/dev122-i01-consumer/` 及各 native manifest；這些是本地歷史讀取 fixture，不是正式資料影響、P/G 生命周期成功或 Production UI 驗收。本切片無 DDL／migration，不部署、不改正式資料；原 7／29 未驗收分母與其他延期範圍不變。
+
 ### P-03B／F-01A 決策拒絕與附件重載提示（2026-10-23）
 
 修前 exact deployed tree `8a586471e5eb9b29a5ca53654468a35ab2e6dba5` 的決策 API 回覆 403 `{error:"permission_not_granted"}`，但審核包只解析 nested message，造成通用失敗提示。本切片只在決策回應對此 exact code 顯示請公司管理員確認有效工作區指派與 `approval.request.decide`、更新後重新整理的提示；留在原 `/approvals/:requestId`、保留選取與快照，不導向未證實的設定頁。API 拒絕及既有寫入前權限檢查不變。

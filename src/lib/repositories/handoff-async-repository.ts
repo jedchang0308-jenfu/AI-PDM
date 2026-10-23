@@ -18,8 +18,8 @@ export const SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL = `
       WHERE newer.item_id = s.item_id
         AND newer.company_id = s.company_id
         AND newer.status = 'Released'
-        AND COALESCE(newer.released_at, newer.updated_at, newer.created_at) >
-            COALESCE(s.released_at, s.updated_at, s.created_at)
+        AND (COALESCE(newer.released_at, newer.updated_at, newer.created_at), newer.id) >
+            (COALESCE(s.released_at, s.updated_at, s.created_at), s.id)
     )
   ORDER BY COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
   LIMIT :limit

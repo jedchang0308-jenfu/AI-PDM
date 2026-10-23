@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   authorize: vi.fn(),
   list: vi.fn()
 }));
-vi.mock("@/lib/number-state-flow-api", () => ({
+vi.mock("@/lib/number-state-flow-api", async original => ({
+  ...await original<typeof import("@/lib/number-state-flow-api")>(),
   requireNumberStateReadAccessAsync: mocks.authorize
 }));
 vi.mock("@/lib/handoff-async", () => ({
