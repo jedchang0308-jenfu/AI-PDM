@@ -1618,11 +1618,13 @@ async function drawingG01G02Facts(fixture: { masterId: string; drawingId: string
       FROM principal_accounts WHERE pdm_user_id=:id AND company_id='company-jenfu' ORDER BY principal_id`,
       { id: (reviewRequest as { reviewer_user_id: string }).reviewer_user_id }) : [];
     const commandReceipts = requestId ? await tx.query(`SELECT * FROM platform_command_receipts
-      WHERE effect_key=:effect AND command_name='dev087:review.decision' ORDER BY id`, { effect: "review:" + requestId }) : [];
+      WHERE effect_key=:effect AND command_name=:command ORDER BY id`, { effect: "review:" + requestId, command: "dev087:review.decision" }) : [];
     const unrelatedParts = await tx.query("SELECT * FROM part_numbers WHERE company_id='company-jenfu' ORDER BY id");
     const unrelatedMasters = await tx.query("SELECT * FROM drawing_numbers WHERE company_id='company-jenfu' AND id<>:id ORDER BY id", { id: fixture.masterId });
     expect(drawing).toBeTruthy(); expect((drawing as { formal_drawing_number_id: string }).formal_drawing_number_id).toBe(fixture.masterId);
-    expect(master).toBeTruthy(); expect(work).toBeTruthy();
+    expect(master).toBeTruthy();
+    if (terminalReceipt) expect(work).toBeNull();
+    else if (work) expect((work as { drawing_id: string }).drawing_id).toBe(fixture.drawingId);
     return { drawing, exactFormalDrawingNumberId: (drawing as { formal_drawing_number_id: string }).formal_drawing_number_id,
       master, work, revisions, canonicalPointers: pointers, reviewRequest,
       assignedReviewer: reviewRequest ? { userId: (reviewRequest as { reviewer_user_id: string }).reviewer_user_id, principalAccounts: assignedAccounts } : null,
