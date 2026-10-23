@@ -1,0 +1,12 @@
+import type { EventEmitter } from "node:events";
+import type { PreviewLeaseBasis } from "../../src/lib/preview-worker-lease";
+export const leaseProtocolVersion: 2;
+type Claim = { jobId: string; sourceFileAssetId: string; sourceContentHash: string; leaseBasis: PreviewLeaseBasis };
+type WorkerRequest = { baseUrl: string; token: string; workerId: string; request?: (url: string, options: RequestInit) => Promise<Response> };
+export type PreviewWorkerShutdown = { readonly requested: boolean; requestStop(): void; subscribe(notify: () => void): () => void; dispose(): void };
+export function previewLeaseEnvelope(claim: Claim): { leaseProtocolVersion: 2; leaseBasis: PreviewLeaseBasis };
+export function claimPreviewJob(input: WorkerRequest & { supportedExtensions: string[] }): Promise<Claim | null>;
+export function createPreviewWorkerShutdown(events?: EventEmitter): PreviewWorkerShutdown;
+export function runClaimedPreviewJob(input: WorkerRequest & { claim: Claim; shutdown: PreviewWorkerShutdown;
+  render(signal: AbortSignal): Promise<unknown[]>; rendererFailure(error: unknown): { errorCode: string; errorSummary: string } | Promise<{ errorCode: string; errorSummary: string }>;
+}): Promise<{ status: "succeeded" | "failed" | "cancelled" | "unconfirmed"; completion?: unknown; httpStatus?: number; reason?: string }>;

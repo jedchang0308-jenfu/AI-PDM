@@ -1,3 +1,7 @@
+## DEV-122 F-01B — preview worker 租約 v2（本地安全實作／受保護 source 交付切片）
+
+沿既有 F-01B 收斂共用 generation fence、DB 時鐘、正常取消、失效來源 recovery 與 fake path 退役。新增鎖等待後 PostgreSQL 6 案／closed13 的選定案例通過，精確邊界與 mounted 行為另有本機回歸；原失敗及層級分開保留，見[唯一現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2)。無 migration、本輪不部署；需正式 server／兩個 worker v2 process rollout 與獨立 parent-lock 驗收，不提升原 7／29 NOT_ACCEPTED。
+
 ## DEV-122 P-03B／F-01A — 決策拒絕與附件重載提示修正
 
 沿原 7／29 收斂兩項 exact deployed tree 缺陷：403 字串碼顯示可操作提示且留在原審核頁；附件上傳後清單重載失敗不得顯示已確認成功或舊清單。施工與未驗範圍見 [既有契約](specs/DEV-122-ai-pdm-internal-function-issues.md#p-03bf-01a-決策拒絕與附件重載提示2026-10-23)。本地聚焦回歸後交付 normal PR／required CI；不與現有 owner 競爭發布，不改正式資料／grant，不宣稱完整業務驗收通過。

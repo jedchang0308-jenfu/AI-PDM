@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { materializeClaimedPreviewSource } from "./lib/preview-worker-source.mjs";
+import { claimPreviewJob, createPreviewWorkerShutdown, runClaimedPreviewJob } from "./lib/preview-worker-lease.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -75,7 +76,9 @@ if (watchMode) {
   console.log(JSON.stringify({ workerId, watching: true, pollMs, credentialRefreshMs }, null, 2));
 }
 
-while (true) {
+const shutdown = createPreviewWorkerShutdown();
+try {
+while (!shutdown.requested) {
   if (watchMode) {
     try {
       const shouldRefreshCredential = workerCredentialLoadedFromRoute && Date.now() - workerCredentialLoadedAt >= credentialRefreshMs;
@@ -96,6 +99,7 @@ while (true) {
     }
   }
 
+  if (shutdown.requested) break;
   let claim;
   try {
     claim = await claimJob({ baseUrl, token, workerId });
@@ -127,49 +131,36 @@ while (true) {
   }
 }
 
+} finally { shutdown.dispose(); }
+
 async function processClaim(input) {
   let materializedSource;
-  const { baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, claim } = input;
-  const heartbeat = startJobHeartbeat({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId });
   try {
-    await ensureWorkerDocumentManagerKey({ baseUrl: claimBaseUrl, token: claimToken, refresh: false });
-    materializedSource = await materializeClaimedPreviewSource(input);
-    const sourcePath = materializedSource.sourcePath;
-    const outputPath = path.join(path.dirname(sourcePath), "preview.png");
-    const extracted = await extractDocumentManagerPreview(sourcePath, outputPath);
-    const bytes = fs.readFileSync(outputPath);
-    assertPng(bytes, outputPath);
-    const dimensions = readPngDimensions(bytes);
-    const quality = await analyzePngContent(bytes);
-    assertMeaningfulDrawingPreviewQuality(quality, outputPath);
-    const completion = await completeJob({
-      baseUrl: claimBaseUrl,
-      token: claimToken,
-      workerId: claimWorkerId,
-      job: claim,
-      derivative: {
-        kind: "thumbnail_png",
-        fileName: `${path.basename(sourcePath)}.preview.png`,
-        mimeType: "image/png",
-        contentBase64: bytes.toString("base64"),
-        width: dimensions.width,
-        height: dimensions.height,
-        generatorProfile: claim.generatorProfile,
-        generatorVersion: "solidworks-document-manager-preview-png-v1"
+    const result = await runClaimedPreviewJob({ ...input, shutdown,
+      async render(signal) {
+        await ensureWorkerDocumentManagerKey({ baseUrl: input.baseUrl, token: input.token, refresh: false, signal });
+        materializedSource = await materializeClaimedPreviewSource({ ...input, signal });
+        signal.throwIfAborted();
+        const sourcePath = materializedSource.sourcePath;
+        const outputPath = path.join(path.dirname(sourcePath), "preview.png");
+        await extractDocumentManagerPreview(sourcePath, outputPath, signal);
+        const bytes = fs.readFileSync(outputPath);
+        assertPng(bytes, outputPath);
+        assertMeaningfulDrawingPreviewQuality(await analyzePngContent(bytes), outputPath);
+        const dimensions = readPngDimensions(bytes);
+        return [{ kind: "thumbnail_png", fileName: `${path.basename(sourcePath)}.preview.png`, mimeType: "image/png",
+          contentBase64: bytes.toString("base64"), width: dimensions.width, height: dimensions.height,
+          generatorProfile: input.claim.generatorProfile, generatorVersion: "solidworks-document-manager-preview-png-v1" }];
+      },
+      rendererFailure(error) {
+        return { errorCode: "solidworks_document_manager_preview_failed",
+          errorSummary: userFacingPreviewErrorSummary(error instanceof Error ? error.message : String(error)) };
       }
     });
-    console.log(JSON.stringify({ workerId: claimWorkerId, claimed: true, jobId: claim.jobId, sourcePath, extracted, dimensions, quality, completion }, null, 2));
-    return true;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const errorSummary = userFacingPreviewErrorSummary(message);
-    await failJob({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId, errorSummary });
-    console.error(JSON.stringify({ workerId: claimWorkerId, claimed: true, jobId: claim.jobId, status: "failed", errorCode: "solidworks_document_manager_preview_failed", errorSummary }, null, 2));
-    return false;
-  } finally {
-    heartbeat.stop();
-    await materializedSource?.cleanup();
-  }
+    if (result.status === "unconfirmed") { shutdown.requestStop(); process.exitCode = 1; }
+    console.log(JSON.stringify({ workerId: input.workerId, jobId: input.claim.jobId, ...result }));
+    return result.status === "succeeded" || result.status === "cancelled";
+  } finally { await materializedSource?.cleanup(); }
 }
 
 async function ensureExporterBuilt() {
@@ -214,26 +205,7 @@ function resolveCscPath() {
 }
 
 async function claimJob(input) {
-  const response = await fetch(`${input.baseUrl}/api/preview-jobs/claim`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      supportedKinds: ["native_thumbnail_png"],
-      supportedExtensions: ["slddrw"]
-    })
-  });
-  if (!response.ok) {
-    const error = new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
-    if (response.status === 401 || response.status === 403 || response.status === 503) error.code = "PREVIEW_WORKER_CONFIGURATION_ERROR";
-    throw error;
-  }
-  const body = await response.json();
-  return body.job ?? null;
+  return claimPreviewJob({ ...input, supportedExtensions: ["slddrw"] });
 }
 
 async function ensureWorkerDocumentManagerKey(input) {
@@ -247,7 +219,7 @@ async function ensureWorkerDocumentManagerKey(input) {
   }
   if (input.refresh && workerCredentialLoadedFromRoute) clearRouteLoadedCredential();
   const response = await fetch(`${input.baseUrl}/api/preview-workers/solidworks-document-manager-key`, {
-    method: "GET",
+    method: "GET", signal: input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
     headers: {
       authorization: `Bearer ${input.token}`,
       "x-pdm-worker-id": input.workerId
@@ -323,62 +295,7 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function completeJob(input) {
-  const response = await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.job.jobId)}/complete`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      status: "succeeded",
-      sourceContentHash: input.job.sourceContentHash,
-      derivatives: [input.derivative]
-    })
-  });
-  if (!response.ok) throw new Error(`Preview worker complete failed with HTTP ${response.status}: ${await response.text()}`);
-  const result = await response.json();
-  if (result.accepted !== true) throw new Error("PREVIEW_JOB_CLAIM_LOST");
-  return result;
-}
-
-function startJobHeartbeat(input) {
-  const send = async () => {
-    await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/heartbeat`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-      },
-      body: JSON.stringify({ workerId: input.workerId })
-    }).catch(() => undefined);
-  };
-  void send();
-  const timer = setInterval(() => void send(), 5000);
-  return { stop: () => clearInterval(timer) };
-}
-
-async function failJob(input) {
-  await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/complete`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-      "x-pdm-worker-id": input.workerId
-    },
-    body: JSON.stringify({
-      workerId: input.workerId,
-      status: "failed",
-      errorCode: "solidworks_document_manager_preview_failed",
-      errorSummary: input.errorSummary
-    })
-  }).catch(() => undefined);
-}
-
-async function extractDocumentManagerPreview(sourcePath, outputPath) {
+async function extractDocumentManagerPreview(sourcePath, outputPath, signal) {
   if (process.platform !== "win32") throw new Error("SolidWorks Document Manager preview extraction requires Windows.");
   if (!hasDocumentManagerLicenseKey()) throw new Error("DOCUMENT_MANAGER_LICENSE_KEY_MISSING");
   if (!fs.existsSync(sourcePath)) throw new Error(`SOURCE_FILE_NOT_FOUND: ${sourcePath}`);
@@ -386,6 +303,7 @@ async function extractDocumentManagerPreview(sourcePath, outputPath) {
   await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.promises.rm(outputPath, { force: true });
   const result = await spawnFileAsync(exporterExePath, [sourcePath, outputPath], {
+    signal,
     env: {
       ...process.env,
       ...(workerCredentialValue ? { PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY: workerCredentialValue } : {})
@@ -412,14 +330,15 @@ function spawnFileAsync(command, commandArgs, options = {}) {
     const child = spawn(command, commandArgs, { cwd: root, windowsHide: true, ...options });
     let stdout = "";
     let stderr = "";
+    const deadline = setTimeout(() => { stderr += " PREVIEW_RENDERER_TIMEOUT"; child.kill(); }, 120000);
     child.stdout?.on("data", (chunk) => {
       stdout += chunk.toString();
     });
     child.stderr?.on("data", (chunk) => {
       stderr += chunk.toString();
     });
-    child.on("close", (status) => resolve({ status, stdout, stderr }));
-    child.on("error", (error) => resolve({ status: 1, stdout, stderr: error.message }));
+    child.on("close", (status) => { clearTimeout(deadline); resolve({ status, stdout, stderr }); });
+    child.on("error", (error) => { stderr += error.message; if (!child.pid) { clearTimeout(deadline); resolve({ status: 1, stdout, stderr }); } });
   });
 }
 

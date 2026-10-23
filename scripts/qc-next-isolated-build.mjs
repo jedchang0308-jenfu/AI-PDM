@@ -57,6 +57,12 @@ function prepareRuntimeProject() {
     const source = path.join(root, file);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(resolvedRuntimeRoot, file));
   }
+  // Tests share the real worker protocol; their module/types are build inputs
+  // because Next checks the existing app TypeScript project, including tests.
+  for (const file of ["scripts/lib/preview-worker-lease.mjs", "scripts/lib/preview-worker-lease.d.mts"]) {
+    const target = path.join(resolvedRuntimeRoot, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true }); fs.copyFileSync(path.join(root, file), target);
+  }
   for (const directory of ["src", "public", "db", "config", "contracts"]) {
     const source = path.join(root, directory);
     if (fs.existsSync(source)) fs.cpSync(source, path.join(resolvedRuntimeRoot, directory), { recursive: true, force: true });
