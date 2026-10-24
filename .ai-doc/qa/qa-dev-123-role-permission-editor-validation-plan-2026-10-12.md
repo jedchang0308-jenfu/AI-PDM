@@ -160,7 +160,7 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 
 `dev123-native-recognition-authority-current-r1.json`：真PG durable initiator→claim→completeJob正例review_ready／1 candidate；真apply停用RD後，另一已claim job的completeJob拒絕且canonical/history計數不變，所有task資源清理完成。只支持worker採用，未驗recognition正式化HTTP；其首敗fixture修正記錄保留。
 
-同型nullable query查核：新增fileId／sourceId兩helper改明確text CAST；`nullable-source-file-focused-r1.log` 12 PASS。`dev123-native-capability-helper-current-r1.json`真PG驗sourceId未指定／指定合法來源允許，真apply停用RD後同source拒絕403；submission helper未有現成合法fixture，標NOT_RUN，未冒稱整段下載已驗。兩次runner前提失敗保留；所有資源清理完成。靜態檢查本PR新增／修改SQL已無相同首用IS NULL／IS NOT NULL的未定型參數。
+同型nullable query查核：新增fileId／sourceId兩helper改明確text CAST；`nullable-source-file-focused-r1.log` 12 PASS。`dev123-native-capability-helper-current-r1.json`真PG驗sourceId未指定／指定合法來源允許，真apply停用RD後同source拒絕403；當時submission helper尚無合法fixture，記NOT_RUN（此原因已由後續package r6及10/25來源對應查核補足，見本文末），不把當時結果冒稱整段下載已驗。兩次runner前提失敗保留；所有資源清理完成。靜態檢查本PR新增／修改SQL已無相同首用IS NULL／IS NOT NULL的未定型參數。
 
 CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇ECONNRESET，尚未進產品測試，保留該失敗。以上兩行query後來源須刷新兩個required checks，不把舊QC或網路失敗改判為新來源PASS。DB boundary的staged對branch前一commit檢查曾拒087改寫；以既有`--base=origin/main`驗整個未合併slice PASS，086–088均為新增、無main migration改刪，檢查器未變（`assurance-db-boundary-source-scope.json`）。
 
@@ -280,3 +280,7 @@ QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r1
 | QA52採購／生管alias與原priority | identity/profile/status/priority子項本機原生PASS：current-native-r3兩身份同步停復且其餘欄位與priority未變；新選項只列canonical沿Org r15及既有固定契約測試。未新增舊planning人員任用之全部scope／期間欄位的正常UI實錄，不以alias投影等同全任用歷史 |
 | QA52current／schema／version／hash錯配拒絕 | 沿既有C26真current/history負例及未變reader契約重用；current-native-r3補當前來源的實際consumer正例。不是本輪重新注入全部fault，也不靠UI marker判相容 |
 | QA29／52整案判定與QA50 | 核心交易／代理／停復及相關UI子項已具本機組合證據；上列明示未實跑的正常UI子斷言保留，不宣稱兩案或52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
+
+2026-10-25續接查核發現Org代理來源UI只按application/status列任用，未同步server的角色／來源資格。這是靜態可證的選單缺口，後端原本仍拒絕非法代理，未宣稱已實際發生越權。OrgMaster PR #153的r16（`60a7cded5010b46d0607245284ca784cc4d3009d`）已修正：排除inactive角色、不可代理角色、legacy-only生管、system_admin、已到期／未生效來源及停用員工；代理人只列不同於來源的有效員工，送出時檢查未來期限且不超過source。`GovernanceDelegationSources.test.tsx`補合法完整命令／讀回與非法來源不出現；相關4檔26 PASS及build（tsc/client/server）PASS，required Production Source QC run `40118220606` SUCCESS，沒有DB或後端授權變更。此結果補QA29／52的產品UI資格與表單契約；mock API元件證據不替代上表保留的正常UI／原生發布。舊planning補驗只需用畫面讀回UI既有的名稱、scope、期間、目錄、狀態；不可見identity／provenance／priority以原生API／DB對照，不為驗收新增技術欄位到產品。此補驗尚未執行。
+
+同日以`output/playwright/dev123-20261025/submission-helper-reuse-audit.json`核對早期submission helper NOT_RUN：package r6的19個真PG／loopback HTTP正反例已建立合法Released submission及三成員，實際file／ZIP caller均命中`authorizeSubmissionOriginalsInSnapshot`。r6受測helper bytes與`c676b68…`的CRLF來源相符；current helper只抽出manifest predicate，SQL、group／scope及download guard整段未變，submission access及兩file／package routes亦與r6同hash。manifest抽出邊界沿current `becf3aa…`之required CI run `40116850659`／Production Slice QC job `120939802867`的18項helper tests PASS（整體60檔580 tests PASS）；精確schema、submission ID、member count／unique IDs、role與SHA檢查保留。據此重用原生caller／SQL證據並補當前predicate證據，關閉「尚無合法fixture」這個早期缺口；此為來源對應查核，不宣稱重跑current-head native、正常SSO或正式驗收，也不為純manifest抽函式重跑三端旅程。

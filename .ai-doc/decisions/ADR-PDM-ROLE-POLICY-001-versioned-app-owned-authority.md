@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-24。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-25。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
@@ -22,7 +22,7 @@
 
 apply後新請求採新policy，已判權短請求可完成；browser暫存可失效，server保存與CAS負責正確性。OrgMaster人員任用／published-grant、DB及IdP依賴仍存在，這不是改成各系統配人或宣稱離線可用。
 
-52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。10/23起可在授權隔離工作樹協同開發／驗證[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)所列相容範圍，PDM既有protected發布／驗收已獲本輪授權；OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets。
+52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。可在授權隔離工作樹協同開發／驗證[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)所列相容範圍。10/23的PDM protected發布與OrgMaster 034–036相容migration／reader部署授權保留為歷史；目前正式操作依頁首後續限制暫停，不含人員指派改寫、IAM或Secrets。
 
 ## 替換與退出
 
