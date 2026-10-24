@@ -219,7 +219,7 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 
 401的現有證據只能定位到Platform session邊界：refresh與operator Firebase驗證成功，不足以證明正式runtime verifier或Principal revokedBefore通過。尚無可用的既有特定Principal epoch唯讀入口，未執行任意SQL／Job、新session、Secret輪替或IAM變更。Platform正式修改不在本輪授權內；不得把這個authentication失敗記作Org業務permission deny或已證根因。
 
-剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的子斷言與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
+剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer。正常Google／SSO的custom建立→Org任用→撤除重疊特權→PDM allow/deny子旅程已由下段r14補齊；QA123-29／52其餘A→B、代理、停復、完整UI狀態及尚未覆蓋的子斷言仍依原分母待補。現有schema成功及上述HTTP bridge／native／r14結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。
 
@@ -240,3 +240,9 @@ QA50後續有界native補證：`dev123-native-model-review-http-20261024-r2.json
 CG01／custom reviewer與lifecycle補證：同一證據根的`dev123-native-custom-reviewer-http-20261024-r2.json`／`.log`及cases／child為PASS。實際service producer create／save／apply（非role editor HTTP／UI）生成server stable role ID／code，只給drawing與model的view／review四格，其餘含publish及fixed role沒有補權；typed Employee/workspace任用作合法前置，未冒稱新Org正常L4。授權實檔完成numbering／upload／submit後，actual selector選出custom Principal；實際停用角色後使用同一runner-issued reviewer token得approve403、168表count／digest不變，Org v4原assignment ID／roleCode／catalog version／scope／期間及persistence authority均保留；恢復相同stable ID及能力後，selector仍選原profile，同pending approve200、唯一completed receipt綁精確Principal／profile。九次HTTP，沒有為測試改產品程式。
 
 此run的35項直接inputs前後未變；root追加不可覆寫的`native-custom-reviewer-source-equivalence-r2.json`，明記官方main20290完整commit／tree、PR480及native r2原件SHA-256，核對29個tracked產品inputs與該canonical blob相同，其餘原件hash相符。PG ERROR/FATAL=0、asyncErrors=0，cluster／bridge／port／temp已清。r1因fixture client ref缺必要client-前綴而在角色建立前被正確拒絕，原首敗保留；r2只修輸入，不放寬產品guard。同測試token由caller來源及Principal／profile對應支持，未另作獨立session ID／epoch讀回。此結果補足custom reviewer及停用停止授權／保留指派／恢復生效的工程子目的，不代fresh SSO／UI或正式兩端驗收。尚缺合法intermediate的雙binding仍BLOCKED，QA50保持PARTIAL。
+
+### 2026-10-24 r14 正常 SSO／custom role 子旅程
+
+公司 Google SSO 的合法管理者從PDM正常UI建立、儲存並套用 `role-custom-47344587-0401-4bee-99a4-10cccbb160e9`（catalog `ai-pdm.role-policy.019562f3-a290-4eff-b7ec-bcc5f87309b9`），唯一允許能力為 `pdm.drawing.view`；OrgMaster 再由正常UI對同一 Employee 指派並發布。角色編輯器的新增角色操作已改用可存取的原生dialog，旅程實際完成名稱輸入與建立，不再依賴 `window.prompt`。
+
+OrgMaster撤銷同Principal的 `system_admin` 後，readback為有效特權0且custom grant仍在。從Platform正常入口開啟PDM後，`/numbering/drawings` 正常顯示；同session POST `/api/numbering/export-jobs` 因缺 `pdm.drawing.download` 回403／`permission_not_granted`，資料表維持0筆。此結果補QA123-29／52的正常L4 custom任用及重疊特權排除子目的；不涵蓋兩案其餘歷史／停復／代理目的，也不改52 QA整體狀態。證據由OrgMaster DEV-058保存為 `local-sso-system-admin-revoked-readback-20261024-r14.json`、`local-sso-custom-role-allow-deny-readback-20261024-r14.json`及對應畫面；PDM `typecheck:app` PASS。Org的Portal可見性修正與migration 037仍由OrgMaster負責。
