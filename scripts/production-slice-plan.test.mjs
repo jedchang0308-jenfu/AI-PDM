@@ -84,6 +84,29 @@ test('PDF preview remains independent from worker and authorization gates', () =
   assert.deepEqual(plan.evidenceRequirements, ['version-bytes-desktop'])
 })
 
+test('recognition Principal paths stay within the recognition authorization contract', () => {
+  const plan = createProductionSlicePlan([
+    'src/app/api/numbering/recognition-sessions/route.ts',
+    'src/app/api/numbering/recognition-sessions/session-id/reruns/route.ts',
+    'src/lib/drawing-recognition.ts',
+    'src/lib/repositories/drawing-recognition-async-repository.ts',
+    'src/lib/repositories/drawing-recognition-async-repository.principal-provenance.test.ts',
+    'src/lib/drawing-recognition-browser-baseline.test.ts',
+  ])
+  assert.deepEqual(plan.slices, ['application', 'database', 'recognition'])
+  assert.equal(plan.gates.authorization, false)
+  assert.equal(plan.gates.application, true)
+  assert.equal(plan.gates.database, true)
+  assert.equal(plan.gates.recognition, true)
+
+  const mixed = createProductionSlicePlan([
+    'src/app/api/numbering/recognition-sessions/route.ts',
+    'config/access-control/jenfu-role-catalog.v7.json',
+  ])
+  assert.equal(mixed.gates.recognition, true)
+  assert.equal(mixed.gates.authorization, true)
+})
+
 test('the runtime slice checker selects application authorization without unrelated history', () => {
   const plan = createProductionSlicePlan(['scripts/qc-pdm-production-slice-numbering-draft.mjs'])
   assert.deepEqual(plan.slices, ['application', 'authorization'])

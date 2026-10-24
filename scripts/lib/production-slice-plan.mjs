@@ -80,6 +80,13 @@ const RECOGNITION = [
   /^scripts\/.*(?:recognition|ocr|tesseract)/u,
 ]
 
+// Recognition owns its route/repository Principal checks. These exact paths
+// contain broad words such as "session" or "principal", but the recognition
+// slice already runs their allow/deny and Principal-boundary contracts.
+const RECOGNITION_AUTHORIZATION_OWNED = [
+  /^src\/(?:app\/api\/numbering\/recognition-sessions(?:\/|$)|lib\/(?:drawing-recognition|repositories\/drawing-recognition)|components\/drawing-recognition)/u,
+]
+
 const INFRASTRUCTURE = [
   /^infra\//u,
   /^scripts\/.*(?:terraform|iac|infrastructure)/u,
@@ -122,7 +129,7 @@ export function classifyProductionPath(value) {
   if (matches(path, RELEASE_CONTROL)) slices.add('release-control')
   if (matches(path, WORKER)) slices.add('worker')
   if (matches(path, DATABASE)) slices.add('database')
-  if (matches(path, AUTHORIZATION)) slices.add('authorization')
+  if (matches(path, AUTHORIZATION) && !matches(path, RECOGNITION_AUTHORIZATION_OWNED)) slices.add('authorization')
   if (matches(path, PREVIEW)) slices.add('preview')
   if (matches(path, RECOGNITION)) slices.add('recognition')
   if (matches(path, INFRASTRUCTURE)) slices.add('infrastructure')

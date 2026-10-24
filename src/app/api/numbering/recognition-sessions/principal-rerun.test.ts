@@ -2,14 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), guard: vi.fn(), rerun: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), guard: vi.fn(), rerun: vi.fn(), prepare: vi.fn() }));
 vi.mock("@/lib/platform-command-context", () => ({
   requireNumberingPlatformCommandAsync: mocks.access
 }));
 vi.mock("@/lib/drawing-recognition-principal-mutation", () => ({
   withPrincipalDrawingRecognitionMutation: mocks.guard
 }));
-vi.mock("@/lib/drawing-recognition", () => ({ rerunDrawingRecognition: mocks.rerun }));
+vi.mock("@/lib/drawing-recognition", () => ({
+  rerunDrawingRecognition: mocks.rerun,
+  prepareDrawingRecognitionBrowserBaseline: mocks.prepare
+}));
 
 import { POST } from "@/app/api/numbering/recognition-sessions/[sessionId]/reruns/route";
 
@@ -26,6 +29,7 @@ describe("recognition rerun entrypoint", () => {
     mocks.access.mockResolvedValue({ response: null,
       actor: { pdmUserId: "profile-one" }, company: { companyId: "company-one" }, metadata });
     mocks.rerun.mockResolvedValue({ id: "rerun-one" });
+    mocks.prepare.mockResolvedValue({ id: "rerun-one", status: "extraction_partial" });
     mocks.guard.mockImplementation(async (input) => input.execute(snapshot, {
       allowed: true, principalId: "principal-one", permissionCode: "numbering.recognition.run"
     }, { session: { principalId: "principal-one" } }));
@@ -38,6 +42,9 @@ describe("recognition rerun entrypoint", () => {
       sessionId: "session-one", companyId: "company-one", actorId: "profile-one",
       initiatorPrincipalId: "principal-one", client: snapshot
     }));
+    expect(mocks.prepare).toHaveBeenCalledWith({
+      sessionId: "rerun-one", companyId: "company-one", client: snapshot
+    });
   });
 
   it("does not rerun after the grant is revoked", async () => {
@@ -45,5 +52,6 @@ describe("recognition rerun entrypoint", () => {
       "RECOGNITION_PERMISSION_DENIED", "目前帳號沒有此辨識操作權限。", 403));
     expect((await POST(request, context)).status).toBe(403);
     expect(mocks.rerun).not.toHaveBeenCalled();
+    expect(mocks.prepare).not.toHaveBeenCalled();
   });
 });

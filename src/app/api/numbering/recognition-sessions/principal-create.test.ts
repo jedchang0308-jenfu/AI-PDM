@@ -4,7 +4,7 @@ import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), guard: vi.fn(), create: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), guard: vi.fn(), create: vi.fn(), prepare: vi.fn() }));
 vi.mock("@/lib/platform-command-context", () => ({
   requireNumberingPlatformCommandAsync: mocks.access
 }));
@@ -12,7 +12,8 @@ vi.mock("@/lib/drawing-recognition-principal-mutation", () => ({
   withPrincipalDrawingRecognitionMutation: mocks.guard
 }));
 vi.mock("@/lib/drawing-recognition", () => ({
-  createDrawingRecognitionSession: mocks.create
+  createDrawingRecognitionSession: mocks.create,
+  prepareDrawingRecognitionBrowserBaseline: mocks.prepare
 }));
 
 import { POST } from "@/app/api/numbering/recognition-sessions/route";
@@ -53,6 +54,7 @@ describe("recognition queue entrypoint", () => {
     mocks.access.mockResolvedValue({ response: null,
       actor: { pdmUserId: "profile-one" }, company: { companyId: "company-one" }, metadata });
     mocks.create.mockResolvedValue({ id: "recognition-one" });
+    mocks.prepare.mockResolvedValue({ id: "recognition-one", status: "extraction_partial" });
     mocks.guard.mockImplementation(async (input) => input.execute(snapshot, {
       allowed: true, principalId: "principal-one", permissionCode: "numbering.recognition.run"
     }, { session: { principalId: "principal-one" } }));
@@ -69,6 +71,9 @@ describe("recognition queue entrypoint", () => {
       actorId: "profile-one", companyId: "company-one", client: snapshot,
       initiatorPrincipalId: "principal-one"
     }));
+    expect(mocks.prepare).toHaveBeenCalledWith({
+      sessionId: "recognition-one", companyId: "company-one", client: snapshot
+    });
   });
 
   it("does not queue after the grant is revoked in the write snapshot", async () => {
@@ -77,6 +82,7 @@ describe("recognition queue entrypoint", () => {
     const response = await POST(dispatch(request()));
     expect(response.status).toBe(403);
     expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.prepare).not.toHaveBeenCalled();
   });
   it("emits one sanitized diagnosis for an initial run denial and preserves its response", async () => {
     mocks.access.mockResolvedValueOnce({response: Response.json({error:"permission_not_granted"},
