@@ -542,6 +542,12 @@ export async function rerunDrawingRecognition(input: {
     privileged: recognitionRolesArePrivileged(input.roles) });
   const previous = await repository.getProjection(input.sessionId, input.companyId);
   if (["queued", "extracting"].includes(previous.status)) {
+    // A session created before the browser baseline release can remain queued
+    // while its only unfinished work is the principal-bound PDF adapter. Reuse
+    // that exact session so the route can complete it without a global claim or
+    // a duplicate successor. CAD-only and actively extracting sessions keep the
+    // existing not-ready boundary.
+    if (previous.status === "queued" && previous.pendingClientAdapters.length > 0) return previous;
     throw new DrawingRecognitionError("RECOGNITION_RERUN_NOT_READY", "目前辨識仍在執行，不需要重跑。", 409);
   }
   return repository.createSession({

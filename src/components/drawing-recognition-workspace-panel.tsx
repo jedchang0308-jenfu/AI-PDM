@@ -269,6 +269,10 @@ function sameSourceSet(expected: string[], actual: string[]) {
   return left.length > 0 && left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
+export function needsQueuedBrowserBaselineResume(session: { status: string; pendingClientAdapters?: readonly unknown[] }) {
+  return session.status === "queued" && (session.pendingClientAdapters?.length ?? 0) > 0;
+}
+
 function isHiddenCandidate(candidate: Candidate) {
   return ["source_file_stem", "source_file_role"].includes(candidate.fieldKey ?? "");
 }
@@ -583,13 +587,17 @@ export function DrawingRecognitionWorkspacePanel({
           && !hasLocatablePdfEvidence
           && next.status !== "review_ready"
           && !["queued", "extracting"].includes(next.status);
-        if (needsPdfPlanUpgrade && attempt === 0) {
+        const needsBrowserBaselineResume = needsQueuedBrowserBaselineResume(next);
+        if ((needsBrowserBaselineResume || needsPdfPlanUpgrade) && attempt === 0) {
           const rerunResponse = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(next.id)}/reruns`, {
             method: "POST",
-            headers: { "idempotency-key": `dev082:legacy-plan-upgrade:${next.id}` }
+            headers: { "idempotency-key": needsBrowserBaselineResume
+              ? `dev122:queued-browser-baseline:${next.id}`
+              : `dev082:legacy-plan-upgrade:${next.id}` }
           });
           const rerunBody = await rerunResponse.json().catch(() => ({}));
-          if (!rerunResponse.ok || !rerunBody.session?.id) throw new Error(messageFrom(rerunBody, "PDF 辨識升級批次目前無法建立。"));
+          if (!rerunResponse.ok || !rerunBody.session?.id) throw new Error(messageFrom(rerunBody,
+            needsBrowserBaselineResume ? "PDF 辨識工作目前無法續跑。" : "PDF 辨識升級批次目前無法建立。"));
           currentSessionId = String(rerunBody.session.id);
           continue;
         }
