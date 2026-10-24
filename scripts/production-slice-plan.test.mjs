@@ -87,7 +87,7 @@ test('PDF preview remains independent from worker and authorization gates', () =
 test('recognition Principal paths stay within the recognition authorization contract', () => {
   const plan = createProductionSlicePlan([
     'src/app/api/numbering/recognition-sessions/route.ts',
-    'src/app/api/numbering/recognition-sessions/session-id/reruns/route.ts',
+    'src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts',
     'src/lib/drawing-recognition.ts',
     'src/lib/repositories/drawing-recognition-async-repository.ts',
     'src/lib/repositories/drawing-recognition-async-repository.principal-provenance.test.ts',
@@ -105,6 +105,12 @@ test('recognition Principal paths stay within the recognition authorization cont
   ])
   assert.equal(mixed.gates.recognition, true)
   assert.equal(mixed.gates.authorization, true)
+
+  const unreviewed = createProductionSlicePlan([
+    'src/app/api/numbering/recognition-sessions/new-sensitive-route.ts',
+  ])
+  assert.equal(unreviewed.gates.recognition, true)
+  assert.equal(unreviewed.gates.authorization, true)
 })
 
 test('the runtime slice checker selects application authorization without unrelated history', () => {

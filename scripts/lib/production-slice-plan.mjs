@@ -80,12 +80,16 @@ const RECOGNITION = [
   /^scripts\/.*(?:recognition|ocr|tesseract)/u,
 ]
 
-// Recognition owns its route/repository Principal checks. These exact paths
-// contain broad words such as "session" or "principal", but the recognition
-// slice already runs their allow/deny and Principal-boundary contracts.
-const RECOGNITION_AUTHORIZATION_OWNED = [
-  /^src\/(?:app\/api\/numbering\/recognition-sessions(?:\/|$)|lib\/(?:drawing-recognition|repositories\/drawing-recognition)|components\/drawing-recognition)/u,
-]
+// These files are covered by the recognition slice's allow/deny and
+// Principal-boundary contracts. Keep the exemption exact so a new sensitive
+// file still selects the generic authorization gate until it is reviewed.
+const RECOGNITION_AUTHORIZATION_OWNED = new Set([
+  'src/app/api/numbering/recognition-sessions/route.ts',
+  'src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts',
+  'src/app/api/numbering/recognition-sessions/principal-create.test.ts',
+  'src/app/api/numbering/recognition-sessions/principal-rerun.test.ts',
+  'src/lib/repositories/drawing-recognition-async-repository.principal-provenance.test.ts',
+])
 
 const INFRASTRUCTURE = [
   /^infra\//u,
@@ -129,7 +133,7 @@ export function classifyProductionPath(value) {
   if (matches(path, RELEASE_CONTROL)) slices.add('release-control')
   if (matches(path, WORKER)) slices.add('worker')
   if (matches(path, DATABASE)) slices.add('database')
-  if (matches(path, AUTHORIZATION) && !matches(path, RECOGNITION_AUTHORIZATION_OWNED)) slices.add('authorization')
+  if (matches(path, AUTHORIZATION) && !RECOGNITION_AUTHORIZATION_OWNED.has(path)) slices.add('authorization')
   if (matches(path, PREVIEW)) slices.add('preview')
   if (matches(path, RECOGNITION)) slices.add('recognition')
   if (matches(path, INFRASTRUCTURE)) slices.add('infrastructure')
