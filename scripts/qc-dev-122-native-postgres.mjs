@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 import { compileOwnMigrations, bootstrapOwnSchemas, installOwnFixture, installContractFixture, marker, fixtureVersion, sha256 } from './lib/dev122-own-postgres-fixture.mjs';
 import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation-fixture.mjs';
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
-import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
+import { lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage, previewSourceBytesCaseNames, assertPreviewSourceBytesCoverage } from './lib/dev122-native-postgres-coverage.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nextCopyFiles=['scripts/prepare-dev-082-ocr-assets.mjs','package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
@@ -38,6 +38,7 @@ if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RU
 const nativeSelection=process.argv.find(arg=>arg.startsWith('--native-selection='))?.slice('--native-selection='.length)??process.env.DEV122_NATIVE_SELECTION??'suite';
 const procurementOutcome=nativeSelection==='procurement-outcome';
 const procurementOutcomeCase='DEV122 D12206 actual HTTP prerequisites prepares historical Released inputs and real nonempty packages without an external release provider';
+const previewOutcome=nativeSelection==='preview-outcome';
 const fullLifecycleSelection=['lifecycle','all'].includes(suite)&&nativeSelection==='suite';
 const rdPermissionCaseName='DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny';
 if (!['automatic','cua-handoff'].includes(uiMode) ||
@@ -75,9 +76,12 @@ const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission','procurement-outcome'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(procurementOutcome?'procurement':['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome','rd-permission','procurement-outcome'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(procurementOutcome?'procurement':['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
-const nativeTestPattern=procurementOutcome?exactCasePattern([procurementOutcomeCase]):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+const nextUiNativeCaseName='DEV122 actual Next UI prerequisites creates owner work through normal APIs and records explicit terminal-job fault fixtures';
+if(nativeSelection==='preview-source-bytes'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_SOURCE_BYTES_EXACT_SUITE_REQUIRED');
+const exactNextUiSelection=['part-attachment-ui','preview-cancelled-ui','preview-outcome'].includes(nativeSelection);
+const nativeTestPattern=procurementOutcome?exactCasePattern([procurementOutcomeCase]):exactNextUiSelection?exactCasePattern([nextUiNativeCaseName]):nativeSelection==='preview-source-bytes'?exactCasePattern(previewSourceBytesCaseNames):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
   ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -117,7 +121,7 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:procurementOutcome?[procurementOutcomeCase]:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -394,7 +398,7 @@ function captureControlledSource() {
     bindings,hash:sha256(Buffer.from(JSON.stringify(bindings)))};
 }
 async function run() {
-  const primaryBefore = cuaHandoff || procurementOutcome ? primaryAbsenceInventory() : null;
+  const primaryBefore = cuaHandoff || previewOutcome || procurementOutcome ? primaryAbsenceInventory() : null;
   if (primaryBefore?.some(item => item.exists)) throw new Error('DEV122_CUA_PRIMARY_PRESENT_STOP_NO_REPAIR');
   const runId=crypto.randomBytes(8).toString('hex'),database='dev122_'+runId;
   const runtimeRoot=path.join(root,'.tmp','dev122',runId),evidenceRoot=path.join(root,'output','qa','dev-122',runId);
@@ -462,7 +466,10 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     env.NODE_OPTIONS+=' --import='+pathToFileURL(tracePath).href;
     manifest.b18DependencyObservation={sourceHash:sha256(traceSource),output:traceOutput,scope:'exact delegated driver query SHA/error code only; parameters and rows omitted',temporaryObserver:tracePath};save();
   }
+  if(previewOutcome)Object.assign(env,{DEV122_BROWSER_FLOW:'preview-outcome',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all',PDM_STORAGE_PROVIDER:'local_repository',PDM_GCS_LIVE_ENABLED:'0',PDM_S3_COMPATIBLE_LIVE_ENABLED:'0'});
   if(nativeSelection==='preview-polling-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'preview-polling',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
+  if(nativeSelection==='part-attachment-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'attachments',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
+  if(nativeSelection==='preview-cancelled-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'preview-cancelled',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(nativeSelection==='drawing-pdf-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'drawing-pdf-viewer',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(['settings','settings-automation'].includes(suite)) {
     // Empty, read-only local settings proof; never inherit a credential/provider or a full-function bypass.
@@ -549,7 +556,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:procurementOutcome?[procurementOutcomeCase]:fullLifecycleSelection?lifecycleRequiredCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:procurementOutcome?[procurementOutcomeCase]:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -610,6 +617,12 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
     assertLifecycleCaseCoverage(manifest.lifecycleCaseCoverage);
+    if(nativeSelection==='preview-source-bytes')assertPreviewSourceBytesCoverage(assertions);
+    if(exactNextUiSelection) {
+      assert.equal(completed.length,1,'DEV122_NEXT_UI_NATIVE_EXACT_COUNT:'+nativeSelection);
+      assert.equal(completed[0].status,'passed','DEV122_NEXT_UI_NATIVE_NOT_PASSED:'+nativeSelection);
+      assert.equal(completed[0].fullName||[...(completed[0].ancestorTitles||[]),completed[0].title].join(' '),nextUiNativeCaseName);
+    }
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
     if(procurementOutcome||['ui','settings','settings-automation','all'].includes(suite)) {
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
@@ -676,6 +689,11 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       } else {
       const browserExitCode=await child('normal-browser',['scripts/qc-dev-122-native-browser.mjs'],{childEnv:{...env,NODE_OPTIONS:''},allowNonzero:true});
       manifest.afterUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();
+      if(nativeSelection==='preview-cancelled-ui') {
+        const tables=['preview_jobs','file_derivatives','file_assets','drawing_revision_works','drawing_revision_work_files'];
+        manifest.cancelledUiOwnedStateUnchanged=tables.every(table=>JSON.stringify(manifest.beforeUiOwnedReadback.rows[table])===JSON.stringify(manifest.afterUiOwnedReadback.rows[table]));
+        save();if(!manifest.cancelledUiOwnedStateUnchanged)throw new Error('DEV122_CANCELLED_UI_OWNED_STATE_CHANGED');
+      }
       if(suite==='settings')manifest.settingsOwnedRowsUnchanged=
         JSON.stringify(manifest.beforeUiOwnedReadback.rows)===JSON.stringify(manifest.afterUiOwnedReadback.rows);
       const browserReceiptPath=path.join(root,'output','playwright','dev122',runId,'receipt.json');
@@ -683,7 +701,62 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       manifest.browser={receipt:browserReceiptPath,exitCode:browserExitCode,status:browserReceipt.status,executedCases:browserReceipt.cases.length,
         progress:browserReceipt.progress,cleanup:browserReceipt.cleanup};
       manifest.firstFailure??=browserReceipt.firstFailure??null;save();
+      if(nativeSelection==='part-attachment-ui') {
+        const rows=manifest.afterUiOwnedReadback.rows,observations=[];
+        const tableRows=name=>rows[name].map(entry=>{assert.ok(entry.row&&typeof entry.row==='object'&&!Array.isArray(entry.row),'DEV122_OWNED_SNAPSHOT_ROW_SHAPE');return entry.row;});
+        for(const test of browserReceipt.cases.filter(test=>test.status==='PASS')) {
+          const input=test.partAttachment;
+          assert.ok(input,'DEV122_PART_ATTACHMENT_UI_ARTIFACT_MISSING');
+          const assets=tableRows('file_assets').filter(row=>row.id===input.attachmentId),parts=tableRows('part_numbers').filter(row=>row.id===input.partId);
+          assert.equal(assets.length,1);assert.equal(parts.length,1);const storage=assets[0],part=parts[0];
+          const audit=tableRows('audit_logs').filter(row=>row.action==='StorageAccessed').map(row=>({companyId:row.company_id,
+            detail:typeof row.detail_json==='string'?JSON.parse(row.detail_json):row.detail_json})).filter(row=>row.detail?.fileId===input.attachmentId);
+          const target=path.resolve(repositoryDir,storage.storage_key),relative=path.relative(repositoryDir,target);
+          assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative),'DEV122_PART_ATTACHMENT_OBJECT_OUTSIDE_FIXTURE');
+          const storedBytes=fs.readFileSync(target);
+          observations.push({viewport:test.viewport.width,input,storage,part,audit,storedObject:{key:storage.storage_key,bytes:storedBytes.length,sha256:sha256(storedBytes)}});
+          manifest.partAttachmentStorageAudit=observations;save();
+          assert.equal(part.company_id,'company-jenfu');assert.equal(storage.linked_entity_type,'part_number');assert.equal(storage.linked_entity_id,input.partId);
+          assert.equal(storage.content_hash,input.attachmentHash);assert.equal(Number(storage.file_size),input.size);assert.equal(storage.mime_type,'image/png');
+          // FileAsset persists the legacy j_drive spelling for the local_repository provider.
+          assert.equal(storage.storage_provider,'j_drive');assert.equal(storage.storage_generation,null);assert.equal(storage.uploaded_by,'dev122-profile-owner');
+          assert.equal(storage.storage_key,input.upload.storageKey);assert.equal(path.resolve(storage.original_path),target);
+          assert.equal(storage.document_category,'other');assert.equal(storedBytes.length,input.size);assert.equal(sha256(storedBytes),input.attachmentHash);
+          assert.equal(input.downloadedSha256,input.attachmentHash);assert.equal(input.downloadedBytes,input.size);assert.equal(input.postStarts.length,1);
+          assert.equal(audit.length,2,'DEV122_PART_ATTACHMENT_CANONICAL_READ_AUDIT_COUNT');
+          for(const kind of ['canonical_file_preview','canonical_file'])assert.equal(audit.filter(row=>row.detail.accessKind===kind).length,1);
+          for(const row of audit) {
+            assert.equal(row.companyId,'company-jenfu');assert.equal(row.detail.securityPrincipalId,'dev122-principal-owner');
+            assert.equal(row.detail.historicalProfileId,'dev122-profile-owner');assert.equal(row.detail.storageKey,storage.storage_key);
+            assert.equal(row.detail.provider,'local_repository');assert.equal(row.detail.bytes,input.size);
+            assert.equal(row.detail.resourceContext.context,'part_attachment');assert.equal(row.detail.resourceContext.contextId,input.partId);
+            assert.equal(row.detail.resourceContext.bindingId,input.attachmentId);
+          }
+        }
+        fs.writeFileSync(path.join(evidenceRoot,'part-attachment-ui-native-audit.json'),JSON.stringify({observations,
+          proof:'SAME_ACTUAL_UI_UPLOAD_ASSET_JOINED_TO_OWNED_NATIVE_STORAGE_AND_ACCESS_AUDIT',generationBoundary:'LOCAL_PROVIDER_NULL_NOT_PRODUCTION_GCS',production:'NOT_RUN'},null,2));
+        if(browserExitCode===0) {
+          assert.equal(observations.length,2);assert.equal(new Set(observations.map(item=>item.input.attachmentId)).size,2);
+          assert.equal(rows.file_assets.length,2);
+          for(const table of ['preview_jobs','file_derivatives'])assert.deepEqual(rows[table],manifest.beforeUiOwnedReadback.rows[table]);
+        }
+      }
       if(browserExitCode!==0)throw Object.assign(new Error('DEV122_CHILD_FAILED:normal-browser'),{exitCode:browserExitCode});
+      if(previewOutcome) {
+        const outcome=browserReceipt.cases.find(item=>item.flow==='preview-outcome');
+        assert.ok(outcome&&outcome.status==='PASS'&&browserReceipt.cases.length===1&&
+          outcome.viewport.width===1440&&outcome.viewport.height===900,'DEV122_D05_OUTCOME_CASE_MISSING');
+        const ids=new Set(outcome.uploads.map(item=>item.sourceFileAssetId));
+        const rows=manifest.afterUiOwnedReadback.rows;
+        const jobs=rows.preview_jobs.map(entry=>entry.row).filter(job=>ids.has(job.source_file_asset_id));
+        manifest.previewOutcome={layer:'ACTUAL_NEXT_DESKTOP_NATIVE_PG_LOCAL_STORAGE',jobs,
+          derivatives:rows.file_derivatives.map(entry=>entry.row).filter(row=>ids.has(row.source_file_asset_id)),
+          terminalSeeded:false,production:'NOT_RUN',nativeCad:'NOT_RUN'};save();
+        assert.equal(jobs.length,2,'DEV122_D05_NORMAL_QUEUE_COUNT');
+        assert.ok(jobs.every(job=>job.status==='failed'&&job.error_code==='preview_worker_unavailable'&&
+          Number(job.attempt_count)===0&&job.locked_by===null&&job.locked_at===null),'DEV122_D05_NORMAL_TIMEOUT_NOT_CONFIRMED');
+        assert.deepEqual(manifest.previewOutcome.derivatives,[],'DEV122_D05_FAKE_DERIVATIVE');
+      }
       if(suite==='settings'&&!manifest.settingsOwnedRowsUnchanged)throw new Error('DEV122_SETTINGS_OWNED_ROWS_CHANGED');
       if(suite==='settings-automation') {
         const submitPath=path.join(path.dirname(browserReceiptPath),'receipt-submit.json');
@@ -762,7 +835,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.status=procurementOutcome?'LOCAL_D12206_OUTCOME_PASS':nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:manifest.lifecycleCaseCoverage.partial,
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:procurementOutcome?['D122-06 local HTTP outcome; historical read inputs, not release lifecycle']:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:procurementOutcome?['D122-06 local HTTP outcome; historical read inputs, not release lifecycle']:previewOutcome?['F-01A Part context/binding denial subset','F-01C bounded list retry and normal timeout subset','UI-01 desktop subset']:nativeSelection==='preview-source-bytes'?['F-01E physical source integrity and protocol-only workload subset; actual CAD output NOT_RUN']:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?nativeSelection==='preview-cancelled-ui'?['F-01B normal cancellation mounted subset; parent-lock/OS worker rollout NOT_RUN','UI-01']:nativeSelection==='part-attachment-ui'?['F-01A Part image attachment mounted/storage audit subset','UI-01']:['UI-01','F-01C']:implementedCoverage[suite],
       notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }

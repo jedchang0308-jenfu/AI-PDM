@@ -16,13 +16,14 @@ const url=new URL(origin);assert.equal(url.hostname,'127.0.0.1');assert.equal(ur
 const preflight=process.env.DEV122_BROWSER_PREFLIGHT==='1';
 const sessions=JSON.parse(fs.readFileSync(path.join(runtime,'signed-sessions.json'),'utf8'));
 const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.json'),'utf8'));
-assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
+assert.deepEqual(fixtures.map(item=>item.width),process.env.DEV122_BROWSER_FLOW==='preview-outcome'?[1440]:[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer','preview-cancelled','preview-outcome'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const partAttachmentSlice=process.env.DEV122_NATIVE_SELECTION==='part-attachment-ui';
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
-const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
-const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
+const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer','preview-outcome'].includes(flowSelection);
+const installedChromeFlow=['preview-polling','drawing-pdf-viewer','preview-outcome'].includes(flowSelection);
 const output=path.join(root,'output','playwright','dev122',path.basename(runtime));fs.mkdirSync(output,{recursive:true});
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
@@ -190,7 +191,12 @@ try {
         const assetId=decodeURIComponent(responseUrl.pathname.split('/').at(-1));
         const expectedTerminal=response.status()===409 && responseUrl.pathname.startsWith('/api/pdm/file-assets/')
           && previewContexts.has(assetId) && responseUrl.searchParams.get('preview')==='1'
-          && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.code==='PREVIEW_FAILED' && body.error.retryable===false;
+          && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.retryable===false
+          && (flowSelection==='preview-cancelled'
+            ? response.request().method()==='GET' && responseUrl.searchParams.get('context')==='drawing_revision_work'
+              && responseUrl.searchParams.get('contextId')===fixture.drawingWorkId && responseUrl.searchParams.get('bindingId')===fixture.cancelled.bindingId
+              && body.error.code==='PREVIEW_CANCELLED' && response.headers()['x-pdm-preview-state']==='cancelled' && !response.headers()['retry-after']
+            : body.error.code==='PREVIEW_FAILED');
         const expectedAuthFailure=expectedSaveFailure===responseUrl.pathname&&response.request().method()==='PATCH'
           &&response.status()===401&&body?.code==='auth_session_invalid';
         const expectedSettingsFailure=flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
@@ -287,10 +293,17 @@ try {
       await page.screenshot({path:path.join(output,`${fixture.width}-${name}.png`),fullPage:!name.startsWith("PDF-")});};
     const exercisePartAttachments=async(partNumber,partId)=>{
       await page.waitForURL(location=>location.pathname==='/parts/'+partNumber+'/attachments');
-      const attachmentBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSf8AAAAASUVORK5CYII=','base64');
+      const attachmentBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=','base64');
       const attachmentName=`dev122-ui-${fixture.width}.png`,attachmentHash=createHash('sha256').update(attachmentBytes).digest('hex');
-      await page.getByRole('region',{name:'附件上傳',exact:true}).locator('input[type="file"]').setInputFiles({name:attachmentName,mimeType:'image/png',buffer:attachmentBytes});
-      const attachmentPath='/api/parts/'+partNumber+'/attachments';
+      const uploadRegion=page.getByRole('region',{name:'附件上傳',exact:true});
+      await uploadRegion.waitFor();assert.equal(await uploadRegion.getByRole('button',{name:'上傳附件',exact:true}).isEnabled(),false);
+      const attachmentPath='/api/parts/'+partNumber+'/attachments',postStarts=[];
+      const observeUpload=request=>{if(new URL(request.url()).pathname===attachmentPath&&request.method()==='POST')postStarts.push({at:Date.now(),method:'POST',path:attachmentPath});};
+      page.on('request',observeUpload);
+      await uploadRegion.locator('input[type="file"]').setInputFiles({name:attachmentName,mimeType:'image/png',buffer:attachmentBytes});
+      // FileDropzone clears the native input after passing the File into React state.
+      await uploadRegion.getByTitle(attachmentName,{exact:true}).waitFor();
+      assert.equal(await uploadRegion.getByRole('button',{name:'上傳 1 個附件',exact:true}).isEnabled(),true);
       const uploadAttachment=waitResponse(response=>new URL(response.url()).pathname===attachmentPath&&response.request().method()==='POST');
       await page.getByRole('button',{name:'上傳 1 個附件',exact:true}).focus();await page.keyboard.press('Enter');
       const attachmentResponse=await uploadAttachment,attachmentBody=await attachmentResponse.json();assert.equal(attachmentResponse.status(),201,JSON.stringify(attachmentBody));
@@ -304,18 +317,33 @@ try {
       const attachmentPreview=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/file-assets/'+attachmentId&&new URL(response.url()).searchParams.get('preview')==='1');
       await attachmentRow.getByRole('button',{name:'預覽',exact:true}).click();
       const attachmentPreviewResponse=await attachmentPreview,previewBytes=await attachmentPreviewResponse.body();
+      const previewURL=new URL(attachmentPreviewResponse.url());assert.equal(attachmentPreviewResponse.request().method(),'GET');
+      assert.equal(previewURL.origin,origin);assert.equal(previewURL.searchParams.get('context'),'part_attachment');
+      assert.equal(previewURL.searchParams.get('contextId'),partId);assert.equal(previewURL.searchParams.get('bindingId'),attachmentId);
       assert.equal(attachmentPreviewResponse.status(),200);assert.equal(attachmentPreviewResponse.headers()['content-type'],'image/png');
       assert.match(attachmentPreviewResponse.headers()['cache-control'],/private.*no-store/u);assert.equal(createHash('sha256').update(previewBytes).digest('hex'),attachmentHash);
-      await page.getByRole('region',{name:attachmentName+' 預覽',exact:true}).getByRole('img',{name:attachmentName,exact:true}).waitFor();
-      const attachmentDownloadEvent=waitDownload();await attachmentRow.getByRole('link',{name:'下載 '+attachmentName,exact:true}).click();
+      const image=page.getByRole('region',{name:attachmentName+' 預覽',exact:true}).getByRole('img',{name:attachmentName,exact:true});
+      await image.waitFor();const decoded=await image.evaluate(async node=>{await node.decode();return {complete:node.complete,width:node.naturalWidth,height:node.naturalHeight};});
+      assert.deepEqual(decoded,{complete:true,width:1,height:1});
+      const downloadLink=attachmentRow.getByRole('link',{name:'下載 '+attachmentName,exact:true});
+      const downloadURL=new URL(await downloadLink.getAttribute('href'),origin);assert.equal(downloadURL.origin,origin);
+      assert.equal(downloadURL.pathname,'/api/pdm/file-assets/'+attachmentId);assert.equal(downloadURL.searchParams.get('context'),'part_attachment');
+      assert.equal(downloadURL.searchParams.get('contextId'),partId);assert.equal(downloadURL.searchParams.get('bindingId'),attachmentId);assert.equal(downloadURL.searchParams.has('preview'),false);
+      const attachmentDownloadEvent=waitDownload();await downloadLink.click();
       const attachmentDownload=await attachmentDownloadEvent,attachmentOutput=path.join(output,`${fixture.width}-part-attachment.png`);
       await attachmentDownload.saveAs(attachmentOutput);assert.equal(await attachmentDownload.failure(),null);
-      assert.equal(createHash('sha256').update(fs.readFileSync(attachmentOutput)).digest('hex'),attachmentHash);
-      await screenshot('Part-mounted-attachment-preview');progress('normal mounted Part attachment upload list reload preview and download',{
+      const downloaded=fs.readFileSync(attachmentOutput);assert.deepEqual(downloaded,attachmentBytes);assert.equal(createHash('sha256').update(downloaded).digest('hex'),attachmentHash);
+      assert.equal(postStarts.length,1,'PART_ATTACHMENT_UPLOAD_REPEATED');page.off('request',observeUpload);
+      const evidence={
         partId:partId,partNumber,attachmentId,attachmentName,attachmentHash,size:attachmentBytes.length,
         upload:attachmentBody.attachment,listStatus:listedAttachmentResponse.status(),previewStatus:attachmentPreviewResponse.status(),
         previewCacheControl:attachmentPreviewResponse.headers()['cache-control'],previewMIME:attachmentPreviewResponse.headers()['content-type'],
-        canonicalPreviewURL:attachmentPreviewResponse.url(),downloadName:attachmentDownload.suggestedFilename(),layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'});
+        canonicalPreviewURL:attachmentPreviewResponse.url(),canonicalDownloadURL:downloadURL.href,downloadName:attachmentDownload.suggestedFilename(),downloadPath:attachmentOutput,
+        downloadedBytes:downloaded.length,downloadedSha256:createHash('sha256').update(downloaded).digest('hex'),decoded,postStarts,
+        layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'};
+      receipt.partAttachmentReadbacks??=[];receipt.partAttachmentReadbacks.push({viewport:fixture.width,...evidence});save();
+      await screenshot('Part-mounted-attachment-preview');progress('normal mounted Part attachment upload list reload preview and download',evidence);
+      return evidence;
     };
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
@@ -556,6 +584,185 @@ try {
           passwordEmpty:true,passwordFilled:false,secretMutationRequests,providerConnection:'NOT_RUN_LOCAL_GATES_CLOSED',
           nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',summaryOnlyRole:'UNIT_LAYER_ONLY_NO_LEGAL_COMMITTED_CATALOG_ROLE',
           keyboard:true,overflowMetrics,navigationRoutes,requests});save();continue;
+      }
+      if(flowSelection==='preview-cancelled') {
+        assert.equal(fixture.flow,'preview-cancelled');
+        const expected=fixture.cancelled,assetPath='/api/pdm/file-assets/'+expected.assetId;
+        const readbacks=[],pendingReadbacks=[],requestStarts=[],requestFailures=[];
+        const isAsset=response=>new URL(response.url()).pathname===assetPath;
+        const exactContext=(target,method)=>method==='GET' && target.searchParams.get('context')==='drawing_revision_work'
+          &&target.searchParams.get('contextId')===fixture.drawingWorkId&&target.searchParams.get('bindingId')===expected.bindingId;
+        page.on('request',request=>{const target=new URL(request.url());if(target.pathname===assetPath&&target.searchParams.get('preview')==='1'){
+          const item={at:Date.now(),method:request.method(),url:target.pathname+target.search,exactContext:exactContext(target,request.method())};
+          requestStarts.push(item);receipt.cancelledRequestStarts??=[];receipt.cancelledRequestStarts.push({viewport:fixture.width,...item});save();}});
+        page.on('requestfailed',request=>{const target=new URL(request.url());if(target.pathname===assetPath)
+          requestFailures.push({at:Date.now(),method:request.method(),url:target.pathname+target.search,error:request.failure()?.errorText??null});});
+        page.on('response',response=>{if(isAsset(response)&&new URL(response.url()).searchParams.get('preview')==='1')pendingReadbacks.push((async()=>{
+          const target=new URL(response.url()),headers=response.headers();
+          assert.ok(exactContext(target,response.request().method()),'CANCELLED_PREVIEW_CONTEXT_DRIFT');
+          const item={method:response.request().method(),url:target.pathname+target.search,status:response.status(),preview:true,
+            headers:{mime:headers['content-type']??null,length:headers['content-length']??null,disposition:headers['content-disposition']??null,
+              cacheControl:headers['cache-control']??null,state:headers['x-pdm-preview-state']??null,retryAfter:headers['retry-after']??null}};
+          if(item.preview){const bytes=await response.body();item.body=JSON.parse(bytes.toString('utf8'));item.actualBytes=bytes.length;item.sha256=createHash('sha256').update(bytes).digest('hex');}
+          else item.bodyCapture='DOWNLOAD_EVENT_SAVED_ARTIFACT';
+          readbacks.push(item);receipt.cancelledPreviewReadbacks??=[];receipt.cancelledPreviewReadbacks.push({viewport:fixture.width,...item});save();
+        })().catch(error=>{errors.push('CANCELLED_ASSET_READBACK_FAILED:'+error.message);}));});
+        const previewCount=()=>requestStarts.length;
+        const settle=async()=>{await Promise.all(pendingReadbacks);await healthy();};
+        const openWorkspace=async()=>{
+          await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+          await page.locator('.clean-workbench-list').getByRole('link',{name:'圖號工作台',exact:true}).click();
+          await page.waitForURL(location=>location.pathname==='/numbering/drawings');
+          const listed=waitResponse(response=>new URL(response.url()).pathname==='/api/numbering/drawings/workbench'
+            &&new URL(response.url()).searchParams.get('query')===fixture.drawingNumber);
+          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.drawingNumber);
+          assert.equal((await listed).status(),200);
+          const row=page.locator('tr[data-canonical-workbench-row="true"].is-rd').filter({hasText:fixture.drawingNumber});
+          await row.waitFor({state:'visible'});await row.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();
+          await page.getByRole('button',{name:'進行編輯',exact:true}).click();
+          await page.waitForURL('**/numbering/drawings/**/workspace?**');
+          await page.getByText('預覽已取消；可下載原檔。',{exact:true}).first().waitFor();await settle();
+        };
+        await openWorkspace();assert.ok(previewCount()>0,'CANCELLED_PREVIEW_HTTP_MISSING');
+        for(const item of readbacks.filter(item=>item.preview)) {
+          assert.equal(item.status,409);assert.equal(item.headers.state,'cancelled');assert.equal(item.headers.retryAfter,null);
+          const directives=(item.headers.cacheControl??'').split(',').map(value=>value.trim().toLowerCase());
+          assert.ok(directives.includes('private')&&directives.includes('no-store')&&!directives.includes('public'),'CANCELLED_CACHE_PROTECTION_MISSING');
+          assert.equal(item.body.error.code,'PREVIEW_CANCELLED');assert.equal(item.body.error.retryable,false);
+        }
+        await screenshot('cancelled-mounted');
+        const count=previewCount();for(const period of [2100,2100]){await page.waitForTimeout(period);await settle();assert.equal(previewCount(),count,'CANCELLED_TERMINAL_REPOLLED');}
+        const downloadLink=page.locator('a[href^="'+assetPath+'?"]').filter({hasText:/下載/u}).first();
+        await downloadLink.waitFor({state:'visible'});
+        const downloadEvent=waitDownload();await downloadLink.click();const download=await downloadEvent;
+        const file=path.join(output,fixture.width+'-cancelled-original-'+path.basename(download.suggestedFilename()));await download.saveAs(file);
+        assert.equal(await download.failure(),null);const bytes=fs.readFileSync(file);
+        assert.equal(bytes.length,expected.sourceBytes);assert.equal(createHash('sha256').update(bytes).digest('hex'),expected.sourceHash);await settle();
+        receipt.cancelledUiDownloads??=[];receipt.cancelledUiDownloads.push({viewport:fixture.width,path:file,bytes:bytes.length,
+          sha256:createHash('sha256').update(bytes).digest('hex'),failure:null,capture:'NORMAL_UI_CLICK_DOWNLOAD_EVENT_SAVED_ARTIFACT'});save();
+        // Separate HTTP metadata proof from the UI download event and saved bytes.
+        // Chromium attachment navigations need not emit a page response event.
+        const downloadUrl=new URL(await downloadLink.getAttribute('href'),origin);
+        assert.equal(downloadUrl.origin,origin);assert.equal(downloadUrl.pathname,assetPath);
+        assert.ok(exactContext(downloadUrl,'GET')&&!downloadUrl.searchParams.has('preview'),'CANCELLED_DOWNLOAD_CONTEXT_DRIFT');
+        const actual=await context.request.get(downloadUrl.href,{maxRedirects:0}),headers=actual.headers(),httpBytes=await actual.body();
+        assert.equal(actual.url(),downloadUrl.href,'CANCELLED_DOWNLOAD_REDIRECT');
+        readbacks.push({method:'GET',url:downloadUrl.pathname+downloadUrl.search,status:actual.status(),preview:false,
+          capture:'INDEPENDENT_AUTHENTICATED_GET_SAME_BROWSER_CONTEXT_EXACT_UI_HREF_NOT_UI_DOWNLOAD_RESPONSE',
+          headers:{mime:headers['content-type']??null,length:headers['content-length']??null,disposition:headers['content-disposition']??null,
+            cacheControl:headers['cache-control']??null},actualBytes:httpBytes.length,sha256:createHash('sha256').update(httpBytes).digest('hex')});
+        receipt.cancelledDownloadHttpReadbacks??=[];receipt.cancelledDownloadHttpReadbacks.push({viewport:fixture.width,...readbacks.at(-1)});save();
+        const downloaded=readbacks.filter(item=>!item.preview);assert.equal(downloaded.length,1);
+        assert.equal(downloaded[0].status,200);assert.equal(downloaded[0].headers.mime,'application/octet-stream');
+        assert.equal(downloaded[0].headers.length,String(expected.sourceBytes));assert.match(downloaded[0].headers.disposition,/^attachment;.*filename=/u);
+        assert.equal(downloaded[0].actualBytes,bytes.length);assert.equal(downloaded[0].sha256,createHash('sha256').update(bytes).digest('hex'));
+        const downloadDirectives=(downloaded[0].headers.cacheControl??'').split(',').map(value=>value.trim().toLowerCase());
+        assert.ok(downloadDirectives.includes('private')&&downloadDirectives.includes('no-store')&&!downloadDirectives.includes('public'));
+        const reloadResponse=waitResponse(response=>isAsset(response)&&new URL(response.url()).searchParams.get('preview')==='1');
+        await page.reload({waitUntil:'domcontentloaded'});assert.equal((await reloadResponse).status(),409);
+        await page.getByText('預覽已取消；可下載原檔。',{exact:true}).first().waitFor();await settle();await screenshot('cancelled-reload');
+        assert.ok(requestStarts.every(item=>item.exactContext),'CANCELLED_PREVIEW_REQUEST_SCOPE_DRIFT');
+        const beforeUnmount=previewCount();await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+        for(const period of [2100,2100]){await page.waitForTimeout(period);await settle();assert.equal(previewCount(),beforeUnmount,'CANCELLED_UNMOUNTED_REQUEST');}
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'preview-cancelled',
+          normalNavigation:true,normalProducer:expected.producer,signalSource:expected.signalSource,parentLock:'NOT_RUN_SEPARATE_GAP',actualCADOutput:'NOT_RUN',
+          workId:fixture.drawingWorkId,source:expected,readbacks,requestStarts,requestFailures,download:{path:file,bytes:bytes.length,sha256:expected.sourceHash},
+          terminalQuietPeriodsMs:[2100,2100],unmountedQuietPeriodsMs:[2100,2100],reload:true,overflowMetrics,navigationRoutes,requests});save();continue;
+      }
+      if(flowSelection==='preview-outcome') {
+        const listPath='/api/numbering/drawings/workbench',workPath='/api/pdm/drawing-revision-works/'+fixture.drawingWorkId;
+        const events=[],assetReads=[],active=new Set(),uploads=[];let phase='warmup',maxBackgroundInFlight=0;
+        const matches=request=>{const u=new URL(request.url());return request.method()==='GET'&&u.origin===origin&&u.pathname===listPath&&u.searchParams.get('query')===fixture.drawingNumber;};
+        const observation={events,assetReads,uploads,phase,viewport:fixture.width};receipt.previewOutcome=observation;save();
+        page.on('request',request=>{if(matches(request)){events.push({phase,at:Date.now()});active.add(request);
+          if(phase==='background')maxBackgroundInFlight=Math.max(maxBackgroundInFlight,active.size);save();}});
+        page.on('requestfinished',request=>active.delete(request));page.on('requestfailed',request=>active.delete(request));
+        page.on('response',response=>{const u=new URL(response.url());if(u.pathname.startsWith('/api/pdm/file-assets/')&&u.searchParams.get('preview')==='1') {
+          assetReads.push({phase,at:Date.now(),assetId:u.pathname.split('/').at(-1),contextId:u.searchParams.get('contextId'),status:response.status(),previewState:response.headers()['x-pdm-preview-state']});save();}});
+        const until=async(predicate,label,timeout=15000)=>{const end=Date.now()+timeout;while(Date.now()<end){if(await predicate())return;await page.waitForTimeout(50);}throw new Error('D05_OUTCOME_TIMEOUT:'+label);};
+        const idle=()=>until(()=>active.size===0,'list idle');
+        const openList=async()=>{
+          await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+          await page.locator('.clean-workbench-list').getByRole('link',{name:'圖號工作台',exact:true}).click();
+          await page.waitForURL(location=>location.pathname==='/numbering/drawings');
+          const pending=waitResponse(response=>matches(response.request()));
+          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.drawingNumber);
+          const response=await pending,body=await response.json();assert.equal(response.status(),200,JSON.stringify(body));await idle();return body;
+        };
+        await openList();
+        const row=page.locator('tr[data-canonical-workbench-row="true"].is-rd').filter({hasText:fixture.drawingNumber});
+        await row.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();
+        await page.getByRole('button',{name:'進行編輯',exact:true}).click();await page.waitForURL('**/numbering/drawings/**/workspace?**');
+        await page.locator('.dev079-workspace-file-upload input[type="file"]').waitFor();
+        for(const extension of ['SLDDRW','SLDPRT']) {
+          const name='DEV122-D05.'+extension,bytes=Buffer.from('DEV122 protocol fixture '+name);
+          await page.locator('.dev079-workspace-file-upload input[type="file"]').setInputFiles({name,mimeType:'application/octet-stream',buffer:bytes});
+          const pending=waitResponse(response=>new URL(response.url()).pathname===workPath+'/files'&&response.request().method()==='POST');
+          await page.getByRole('button',{name:'上傳所選檔案',exact:true}).click();
+          const response=await pending,body=await response.json();assert.equal(response.status(),200,JSON.stringify(body));
+          const file=body.data.file;previewContexts.set(file.sourceFileAssetId,[fixture.drawingWorkId,fixture.drawingId]);
+          uploads.push({at:Date.now(),name,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),sourceFileAssetId:file.sourceFileAssetId,bindingId:file.id,producerBoundary:'PROTOCOL_TEXT_FIXTURE_NOT_CAD'});save();
+          await until(()=>page.locator('.dev079-workspace-file-upload input[type="file"]').isEnabled(),'upload idle');
+        }
+        const workspaceUrl=page.url();observation.workspaceUrl=workspaceUrl;save();
+        phase='foreground';const body=await openList();
+        assert.equal(events.filter(item=>item.phase==='foreground').length,1,'LIST_FOREGROUND_GET_NOT_ONE');
+        assert.ok(Object.values(body.data.previewByRowKey??{}).some(item=>item.state==='pending'),'FRESH_PENDING_PRECONDITION_FAILED');
+        phase='background';const gallery=page.getByRole('radio',{name:'預覽圖',exact:true});await gallery.click();
+        await page.getByRole('grid',{name:'工作台預覽圖',exact:true}).waitFor();
+        await page.locator('[data-preview-state="pending"]').first().waitFor();await screenshot('d05-normal-pending');
+        const stopped=page.getByRole('status').filter({hasText:'預覽尚未就緒，自動刷新已停止'});
+        await stopped.waitFor({state:'visible',timeout:200000});await idle();
+        const backgroundCount=()=>events.filter(item=>item.phase==='background').length;
+        assert.equal(backgroundCount(),30,'LIST_BUDGET_NOT_30_RETRIES');assert.equal(maxBackgroundInFlight,1,'BACKGROUND_LIST_OVERLAP');
+        const stoppedAt=Date.now(),assetCount=assetReads.length;await screenshot('d05-bounded-stop');
+        await page.waitForTimeout(5500);assert.equal(backgroundCount(),30,'LIST_31ST_RETRY');assert.equal(assetReads.length,assetCount,'ASSET_RETRY_AFTER_STOP');
+        const mediaCounts=Object.fromEntries(uploads.map(upload=>[upload.sourceFileAssetId,assetReads.filter(read=>read.assetId===upload.sourceFileAssetId&&read.phase!=='warmup').length]));
+        for(const count of Object.values(mediaCounts)){assert.ok(count<=31,'ASSET_EXCEEDS_INITIAL_PLUS_30');}
+        assert.equal(assetReads.filter(read=>read.phase==='background').length,0,'PENDING_LIST_PROJECTION_MUST_NOT_FETCH_MEDIA');
+        phase='offpage';await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await idle();
+        const quiet={list:events.length,assets:assetReads.length};await page.waitForTimeout(5500);
+        assert.equal(events.length,quiet.list,'OFFPAGE_LIST_RETRY');assert.equal(assetReads.length,quiet.assets,'OFFPAGE_ASSET_RETRY');
+        // Let the unmodified server's normal queue deadline pass; no fixture clock or SQL terminal update.
+        const normalDeadline=Math.max(...uploads.map(upload=>upload.at))+123000;
+        while(Date.now()<normalDeadline)await page.waitForTimeout(Math.min(1000,normalDeadline-Date.now()));
+        assert.equal(events.length,quiet.list);assert.equal(assetReads.length,quiet.assets);
+        phase='reentry';const terminalProjection=await openList();
+        observation.readOnlyProjectionBeforeRecovery=terminalProjection.data.previewByRowKey;save();
+        // The list is intentionally a read-only snapshot. Re-enter the actual
+        // workspace so its protected canonical media GET performs scoped recovery.
+        phase='reentry-workspace';await page.goto(workspaceUrl,{waitUntil:'domcontentloaded'});
+        await page.getByText('預覽無法顯示，可下載原檔。',{exact:true}).first().waitFor();
+        assert.ok(assetReads.some(read=>read.phase==='reentry-workspace'&&read.status===409&&read.previewState==='failed'),'NORMAL_WORKSPACE_TERMINAL_HTTP_MISSING');
+        await screenshot('d05-reentry-normal-timeout');
+        const terminals=[];
+        for(const upload of uploads) {
+          const href='/api/pdm/file-assets/'+upload.sourceFileAssetId+'?context=drawing_revision_work&contextId='+fixture.drawingWorkId+'&bindingId='+upload.bindingId;
+          const preview=await context.request.get(origin+href+'&preview=1'),json=await preview.json();
+          assert.equal(preview.status(),409);assert.equal(json.error.code,'PREVIEW_FAILED');assert.equal(json.error.retryable,false);
+          assert.equal(preview.headers()['x-pdm-preview-state'],'failed');assert.equal(preview.headers()['retry-after'],undefined);
+          assert.match(preview.headers()['cache-control'],/private.*no-store/u);
+          const raw=await context.request.get(origin+href),bytes=await raw.body();
+          assert.equal(raw.status(),200);assert.equal(bytes.length,upload.bytes);assert.equal(createHash('sha256').update(bytes).digest('hex'),upload.sha256);
+          assert.equal(raw.headers()['content-type'],'application/octet-stream');assert.equal(raw.headers()['content-length'],String(upload.bytes));
+          assert.match(raw.headers()['cache-control'],/private.*no-store/u);assert.match(raw.headers()['content-disposition'],/attachment/u);
+          terminals.push({assetId:upload.sourceFileAssetId,previewStatus:preview.status(),body:json,downloadStatus:raw.status(),bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),headers:Object.fromEntries(['content-type','content-disposition','content-length','cache-control'].map(key=>[key,raw.headers()[key]??null]))});
+        }
+        const first=uploads[0],downloadLink=page.locator('a[href^="/api/pdm/file-assets/'+first.sourceFileAssetId+'?"]').filter({hasText:/下載/u}).first();
+        const downloadPending=waitDownload();await downloadLink.click();const download=await downloadPending;
+        const saved=path.join(output,'d05-original-'+path.basename(download.suggestedFilename()));await download.saveAs(saved);
+        assert.equal(await download.failure(),null);const downloaded=fs.readFileSync(saved);
+        assert.equal(downloaded.length,first.bytes);assert.equal(createHash('sha256').update(downloaded).digest('hex'),first.sha256);
+        await idle();const terminalCounts={list:events.length,assets:assetReads.length};await page.waitForTimeout(5500);
+        assert.equal(events.length,terminalCounts.list,'TERMINAL_LIST_RETRY');assert.equal(assetReads.length,terminalCounts.assets,'TERMINAL_ASSET_RETRY');
+        const finalProjection=await openList();assert.ok(Object.values(finalProjection.data.previewByRowKey??{}).some(item=>item.state==='failed'),'RECOVERED_FAILURE_NOT_PROJECTED');
+        await healthy();
+        receipt.cases.push({status:'PASS',flow:'preview-outcome',viewport:{width:fixture.width,height:fixture.height},uploads,
+          normalPending:true,terminalSeeded:false,clockChanged:false,listInitialGets:events.filter(item=>item.phase==='foreground').length,
+          listRetries:backgroundCount(),maxBackgroundInFlight,mediaGets:mediaCounts,mediaCounting:'NOT_APPLICABLE: pending/failed list projection has no media GET; component retry cap is covered by reused focused tests',
+          stoppedAt,offpageQuietMs:5500,terminalQuietMs:5500,normalDeadline,terminals,events,assetReads,
+          normalUiDownload:{path:saved,bytes:downloaded.length,sha256:createHash('sha256').update(downloaded).digest('hex')},
+          production:'NOT_RUN',nativeCad:'NOT_RUN'});save();continue;
       }
       if(flowSelection==='preview-polling') {
         assert.equal(fixture.flow,'preview-polling');
@@ -920,10 +1127,10 @@ try {
         const row=page.locator('tr[data-canonical-workbench-row="true"].is-work').filter({hasText:fixture.partNumber});
         await row.getByRole('button',{name:fixture.partNumber,exact:true}).click();
         await page.getByRole('button',{name:'管理附件',exact:true}).click();
-        await exercisePartAttachments(fixture.partNumber,fixture.partId);
+        const partAttachment=await exercisePartAttachments(fixture.partNumber,fixture.partId);
         receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'attachments',
           fixture:{partId:fixture.partId,partNumber:fixture.partNumber,initialLifecycle:'Draft',producer:'NORMAL_SIGNED_API_PRECONDITION'},
-          normalNavigation:true,signedPrincipal:true,keyboardUpload:true,attachmentDOM:true,overflowMetrics,navigationRoutes,requests});save();continue;
+          partAttachment,normalNavigation:true,signedPrincipal:true,keyboardUpload:true,attachmentDOM:true,overflowMetrics,navigationRoutes,requests});save();continue;
       }
       let partNumber=fixture.partNumber,normalCreation=null,matrixRoundTrip=null;
       {
@@ -1126,6 +1333,7 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,workbenchQueryState,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
+      if(partAttachmentSlice){receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};save();}
       if(boundedSettingsFlow) {
         receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
@@ -1138,22 +1346,45 @@ try {
             receipt.settingsDiagnosticFailures??=[];receipt.settingsDiagnosticFailures.push({stage,viewport:fixture.width,message:captureError.message});save();
           }
         }
+      }else if(partAttachmentSlice) {
+        for(const [stage,capture] of [
+          ['DOM',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content())],
+          ['accessibility',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot())],
+          ['screenshot',()=>page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true})]
+        ])try{await capture();}catch(captureError){receipt.partAttachmentDiagnosticFailures??=[];
+          receipt.partAttachmentDiagnosticFailures.push({viewport:fixture.width,stage,message:captureError.message});save();}
+        receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
       }else {
         fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content());
         fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot());
         await page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
       }
+      if(partAttachmentSlice){receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'FAIL',flow:'attachments',message:error.message});save();continue;}
+      if(flowSelection==='preview-cancelled') {
+        receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'FAIL',flow:'preview-cancelled',message:error.message});save();continue;
+      }
       throw error;
     } finally {
       if(boundedSettingsFlow)await settingsAwait('context close',()=>context.close(),fixture.width);
+      else if(partAttachmentSlice) {
+        let closeTimer;
+        try{await Promise.race([context.close(),new Promise((_,reject)=>{closeTimer=setTimeout(()=>reject(new Error('DEV122_PART_ATTACHMENT_CONTEXT_CLOSE_TIMEOUT')),10000);})]);}
+        catch(error){receipt.partAttachmentContextCloseFailures??=[];
+          receipt.partAttachmentContextCloseFailures.push({viewport:fixture.width,message:error.message});
+          receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width,stage:'context close'};save();}
+        finally{clearTimeout(closeTimer);}
+      }
       else await context.close();
     }
   }
+  if(partAttachmentSlice&&(receipt.cases.length!==2||receipt.cases.some(item=>item.status!=='PASS')||receipt.partAttachmentContextCloseFailures?.length))throw new Error('DEV122_PART_ATTACHMENT_REQUIRED_VIEWPORTS_FAILED');
+  if(flowSelection==='preview-cancelled'&&(receipt.cases.length!==2||receipt.cases.some(item=>item.status!=='PASS')))throw new Error('DEV122_CANCELLED_UI_REQUIRED_VIEWPORTS_FAILED');
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.coverage={partial:preflight?[]:flowSelection==='preview-outcome'?['F-01A Part context/binding denial subset','F-01C bounded list retry and normal timeout subset','UI-01 desktop subset']:flowSelection==='preview-cancelled'?['F-01B normal cancellation mounted subset; parent-lock and OS rollout NOT_RUN','UI-01']:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow||partAttachmentSlice||flowSelection==='preview-cancelled'){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
     if(boundedSettingsFlow) {

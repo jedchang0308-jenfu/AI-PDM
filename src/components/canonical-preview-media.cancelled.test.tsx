@@ -31,9 +31,15 @@ it("stops a pending mounted poll when the next response is cancelled", async () 
 });
 it("is quiet after unmount, including a late cancelled response", async () => {
   let deliver!: (response: Response) => void;
-  const read = vi.fn(() => new Promise<Response>(resolve => { deliver = resolve; })); vi.stubGlobal("fetch", read);
+  let signal: AbortSignal | null | undefined;
+  const read = vi.fn((_href: unknown, init?: RequestInit) => {
+    signal = init?.signal;
+    return new Promise<Response>(resolve => { deliver = resolve; });
+  }); vi.stubGlobal("fetch", read);
   await act(async () => root.render(<CanonicalPreviewMedia media={{ href: "/private-preview", mode: "image", title: "圖面" }} />));
+  expect(signal?.aborted).toBe(false);
   await act(async () => root.unmount());
+  expect(signal?.aborted).toBe(true);
   await act(async () => { deliver(cancelled()); await vi.advanceTimersByTimeAsync(60000); });
   expect(read).toHaveBeenCalledOnce(); expect(host.textContent).toBe(""); expect(vi.getTimerCount()).toBe(0);
 });

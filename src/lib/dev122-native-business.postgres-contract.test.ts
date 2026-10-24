@@ -18,7 +18,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { createPreviewWorkerShutdown, runClaimedPreviewJob } from "../../scripts/lib/preview-worker-lease.mjs";
 import { recoverStalePreviewJobsAsync, type PreviewWorkerClaim } from "@/lib/preview-derivatives";
-import type { PreviewLeaseBasis } from "@/lib/preview-worker-lease";
+import { previewLeaseVersionHeader, type PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
@@ -990,6 +990,77 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
         status: response.status, body, allOwnedRowsUnchanged: JSON.stringify(after) === JSON.stringify(before) }) + "\n");
       expect(response.status).toBe(409); expect(body).toEqual({ error: "PREVIEW_JOB_CLAIM_LOST" }); expect(after).toEqual(before);
     } finally { if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; }
+  });
+  it.each(["replaced", "deleted"] as const)("claimed content rejects physically %s source bytes without owned effects", async variant => {
+    await withPreviewLeaseWorker(async send => {
+      const fixture = await normalDrawingFile("physical-source-" + variant), claim = await nativePreviewClaim(send);
+      expect(claim.sourceFileAssetId).toBe(fixture.assetId);
+      const params = { params: Promise.resolve({ jobId: claim.jobId }) };
+      const content = () => readWorkerContent(send("/api/preview-jobs/" + claim.jobId + "/content", undefined, claim.leaseBasis), params);
+      const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+      const source = await content();
+      expect(source.status).toBe(200); expect(source.headers.get("content-hash")).toBe(fixture.asset.content_hash);
+      expect(source.headers.get("content-length")).toBe(String(fixture.bytes.length));
+      expect(source.headers.get(previewLeaseVersionHeader)).toBe("2");
+      expect(Buffer.from(await source.arrayBuffer())).toEqual(fixture.bytes);
+
+      // Fault injection is physical and confined to the runner's disposable repository.
+      // Neither metadata UPDATE nor a mocked storage reader can satisfy these cases.
+      const runtime = await fs.realpath(process.env.DEV122_RUNTIME_ROOT!);
+      const repository = await fs.realpath(process.env.PDM_REPOSITORY_DIR!);
+      const inside = (root: string, target: string) => {
+        const relative = path.relative(root, target);
+        return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+      };
+      expect(inside(runtime, repository)).toBe(true);
+      const target = path.resolve(repository, fixture.asset.storage_key);
+      expect(inside(repository, target)).toBe(true);
+      expect(path.resolve(fixture.asset.original_path)).toBe(target);
+      expect(await fs.realpath(target)).toBe(target);
+      const stat = await fs.lstat(target);
+      expect(stat.isFile() && !stat.isSymbolicLink()).toBe(true);
+      const original = await fs.readFile(target);
+      expect(original).toEqual(fixture.bytes);
+      const pristineRows = await ownedLifecycleSnapshot(), pristineObjects = await previewRepositorySnapshot();
+      const replacement = Buffer.from(original); replacement[0] ^= 0xff;
+      expect(replacement.length).toBe(original.length); expect(digest(replacement)).not.toBe(fixture.asset.content_hash);
+      const observations: Array<{ status: number; body: unknown; cacheControl: string | null; hash: string | null;
+        ownedRowsUnchanged: boolean; repositoryUnchanged: boolean }> = [];
+      try {
+        if (variant === "replaced") await fs.writeFile(target, replacement);
+        else await fs.unlink(target);
+        const faultObjects = await previewRepositorySnapshot();
+        const entry = faultObjects.find(row => row.path === path.relative(repository, target));
+        if (variant === "replaced") expect(entry?.hash).toBe(digest(replacement));
+        else expect(entry).toBeUndefined();
+        expect(await ownedLifecycleSnapshot()).toEqual(pristineRows);
+        const faultRows = await ownedLifecycleSnapshot();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const response = await content(), body = await response.json();
+          const rows = await ownedLifecycleSnapshot(), objects = await previewRepositorySnapshot();
+          observations.push({ status: response.status, body, cacheControl: response.headers.get("cache-control"),
+            hash: response.headers.get("content-hash"), ownedRowsUnchanged: JSON.stringify(rows) === JSON.stringify(faultRows),
+            repositoryUnchanged: JSON.stringify(objects) === JSON.stringify(faultObjects) });
+        }
+        await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-physical-source-readbacks.jsonl"), JSON.stringify({
+          variant, producerBoundary: "NORMAL_SIGNED_UPLOAD_THEN_LOCAL_PHYSICAL_FAULT", actualCADOutput: "NOT_RUN",
+          sourceAssetId: fixture.assetId, jobId: claim.jobId, leaseBasis: claim.leaseBasis,
+          expectedHash: fixture.asset.content_hash, originalBytes: original.length,
+          sameSizeReplacementHash: variant === "replaced" ? digest(replacement) : null, observations }) + "\n");
+        for (const observation of observations) expect(observation).toEqual({ status: 503, body: { error: "PREVIEW_SOURCE_READ_FAILED" },
+          cacheControl: "private, no-store", hash: null, ownedRowsUnchanged: true, repositoryUnchanged: true });
+      } finally {
+        await fs.writeFile(target, original);
+      }
+      expect(digest(await fs.readFile(target))).toBe(fixture.asset.content_hash);
+      expect(await previewRepositorySnapshot()).toEqual(pristineObjects);
+      expect(await ownedLifecycleSnapshot()).toEqual(pristineRows);
+      const restored = await content(); expect(restored.status).toBe(200);
+      expect(Buffer.from(await restored.arrayBuffer())).toEqual(original);
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "worker-physical-source-readbacks.jsonl"), JSON.stringify({
+        variant, restoration: { hash: digest(await fs.readFile(target)), status: restored.status, originalBytesRestored: true,
+          ownedRowsUnchanged: true, repositoryRestored: true } }) + "\n");
+    });
   });
   it("uploads through the normal signed command and reads exact source bytes with Principal/company/binding audit", async () => {
     const fixture = await normalDrawingFile("signed-bytes");
@@ -2863,6 +2934,99 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "preview-outcome") {
+      const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+        { coreName: "DEV122 attachment scope", itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", "d05-part")), 201);
+      const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSf8AAAAASUVORK5CYII=", "base64");
+      const form = new FormData(); form.set("file", new File([new Uint8Array(bytes)], "scope.png", { type: "image/png" })); form.set("document_category", "other");
+      const uploaded = await ok<{ attachment: { id: string } }>(await uploadPartAttachment(new Request("https://ai-pdm.test/api/parts/" + part.partNumber.partNumber + "/attachments", {
+        method: "POST", headers: { cookie: "__session=" + ownerToken, "idempotency-key": "d05-part-upload" }, body: form
+      }), { params: Promise.resolve({ partNumber: part.partNumber.partNumber }) }), 201);
+      const assetId = uploaded.attachment.id;
+      const href = "/api/pdm/file-assets/" + assetId + "?context=part_attachment&contextId=" + part.partNumber.id + "&bindingId=" + assetId;
+      const rowsBefore = await ownedLifecycleSnapshot(), objectsBefore = await previewRepositorySnapshot(), denials = [];
+      for (const [variant, url] of [["context", href.replace(part.partNumber.id, "wrong-part")], ["binding", href.replace("bindingId=" + assetId, "bindingId=wrong-binding")]]) {
+        const response = await readCanonicalFile(request(url), { params: Promise.resolve({ fileAssetId: assetId }) });
+        const raw = Buffer.from(await response.arrayBuffer()), contentType = response.headers.get("content-type");
+        expect(response.status).toBe(404); expect(contentType).toContain("application/json"); expect(raw.equals(bytes)).toBe(false);
+        expect(response.headers.get("cache-control")).toContain("no-store");
+        expect(await ownedLifecycleSnapshot()).toEqual(rowsBefore); expect(await previewRepositorySnapshot()).toEqual(objectsBefore);
+        denials.push({ variant, status: response.status, contentType, body: JSON.parse(raw.toString()), ownedRowsUnchanged: true, repositoryUnchanged: true });
+      }
+      expect(await db!.query("SELECT id FROM audit_logs WHERE action='StorageAccessed' AND detail_json->>'fileId'=:id", { id: assetId })).toEqual([]);
+      const allowed = await readCanonicalFile(request(href), { params: Promise.resolve({ fileAssetId: assetId }) });
+      expect(allowed.status).toBe(200); expect(Buffer.from(await allowed.arrayBuffer())).toEqual(bytes);
+      const drawing = await ok<{ drawingNumber: { id: string; drawingNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+        { coreName: "DEV122 pending outcome", itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" }, 1, "", "d05-drawing")), 201);
+      const work = await db!.queryOne<{ id: string; drawing_id: string }>("SELECT work.id,work.drawing_id FROM drawing_revision_works work JOIN drawings drawing ON drawing.id=work.drawing_id WHERE drawing.formal_drawing_number_id=:id", { id: drawing.drawingNumber.id });
+      expect(work).toBeTruthy();
+      // Real UI uploads create the queue after compilation; no terminal/timestamp fixture is installed.
+      const fixture = { width: 1440, height: 900, flow: "preview-outcome", drawingId: work!.drawing_id, drawingWorkId: work!.id,
+        drawingNumber: drawing.drawingNumber.drawingNumber, terminalAssetIds: [], previewInputs: [] };
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify([fixture]));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-outcome-native.json"), JSON.stringify({
+        layer: "ACTUAL_SIGNED_ROUTES_NATIVE_PG_LOCAL_STORAGE", denials, deniedStorageAccessed: 0, rawBytesDisclosed: false,
+        positiveDownloadBytes: bytes.length, fixture, previewJobStateSeeded: false, production: "NOT_RUN" }, null, 2));
+      return;
+    }
+    if (process.env.DEV122_NATIVE_SELECTION === "part-attachment-ui") {
+      const fixtures = [];
+      for (const width of [1440, 390]) {
+        const label = "PartAttachmentUI" + width;
+        const part = await ok<{ partNumber: { id: string; partNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+          { coreName: "DEV122 " + label, itemKind: "purchased", structureType: "single_part", drawingRequested: false }, 1, "", label + "-part")), 201);
+        const started = await ok<{ data: { workId: string } }>(await createPartWork(request("/api/pdm/parts/" + part.partNumber.id + "/change-works", ownerToken, "POST", {},
+          1, await contract("dev122-profile-owner"), label + "-work"), { params: Promise.resolve({ partId: part.partNumber.id }) }));
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "attachments", partId: part.partNumber.id,
+          partNumber: part.partNumber.partNumber, partWorkId: started.data.workId, terminalAssetIds: [] });
+      }
+      expect(await db!.query("SELECT id FROM file_assets")).toHaveLength(0);
+      expect(await db!.query("SELECT id FROM preview_jobs")).toHaveLength(0);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "part-attachment-ui-prerequisites.json"), JSON.stringify({ fixtures,
+        producer: "NORMAL_SIGNED_PART_AND_WORK_COMMANDS_ONLY", attachmentUpload: "BROWSER_ONLY", terminalStateSeeded: false, production: "NOT_RUN" }, null, 2));
+      return;
+    }
+    if (process.env.DEV122_NATIVE_SELECTION === "preview-cancelled-ui") {
+      const fixtures = [];
+      for (const width of [1440, 390]) {
+        const file = await normalDrawingFile("cancelled-ui-" + width);
+        let jobId = "";
+        await withPreviewLeaseWorker(async send => {
+          const claim = await nativePreviewClaim(send); expect(claim.sourceFileAssetId).toBe(file.assetId); jobId = claim.jobId;
+          const params = { params: Promise.resolve({ jobId }) }, events = new EventEmitter(), shutdown = createPreviewWorkerShutdown(events);
+          let entered!: () => void, release!: () => void;
+          const ready = new Promise<void>(resolve => { entered = resolve; }), rendered = new Promise<void>(resolve => { release = resolve; });
+          const statuses: string[] = [];
+          try {
+            const running = runClaimedPreviewJob({ baseUrl: "https://ai-pdm.test", token: "unused-handler-bridge", workerId: "dev122-lease-worker", claim, shutdown,
+              request: async (url, init) => {
+                const body = JSON.parse(String(init.body));
+                if (url.endsWith("/heartbeat")) return heartbeatWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+                statuses.push(body.status); return completeWorkerJob(send(new URL(url).pathname, body, claim.leaseBasis), params);
+              }, render: async () => { entered(); await rendered; return []; },
+              rendererFailure: () => ({ errorCode: "unexpected_ui_fixture_failure", errorSummary: "unexpected" }) });
+            await ready; events.emit("SIGTERM"); release(); expect((await running).status).toBe("cancelled");
+            expect(statuses).toEqual(["cancelled"]);
+          } finally { release?.(); shutdown.dispose(); }
+        });
+        const job = await currentFileJob(file);
+        expect(job).toMatchObject({ id: jobId, status: "cancelled", attempt_count: 1, locked_by: null, locked_at: null });
+        expect(job.completed_at).toBeTruthy();
+        const drawing = await db!.queryOne<{ id: string; drawing_number: string }>(`SELECT drawing.id,number.drawing_number FROM drawing_revision_works work
+          JOIN drawings drawing ON drawing.id=work.drawing_id JOIN drawing_numbers number ON number.id=drawing.formal_drawing_number_id WHERE work.id=:id`, { id: file.workId });
+        expect(drawing).toBeTruthy();
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "preview-cancelled", drawingId: drawing!.id,
+          drawingWorkId: file.workId, drawingNumber: drawing!.drawing_number, terminalAssetIds: [file.assetId],
+          cancelled: { assetId: file.assetId, bindingId: file.bindingId, jobId, sourceHash: file.asset.content_hash, sourceBytes: file.bytes.length,
+            producer: "NORMAL_SIGNED_UPLOAD_V2_CLAIM_SHARED_SHUTDOWN_HANDLER_ACTUAL_ROUTES", signalSource: "NODE_EVENTEMITTER_NOT_OS_SIGNAL",
+            actualCADOutput: "NOT_RUN", parentLock: "NOT_RUN_SEPARATE_GAP" } });
+      }
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "preview-cancelled-ui-producers.json"), JSON.stringify({ fixtures,
+        terminalStateSeeded: false, production: "NOT_RUN", workerRollout: "NOT_RUN" }, null, 2));
+      return;
+    }
     if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
       // Two-page protocol PDF proves viewer operation; real sample separately
       // proves readability. Neither fixture establishes CAD/PDM version pairing.
