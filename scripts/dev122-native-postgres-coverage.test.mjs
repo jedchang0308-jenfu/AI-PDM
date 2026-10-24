@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lifecycleCaseGroups, lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage } from './lib/dev122-native-postgres-coverage.mjs';
+import { lifecycleCaseGroups, lifecycleRequiredCaseNames, evaluateLifecycleCaseCoverage, assertLifecycleCaseCoverage,
+  previewSourceBytesCaseNames, assertPreviewSourceBytesCoverage } from './lib/dev122-native-postgres-coverage.mjs';
 
 const complete = () => lifecycleRequiredCaseNames.map(fullName => ({ fullName, status: 'passed' }));
 const options = { suite: 'lifecycle', selection: 'suite' };
@@ -56,4 +57,21 @@ test('UI prerequisites and files/procurement selections do not acquire lifecycle
 test('Vitest ancestor/title fallback preserves exact names', () => {
   const assertions = complete().map(({ fullName, status }) => ({ ancestorTitles: [fullName.slice(0, fullName.lastIndexOf(' '))], title: fullName.slice(fullName.lastIndexOf(' ') + 1), status }));
   assert.equal(evaluateLifecycleCaseCoverage(assertions, options).status, 'PASS');
+});
+
+test('physical source bytes selection requires every exact case once and passed', () => {
+  const complete = previewSourceBytesCaseNames.map(fullName => ({ fullName, status: 'passed' }));
+  assert.equal(complete.length, 9);
+  assert.doesNotThrow(() => assertPreviewSourceBytesCoverage([...complete, { fullName: 'unselected', status: 'skipped' }]));
+  for (const name of previewSourceBytesCaseNames) {
+    const others = complete.filter(test => test.fullName !== name);
+    for (const status of ['missing', 'skipped', 'pending', 'failed', 'duplicate', 'duplicateSkipped', 'renamed']) {
+      const input = [...others];
+      if (status === 'duplicate') input.push({ fullName: name, status: 'passed' }, { fullName: name, status: 'passed' });
+      else if (status === 'duplicateSkipped') input.push({ fullName: name, status: 'passed' }, { fullName: name, status: 'skipped' });
+      else if (status !== 'missing') input.push({ fullName: status === 'renamed' ? `wrong ${name}` : name, status: status === 'renamed' ? 'passed' : status });
+      assert.throws(() => assertPreviewSourceBytesCoverage(input), /DEV122_PREVIEW_SOURCE_BYTES_CASES/);
+    }
+  }
+  assert.throws(() => assertPreviewSourceBytesCoverage([...complete, { fullName: 'unexpected', status: 'passed' }]));
 });

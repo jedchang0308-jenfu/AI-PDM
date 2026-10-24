@@ -1,3 +1,7 @@
+## DEV-122 CURRENT：七個 issue outcome（2026-10-23）
+
+現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
+
 F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
 
 ## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
