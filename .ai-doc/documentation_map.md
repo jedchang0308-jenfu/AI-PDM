@@ -31,7 +31,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
 - [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：已合併且required CI通過；PDM 086–088／OrgMaster 034–036正式schema已套用，consumer因Platform session 401未上線，writer暫緩。來源、收據、恢復與待驗範圍見QA §6；OrgMaster授權仍限相容migration／reader，不含人員指派改寫、IAM或Secrets，尚未正式驗收／套用新矩陣。
 
-來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6；reader／writer與正常SSO尚未完成；QA50雙model binding缺合法STEP／IGES來源，保持PARTIAL。
+來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。r11隔離正常SSO已成功，矩陣／任用QA與清理結果、[本機adapter PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)及未驗目的統一見QA §6。本輪禁止正式migration、部署與正式資料寫入；正式reader／writer未完成，QA50雙model binding缺合法STEP／IGES來源，保持PARTIAL。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

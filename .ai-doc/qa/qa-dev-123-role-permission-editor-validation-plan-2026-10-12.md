@@ -263,4 +263,21 @@ IdP新增與前置失敗的原件位於OrgMaster `dev058-doc-readback-20261024/o
 
 本輪末端清理原件為OrgMaster同證據根的`local-sso-runtime-20261024-r9-cleanup.json`（2026-10-24 11:43 Asia/Taipei）：Platform sessions=0、PDM accounts=0、appsStopped/postgresStopped/postgresTempRemoved=true、activeRuntimes=0、lease已釋放。root另唯讀核對8085／11000／13000／15000／62982均無listener；owner回報只關閉本任務5個分頁，未動其他頁面。任務私有ADC／TLS仍刻意保留同受限temp供續接，ACL無繼承且僅current user可讀，不能宣稱所有暫存均刪除。原10491個直接source inputs在停止後／cleanup修正前穩定。OrgMaster僅修本機harness關閉時的Next tsconfig bytes fence，3個focused Node cases及syntax／diff PASS，保留外部改動／刪除，不因這項cleanup變更重跑PDM產品驗證。
 
-末端判定：本輪SSO為BLOCKED_ON_BROWSER_TLS_HANDOFF／未執行，並非SSO通過或產品驗收完成；Google ADC前置已解除，後續須重新啟動隔離環境並由人類親自處理本機HTTPS警告，沿同來源與私有憑證續接。QA123仍保留52目的／17AC／CG及正常雙端／QA50中間格式檔缺口；OrgMaster維持21 PASS／2 PARTIAL／1 BLOCKED。當前localhost已還原，沒有正式migration、部署或正式資料寫入。
+上述r9封存判定為BLOCKED_ON_BROWSER_TLS_HANDOFF／未執行；r9末端localhost已還原。這是該次歷史結果，後續r11的登入與設定狀態以下節為準，不把r9未執行改判PASS。
+
+### r11正常SSO與開發續接（2026-10-24）
+
+人類完成本機HTTPS安全頁交接並明確要求AI自行登入後，由OrgMaster唯一owner沿原公司Google身分操作三端；root處理獨立PDM PR與驗收索引，沒有第二套browser／runtime。只修改隔離資料，正式migration、部署與正式資料寫入持續禁止。
+
+| 範圍／原件 | 結果與邊界 |
+|---|---|
+| 正常SSO／`local-sso-three-side-session-readback-20261024-r11.json` | 04:58 UTC讀回Platform／OrgMaster／PDM同Principal、Employee、authenticatedAt與epoch0；PDM首次建帳、active／human_privileged／AAL1。normalSessionsSeeded=false，瀏覽器工作台有實際登入者。是隔離三端正常Google旅程，不是正式環境或整案PASS。 |
+| PDM首敗／`local-sso-pdm-callback-failure-20261024-r11.json`、`local-sso-pdm-service-identity-20261024-r11-fixed.json` | 先前fresh callback的service_identity失敗，causeCode=invalid_grant。實際PDM google-auth-library 10.6.2忽略CLOUDSDK_CONFIG，外部Org 10.9.1取票成功不代表PDM實際SDK成功。僅既有development＋exact loopback impersonation分支明確指定私有ADC絕對路徑；相對路徑及讀取失敗拒絕。兩檔28 tests PASS，PDM實際SDK驗audience／subject／email全相符，移除臨時取證碼後新的正常SSO成功；沒有預植成功session、改共用ADC、升依賴、改IAM／Secret或放寬權限。 |
+| 來源／[PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479) | r11產品來源`102f40c81935243e5da7d6819f51b2f07b1f8806`。root僅採納該兩檔修正至原adapter PR，正常merge最新main `780de042134051cca53dce88d51c322d492d2546`，head `b015f7606def6afefe19691c5ad4b4f18fe36ea9`相對main僅兩檔，且兩檔與r11完全相同。[CI 40064627215](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40064627215)兩項required checks均由provider讀回SUCCESS，維持draft。未將local SSO branch其他caller提交重複採納。root採納用的小型sparse工作樹已確認clean／remote同head／無runtime與links後ordinary remove；r11 live樹未受影響。 |
+| 矩陣／OrgMaster任用／`local-sso-matrix-environment-failure-20261024-r11.json` | 正常工作台已開啟；矩陣GET /api/settings回principal_dependency_unavailable。PG FATAL實證為reserved_connection_slots，隔離PG max_connections=8／superuser_reserved=3，三端多bundle連線超出可用額度；不是業務permission deny，不能記PG error0。r11首敗保留，僅three-app journey改隔離cluster為32、原fixture預設8不變，17項focused tests PASS；r12重啟後自行沿原Google身分重登並重驗受影響UI／任用。不能僅由r11 SSO成功關閉QA123-28–30／44／52。 |
+
+原件位於OrgMaster `C:/VIBE CODING/.worktrees/OrgMaster/dev058-doc-readback-20261024/output/qa/dev-058/`。r11為續接再次增加localhost；驗完由同一owner精確移除並fresh reload確認原8域保留，再停止本任務runtime／PG與釋放ports。目前清理未完成，不能沿用r9或r6清理收據。私有ADC／TLS的保留或移除依末端實際讀回記錄，不把正常登入權限擴張為credential或正式變更。
+
+r11 runtime已於`local-sso-runtime-20261024-r11-cleanup.json`實讀三端exit0、app ports釋放、PG停止與port／temp清理；localhost明示保留供同任務續接，不能宣稱IdP已還原。r12的`local-sso-runtime-prelogin-20261024-r12.json`確認max_connections=32、三端sessions／PDM accounts皆0且normalSessionsSeeded=false；必須新的正常登入成功才能認列r12，不借r11填PASS。
+
+最新main相較前述511e1eda另改`principal-published-release-package.ts`：相同Released時間以ID決定唯一最新版；這是package真正輸入變動。[DEV-122 PR #478](https://github.com/jedchang0308-jenfu/AI-PDM/pull/478)獨立記錄native前置1項＋實際Next HTTP 4項，包括等時間舊package404、有效ZIP bytes及deny；root已由provider核對其head `d0f7ab1ef843dd9db6bded81e6e93ec5aa1105fd`的[required CI 40057934966](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40057934966)兩項SUCCESS。該slice結果按原限制引用，未在本輪重跑，不宣稱r7已驗新增排序；r7的19／19仍支持其原來源及不變機制。正式Platform 401未由本機ADC根因推定解決，Org reader／PDM writer未啟用；QA50合法STEP／STP／IGES雙binding缺口及52 QA／17 AC／CG分母保留。
