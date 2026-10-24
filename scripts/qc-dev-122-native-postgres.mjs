@@ -36,6 +36,8 @@ const cuaHandoff = uiMode === 'cua-handoff';
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.argv.find(arg=>arg.startsWith('--native-selection='))?.slice('--native-selection='.length)??process.env.DEV122_NATIVE_SELECTION??'suite';
+const procurementOutcome=nativeSelection==='procurement-outcome';
+const procurementOutcomeCase='DEV122 D12206 actual HTTP prerequisites prepares historical Released inputs and real nonempty packages without an external release provider';
 const previewOutcome=nativeSelection==='preview-outcome';
 const fullLifecycleSelection=['lifecycle','all'].includes(suite)&&nativeSelection==='suite';
 const rdPermissionCaseName='DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny';
@@ -74,12 +76,12 @@ const previewLeaseV2Pattern=exactCasePattern(previewLeaseV2CaseNames);
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome','rd-permission','procurement-outcome'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(procurementOutcome?'procurement':['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','part-attachment-ui','preview-cancelled-ui','preview-outcome'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps','preview-lease-v2','preview-source-bytes'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
 const nextUiNativeCaseName='DEV122 actual Next UI prerequisites creates owner work through normal APIs and records explicit terminal-job fault fixtures';
 if(nativeSelection==='preview-source-bytes'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_SOURCE_BYTES_EXACT_SUITE_REQUIRED');
 const exactNextUiSelection=['part-attachment-ui','preview-cancelled-ui','preview-outcome'].includes(nativeSelection);
-const nativeTestPattern=exactNextUiSelection?exactCasePattern([nextUiNativeCaseName]):nativeSelection==='preview-source-bytes'?exactCasePattern(previewSourceBytesCaseNames):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+const nativeTestPattern=procurementOutcome?exactCasePattern([procurementOutcomeCase]):exactNextUiSelection?exactCasePattern([nextUiNativeCaseName]):nativeSelection==='preview-source-bytes'?exactCasePattern(previewSourceBytesCaseNames):nativeSelection==='preview-lease-v2'?previewLeaseV2Pattern:suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
   ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -119,7 +121,7 @@ const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'u
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
   nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
-    expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
+    expectedCaseNames:procurementOutcome?[procurementOutcomeCase]:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -396,7 +398,7 @@ function captureControlledSource() {
     bindings,hash:sha256(Buffer.from(JSON.stringify(bindings)))};
 }
 async function run() {
-  const primaryBefore = cuaHandoff || previewOutcome ? primaryAbsenceInventory() : null;
+  const primaryBefore = cuaHandoff || previewOutcome || procurementOutcome ? primaryAbsenceInventory() : null;
   if (primaryBefore?.some(item => item.exists)) throw new Error('DEV122_CUA_PRIMARY_PRESENT_STOP_NO_REPAIR');
   const runId=crypto.randomBytes(8).toString('hex'),database='dev122_'+runId;
   const runtimeRoot=path.join(root,'.tmp','dev122',runId),evidenceRoot=path.join(root,'output','qa','dev-122',runId);
@@ -430,6 +432,13 @@ async function run() {
     PDM_DEV087_FAULT_PROFILE:'',PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',PDM_REVIEW_PACKAGE_V2_WRITE:'true',
     DEV122_APP_ORIGIN:`http://127.0.0.1:${nextPort}`,NODE_OPTIONS:`--import=${pathToFileURL(path.join(root,'scripts/lib/dev122-contract-seam-preload.mjs')).href}`};
   for(const name of ['K_SERVICE','GOOGLE_CLOUD_PROJECT','GOOGLE_APPLICATION_CREDENTIALS','PDM_CLOUD_SQL_DATABASE','PDM_SESSION_PREVIOUS_KEY_ID','PDM_SESSION_PREVIOUS_SECRET','DEV122_NEXT_PROJECT_ROOT'])delete env[name];
+  if(procurementOutcome) {
+    Object.assign(env,{PDM_STORAGE_PROVIDER:'local_repository',PDM_GCS_LIVE_ENABLED:'0',PDM_S3_COMPATIBLE_LIVE_ENABLED:'0'});
+    for(const name of ['RELEASE_FUNCTION_URL','GOOGLE_DRIVE_RELEASE_FOLDER_ID','PDM_GOOGLE_DRIVE_RELEASE_FOLDER_ID'])delete env[name];
+    manifest.procurementOutcomeBoundary={normalPath:'Actual Next HTTP -> verified Principal -> published grant -> service -> native PG',
+      fixture:'Historical Released prerequisites; actual package helper reads real source files and writes ZIP/record/audit',
+      externalReleaseWorkflow:'NOT_RUN',storageProvider:env.PDM_STORAGE_PROVIDER,production:'NOT_RUN',ui:'NOT_REQUIRED_FOR_API_OUTCOME'};save();
+  }
   if(nativeSelection==='openswx-work-cancel') {
     // Observe the exact driver below the existing seam. Never change SQL, parameters, rows or errors.
     const tracePath=path.join(runtimeRoot,'b18-safe-driver-observer.mjs');
@@ -519,7 +528,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     // Loopback binding is in pg_ctl options; never accept an external DSN.
     // PostgreSQL is a background process: inherited pipe handles keep Windows
     // execFileSync waiting for EOF after pg_ctl exits. Its bounded log is -l.
-    execFileSync(bin('pg_ctl'),['-D',cluster,'-l',path.join(evidenceRoot,'postgres.log'),'-o',`-h 127.0.0.1 -p ${pgPort}`,'-t','30','-w','start'],{windowsHide:true,stdio:'ignore',timeout:40000});pgStarted=true;
+    execFileSync(bin('pg_ctl'),['-D',cluster,'-l',path.join(evidenceRoot,'postgres.log'),'-o',`-h 127.0.0.1 -p ${pgPort}${procurementOutcome?' -c log_error_verbosity=verbose':''}`,'-t','30','-w','start'],{windowsHide:true,stdio:'ignore',timeout:40000});pgStarted=true;
     manifest.runtimeDeclaration.owningProcessTree.postgres=processIdentity(Number(fs.readFileSync(path.join(cluster,'postmaster.pid'),'utf8').split('\n')[0]));save();
     manifest.runtimeDeclaration.owningProcessTree.postgres.governor=governorRuntime('register',manifest.runtimeDeclaration.owningProcessTree.postgres,pgPort);save();
     bootstrap=new pg.Client({host:'127.0.0.1',port:pgPort,user:'dev122_bootstrap',database:'postgres'});await bootstrap.connect();
@@ -547,7 +556,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:procurementOutcome?[procurementOutcomeCase]:fullLifecycleSelection?lifecycleRequiredCaseNames:exactNextUiSelection?[nextUiNativeCaseName]:nativeSelection==='preview-source-bytes'?previewSourceBytesCaseNames:nativeSelection==='preview-lease-v2'?previewLeaseV2CaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -558,7 +567,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     catch(error){throw Object.assign(new Error('DEV122_NATIVE_REPORT_UNREADABLE'),{cause:error,exitCode:nativeExitCode});}
     const assertions=tests.testResults?.flatMap(result=>result.assertionResults)??[];
     const completed=assertions.filter(test=>['passed','failed'].includes(test.status));
-    const expectedDescribe=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
+    const expectedDescribe=procurementOutcome?'DEV122 D12206 actual HTTP prerequisites':suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
     manifest.executedCases=completed.length;
     manifest.cases=completed;manifest.skippedCases=assertions.filter(test=>!['passed','failed'].includes(test.status)).length;
     Object.assign(manifest.nativeSelection,{selected:assertions.filter(test=>test.status!=='pending'&&test.status!=='skipped').length,
@@ -604,6 +613,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
         throw new Error('DEV122_RD_PERMISSION_REQUIRED_CASE_MISSING_SKIPPED_FAILED_OR_UNEXPECTED');
       }
     }
+    if(procurementOutcome&&(completed.length!==1||completed[0].fullName!==procurementOutcomeCase||completed[0].status!=='passed'))throw new Error('DEV122_D06_EXACT_PREREQUISITE_NOT_PASSED');
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
     assertLifecycleCaseCoverage(manifest.lifecycleCaseCoverage);
@@ -614,7 +624,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       assert.equal(completed[0].fullName||[...(completed[0].ancestorTitles||[]),completed[0].title].join(' '),nextUiNativeCaseName);
     }
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
-    if(['ui','settings','settings-automation','all'].includes(suite)) {
+    if(procurementOutcome||['ui','settings','settings-automation','all'].includes(suite)) {
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
       nextCopy=prepareNextCopy(runtimeRoot,evidenceRoot);manifest.nextSourceCopy=nextCopy;save();
       const nextEnv={...env,DEV122_NEXT_PROJECT_ROOT:nextCopy.copyRoot,PDM_NEXT_DIST_DIR:'.tmp/next-dist',PDM_NEXT_TSCONFIG_PATH:'tsconfig.next.json'};
@@ -665,7 +675,11 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       while(Date.now()<deadline){if(nextCapFailure)throw nextCapFailure;try{const response=await fetch(env.DEV122_APP_ORIGIN+'/api/health/ready',{signal:AbortSignal.timeout(5000)});if(response.ok){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,500));}
       if(!ready)throw new Error('DEV122_NEXT_STARTUP_FAILED');
       manifest.beforeUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();save();
-      if (cuaHandoff) {
+      if(procurementOutcome) {
+        manifest.procurementOutcome=await runProcurementOutcomeHttp({env,admin,evidenceRoot,grantFixtureChannel});save();
+        manifest.firstFailure??=manifest.procurementOutcome.firstFailure;
+        if(manifest.procurementOutcome.status!=='PASS')throw new Error('DEV122_D06_HTTP_OUTCOME_FAILED');
+      } else if (cuaHandoff) {
         cuaChannel = await serveCuaPreviewHandoff({runtimeRoot,evidenceRoot,manifest,save,nextPort,capacityLease:manifest.nextCapacityAdmission.lease});
         await cuaChannel.wait(()=>{if(nextCapFailure)throw nextCapFailure;if(nextChild.exitCode!==null||nextChild.signalCode!==null)throw new Error('DEV122_CUA_NEXT_EXITED');});
         manifest.afterUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();
@@ -818,10 +832,10 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       if(nextCapFailure)throw nextCapFailure;
       }
     }
-    manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
+    manifest.status=procurementOutcome?'LOCAL_D12206_OUTCOME_PASS':nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:manifest.lifecycleCaseCoverage.partial,
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:previewOutcome?['F-01A Part context/binding denial subset','F-01C bounded list retry and normal timeout subset','UI-01 desktop subset']:nativeSelection==='preview-source-bytes'?['F-01E physical source integrity and protocol-only workload subset; actual CAD output NOT_RUN']:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?nativeSelection==='preview-cancelled-ui'?['F-01B normal cancellation mounted subset; parent-lock/OS worker rollout NOT_RUN','UI-01']:nativeSelection==='part-attachment-ui'?['F-01A Part image attachment mounted/storage audit subset','UI-01']:['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:procurementOutcome?['D122-06 local HTTP outcome; historical read inputs, not release lifecycle']:previewOutcome?['F-01A Part context/binding denial subset','F-01C bounded list retry and normal timeout subset','UI-01 desktop subset']:nativeSelection==='preview-source-bytes'?['F-01E physical source integrity and protocol-only workload subset; actual CAD output NOT_RUN']:nativeSelection==='preview-lease-v2'?['F-01B v2 protocol; parent-lock/OS worker rollout NOT_RUN']:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?nativeSelection==='preview-cancelled-ui'?['F-01B normal cancellation mounted subset; parent-lock/OS worker rollout NOT_RUN','UI-01']:nativeSelection==='part-attachment-ui'?['F-01A Part image attachment mounted/storage audit subset','UI-01']:['UI-01','F-01C']:implementedCoverage[suite],
       notRun:[...manifest.lifecycleCaseCoverage.notRun,'automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
@@ -898,7 +912,127 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     }
   }
   process.stdout.write(JSON.stringify({status:manifest.status,evidence:path.join(evidenceRoot,'manifest.json'),executedCases:manifest.executedCases,firstFailure:manifest.firstFailure,cleanup:manifest.cleanup})+'\n');
-  process.exitCode=['PASS','DIAGNOSTIC_ONLY','LOCAL_RD_PERMISSION_PASS'].includes(manifest.status)?0:1;
+  process.exitCode=['PASS','DIAGNOSTIC_ONLY','LOCAL_RD_PERMISSION_PASS','LOCAL_D12206_OUTCOME_PASS'].includes(manifest.status)?0:1;
+}
+
+async function runProcurementOutcomeHttp({env,admin,evidenceRoot,grantFixtureChannel}) {
+  const fixture=JSON.parse(fs.readFileSync(path.join(evidenceRoot,'procurement-outcome-fixture.json'),'utf8'));
+  const sessions=JSON.parse(fs.readFileSync(path.join(env.DEV122_RUNTIME_ROOT,'signed-sessions.json'),'utf8'));
+  const origin=new URL(env.DEV122_APP_ORIGIN);
+  assert.equal(origin.hostname,'127.0.0.1');
+  assert.equal(fixture.principalId,'dev122-principal-owner');
+  const result={issue:'D122-06',layer:'ACTUAL_NEXT_HTTP_SERVICE_NATIVE_POSTGRES',status:'RUNNING',
+    identity:{principalId:fixture.principalId,profileId:fixture.profileId,companyId:fixture.companyId,
+      boundary:'Synthetic signed session + actual request guard + local published-contract fixture; not Google/Production'},
+    cases:[],firstFailure:null};
+  const save=()=>fs.writeFileSync(path.join(evidenceRoot,'procurement-outcome-http.json'),JSON.stringify(result,null,2));
+  const rows=async()=>{const snapshot=await grantFixtureChannel.readOwnedSnapshot();return snapshot.rows;};
+  const rawRows=(snapshot,table)=>(snapshot[table]??[]).map(entry=>entry.row);
+  const send=(url,actor='owner')=>{
+    assert.ok(url.startsWith('/api/integrations/procurement/releases'));
+    const target=new URL(url,origin);assert.equal(target.origin,origin.origin);
+    return fetch(target,{headers:{cookie:'__session='+sessions[actor]},redirect:'error',signal:AbortSignal.timeout(60000)});
+  };
+  const recordResponse=async response=>({status:response.status,contentType:response.headers.get('content-type'),
+    cacheControl:response.headers.get('cache-control'),body:await response.json()});
+  const check=async(name,action)=>{
+    const entry={name,status:'RUNNING'};result.cases.push(entry);save();
+    try{await action(entry);entry.status='PASS';}
+    catch(error){entry.status='FAIL';entry.error={message:error.message,code:error.code??null,stack:error.stack};result.firstFailure??={test:name,...entry.error};}
+    save();
+  };
+  const listUrl='/api/integrations/procurement/releases?partNumber='+fixture.partNumber;
+  const packageUrl=id=>'/api/integrations/procurement/releases/'+id+'/package';
+  const privateNoStore=value=>assert.ok(['private, no-store','private, no-store, max-age=0'].includes(value));
+  await check('authorized nonzero latest company Released list and actual nonempty package download',async entry=>{
+    const before=await rows(),response=await send(listUrl);entry.list=await recordResponse(response);
+    assert.equal(entry.list.status,200);privateNoStore(entry.list.cacheControl);
+    assert.equal(entry.list.body.count,1);assert.equal(entry.list.body.entries.length,1);
+    const released=entry.list.body.entries[0],expected=fixture.packages.find(item=>item.submissionId===fixture.target);
+    assert.equal(released.submission_id,fixture.target);assert.equal(released.part_number,fixture.partNumber);
+    assert.equal(released.files.length,1);assert.equal(released.approvals.length,1);
+    assert.equal(released.approvals[0].decision,'Approved');
+    assert.equal(released.files[0].sha256,expected.sourceSha256);assert.equal(Number(released.files[0].size),expected.sourceSize);
+    assert.equal(released.package.download_url,packageUrl(fixture.target));
+    assert.equal(released.package.sha256,expected.record.sha256);
+    assert.deepEqual(await rows(),before); // The list itself has no business or audit effects.
+    const download=await send(released.package.download_url),bytes=Buffer.from(await download.arrayBuffer());
+    entry.download={status:download.status,bytes:bytes.length,sha256:sha256(bytes),
+      headers:Object.fromEntries(['content-type','content-length','content-disposition','cache-control','x-content-type-options'].map(name=>[name,download.headers.get(name)]))};
+    assert.equal(download.status,200);assert.equal(entry.download.headers['content-type'],'application/zip');
+    assert.equal(entry.download.headers['content-length'],String(bytes.length));assert.match(entry.download.headers['content-disposition'],/^attachment;/);
+    privateNoStore(entry.download.headers['cache-control']);assert.equal(entry.download.headers['x-content-type-options'],'nosniff');
+    assert.equal(bytes.length,Number(expected.record.file_size));assert.equal(sha256(bytes),expected.record.sha256);
+    const downloadedPath=path.join(evidenceRoot,'procurement-downloaded-package.zip');fs.writeFileSync(downloadedPath,bytes);
+    const zipReadback=JSON.parse(execFileSync(process.env.DEV122_GOVERNOR_PYTHON,['-c',
+      'import zipfile,hashlib,json,sys\nwith zipfile.ZipFile(sys.argv[1]) as z:\n assert z.testzip() is None\n names=z.namelist()\n assert len(names)==len(set(names))\n print(json.dumps({"entries":[{"path":n,"bytes":len(z.read(n)),"sha256":hashlib.sha256(z.read(n)).hexdigest()} for n in names],"manifest":json.loads(z.read("manifest.json"))},ensure_ascii=False))',downloadedPath],
+      {encoding:'utf8',windowsHide:true,env:{...env,PYTHONUTF8:'1'}}));
+    entry.zip=zipReadback;assert.equal(zipReadback.entries.length,2);
+    assert.equal(zipReadback.manifest.schema,'ai-pdm-release-package.v1');assert.equal(zipReadback.manifest.submission.id,fixture.target);
+    assert.equal(zipReadback.manifest.submission.status,'Released');assert.equal(zipReadback.manifest.files.length,1);
+    assert.equal(zipReadback.manifest.approvals[0].decision,'Approved');
+    const packaged=zipReadback.entries.find(file=>file.path==='files/other/'+expected.filename);
+    assert.deepEqual(packaged,{path:'files/other/'+expected.filename,bytes:expected.sourceSize,sha256:expected.sourceSha256});
+    assert.equal(zipReadback.manifest.files[0].sha256,expected.sourceSha256);
+    const after=await rows(),addedAudits=rawRows(after,'audit_logs').filter(audit=>!rawRows(before,'audit_logs').some(old=>old.id===audit.id));
+    assert.equal(addedAudits.length,1);const audit=addedAudits[0],detail=typeof audit.detail_json==='string'?JSON.parse(audit.detail_json):audit.detail_json;
+    entry.downloadAudit={...audit,detail};assert.equal(audit.action,'StorageAccessed');assert.equal(audit.actor_id,fixture.principalId);
+    assert.equal(audit.company_id,fixture.companyId);assert.equal(audit.submission_id,fixture.target);
+    assert.equal(detail.securityPrincipalId,fixture.principalId);assert.equal(detail.historicalProfileId,fixture.profileId);
+    assert.equal(detail.fileId,expected.record.id);assert.equal(detail.bytes,bytes.length);assert.equal(detail.accessKind,'release_package');
+    assert.equal(detail.storageKey,expected.record.storage_key);assert.equal(detail.provider,'local_repository');assert.equal(detail.externalAccess,false);
+    assert.equal(detail.route,'/api/integrations/procurement/releases/[id]/package');assert.equal(detail.storageAccessSource,'runtime');
+    const stripAudits=snapshot=>Object.fromEntries(Object.entries(snapshot).filter(([table])=>table!=='audit_logs'));
+    assert.deepEqual(stripAudits(after),stripAudits(before));
+  });
+  await check('equal-time losing Released package is denied consistently with the list',async entry=>{
+    const before=await rows(),response=await send(packageUrl(fixture.stale));
+    entry.statusCode=response.status;
+    const bytes=Buffer.from(await response.arrayBuffer());entry.responseSha256=sha256(bytes);entry.responseBytes=bytes.length;
+    const after=await rows();entry.ownedRowsUnchanged=JSON.stringify(before)===JSON.stringify(after);
+    assert.equal(response.status,404);assert.equal(entry.ownedRowsUnchanged,true);
+  });
+  await check('permission deny produces no business or storage audit effects',async entry=>{
+    const before=await rows();entry.list=await recordResponse(await send(listUrl,'denied'));
+    entry.package=await recordResponse(await send(packageUrl(fixture.target),'denied'));
+    entry.ownedRowsUnchanged=JSON.stringify(before)===JSON.stringify(await rows());
+    assert.equal(entry.list.status,403);assert.equal(entry.package.status,403);assert.equal(entry.ownedRowsUnchanged,true);
+  });
+  await check('actual native SELECT failure is safe non-200 JSON and exact ACL recovery restores the normal list',async entry=>{
+    const identity=(await admin.query('SELECT current_database() AS database,current_user AS identity')).rows[0];
+    assert.equal(identity.database,'dev122_'+path.basename(env.DEV122_RUNTIME_ROOT));assert.equal(identity.identity,'dev122_bootstrap');
+    const aclSql=`SELECT grantor::regrole::text AS grantor,grantee::regrole::text AS grantee,privilege_type,is_grantable
+      FROM pg_class CROSS JOIN LATERAL aclexplode(relacl) WHERE oid='ai_pdm_core.submissions'::regclass ORDER BY 1,2,3,4`;
+    const privilege=async()=>(await admin.query("SELECT has_table_privilege('dev122_runtime','ai_pdm_core.submissions','SELECT') AS allowed")).rows[0].allowed;
+    const aclBefore=(await admin.query(aclSql)).rows,before=await rows();entry.aclBefore=aclBefore;
+    assert.equal(await privilege(),true);
+    assert.equal(aclBefore.some(row=>row.grantee==='dev122_runtime'&&row.privilege_type==='SELECT'),false);
+    assert.ok(aclBefore.some(row=>row.grantee==='jenfu_ai_pdm_runtime'&&row.privilege_type==='SELECT'&&!row.is_grantable));
+    let revokeAttempted=false;
+    try{
+      revokeAttempted=true;await admin.query('REVOKE SELECT ON ai_pdm_core.submissions FROM jenfu_ai_pdm_runtime');
+      entry.effectiveSelectAfterRevoke=await privilege();assert.equal(entry.effectiveSelectAfterRevoke,false);
+      const logStart=fs.statSync(path.join(evidenceRoot,'postgres.log')).size;
+      entry.response=await recordResponse(await send(listUrl));
+      assert.equal(entry.response.status,500);assert.match(entry.response.contentType,/^application\/json(?:;|$)/);
+      privateNoStore(entry.response.cacheControl);
+      assert.equal(entry.response.body.error.code,'number_state_internal');assert.equal(entry.response.body.error.retryable,false);
+      assert.doesNotMatch(JSON.stringify(entry.response.body),/SELECT|submissions|permission denied|stack|42501/);
+      const logBytes=fs.readFileSync(path.join(evidenceRoot,'postgres.log'));assert.ok(logBytes.length>=logStart);
+      const delta=logBytes.subarray(logStart),failureLine=delta.toString('utf8').split(/\r?\n/).find(line=>/ERROR:\s+42501:\s+permission denied for table "?submissions"?/.test(line));
+      entry.databaseFaultLog={startOffset:logStart,endOffset:logBytes.length,sha256:sha256(delta),failureLine:failureLine??null};
+      entry.observedSqlstate=failureLine?'42501':null;assert.equal(entry.observedSqlstate,'42501');
+      entry.ownedRowsUnchanged=JSON.stringify(before)===JSON.stringify(await rows());assert.equal(entry.ownedRowsUnchanged,true);
+    } finally {
+      if(revokeAttempted)await admin.query('GRANT SELECT ON ai_pdm_core.submissions TO jenfu_ai_pdm_runtime');
+      entry.effectiveSelectAfterRestore=await privilege();entry.aclAfter=(await admin.query(aclSql)).rows;
+      assert.equal(entry.effectiveSelectAfterRestore,true);assert.deepEqual(entry.aclAfter,aclBefore);
+    }
+    entry.recovered=await recordResponse(await send(listUrl));assert.equal(entry.recovered.status,200);
+    assert.equal(entry.recovered.body.count,1);assert.equal(entry.recovered.body.entries[0].submission_id,fixture.target);
+    assert.deepEqual(await rows(),before);
+  });
+  result.status=result.cases.every(entry=>entry.status==='PASS')?'PASS':'FAIL';save();return result;
 }
 
 async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {

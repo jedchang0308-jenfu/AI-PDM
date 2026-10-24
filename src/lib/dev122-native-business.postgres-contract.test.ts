@@ -44,6 +44,8 @@ import { SELECT_ASYNC_SUBMISSION_DETAIL_SQL, SELECT_ASYNC_SUBMISSION_FILES_SQL, 
   SELECT_ASYNC_SUBMISSION_RELEASE_PACKAGE_SQL } from "@/lib/repositories/submission-list-async-repository";
 import { NumberStateFlowError } from "@/lib/number-state-flow-contract";
 import { createReleasePackageStorageService, LocalRepositoryStorageAdapter } from "@/lib/file-storage";
+import { createReleasePackageAsync } from "@/lib/release-package-async";
+import { AsyncSubmissionListRepository } from "@/lib/repositories/submission-list-async-repository";
 import { POST as createTransfer } from "@/app/api/transfer-packages/route";
 import { POST as addTransferItem } from "@/app/api/transfer-packages/[id]/items/route";
 import { POST as submitTransfer } from "@/app/api/transfer-packages/[id]/submit-review/route";
@@ -87,6 +89,7 @@ const fullLifecycleSelection = ["lifecycle", "all"].includes(process.env.DEV122_
 const rdPermissionEnabled = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "rd-permission";
 const filesEnabled = enabled && ["files", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const procurementEnabled = enabled && ["procurement", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
+const procurementOutcomeEnabled = procurementEnabled && process.env.DEV122_NATIVE_SELECTION === "procurement-outcome";
 const db=enabled?getAsyncDatabaseClient():null;
 let ownerToken = "", reviewerToken = "", deniedToken = "",otherToken="";
 function request(url:string,token=ownerToken,method="GET",body?:object,version=1,contract="",key=url) {
@@ -398,6 +401,56 @@ describe.runIf(procurementEnabled)("DEV122 I01 actual signed procurement route/s
       new NumberStateFlowError("dev122_dependency_unavailable", "Dependency temporarily unavailable", 503, true), () => readProcurement(request("/api/integrations/procurement/releases")));
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: { code: "dev122_dependency_unavailable", retryable: true } });
+  });
+});
+
+describe.runIf(procurementOutcomeEnabled)("DEV122 D12206 actual HTTP prerequisites", () => {
+  it("prepares historical Released inputs and real nonempty packages without an external release provider", async () => {
+    expect(process.env.PDM_STORAGE_PROVIDER).toBe("local_repository");
+    const item = "dev122-d06-item", target = "dev122-d06-z", stale = "dev122-d06-a";
+    await fixtureMutation("D122-06 explicit historical read prerequisite; not lifecycle/release acceptance",
+      "INSERT INTO items(id,company_id,part_number,part_name) VALUES(:id,'company-jenfu','DEV122-D06','D06 native HTTP input')", { id: item });
+    const inputs = [
+      { id: stale, company: "company-jenfu", status: "Released", released: "2026-09-03T00:00:00Z" },
+      { id: target, company: "company-jenfu", status: "Released", released: "2026-09-03T00:00:00Z" },
+      { id: "dev122-d06-other", company: "company-dev122-other", status: "Released", released: "2026-09-05T00:00:00Z" },
+      { id: "dev122-d06-pending", company: "company-jenfu", status: "Pending", released: null }
+    ];
+    const packages = [];
+    for (const input of inputs) {
+      await fixtureMutation("D122-06 historical company/status/equal-time inputs only", `INSERT INTO submissions
+        (id,company_id,item_id,drawing_number,revision,material,surface_finish,document_type,change_description,status,submitted_by,released_at)
+        VALUES(:id,:company,:item,:id,'1.0','SUS304','none','part','D06 historical read input',:status,'dev122-profile-owner',:released)`, { ...input, item });
+      if (![target, stale].includes(input.id)) continue;
+      const bytes = Buffer.from("DEV122 D06 real source bytes\n" + input.id + "\nTraditional Chinese: 圖料發行資料\n", "utf8");
+      const stored = await new LocalRepositoryStorageAdapter().putObject({ key: "dev122/d06/" + input.id + ".txt", bytes, contentType: "text/plain" });
+      const filename = input.id + ".txt";
+      await fixtureMutation("D122-06 real task-owned historical submission file", `INSERT INTO submission_files
+        (id,submission_id,file_role,original_filename,local_path,storage_provider,storage_key,sha256,file_size)
+        VALUES(:id,:submission,'other',:filename,:localPath,'local_repository',:key,:hash,:size)`,
+        { id: input.id + "-file", submission: input.id, filename, localPath: stored.localPath, key: stored.key, hash: stored.sha256, size: stored.bytes });
+      await fixtureMutation("D122-06 explicit historical approval input; not a new approval", `INSERT INTO approval_steps
+        (id,submission_id,reviewer_id,decision,decided_at) VALUES(:id,:submission,'dev122-profile-reviewer','Approved','2026-09-03T00:00:00Z')`,
+        { id: input.id + "-approval", submission: input.id });
+      const submission = await new AsyncSubmissionListRepository(db!).getSubmission(input.id);
+      expect(submission?.files).toHaveLength(1); expect(submission?.approvals).toHaveLength(1);
+      const generated = await createReleasePackageAsync(submission!, "dev122-profile-owner", {
+        boundary: "LOCAL_HISTORICAL_READ_PRECONDITION", providerWorkflow: "NOT_RUN"
+      });
+      expect(generated.fileSize).toBeGreaterThan(bytes.length + 22);
+      const record = await db!.queryOne("SELECT * FROM release_packages WHERE submission_id=:id", { id: input.id });
+      const creationAudit = await db!.query("SELECT * FROM audit_logs WHERE submission_id=:id AND action='ReleasePackageCreated'", { id: input.id });
+      expect(creationAudit).toHaveLength(1);
+      const sourceEvidencePath = path.join(process.env.DEV122_EVIDENCE_ROOT!, input.id + "-source.bin");
+      await fs.writeFile(sourceEvidencePath, bytes);
+      packages.push({ submissionId: input.id, filename, sourceSha256: stored.sha256, sourceSize: bytes.length,
+        sourceEvidencePath, generated, record, creationAudit });
+    }
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "procurement-outcome-fixture.json"), JSON.stringify({
+      boundary: "Synthetic Principal and published-contract fixture; historical Released inputs; actual package helper and storage",
+      lifecycleAndExternalRelease: "NOT_RUN", companyId: "company-jenfu", principalId: "dev122-principal-owner",
+      profileId: "dev122-profile-owner", partNumber: "DEV122-D06", target, stale, inputs, packages
+    }, null, 2));
   });
 });
 
