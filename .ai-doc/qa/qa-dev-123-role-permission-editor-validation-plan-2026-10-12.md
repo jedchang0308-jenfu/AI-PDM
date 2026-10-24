@@ -261,10 +261,22 @@ OrgMaster撤銷同Principal的 `system_admin` 後，readback為有效特權0且c
 
 六項產品輸入前後hash相同；browser命名session已關閉，server PID4712、失敗PID28384、browser PID13796均退出，41725無listener，Governor session已結束且隔離temp無業務資料。此PDM補驗未新增localhost或讀取憑證，沿用上輪已移除localhost的紀錄，不宣稱本輪重新操作IdP。
 
-另唯讀核對OrgMaster既有`native-org-journey-20261024-r25.log`（14 PASS）：32直接輸入有29項仍相同，全部PDM輸入相同；Org的bootstrap、privilegedAssignmentStore及validation已變，差異見`native-r25-reuse-audit.json`。原件支持當時A/B、direct／delegated inactive、已撤／到期不復活與交易重疊機制；沒有在本輪重跑，也不把其synthetic session／HTTP證據當正常兩端UI。當前Org受影響輸入由OrgMaster owner驗證及判定等價。QA123-29／52仍待完整正常兩端A→B／代理／停復／history與source/current讀回；QA123-50雙binding維持外部來源BLOCKED、整案PARTIAL。52 QA／17 AC／CG不縮減，本輪正式migration、部署、正式資料寫入及IAM／Secret變更均為0。
+另唯讀核對OrgMaster既有`native-org-journey-20261024-r25.log`（14 PASS）：32直接輸入有29項仍相同，全部PDM輸入相同；Org的bootstrap、privilegedAssignmentStore及validation已變，差異見`native-r25-reuse-audit.json`。原件支持當時A/B、direct／delegated inactive、已撤／到期不復活與交易重疊機制；此audit本身不是重跑，也不把synthetic session／HTTP證據當正常兩端UI。當前來源其後已由下方current-native-r3補驗，QA123-29／52依末表逐子項認列，不再籠統列全部待驗，也不要求因文件SHA重跑已驗SSO。QA123-50雙binding維持外部來源BLOCKED、整案PARTIAL。52 QA／17 AC／CG不縮減，本輪正式migration、部署、正式資料寫入及IAM／Secret變更均為0。
 
 OrgMaster owner後續交付r15（PR #153，`a66afca1f428806f637df401b282573e7c9bdb31`）：`output/qa/dev-058/browser-dynamic-r15/report.json`的production artifact／Chromium 9/9 PASS、page／console errors=0及清理PASS；其contracts為113 PASS／1既有SKIP，相關治理元件12/12 PASS。r15使用tracked dynamic vector與mock API，補齊canonical／custom矩陣、inactive歷史、來源／名稱／期間、keyboard／focus、代理明確空狀態、503與1440／1024／390；與r14正常SSO／真兩端判權合併後，OrgMaster QA058原24目的為24 PASS／0 PARTIAL／0 BLOCKED，DEV-058仍In Progress／Not Released。這個分母不代替PDM QA123-29／52尚缺的正常代理任用與完整兩端往返。r14本機Principal的system_admin仍為authority v8、effectiveCount=0，r15未重新授予；正式reader／writer仍未執行。
 
 為補足上述三個Org輸入漂移的實證，本輪在PDM `d6074c4bcac7eead092646f5dc970c7eb033c414`／Org `a66afca1f428806f637df401b282573e7c9bdb31`直接重播既有owner native旅程，`current-native-r3.log`／`.json`為14/14 PASS、32直接輸入前後相同。實際PDM producer／Org HTTP writer／原生PG完成legacy→dynamic及A→B、custom direct與代理任用發布、stale snapshot拒絕／合法舊snapshot重疊、停用direct／delegated Deny與active sibling Allow、採購／生管同停同復且identity/profile/priority不改、已撤／到期source與代理在恢復後不復活、writer鎖等待後撤權；另保留特權exact Principal與commit後HTTP丟失查詢重播斷言。這補QA123-29／30／44／52的當前來源交易／判權子目的，不再只依舊r25的靜態等價推論；Platform state與session issuance仍是明示fixture，並非新的Google登入或整段正常雙端UI重播，未自動把兩案全部子斷言或52目的改PASS。
 
 native r1缺`--experimental-transform-types`、r2執行cwd未指向OrgMaster而在legacy catalog檔案讀取失敗，均在案例前且PG清理PASS；r3只修這兩項啟動前提，不改產品／schema契約或斷言。HTTP Node26052已退出，HTTP64964與PG60423均釋放，cluster／client／temp／Governor runtime及session清理完成；前兩次PG61660／52971亦已釋放。所有原件留在同一PDM證據目錄，沒有修改OrgMaster檔案或正式資料。
+
+QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r14正常SSO、兩端UI及current-native-r3實際HTTP／PG；各層只支持原斷言，不新增每項重跑Google的關卡。
+
+| 子項 | 精確狀態／證據 |
+|---|---|
+| QA29 legacy→dynamic A→B與舊provenance | 本機原生PASS：current-native-r3由legacy讀取、真producer建立custom並連續apply；Org真HTTP任用／發布、舊snapshot與新policy分別讀回，stale拒絕及合法overlap均通過 |
+| QA29正常任用與特權歷史 | 正常SSO／UI PASS：r14同一Google Principal的custom建立／套用／Org指派發布與system_admin撤銷，effective=0且custom仍可查看、下載拒絕；原revoked歷史保留。r15未重新授予 |
+| QA29／52代理、停用／恢復、撤銷／到期 | 本機原生PASS：current-native-r3真HTTP建立source與delegation、發布後PDM允許；停用拒絕、active sibling允許、撤銷／到期及恢復不復活。PDM實際元件已驗A/B/C狀態；Org代理UI只新增空狀態證據，未冒稱Google session實際操作完整代理表單 |
+| QA52七canonical／active custom名稱、順序與完整UI狀態 | UI子項PASS：Org r15與本輪PDM實際元件各驗矩陣／明細／歷史／唯讀／錯誤／viewport；r14另有正常custom任用。mock UI不當作逐一正常任用七角色的DB結果 |
+| QA52採購／生管alias與原priority | identity/profile/status/priority子項本機原生PASS：current-native-r3兩身份同步停復且其餘欄位與priority未變；新選項只列canonical沿Org r15及既有固定契約測試。未新增舊planning人員任用之全部scope／期間欄位的正常UI實錄，不以alias投影等同全任用歷史 |
+| QA52current／schema／version／hash錯配拒絕 | 沿既有C26真current/history負例及未變reader契約重用；current-native-r3補當前來源的實際consumer正例。不是本輪重新注入全部fault，也不靠UI marker判相容 |
+| QA29／52整案判定與QA50 | 核心交易／代理／停復及相關UI子項已具本機組合證據；上列明示未實跑的正常UI子斷言保留，不宣稱兩案或52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
