@@ -247,13 +247,15 @@ CG01／custom reviewer與lifecycle補證：同一證據根的`dev123-native-cust
 
 | 範圍 | 本輪已核對結果 | 尚未完成 |
 |---|---|---|
-| 產品來源與工程檢查 | 官方main `63a36ec182b2fb2931ee707858d67bffd1a7195e`；PR480來源／required CI與577 tests等原件沿用，PR481及合併main required CI亦SUCCESS。新文件不改app輸入 | 不以CI或本節文件當作正常登入／正式啟用 |
+| 產品來源與工程檢查 | 本輪固定核對的已合併來源`63a36ec182b2fb2931ee707858d67bffd1a7195e`；PR480來源／required CI與577 tests等原件沿用，PR481及合併main required CI亦SUCCESS。後續main511e1eda僅6個DEV122 runner／test變動，未改本輪DEV123產品輸入；見`latest-main-scope-readback-r1.json`。新文件不改app輸入 | 不以CI或本節文件當作正常登入／正式啟用 |
 | 可重用native子目的 | `output/qa/dev-123-sso-acceptance/evidence-reuse-audit-r2.json`重新讀回8個最終原件。formalize、file-asset、export、safe-share-preview、shared-model、model-review及custom-reviewer七份共193個宣告輸入仍吻合，其中155個產品輸入與本輪main canonical bytes一致 | 兩份PASS_WITH_NOT_RUN維持原限制；不是重跑、fresh SSO或整案PASS |
 | package／bytes | r6的19／19歷史結果及首敗保留；本輪發現其3個輸入後續有manifest helper抽取、外部manifest membership guard與preview_url修正，不能稱全部輸入未變。相關較新safe-share-preview native與manifest正反契約證據另列原節 | 本輪未重跑19項整批；額外native replay在啟動前受容量保護阻擋，沒有runtime、測試失敗或新的PASS |
-| 正常Google／SSO | OrgMaster以原Chrome公司登入讀Firebase Console，恢復失去控制的分頁；控制台登入仍有效。IdP原8域→9域，僅本次新增localhost，原8域全保留 | 本機r7在PG／三端server啟動前，FirebaseAdmin getUser回app/invalid-credential／400，含invalid_grant與reauth訊號；現等待人類完成Google身分驗證，只更新同身分／同scope的任務私有ADC副本。未驗正常SSO，不推定正式Platform401根因 |
+| 正常Google／SSO | OrgMaster以原Chrome公司登入讀Firebase Console，恢復失去控制的分頁；控制台登入仍有效。IdP原8域→9域→8域，僅新增再移除localhost，重新載入後原8域全保留 | 本機r7在PG／三端server啟動前，FirebaseAdmin getUser回app/invalid-credential／400，含invalid_grant與reauth訊號；現等待人類完成Google身分驗證，只更新同身分／同scope的任務私有ADC副本。未驗正常SSO，不推定正式Platform401根因 |
 | 雙端任用／UI | OrgMaster DEV-058原24目的的21 PASS／2 PARTIAL／1 BLOCKED維持，按其既有唯一QA入口重用適用結果 | QA123-28–30／44／52的正常雙端連續旅程及相關完整UI仍待登入後實證；fixture任用不替代正常UI |
 | 模型及正式發布 | model.review／resolver等已驗子項保持；086–088／034–036只引用歷史已套用收據 | QA123-50雙binding仍缺合法STEP／STP／IGES；正式Org reader受Platform401阻擋、PDM writer未啟用，且本輪禁止正式操作 |
 
-IdP新增與前置失敗的原件位於OrgMaster `dev058-doc-readback-20261024/output/qa/dev-058/`：`company-idp-localhost-20261024-r4-baseline.json`、`r5-added.json`／`.png`、`local-sso-credential-precondition-20261024-r7.json`。當前`addedByThisTask=[localhost]`、`cleanupPending=true`；由該端單一管理IdP與瀏覽器，**移除完成必須再取得末端讀回**，不能由計畫或新增成功宣稱已清理。人類只在保留的Google「驗證您的身分」頁輸入密碼／驗證碼；不記錄或提交credential、token、cookie、驗證碼與含驗證參數的URL。
+IdP新增與前置失敗的原件位於OrgMaster `dev058-doc-readback-20261024/output/qa/dev-058/`：`company-idp-localhost-20261024-r4-baseline.json`、`r5-added.json`／`.png`、`local-sso-credential-precondition-20261024-r7.json`。末端`company-idp-localhost-20261024-r5-cleanup.json`／`.png`於2026-10-24 11:17（Asia/Taipei）重新載入讀回：`removedByThisTask=[localhost]`、`otherDomainsRemoved=[]`、`originalDomainsPreserved=true`、`cleanupPending=false`。這只證本輪設定已還原，不能當作SSO通過；原新增與失敗收據保留。
 
-本輪證據audit r1未涵蓋巢狀path／sha256格式，原件保留；r2修正解析並明示package三檔差異，不改舊測試結果。新增native replay未啟動，沒有繞過容量保護或清理其他任務資源。後續只補正常SSO後可行旅程及其直接缺口，驗完再記localhost移除與本輪資源清理結果。
+人類操作位置為Chrome「JED－鉦富」profile保留的Google Auth Library「驗證您的身分」分頁，帳號為既有公司管理員。該頁仍顯示密碼輸入；callback尚未收到、任務私有ADC未更新，不能把口頭完成當作成功。由OrgMaster端刻意保留該auth tab及task-owned callback PID31276／port8085，僅交接同一次憑證更新，完成或取消後由該端停止並確認port釋放；三端應用及PG未啟動、integration lease已釋放。人類只在Google頁輸入密碼／驗證碼；不記錄或提交credential、token、cookie、驗證碼與含驗證參數的URL。
+
+本輪證據audit r1未涵蓋巢狀path／sha256格式，原件保留；r2修正解析並明示package三檔差異，不改舊測試結果。新增native replay未啟動，沒有繞過容量保護或清理其他任務資源。後續只補正常SSO後可行旅程及其直接缺口；續接時依既有人類授權按需暫加localhost並於末端再次移除，更新實際旅程與資源清理結果。
