@@ -97,11 +97,14 @@ export function RoleCapabilitySettings() {
   const [pending, setPending] = useState<Pending | null>(null)
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null)
   const [leave, setLeave] = useState<(() => Promise<void>) | null>(null)
+  const [newRoleName, setNewRoleName] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sequence = useRef(0)
   const confirmButton = useRef<HTMLButtonElement>(null)
+  const addRoleDialog = useRef<HTMLDialogElement>(null)
+  const addRoleInput = useRef<HTMLInputElement>(null)
   const leaveDialog = useRef<HTMLDialogElement>(null)
   const leaveRestoreFocus = useRef<HTMLElement | null>(null)
   const allowUnload = useRef(false)
@@ -299,7 +302,12 @@ export function RoleCapabilitySettings() {
     setPreview(null)
   }
   function addRole() {
-    const displayName = window.prompt('新角色名稱')?.normalize('NFC').trim()
+    setNewRoleName('')
+    addRoleDialog.current?.showModal()
+    window.setTimeout(() => addRoleInput.current?.focus(), 0)
+  }
+  function confirmAddRole() {
+    const displayName = newRoleName.normalize('NFC').trim()
     if (!displayName) return
     const clientRoleId = 'client-' + crypto.randomUUID()
     setRoleChanges(old => [...old, { type: 'create', clientRoleId, displayName }])
@@ -307,6 +315,8 @@ export function RoleCapabilitySettings() {
     setProfiles(old => [...old, { stableRoleId: clientRoleId, permissionRoleId: clientRoleId,
       presentationName: displayName, presentationOrder: Math.max(...old.filter(p => p.assignmentDisposition === 'selectable').map(p => p.presentationOrder)) + 1, assignmentDisposition: 'selectable' }])
     setPreview(null)
+    addRoleDialog.current?.close()
+    setNewRoleName('')
   }
   async function saveDraft() {
     const draft = workspace!.selectedDraft!
@@ -508,6 +518,16 @@ export function RoleCapabilitySettings() {
           <label>異動原因<input value={reason} maxLength={240} disabled={locked} onChange={e => setReason(e.target.value)} /></label>
           <button type="button" className="primary-button" disabled={locked || !workspace.admission.apply || !reason.trim()} onClick={() => void apply()}>套用權限</button></div> : null}
       </>}
+    <dialog ref={addRoleDialog} aria-labelledby="role-policy-add-role-title" className="role-policy-leave-dialog"
+      onCancel={() => setNewRoleName('')}>
+      <h3 id="role-policy-add-role-title">新增角色</h3>
+      <label>角色名稱<input ref={addRoleInput} value={newRoleName}
+        onChange={event => setNewRoleName(event.target.value)} /></label>
+      <div className="access-actions">
+        <button type="button" className="primary-button" disabled={!newRoleName.trim()} onClick={confirmAddRole}>新增</button>
+        <button type="button" className="secondary-button" onClick={() => { addRoleDialog.current?.close(); setNewRoleName('') }}>取消</button>
+      </div>
+    </dialog>
     <dialog ref={leaveDialog} aria-labelledby="role-policy-leave-title" className="role-policy-leave-dialog"
       onCancel={event => { event.preventDefault(); closeLeaveDialog() }} onKeyDown={handleLeaveKeyDown}>
       <h3 id="role-policy-leave-title">未保存修改</h3><p>尚有未保存修改，請選擇離開前要如何處理。</p><div className="access-actions">

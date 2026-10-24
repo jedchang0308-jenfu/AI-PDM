@@ -76,13 +76,15 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 <a id="dev-123-role-permission-editor"></a>
 
-## DEV-123#role-permission-editor — schema applied / consumer blocked / writer held (2026-10-24)
+## DEV-123#role-permission-editor — 本機正常 SSO 已驗，代理來源資格修正續接（2026-10-25）
 
-七角色、五作業、20動作、角色增停恢復與原子套用已由[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)合併並通過required CI；保留九歷史身份、system保護與OrgMaster任用責任。PDM 086–088及OrgMaster 034–036正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且舊版承接流量，PDM writer未部署。精確來源、收據、PG／瀏覽器結果及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+七角色、五作業、20動作、角色增停恢復與原子套用已由[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)合併並通過required CI；保留九歷史身份、system保護與OrgMaster任用責任。PDM 086–088及OrgMaster 034–036正式schema已套用；先前Org consumer verify在Platform session 401前置失敗，既定恢復完成且舊版承接流量，PDM writer未部署。精確來源、收據、PG／瀏覽器結果及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
-下一步：釐清Platform session 401，完成OrgMaster reader發布及真實讀回，再沿[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)續接PDM writer與正式驗收；正常Google／SSO旅程仍待完成。PDM既有protected發布／驗收與OrgMaster相容migration／reader部署已授權，後者限jenfu-platform-prod／orgmaster-prod，不含人員指派改寫、IAM或Secrets，也不延伸為Platform正式修改。52 QA／17 AC／CG目的保留，尚未整體驗收或套用新矩陣。
+本機r14已由公司Google正常SSO完成custom角色建立→OrgMaster人員指派／發布→撤銷同Principal的`system_admin`→PDM正常入口allow／deny：`pdm.drawing.view`可用，缺`pdm.drawing.download`的匯出建立回403／`permission_not_granted`且export jobs維持0筆。[PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)收斂可存取的原生新增角色dialog、local SSO ADC binding及驗證紀錄；OrgMaster DEV-058 r15為24 PASS／0 PARTIAL／0 BLOCKED，仍In Progress／Not Released。後續查出代理來源選單未同步後端資格，OrgMaster r16已修正並通過26項相關元件回歸與build；正常代理表單／舊生管欄位讀回另按[QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)追蹤，不把元件測試當SSO。Portal可見性、來源資格與相容migration 037由OrgMaster [PR #153](https://github.com/jedchang0308-jenfu/OrgMaster/pull/153)負責，Platform本機正常入口修正由[PR #140](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/140)負責。
 
-來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6；reader／writer與正常SSO尚未完成；QA50雙model binding另缺合法STEP／IGES來源，保留PARTIAL。
+下一步先補隔離環境的正常代理表單及舊生管任用讀回；本輪已自行完成任務私有ADC重新登入與getUser查核，共用ADC不變，既有r14有效證據不重跑。[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)保留，但本輪不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更；OrgMaster正式相容範圍另列SPEC§9，不改寫正式人員指派。52 QA／17 AC／CG目的保留，尚未整體驗收或套用新矩陣；QA50雙model binding仍缺合法STEP／IGES來源，保持PARTIAL。
+
+來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6；正式reader／writer尚未完成；QA50雙model binding另缺合法STEP／IGES來源，保留PARTIAL。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

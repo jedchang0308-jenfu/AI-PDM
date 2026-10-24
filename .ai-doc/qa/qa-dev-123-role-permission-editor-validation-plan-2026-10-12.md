@@ -1,6 +1,6 @@
 # DEV-123 角色權限設定驗證計畫
 
-建立：2026-10-12；修訂：2026-10-24。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已授權AI-PDM與OrgMaster隔離工作樹協同開發；進度、有效結果與缺口只在§6記錄，非獨立QC或整體PASS。
+建立：2026-10-12；修訂：2026-10-25。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已授權AI-PDM與OrgMaster隔離工作樹協同開發；進度、有效結果與缺口只在§6記錄，非獨立QC或整體PASS。
 
 ## 1. 驗證範圍與方式
 
@@ -160,7 +160,7 @@ CG123-02覆蓋原66key及全部live route/caller/bytes去向，檢查server cano
 
 `dev123-native-recognition-authority-current-r1.json`：真PG durable initiator→claim→completeJob正例review_ready／1 candidate；真apply停用RD後，另一已claim job的completeJob拒絕且canonical/history計數不變，所有task資源清理完成。只支持worker採用，未驗recognition正式化HTTP；其首敗fixture修正記錄保留。
 
-同型nullable query查核：新增fileId／sourceId兩helper改明確text CAST；`nullable-source-file-focused-r1.log` 12 PASS。`dev123-native-capability-helper-current-r1.json`真PG驗sourceId未指定／指定合法來源允許，真apply停用RD後同source拒絕403；submission helper未有現成合法fixture，標NOT_RUN，未冒稱整段下載已驗。兩次runner前提失敗保留；所有資源清理完成。靜態檢查本PR新增／修改SQL已無相同首用IS NULL／IS NOT NULL的未定型參數。
+同型nullable query查核：新增fileId／sourceId兩helper改明確text CAST；`nullable-source-file-focused-r1.log` 12 PASS。`dev123-native-capability-helper-current-r1.json`真PG驗sourceId未指定／指定合法來源允許，真apply停用RD後同source拒絕403；當時submission helper尚無合法fixture，記NOT_RUN（此原因已由後續package r6及10/25來源對應查核補足，見本文末），不把當時結果冒稱整段下載已驗。兩次runner前提失敗保留；所有資源清理完成。靜態檢查本PR新增／修改SQL已無相同首用IS NULL／IS NOT NULL的未定型參數。
 
 CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇ECONNRESET，尚未進產品測試，保留該失敗。以上兩行query後來源須刷新兩個required checks，不把舊QC或網路失敗改判為新來源PASS。DB boundary的staged對branch前一commit檢查曾拒087改寫；以既有`--base=origin/main`驗整個未合併slice PASS，086–088均為新增、無main migration改刪，檢查器未變（`assurance-db-boundary-source-scope.json`）。
 
@@ -219,7 +219,7 @@ CI `39983011836` 的0c3來源：Production Slice QC SUCCESS；DEV012在npm ci遇
 
 401的現有證據只能定位到Platform session邊界：refresh與operator Firebase驗證成功，不足以證明正式runtime verifier或Principal revokedBefore通過。尚無可用的既有特定Principal epoch唯讀入口，未執行任意SQL／Job、新session、Secret輪替或IAM變更。Platform正式修改不在本輪授權內；不得把這個authentication失敗記作Org業務permission deny或已證根因。
 
-剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer；完成正常Google／SSO、真實管理者／任用往返及尚未覆蓋的子斷言與正式驗收。現有schema成功及上述HTTP bridge／native結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
+剩餘交付：釐清上述401並完成OrgMaster相容reader正式發布／真實consumer讀回，再續接PDM writer。正常Google／SSO的custom建立→Org任用→撤除重疊特權→PDM allow/deny子旅程已由下段r14補齊；QA123-29／52其餘A→B、代理、停復、完整UI狀態及尚未覆蓋的子斷言仍依原分母待補。現有schema成功及上述HTTP bridge／native／r14結果只關閉其實際斷言，不自動關閉整案。10/23人類已允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets。依schema→consumer→writer順序沿既有受保護workflow交付。沒有宣稱52 QA／17 AC／CG整體PASS，也未自動套用新矩陣或改人員指派。
 
 不記帳密、token、cookie；只清本任務已驗明的 runtime／port／temp。後續僅刷新改變的責任面；required CI 與既有正式執行器仍有效。
 
@@ -235,8 +235,52 @@ QA50後續有界native補證：`dev123-native-model-review-http-20261024-r2.json
 
 來源34項直接inputs前後未變，root再以`native-model-review-source-equivalence-r1.json`核對28個tracked產品輸入與官方main20290 canonical bytes一致，其餘原harness／Org及授權CAD來源hash相符。PG ERROR/FATAL=0、asyncErrors=0，cluster／bridge／port／temp已清；使用registered synthetic AAL2 session，非fresh SSO／完整Next／native CAD語意驗收。r1在HTTP前因runner自行加入未受契約支持的universal SolidWorks magic斷言而失敗，原件保留；r2移除該假設，改核對授權實檔bytes／hash，未改產品。
 
-雙model binding仍BLOCKED：正常upload同一CAD role會取代；需要合法CAD＋intermediate兩個role，但原授權資料夾只有SLDPRT／SLDASM／SLDDRW，未找到STEP／STP／IGES。待補合法中間格式來源，不造檔或轉檔來強行通過。model-basis及baseline create／release為既有非Principal入口，維持拒絕／未驗。QA123-50仍PARTIAL；正常Google／兩端正式actor旅程及reader→writer發布也未完成，不縮減52目的／17AC／CG。
+雙model binding仍BLOCKED：正常upload同一CAD role會取代；需要合法CAD＋intermediate兩個role。OrgMaster owner於2026-10-25唯讀盤點原授權J資料夾共11個CAD檔，含SLDPRT／SLDASM／SLDDRW及1個DWG，STEP／STP／IGES／IGS均為0。待補合法中間格式來源，不造檔或轉檔來強行通過。model-basis及baseline create／release為既有非Principal入口，維持拒絕／未驗。QA123-50仍PARTIAL；正常Google／兩端正式actor旅程及reader→writer發布也未完成，不縮減52目的／17AC／CG。
 
 CG01／custom reviewer與lifecycle補證：同一證據根的`dev123-native-custom-reviewer-http-20261024-r2.json`／`.log`及cases／child為PASS。實際service producer create／save／apply（非role editor HTTP／UI）生成server stable role ID／code，只給drawing與model的view／review四格，其餘含publish及fixed role沒有補權；typed Employee/workspace任用作合法前置，未冒稱新Org正常L4。授權實檔完成numbering／upload／submit後，actual selector選出custom Principal；實際停用角色後使用同一runner-issued reviewer token得approve403、168表count／digest不變，Org v4原assignment ID／roleCode／catalog version／scope／期間及persistence authority均保留；恢復相同stable ID及能力後，selector仍選原profile，同pending approve200、唯一completed receipt綁精確Principal／profile。九次HTTP，沒有為測試改產品程式。
 
 此run的35項直接inputs前後未變；root追加不可覆寫的`native-custom-reviewer-source-equivalence-r2.json`，明記官方main20290完整commit／tree、PR480及native r2原件SHA-256，核對29個tracked產品inputs與該canonical blob相同，其餘原件hash相符。PG ERROR/FATAL=0、asyncErrors=0，cluster／bridge／port／temp已清。r1因fixture client ref缺必要client-前綴而在角色建立前被正確拒絕，原首敗保留；r2只修輸入，不放寬產品guard。同測試token由caller來源及Principal／profile對應支持，未另作獨立session ID／epoch讀回。此結果補足custom reviewer及停用停止授權／保留指派／恢復生效的工程子目的，不代fresh SSO／UI或正式兩端驗收。尚缺合法intermediate的雙binding仍BLOCKED，QA50保持PARTIAL。
+
+### 2026-10-24 r14 正常 SSO／custom role 子旅程
+
+公司 Google SSO 的合法管理者從PDM正常UI建立、儲存並套用 `role-custom-47344587-0401-4bee-99a4-10cccbb160e9`（catalog `ai-pdm.role-policy.019562f3-a290-4eff-b7ec-bcc5f87309b9`），唯一允許能力為 `pdm.drawing.view`；OrgMaster 再由正常UI對同一 Employee 指派並發布。角色編輯器的新增角色操作已改用可存取的原生dialog，旅程實際完成名稱輸入與建立，不再依賴 `window.prompt`。
+
+OrgMaster撤銷同Principal的 `system_admin` 後，readback為有效特權0且custom grant仍在。從Platform正常入口開啟PDM後，`/numbering/drawings` 正常顯示；同session POST `/api/numbering/export-jobs` 因缺 `pdm.drawing.download` 回403／`permission_not_granted`，資料表維持0筆。此結果補QA123-29／52的正常L4 custom任用及重疊特權排除子目的；不涵蓋兩案其餘歷史／停復／代理目的，也不改52 QA整體狀態。證據由OrgMaster DEV-058保存為 `local-sso-system-admin-revoked-readback-20261024-r14.json`、`local-sso-custom-role-allow-deny-readback-20261024-r14.json`及對應畫面；PDM `typecheck:app` PASS。Org的Portal可見性修正與migration 037仍由OrgMaster負責。
+
+### 2026-10-25 PDM 本機 UI 狀態補證與剩餘 L4 邊界
+
+受測產品為PR #479的`89ff362940bf13cf43b07f225c701433dbbb8ad7`；沿原隔離工作樹，未改產品程式。`output/playwright/dev123-20261025/`保留實際React元件、產品CSS及domain helpers的Vite harness、CLI操作、request log、前後來源hash、狀態讀回及代表畫面。API／actor為明示的記憶體fixture，沒有PostgreSQL、OrgMaster正常任用或新SSO，因此只補UI及操作契約，不將mock版本旅程當作QA123-29／52的L4通過。
+
+| 已實際操作 | 本輪結果／證據 |
+|---|---|
+| 新角色dialog、matrix／workbench及一次保存 | 空白名稱拒絕、Escape取消、未保存角色不落fixture server；兩個視圖保持同一勾選；一次save取得server stable ID，再確認差異／填原因／一次套用A；已套用草稿唯讀、異動紀錄含角色名稱。`02-result.log`的14個斷言通過 |
+| A→B停用→C恢復與錯誤復原 | UI停用custom及採購／生管時顯示保留指派／歷史與兩身份同步警告；inactive控制停用但保留勾選；409保留dirty，active未變。B套用後模擬遺失回應503，UI鎖住寫入並查詢command，不重送apply；C恢復相同stable ID與permissions，採購／生管同步恢復，A/B保留為historical。`03-lifecycle-recovery.js`、`state-after-C.json`及`request-log.json`記錄三次UI apply及一次command查詢；不證真PG commit或實際grant保留 |
+| 歷史建草稿、唯讀及viewport | 歷史A建立新的OPEN draft，active C及apply次數不變；read-only時新增／建立與全部能力控制皆disabled。1440×900的main寬1200、document寬1440；390×844的document寬390、矩陣內部358／1059水平捲動。`04-result.log`的15個斷言通過，代表畫面為`final-matrix-1440.png`、`final-matrix-390.png`、`final-workbench-390.png`、`final-history-A.png`及`final-readonly-1440.png` |
+
+保留fixture首敗：第一次SSR未使用server-only的server解析而在listener前停止；修正harness解析、不改產品。首批畫面缺sidebar，main誤落240px grid欄，只支持當時行為而不作樣式證據；補完整app shell後以上`final-*`畫面與兩viewport才是有效樣式結果。CLI兩次inline code解析失敗未操作產品，改用`--filename`；原log保留。console只有fixture favicon404與刻意注入的409／503，沒有產品JS exception證據。
+
+六項產品輸入前後hash相同；browser命名session已關閉，server PID4712、失敗PID28384、browser PID13796均退出，41725無listener，Governor session已結束且隔離temp無業務資料。此PDM補驗未新增localhost或讀取憑證，沿用上輪已移除localhost的紀錄，不宣稱本輪重新操作IdP。
+
+另唯讀核對OrgMaster既有`native-org-journey-20261024-r25.log`（14 PASS）：32直接輸入有29項仍相同，全部PDM輸入相同；Org的bootstrap、privilegedAssignmentStore及validation已變，差異見`native-r25-reuse-audit.json`。原件支持當時A/B、direct／delegated inactive、已撤／到期不復活與交易重疊機制；此audit本身不是重跑，也不把synthetic session／HTTP證據當正常兩端UI。當前來源其後已由下方current-native-r3補驗，QA123-29／52依末表逐子項認列，不再籠統列全部待驗，也不要求因文件SHA重跑已驗SSO。QA123-50雙binding維持外部來源BLOCKED、整案PARTIAL。52 QA／17 AC／CG不縮減，本輪正式migration、部署、正式資料寫入及IAM／Secret變更均為0。
+
+OrgMaster owner後續交付r15（PR #153，`a66afca1f428806f637df401b282573e7c9bdb31`）：`output/qa/dev-058/browser-dynamic-r15/report.json`的production artifact／Chromium 9/9 PASS、page／console errors=0及清理PASS；其contracts為113 PASS／1既有SKIP，相關治理元件12/12 PASS。r15使用tracked dynamic vector與mock API，補齊canonical／custom矩陣、inactive歷史、來源／名稱／期間、keyboard／focus、代理明確空狀態、503與1440／1024／390；與r14正常SSO／真兩端判權合併後，OrgMaster QA058原24目的為24 PASS／0 PARTIAL／0 BLOCKED，DEV-058仍In Progress／Not Released。這個分母不代替PDM QA123-29／52尚缺的正常代理任用與完整兩端往返。r14本機Principal的system_admin仍為authority v8、effectiveCount=0，r15未重新授予；正式reader／writer仍未執行。
+
+為補足上述三個Org輸入漂移的實證，本輪在PDM `d6074c4bcac7eead092646f5dc970c7eb033c414`／Org `a66afca1f428806f637df401b282573e7c9bdb31`直接重播既有owner native旅程，`current-native-r3.log`／`.json`為14/14 PASS、32直接輸入前後相同。實際PDM producer／Org HTTP writer／原生PG完成legacy→dynamic及A→B、custom direct與代理任用發布、stale snapshot拒絕／合法舊snapshot重疊、停用direct／delegated Deny與active sibling Allow、採購／生管同停同復且identity/profile/priority不改、已撤／到期source與代理在恢復後不復活、writer鎖等待後撤權；另保留特權exact Principal與commit後HTTP丟失查詢重播斷言。這補QA123-29／30／44／52的當前來源交易／判權子目的，不再只依舊r25的靜態等價推論；Platform state與session issuance仍是明示fixture，並非新的Google登入或整段正常雙端UI重播，未自動把兩案全部子斷言或52目的改PASS。
+
+native r1缺`--experimental-transform-types`、r2執行cwd未指向OrgMaster而在legacy catalog檔案讀取失敗，均在案例前且PG清理PASS；r3只修這兩項啟動前提，不改產品／schema契約或斷言。HTTP Node26052已退出，HTTP64964與PG60423均釋放，cluster／client／temp／Governor runtime及session清理完成；前兩次PG61660／52971亦已釋放。所有原件留在同一PDM證據目錄，沒有修改OrgMaster檔案或正式資料。
+
+QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r14正常SSO、兩端UI及current-native-r3實際HTTP／PG；各層只支持原斷言，不新增每項重跑Google的關卡。
+
+| 子項 | 精確狀態／證據 |
+|---|---|
+| QA29 legacy→dynamic A→B與舊provenance | 本機原生PASS：current-native-r3由legacy讀取、真producer建立custom並連續apply；Org真HTTP任用／發布、舊snapshot與新policy分別讀回，stale拒絕及合法overlap均通過 |
+| QA29正常任用與特權歷史 | 正常SSO／UI PASS：r14同一Google Principal的custom建立／套用／Org指派發布與system_admin撤銷，effective=0且custom仍可查看、下載拒絕；原revoked歷史保留。r15未重新授予 |
+| QA29／52代理、停用／恢復、撤銷／到期 | 本機原生PASS：current-native-r3真HTTP建立source與delegation、發布後PDM允許；停用拒絕、active sibling允許、撤銷／到期及恢復不復活。PDM實際元件已驗A/B/C狀態；Org代理UI只新增空狀態證據，未冒稱Google session實際操作完整代理表單 |
+| QA52七canonical／active custom名稱、順序與完整UI狀態 | UI子項PASS：Org r15與本輪PDM實際元件各驗矩陣／明細／歷史／唯讀／錯誤／viewport；r14另有正常custom任用。mock UI不當作逐一正常任用七角色的DB結果 |
+| QA52採購／生管alias與原priority | identity/profile/status/priority子項本機原生PASS：current-native-r3兩身份同步停復且其餘欄位與priority未變；新選項只列canonical沿Org r15及既有固定契約測試。未新增舊planning人員任用之全部scope／期間欄位的正常UI實錄，不以alias投影等同全任用歷史 |
+| QA52current／schema／version／hash錯配拒絕 | 沿既有C26真current/history負例及未變reader契約重用；current-native-r3補當前來源的實際consumer正例。不是本輪重新注入全部fault，也不靠UI marker判相容 |
+| QA29／52整案判定與QA50 | 核心交易／代理／停復及相關UI子項已具本機組合證據；上列明示未實跑的正常UI子斷言保留，不宣稱兩案或52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
+
+2026-10-25續接查核發現Org代理來源UI只按application/status列任用，未同步server的角色／來源資格。這是靜態可證的選單缺口，後端原本仍拒絕非法代理，未宣稱已實際發生越權。OrgMaster PR #153的r16（`60a7cded5010b46d0607245284ca784cc4d3009d`）已修正：排除inactive角色、不可代理角色、legacy-only生管、system_admin、已到期／未生效來源及停用員工；代理人只列不同於來源的有效員工，送出時檢查未來期限且不超過source。`GovernanceDelegationSources.test.tsx`補合法完整命令／讀回與非法來源不出現；相關4檔26 PASS及build（tsc/client/server）PASS，required Production Source QC run `40118220606` SUCCESS，沒有DB或後端授權變更。此結果補QA29／52的產品UI資格與表單契約；mock API元件證據不替代上表保留的正常UI／原生發布。舊planning補驗只需用畫面讀回UI既有的名稱、scope、期間、目錄、狀態；不可見identity／provenance／priority以原生API／DB對照，不為驗收新增技術欄位到產品。此補驗尚未執行。
+
+同日以`output/playwright/dev123-20261025/submission-helper-reuse-audit.json`核對早期submission helper NOT_RUN：package r6的19個真PG／loopback HTTP正反例已建立合法Released submission及三成員，實際file／ZIP caller均命中`authorizeSubmissionOriginalsInSnapshot`。r6受測helper bytes與`c676b68…`的CRLF來源相符；current helper只抽出manifest predicate，SQL、group／scope及download guard整段未變，submission access及兩file／package routes亦與r6同hash。manifest抽出邊界沿current `becf3aa…`之required CI run `40116850659`／Production Slice QC job `120939802867`的18項helper tests PASS（整體60檔580 tests PASS）；精確schema、submission ID、member count／unique IDs、role與SHA檢查保留。據此重用原生caller／SQL證據並補當前predicate證據，關閉「尚無合法fixture」這個早期缺口；此為來源對應查核，不宣稱重跑current-head native、正常SSO或正式驗收，也不為純manifest抽函式重跑三端旅程。
