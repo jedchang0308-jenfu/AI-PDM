@@ -240,3 +240,20 @@ QA50後續有界native補證：`dev123-native-model-review-http-20261024-r2.json
 CG01／custom reviewer與lifecycle補證：同一證據根的`dev123-native-custom-reviewer-http-20261024-r2.json`／`.log`及cases／child為PASS。實際service producer create／save／apply（非role editor HTTP／UI）生成server stable role ID／code，只給drawing與model的view／review四格，其餘含publish及fixed role沒有補權；typed Employee/workspace任用作合法前置，未冒稱新Org正常L4。授權實檔完成numbering／upload／submit後，actual selector選出custom Principal；實際停用角色後使用同一runner-issued reviewer token得approve403、168表count／digest不變，Org v4原assignment ID／roleCode／catalog version／scope／期間及persistence authority均保留；恢復相同stable ID及能力後，selector仍選原profile，同pending approve200、唯一completed receipt綁精確Principal／profile。九次HTTP，沒有為測試改產品程式。
 
 此run的35項直接inputs前後未變；root追加不可覆寫的`native-custom-reviewer-source-equivalence-r2.json`，明記官方main20290完整commit／tree、PR480及native r2原件SHA-256，核對29個tracked產品inputs與該canonical blob相同，其餘原件hash相符。PG ERROR/FATAL=0、asyncErrors=0，cluster／bridge／port／temp已清。r1因fixture client ref缺必要client-前綴而在角色建立前被正確拒絕，原首敗保留；r2只修輸入，不放寬產品guard。同測試token由caller來源及Principal／profile對應支持，未另作獨立session ID／epoch讀回。此結果補足custom reviewer及停用停止授權／保留指派／恢復生效的工程子目的，不代fresh SSO／UI或正式兩端驗收。尚缺合法intermediate的雙binding仍BLOCKED，QA50保持PARTIAL。
+
+### 2026-10-24 正常 SSO 續接與驗收收斂
+
+本輪人類要求繼續正常 SSO 與可行 QA，並在驗證結束後移除本次新增的 localhost；**本輪禁止正式 migration、部署及正式資料寫入**，優先於上文歷史發布授權。本節由同一開發執行者核對既有證據，不宣稱獨立 QC，亦不縮減52 QA／17 AC／CG。
+
+| 範圍 | 本輪已核對結果 | 尚未完成 |
+|---|---|---|
+| 產品來源與工程檢查 | 官方main `63a36ec182b2fb2931ee707858d67bffd1a7195e`；PR480來源／required CI與577 tests等原件沿用，PR481及合併main required CI亦SUCCESS。新文件不改app輸入 | 不以CI或本節文件當作正常登入／正式啟用 |
+| 可重用native子目的 | `output/qa/dev-123-sso-acceptance/evidence-reuse-audit-r2.json`重新讀回8個最終原件。formalize、file-asset、export、safe-share-preview、shared-model、model-review及custom-reviewer七份共193個宣告輸入仍吻合，其中155個產品輸入與本輪main canonical bytes一致 | 兩份PASS_WITH_NOT_RUN維持原限制；不是重跑、fresh SSO或整案PASS |
+| package／bytes | r6的19／19歷史結果及首敗保留；本輪發現其3個輸入後續有manifest helper抽取、外部manifest membership guard與preview_url修正，不能稱全部輸入未變。相關較新safe-share-preview native與manifest正反契約證據另列原節 | 本輪未重跑19項整批；額外native replay在啟動前受容量保護阻擋，沒有runtime、測試失敗或新的PASS |
+| 正常Google／SSO | OrgMaster以原Chrome公司登入讀Firebase Console，恢復失去控制的分頁；控制台登入仍有效。IdP原8域→9域，僅本次新增localhost，原8域全保留 | 本機r7在PG／三端server啟動前，FirebaseAdmin getUser回app/invalid-credential／400，含invalid_grant與reauth訊號；現等待人類完成Google身分驗證，只更新同身分／同scope的任務私有ADC副本。未驗正常SSO，不推定正式Platform401根因 |
+| 雙端任用／UI | OrgMaster DEV-058原24目的的21 PASS／2 PARTIAL／1 BLOCKED維持，按其既有唯一QA入口重用適用結果 | QA123-28–30／44／52的正常雙端連續旅程及相關完整UI仍待登入後實證；fixture任用不替代正常UI |
+| 模型及正式發布 | model.review／resolver等已驗子項保持；086–088／034–036只引用歷史已套用收據 | QA123-50雙binding仍缺合法STEP／STP／IGES；正式Org reader受Platform401阻擋、PDM writer未啟用，且本輪禁止正式操作 |
+
+IdP新增與前置失敗的原件位於OrgMaster `dev058-doc-readback-20261024/output/qa/dev-058/`：`company-idp-localhost-20261024-r4-baseline.json`、`r5-added.json`／`.png`、`local-sso-credential-precondition-20261024-r7.json`。當前`addedByThisTask=[localhost]`、`cleanupPending=true`；由該端單一管理IdP與瀏覽器，**移除完成必須再取得末端讀回**，不能由計畫或新增成功宣稱已清理。人類只在保留的Google「驗證您的身分」頁輸入密碼／驗證碼；不記錄或提交credential、token、cookie、驗證碼與含驗證參數的URL。
+
+本輪證據audit r1未涵蓋巢狀path／sha256格式，原件保留；r2修正解析並明示package三檔差異，不改舊測試結果。新增native replay未啟動，沒有繞過容量保護或清理其他任務資源。後續只補正常SSO後可行旅程及其直接缺口，驗完再記localhost移除與本輪資源清理結果。
