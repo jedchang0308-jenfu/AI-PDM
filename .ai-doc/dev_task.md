@@ -80,7 +80,7 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 七角色、五作業、20動作、角色增停恢復與原子套用已由[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)合併並通過required CI；保留九歷史身份、system保護與OrgMaster任用責任。PDM 086–088及OrgMaster 034–036正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且舊版承接流量，PDM writer未部署。精確來源、收據、PG／瀏覽器結果及首敗統一見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
-本輪依最新人類指示只做開發、隔離正常SSO與可行QA；禁止正式migration、部署與正式資料寫入，先前發布授權不作本輪執行依據。r11正常Google旅程已建立Platform／OrgMaster／PDM三端session，同Principal／Employee／authenticatedAt，PDM首次建帳成功；矩陣／正常任用及允許拒絕旅程仍在驗證，結果與清理統一見QA §6。正式Platform session 401仍待釐清；之後才依[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)完成OrgMaster reader讀回與PDM writer。OrgMaster相容範圍限reader與既定034–036，不含人員指派改寫、IAM或Secrets。52 QA／17 AC／CG目的保留，尚未整體或正式驗收。
+本輪依最新人類指示只做開發、隔離正常SSO與可行QA；禁止正式migration、部署與正式資料寫入，先前發布授權不作本輪執行依據。r11正常Google旅程已建立Platform／OrgMaster／PDM三端session，同Principal／Employee／authenticatedAt，PDM首次建帳成功；矩陣首驗因隔離PG連線額度失敗，r12修正額度後又受Google背景分頁操作限制，未完成正常矩陣／任用旅程，維持BLOCKED。r12最終session/account仍0；三端、PG、ports、temp、lease與本次localhost均已安全清理，原8個IdP網域fresh reload完整保留。正式Platform session 401仍待釐清；之後才依[SPEC發布順序](specs/DEV-123-role-permission-editor-contract.md#11-發布邊界)完成OrgMaster reader讀回與PDM writer。OrgMaster相容範圍限reader與既定034–036，不含人員指派改寫、IAM或Secrets。52 QA／17 AC／CG目的保留，尚未整體或正式驗收。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。隔離SSO修正沿既有[PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)，來源驗證、CI與未驗目的統一記QA §6；正式reader／writer與正常雙端業務旅程尚未完成；QA50雙model binding另缺合法STEP／IGES來源，保留PARTIAL。
 
