@@ -33,6 +33,35 @@ describe("recognition worker Principal provenance", () => {
     });
   });
 
+  it("scopes an application-side baseline claim to the exact session and company", async () => {
+    const client = workerDatabase("principal-one");
+    await new DrawingRecognitionAsyncRepository(client).claimJob({
+      workerId: "browser-baseline-one",
+      maxAttempts: 2,
+      allowNativeSources: false,
+      targetSessionId: "session-one",
+      targetCompanyId: "company-one"
+    });
+    const [statement, parameters] = vi.mocked(client.queryOne).mock.calls[0] ?? [];
+    expect(statement).toContain("status = 'queued'");
+    expect(statement).toContain("id = :targetSessionId AND company_id = :targetCompanyId");
+    expect(parameters).toMatchObject({ targetSessionId: "session-one", targetCompanyId: "company-one" });
+  });
+
+  it.each([
+    [{ targetSessionId: "session-one" }, "session without company"],
+    [{ targetCompanyId: "company-one" }, "company without session"]
+  ])("rejects a partial exact baseline target: %s (%s)", async (target, _description) => {
+    const client = workerDatabase("principal-one");
+    await expect(new DrawingRecognitionAsyncRepository(client).claimJob({
+      workerId: "browser-baseline-one",
+      maxAttempts: 2,
+      allowNativeSources: false,
+      ...target
+    })).rejects.toMatchObject({ code: "RECOGNITION_JOB_TARGET_INVALID", status: 400 });
+    expect(client.queryOne).not.toHaveBeenCalled();
+  });
+
   it("rejects a new PostgreSQL session without a verified Principal before any write", async () => {
     const client = workerDatabase(null);
     await expect(new DrawingRecognitionAsyncRepository(client).createSession({
