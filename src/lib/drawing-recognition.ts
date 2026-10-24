@@ -16,6 +16,11 @@ import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-re
 import { createFileStorageServiceForPointer, sha256, storagePointerFromRecord } from "@/lib/file-storage";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { requireRecognitionPostReleaseGrantInSnapshot } from "@/lib/drawing-recognition-formalization-authorization";
+import {
+  SOLIDWORKS_NATIVE_ADAPTER_CODE,
+  buildFilenameAdapterResult,
+  buildUnsupportedAdapterResult
+} from "@/lib/drawing-recognition-adapters";
 
 type ImpactTokenPayload = {
   sessionId: string;
@@ -99,6 +104,44 @@ export async function createDrawingRecognitionSession(input: {
     drawingId: input.drawingId ?? null,
     drawingRevisionId: input.drawingRevisionId ?? null,
     supersedesSessionId: input.supersedesSessionId ?? null
+  });
+}
+
+export async function prepareDrawingRecognitionBrowserBaseline(input: {
+  sessionId: string;
+  companyId: string;
+  client?: AsyncDatabaseClient;
+}) {
+  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
+  const sessionId = requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID");
+  const companyId = requireSafeRecognitionId(input.companyId, "RECOGNITION_COMPANY_ID_INVALID");
+  const current = await repository.getProjection(sessionId, companyId);
+  if (current.status !== "queued" || current.pendingClientAdapters.length === 0) return current;
+
+  const workerId = `browser-baseline-${crypto.randomUUID()}`;
+  const job = await repository.claimJob({
+    workerId,
+    maxAttempts: 2,
+    allowNativeSources: false,
+    targetSessionId: sessionId,
+    targetCompanyId: companyId
+  });
+  if (!job) return repository.getProjection(sessionId, companyId);
+
+  // This is a terminal browser baseline for this exact session. Native sources stay
+  // explicitly unsupported; once a native worker is available, the authorized rerun
+  // route creates a fresh session instead of rewriting this recorded result.
+  const results = job.sources.flatMap((source) => [
+    buildFilenameAdapterResult(source),
+    ...(source.adapterPlan.includes(SOLIDWORKS_NATIVE_ADAPTER_CODE)
+      ? [buildUnsupportedAdapterResult(source.id, SOLIDWORKS_NATIVE_ADAPTER_CODE, "native_metadata_not_configured")]
+      : [])
+  ]);
+  return repository.completeJob({
+    sessionId: job.sessionId,
+    workerId,
+    sourceSetFingerprint: job.sourceSetFingerprint,
+    results
   });
 }
 

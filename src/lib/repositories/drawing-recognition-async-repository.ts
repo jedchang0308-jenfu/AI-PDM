@@ -950,19 +950,40 @@ export class DrawingRecognitionAsyncRepository {
     return { ...mapSession(row), conflictCount: await this.effectiveConflictCount(row.id), sourceAssetIds: sources.map((source) => source.file_asset_id) };
   }
 
-  async claimJob(input: { workerId: string; maxAttempts: number; allowNativeSources: boolean }) {
+  async claimJob(input: {
+    workerId: string;
+    maxAttempts: number;
+    allowNativeSources: boolean;
+    targetSessionId?: string;
+    targetCompanyId?: string;
+  }) {
     return this.client.transaction(async (client) => {
       const lock = client.kind === "postgres" ? " FOR UPDATE SKIP LOCKED" : "";
       const timestamp = now();
       const staleBefore = new Date(Date.now() - 60_000).toISOString();
-      const session = await client.queryOne<SessionRow>(
-        `SELECT * FROM drawing_recognition_sessions
-         WHERE attempt_count < :maxAttempts AND (
+      if (Boolean(input.targetSessionId) !== Boolean(input.targetCompanyId)) {
+        throw new DrawingRecognitionError("RECOGNITION_JOB_TARGET_INVALID", "指定辨識工作必須同時包含工作與公司範圍。", 400);
+      }
+      const targetFilter = input.targetSessionId
+        ? "AND id = :targetSessionId AND company_id = :targetCompanyId"
+        : "";
+      const claimableState = input.targetSessionId
+        ? "status = 'queued'"
+        : `(
            (status = 'queued' AND (not_before IS NULL OR not_before <= :timestamp))
            OR (status = 'extracting' AND heartbeat_at IS NOT NULL AND heartbeat_at < :staleBefore)
-         )
+         )`;
+      const session = await client.queryOne<SessionRow>(
+        `SELECT * FROM drawing_recognition_sessions
+         WHERE attempt_count < :maxAttempts AND ${claimableState} ${targetFilter}
          ORDER BY priority ASC, created_at ASC LIMIT 1${lock}`,
-        { maxAttempts: input.maxAttempts, timestamp, staleBefore }
+        {
+          maxAttempts: input.maxAttempts,
+          timestamp,
+          staleBefore,
+          targetSessionId: input.targetSessionId ?? null,
+          targetCompanyId: input.targetCompanyId ?? null
+        }
       );
       if (!session) return null;
       await client.execute(

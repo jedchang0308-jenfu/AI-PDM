@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createDrawingRecognitionSession } from "@/lib/drawing-recognition";
+import { createDrawingRecognitionSession, prepareDrawingRecognitionBrowserBaseline } from "@/lib/drawing-recognition";
 import { recognitionErrorResponse, recognitionJsonBody } from "@/lib/drawing-recognition-api";
 import { DrawingRecognitionError, requireSafeRecognitionId, type DrawingRecognitionSourceContextType } from "@/lib/drawing-recognition-contract";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
@@ -52,15 +52,21 @@ export async function POST(request: Request) {
     const session = await withPrincipalDrawingRecognitionMutation({
       metadata: access.metadata, permissionCode: "numbering.recognition.run",
       actorId: access.actor.pdmUserId, companyId: access.company.companyId,
-      execute: (snapshot, _decision, verified) => {
+      execute: async (snapshot, _decision, verified) => {
         stage = "business";
-        return createDrawingRecognitionSession({
-        companyId: access.company.companyId,
-        actorId: access.actor.pdmUserId,
-        initiatorPrincipalId: verified.session.principalId,
-        sourceContextType,
-        sourceContextId: requireSafeRecognitionId(body.sourceContextId ?? body.source_context_id, "RECOGNITION_CONTEXT_ID_INVALID"),
-        sourceAssetIds, client: snapshot
+        const created = await createDrawingRecognitionSession({
+          companyId: access.company.companyId,
+          actorId: access.actor.pdmUserId,
+          initiatorPrincipalId: verified.session.principalId,
+          sourceContextType,
+          sourceContextId: requireSafeRecognitionId(body.sourceContextId ?? body.source_context_id, "RECOGNITION_CONTEXT_ID_INVALID"),
+          sourceAssetIds,
+          client: snapshot
+        });
+        return prepareDrawingRecognitionBrowserBaseline({
+          sessionId: created.id,
+          companyId: access.company.companyId,
+          client: snapshot
         });
       }
     });
