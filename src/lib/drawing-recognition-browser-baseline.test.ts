@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { prepareDrawingRecognitionBrowserBaseline } from "@/lib/drawing-recognition";
+import { prepareDrawingRecognitionBrowserBaseline, rerunDrawingRecognition } from "@/lib/drawing-recognition";
 import { BROWSER_PDF_OCR_ADAPTER_CODE, SOLIDWORKS_NATIVE_ADAPTER_CODE } from "@/lib/drawing-recognition-adapters";
 import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
 
@@ -73,5 +73,44 @@ describe("DEV-122 browser recognition baseline", () => {
     })).resolves.toBe(projection);
     expect(claim).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("reuses an older queued session when its browser PDF adapter is still pending", async () => {
+    const projection = {
+      id: "recognition-legacy-pdf",
+      status: "queued",
+      pendingClientAdapters: [{ sourceId: "source-pdf" }]
+    };
+    vi.spyOn(DrawingRecognitionAsyncRepository.prototype, "assertSessionScope").mockResolvedValue({} as never);
+    vi.spyOn(DrawingRecognitionAsyncRepository.prototype, "getProjection").mockResolvedValue(projection as never);
+    const create = vi.spyOn(DrawingRecognitionAsyncRepository.prototype, "createSession");
+
+    await expect(rerunDrawingRecognition({
+      sessionId: "recognition-legacy-pdf",
+      companyId: "company-one",
+      actorId: "profile-one",
+      initiatorPrincipalId: "principal-one",
+      roles: ["admin"],
+      client
+    })).resolves.toBe(projection);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("keeps a CAD-only queued session unavailable for a principal rerun", async () => {
+    vi.spyOn(DrawingRecognitionAsyncRepository.prototype, "assertSessionScope").mockResolvedValue({} as never);
+    vi.spyOn(DrawingRecognitionAsyncRepository.prototype, "getProjection").mockResolvedValue({
+      id: "recognition-cad",
+      status: "queued",
+      pendingClientAdapters: []
+    } as never);
+
+    await expect(rerunDrawingRecognition({
+      sessionId: "recognition-cad",
+      companyId: "company-one",
+      actorId: "profile-one",
+      initiatorPrincipalId: "principal-one",
+      roles: ["admin"],
+      client
+    })).rejects.toMatchObject({ code: "RECOGNITION_RERUN_NOT_READY", status: 409 });
   });
 });
