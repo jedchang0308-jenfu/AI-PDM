@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 import { GoogleAuth, Impersonated } from "google-auth-library";
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
@@ -103,7 +104,12 @@ export async function jenfuSsoServiceToken(audience: string, environment: NodeJS
       || !/^[a-z0-9][a-z0-9-]*@[a-z0-9][a-z0-9-]*\.iam\.gserviceaccount\.com$/u.test(targetPrincipal)) {
       throw new Error("SSO_SERVICE_IMPERSONATION_INVALID");
     }
-    const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    // Older Google Auth releases ignore CLOUDSDK_CONFIG when locating ADC.
+    // Keep this development-only source on the task's explicit config directory.
+    const configDirectory = environment.CLOUDSDK_CONFIG?.trim();
+    if (configDirectory && !path.isAbsolute(configDirectory)) throw new Error("SSO_SERVICE_ADC_CONFIG_INVALID");
+    const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+      ...(configDirectory ? { keyFilename: path.join(configDirectory, "application_default_credentials.json") } : {}) });
     const client = new Impersonated({ sourceClient: await auth.getClient(), targetPrincipal,
       targetScopes: ["https://www.googleapis.com/auth/cloud-platform"], lifetime: 300 });
     return client.fetchIdToken(audience);

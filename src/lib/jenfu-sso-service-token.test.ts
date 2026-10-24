@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import path from "node:path";
 
 const google = vi.hoisted(() => ({
   source: {},
@@ -6,10 +7,12 @@ const google = vi.hoisted(() => ({
   getIdTokenClient: vi.fn(),
   getClient: vi.fn(),
   impersonated: vi.fn(),
+  auth: vi.fn(),
 }));
 vi.mock("google-auth-library", async (original) => ({
   ...await original<typeof import("google-auth-library")>(),
   GoogleAuth: class {
+    constructor(options?: unknown) { google.auth(options); }
     getClient = google.getClient;
     getIdTokenClient = google.getIdTokenClient;
   },
@@ -44,6 +47,26 @@ describe("development SSO service identity", () => {
     expect(google.impersonated).toHaveBeenCalledWith({ sourceClient: google.source, targetPrincipal,
       targetScopes: ["https://www.googleapis.com/auth/cloud-platform"], lifetime: 300 });
     expect(google.fetchIdToken).toHaveBeenCalledWith(localAudience);
+    expect(google.getIdTokenClient).not.toHaveBeenCalled();
+  });
+
+  it("uses the explicit private ADC directory across Google Auth versions", async () => {
+    const configDirectory = path.resolve("task-private-adc");
+    await expect(jenfuSsoServiceToken(audience, { ...local, CLOUDSDK_CONFIG: configDirectory })).resolves.toBe("unit-service-token");
+    expect(google.auth).toHaveBeenCalledWith({ scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+      keyFilename: path.join(configDirectory, "application_default_credentials.json") });
+  });
+
+  it("rejects a relative ADC directory before reading credentials", async () => {
+    await expect(jenfuSsoServiceToken(audience, { ...local, CLOUDSDK_CONFIG: "relative-adc" })).rejects.toThrow("SSO_SERVICE_ADC_CONFIG_INVALID");
+    expect(google.auth).not.toHaveBeenCalled();
+    expect(google.getClient).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back from a failed explicit private ADC source", async () => {
+    google.getClient.mockRejectedValueOnce(new Error("private_adc_unavailable"));
+    await expect(jenfuSsoServiceToken(audience, { ...local, CLOUDSDK_CONFIG: path.resolve("task-private-adc") })).rejects.toThrow("private_adc_unavailable");
+    expect(google.impersonated).not.toHaveBeenCalled();
     expect(google.getIdTokenClient).not.toHaveBeenCalled();
   });
 
