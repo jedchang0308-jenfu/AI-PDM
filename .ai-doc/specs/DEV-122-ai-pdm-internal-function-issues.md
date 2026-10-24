@@ -1,5 +1,37 @@
 # DEV-122：AI-PDM 內部自用功能契約
 
+## CURRENT COO amendment：七個 issue outcome（2026-10-23）
+
+<a id="current-coo-outcome-closure-20261023"></a>
+
+本節是 DEV-122 現行完成判定的權威修訂，取代下方及舊 `DEV-122-self-use-acceptance.v1.json` 中把「29 groups」各自當作獨立完成分母的語義；原文、ID、FAIL／UNKNOWN、原始 wrapper 與發布收據均保留，不回寫歷史。
+
+**現行分母為原始七個 issue 的使用者結果：**
+
+| Issue | 要交付的結果 |
+|---|---|
+| D122-01 | Part matrix 可正常載入、編輯與重載，JSON object／string 不造成 503。 |
+| D122-02 | 儲存 B 後改回 A 仍真正儲存；reload 符合最後成功值，失敗不得假裝已儲存。 |
+| D122-03 | Part 首次發行、退回與重送正確；核准才原子更新正式資料及 master，拒絕／故障不留部分結果。 |
+| D122-04 | Drawing major／minor 正確承接 master、revision 與正式 pointer，不錯誤發行或覆蓋。 |
+| D122-05 | 既有附件正常上傳、受保護讀取與下載；預覽有正確 ready／terminal／failure，完整原生 CAD 結果仍須實證。 |
+| D122-06 | 內部採購清單可用，正確列出公司最新 Released 結果與 package；正常資料與依賴失敗均回可預期 JSON。 |
+| D122-07 | 供應商入口維持 `DISABLED_DEFERRED`，不納入本次恢復，不算功能 PASS。 |
+
+單一現況矩陣為 AI_PDM 既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。它分開記錄本機結果、正式驗收與暫緩處置；不以 PR、文件或 CI 綠燈代替使用者結果。`D122-QA-01`／`DQA01`、四項能力與十一個核心案例是共享檢查／施工視圖，不另增 issue 分母。
+
+原 29 個 R／P／G／TX／F／I／UI ID 全數保留，作為診斷、歷史、證據標籤及 issue acceptance dimensions；不刪除、不改寫既有結果，也不再要求每個標籤各有 sidecar、獨立 QC、完整 source binding 或獨立 PR。同一 issue 的正常結果、風險與讀回可合併交付；未變且仍適用的證據直接重用，只有受影響責任、漂移或新失敗才補驗。
+
+**每個 issue 的最低充分證據：**目前來源的正常結果；適用時一個重大 deny／fault；該結果必要的 route／DB／UI／provider readback。API-only 的 D122-06 不因此新增 UI。保留來源／環境／身分／資料的適用範圍，但不因 SHA、回合或無關文件變動重新綁定全部證據。
+
+**必要安全不變條件仍有效：**authentication（含既有 Firebase、Email、Principal 撤銷與 authEpoch）、company boundary、data integrity／同交易及重試一致性、no-fake-ready、safe error，以及既有 required CI／migration／release control。此修訂不放寬權限或發布保護，不授權正式資料寫入，也不手動跳過執行器。
+
+歷史首次失敗保留當時判定；目前 outcome 若已由有效證據證明，應記為該層已驗證，不因舊 wrapper `PARTIAL_NOT_ACCEPTED` 永久維持 current partial。本機通過不改標為 Production 通過；正式事件原因未知可維持 UNKNOWN，不自動成為新的開發 gate。
+
+完整原生 CAD 維持 `USER_OWNED_PENDING_NOT_PASS`；未完成前，DEV-122 整體不可宣告 PASS。supplier 的明確暫緩不觸發恢復施工。DEV-123 完全排除：不得讀取、修改、協調、監控或觸碰其 worktree、branch、PR、文件或證據。
+
+本次第一階段只交付本修訂、兩個 CURRENT 入口與單一矩陣；不改產品、runner、測試或 release，不開 PR。暫停中的 F-01E 工作樹、dirty 檔與 checkpoint／patch 原樣保留，待本階段核對後才進入 D122-06。這是一次性聚合修正，不新增常設 COO 簽核；效率改善尚未量測。
+
 狀態：`ACTIVE_CAPABILITIES_PENDING`
 
 適用產品：公司內部自用的 AI-PDM

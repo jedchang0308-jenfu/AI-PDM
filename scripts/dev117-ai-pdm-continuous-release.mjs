@@ -26,6 +26,12 @@ export function migrationDispositionFromStageResult(result) {
   return disposition
 }
 
+export function migrationSchemaStageOnlyFromStageResult(result) {
+  const facts = result?.value?.facts
+  if (facts && Object.hasOwn(facts, 'schemaStageOnly') && facts.schemaStageOnly !== true) throw Object.assign(new Error('MIGRATION_ADMISSION_INVALID'), { code: 'MIGRATION_ADMISSION_INVALID' })
+  return facts?.schemaStageOnly === true
+}
+
 async function main() {
   const [profileBytes, dataCutoverConfig, v1, n1c] = await Promise.all([fs.readFile(path.join(root, profilePath)), fs.readFile(path.join(root, dataCutoverConfigPath), 'utf8').then(JSON.parse), ...['config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse))])
   const profile = JSON.parse(profileBytes.toString('utf8'))
@@ -53,7 +59,7 @@ async function main() {
   })
   if (args.stage === 'migrate') {
     const migrationDisposition = migrationDispositionFromStageResult(result)
-    if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `migration_disposition=${migrationDisposition}\n`, 'utf8')
+    if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `migration_disposition=${migrationDisposition}\nschema_stage_only=${migrationSchemaStageOnlyFromStageResult(result)}\n`, 'utf8')
   }
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }

@@ -124,7 +124,7 @@ jobs:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
         run: node scripts/dev122-rd-permission-ledger-readback.mjs --stage readback --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: candidate_deployer_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -133,7 +133,7 @@ jobs:
           create_credentials_file: false
           export_environment_variables: false
       - id: candidate_builder_read_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -143,19 +143,19 @@ jobs:
           export_environment_variables: false
       - id: candidate
         name: Execute candidate
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: entrypoint
         name: Execute entrypoint
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_deployer_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: candidate_verifier_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -165,7 +165,7 @@ jobs:
           export_environment_variables: false
       - id: verify
         name: Execute verify
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_verifier_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.candidate_builder_read_auth.outputs.access_token }}"
@@ -174,12 +174,12 @@ jobs:
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: decision
         name: Execute decision
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.candidate_verifier_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: activation_deployer_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -188,7 +188,7 @@ jobs:
           create_credentials_file: false
           export_environment_variables: false
       - id: activation_builder_read_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -198,13 +198,13 @@ jobs:
           export_environment_variables: false
       - id: activate
         name: Execute activate
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: activation_verifier_auth
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -214,7 +214,7 @@ jobs:
           export_environment_variables: false
       - id: canonical
         name: Execute canonical
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_verifier_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
@@ -222,7 +222,7 @@ jobs:
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ steps.effective.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.effective.outputs.capsule_sha256 }}"
       - id: finalize
         name: Execute finalize
-        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' }}
+        if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.activation_deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.activation_builder_read_auth.outputs.access_token }}"

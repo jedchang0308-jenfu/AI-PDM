@@ -77,11 +77,12 @@ export async function withPrincipalCompanyWrite(
   request: Request, routePath: string, permissionCode: string,
   write: (snapshot: AsyncDatabaseClient, company: PdmCompanyContext,
     verified: VerifiedPrincipalRequest) => Promise<Response>,
-  options: { isolationLevel?: "read_committed" | "serializable" } = {}
+  options: { isolationLevel?: "read_committed" | "serializable"; expectedScopeResolver?: "workspace" | "Part company" } = {}
 ): Promise<Response> {
   const policy = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
   if (request.method !== "POST" || policy?.path !== routePath ||
-      policy.authorizationMode !== "permission" || policy.scopeResolver !== "workspace") {
+      policy.authorizationMode !== "permission" ||
+      policy.scopeResolver !== (options.expectedScopeResolver ?? "workspace")) {
     return Response.json({ code: "principal_route_policy_unavailable" },
       { status: 503, headers: { "cache-control": "no-store" } });
   }

@@ -1,3 +1,7 @@
+## DEV-122 CURRENT：七個 issue outcome（2026-10-23）
+
+現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
+
 F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
 
 ## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
@@ -20,12 +24,14 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — implementation / rollout pending (2026-10-23)
+## DEV-123#role-permission-editor — schema applied / consumer blocked / writer held (2026-10-24)
 
 - [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
 - [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
 - [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
-- [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：required CI與缺口見QA；PDM發布已授權，OrgMaster 034–036相容migration與reader部署已授權，不含人員指派改寫、IAM或Secrets，尚未宣稱正式驗收／啟用。
+- [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：已合併且required CI通過；PDM 086–088／OrgMaster 034–036正式schema已套用，consumer因Platform session 401未上線，writer暫緩。來源、收據、恢復與待驗範圍見QA §6；OrgMaster授權仍限相容migration／reader，不含人員指派改寫、IAM或Secrets，尚未正式驗收／套用新矩陣。
+
+來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6；reader／writer與正常SSO尚未完成；QA50雙model binding缺合法STEP／IGES來源，保持PARTIAL。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

@@ -45,6 +45,27 @@ it('binds ZIP authorization to exact immutable manifest member IDs, roles and ha
   expect((await authorizeSubmissionOriginalsInSnapshot(db as never, verified, 'submission-one', undefined, JSON.stringify(manifest)))?.status).toBe(503)
   expect((await authorizeSubmissionOriginalsInSnapshot(db as never, verified, 'submission-one', undefined, 'null'))?.status).toBe(503)
 })
+it.each(['json-text', 'postgres-jsonb'])('validates a complete immutable manifest from %s before authorizing bytes', async representation => {
+  const manifest = { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' },
+    files: [{ id: 'file-one', sha256: 'hash', file_role: 'pdf' }] }
+  const input = representation === 'json-text' ? JSON.stringify(manifest) : manifest
+  const db = snapshot()
+  expect(await authorizeSubmissionOriginalsInSnapshot(db as never, verified, 'submission-one', undefined, input)).toBeNull()
+  expect(mocks.authorize).toHaveBeenCalledWith(db, verified, ['drawing'], 'download', { projectCode: 'P-ONE' })
+})
+it.each([
+  null, [], false, 42, 'not-json',
+  { schema: 'other', submission: { id: 'submission-one' }, files: [] },
+  { schema: 'ai-pdm-release-package.v1', submission: { id: 'other' }, files: [{ id: 'file-one', sha256: 'hash', file_role: 'pdf' }] },
+  { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' }, files: [{ id: 'file-one', sha256: 'changed', file_role: 'pdf' }] },
+  { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' }, files: [{ id: 'file-one', sha256: 'hash', file_role: 'sldasm' }] },
+  { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' }, files: [{ id: 'other', sha256: 'hash', file_role: 'pdf' }] },
+  { schema: 'ai-pdm-release-package.v1', submission: { id: 'submission-one' }, files: [null] }
+])('rejects malformed or mismatched decoded manifests without capability evaluation: %j', async manifest => {
+  const response = await authorizeSubmissionOriginalsInSnapshot(snapshot() as never, verified, 'submission-one', undefined, manifest)
+  expect(response?.status).toBe(503)
+  expect(mocks.authorize).not.toHaveBeenCalled()
+})
 it('preserves decoded legacy publication behavior without new member queries', async () => {
   mocks.dynamic.mockResolvedValue(false)
   const db = snapshot()
