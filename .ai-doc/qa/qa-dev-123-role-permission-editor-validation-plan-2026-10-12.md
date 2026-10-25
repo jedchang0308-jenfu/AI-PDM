@@ -275,11 +275,11 @@ QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r1
 |---|---|
 | QA29 legacy→dynamic A→B與舊provenance | 本機原生PASS：current-native-r3由legacy讀取、真producer建立custom並連續apply；Org真HTTP任用／發布、舊snapshot與新policy分別讀回，stale拒絕及合法overlap均通過 |
 | QA29正常任用與特權歷史 | 正常SSO／UI PASS：r14同一Google Principal的custom建立／套用／Org指派發布與system_admin撤銷，effective=0且custom仍可查看、下載拒絕；原revoked歷史保留。r15未重新授予 |
-| QA29／52代理、停用／恢復、撤銷／到期 | 本機原生PASS：current-native-r3真HTTP建立source與delegation、發布後PDM允許；停用拒絕、active sibling允許、撤銷／到期及恢復不復活。PDM實際元件已驗A/B/C狀態；Org代理UI只新增空狀態證據，未冒稱Google session實際操作完整代理表單 |
+| QA29／52代理、停用／恢復、撤銷／到期 | 正常代理子項PASS：R17由公司Google正常SSO在Org UI建立合法RD代理並發布，DB讀回manager direct=0／delegated=1／`system_admin`=0；Platform入口顯示PDM，PDM RD功能可用且設定頁因非系統管理員拒絕。停用／恢復、撤銷／到期仍由current-native-r3真HTTP／PG及PDM A/B/C元件證據支持 |
 | QA52七canonical／active custom名稱、順序與完整UI狀態 | UI子項PASS：Org r15與本輪PDM實際元件各驗矩陣／明細／歷史／唯讀／錯誤／viewport；r14另有正常custom任用。mock UI不當作逐一正常任用七角色的DB結果 |
-| QA52採購／生管alias與原priority | identity/profile/status/priority子項本機原生PASS：current-native-r3兩身份同步停復且其餘欄位與priority未變；新選項只列canonical沿Org r15及既有固定契約測試。未新增舊planning人員任用之全部scope／期間欄位的正常UI實錄，不以alias投影等同全任用歷史 |
+| QA52採購／生管alias與原priority | 正常UI scope／期間子項PASS：R17在Org畫面讀回legacy planning的v6目錄、`company-jenfu`、有效期間與current published狀態；identity/profile/status/priority仍由current-native-r3兩身份同步停復與原欄位不變證據支持，新選項只列canonical沿Org r15及既有固定契約測試 |
 | QA52current／schema／version／hash錯配拒絕 | 沿既有C26真current/history負例及未變reader契約重用；current-native-r3補當前來源的實際consumer正例。不是本輪重新注入全部fault，也不靠UI marker判相容 |
-| QA29／52整案判定與QA50 | 核心交易／代理／停復及相關UI子項已具本機組合證據；上列明示未實跑的正常UI子斷言保留，不宣稱兩案或52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
+| QA29／52整案判定與QA50 | 核心交易、正常代理、停復及相關UI子項具本機組合證據；不因此宣稱52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
 
 2026-10-25續接查核發現Org代理來源UI只按application/status列任用，未同步server的角色／來源資格。這是靜態可證的選單缺口，後端原本仍拒絕非法代理，未宣稱已實際發生越權。OrgMaster PR #153的r16（`60a7cded5010b46d0607245284ca784cc4d3009d`）已修正：排除inactive角色、不可代理角色、legacy-only生管、system_admin、已到期／未生效來源及停用員工；代理人只列不同於來源的有效員工，送出時檢查未來期限且不超過source。`GovernanceDelegationSources.test.tsx`補合法完整命令／讀回與非法來源不出現；相關4檔26 PASS及build（tsc/client/server）PASS，required Production Source QC run `40118220606` SUCCESS，沒有DB或後端授權變更。此結果補QA29／52的產品UI資格與表單契約；mock API元件證據不替代上表保留的正常UI／原生發布。舊planning補驗只需用畫面讀回UI既有的名稱、scope、期間、目錄、狀態；不可見identity／provenance／priority以原生API／DB對照，不為驗收新增技術欄位到產品。此補驗尚未執行。
 
@@ -294,3 +294,11 @@ QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r1
 本輪另修兩端同一錯誤分類缺口：只在broker公開code與HTTP status精確配對時保留重新登入／無權限／Principal stale／交接碼類別；未知、錯配、非JSON或超過4KiB的內容保持通用相依失敗，不把任意provider detail帶入回應／log。PDM登入頁補對應中文提示；未新增auth模式、Google身分替代或IAM權限。PDM四檔`jenfu-sso-principal-callback`／`jenfu-sso-handoff`／cookies／service-token為57/57 PASS（含13項新增正反例），typecheck PASS；Luna只讀三檔diff未見具體安全阻擋，並非獨立正式QC。required CI仍依PR #479的新head執行，不用本機PASS替代。
 
 Org owner最終讀回：manager direct=0、delegated=0、system_admin=0；來源人員保留RD v7與legacy planning v6兩筆任用，Org session=0、PDM account=0。`company-idp-localhost-20261025-r16-cleanup.json`於17:11（UTC+8）證實只移除localhost、9精確恢復原8網域；三app／PG50883均停止、ports釋放、PG temp移除、governor lease/session結束。本輪正常Org代理建立／發布→PDM操作及舊planning正常UI讀回仍NOT_RUN，原因為服務身分前置未成立；QA29／52與QA50原分母／未驗事實不變。未變更IAM／Secrets、Firebase user或正式業務資料，未執行正式migration／部署。
+
+### 2026-10-25 R17：正常代理／PDM 判權與完整收尾
+
+沿同一隔離情境，以公司Google正常SSO進入OrgMaster。正常UI建立草稿`DEV058 R17 delegation QA`，由有效`role-rd`來源任用建立並發布代理`delegation-fddb713a-786d-4514-b20d-3815075b2d00`，scope=`company-jenfu`且期限未超過來源。DB讀回manager direct=0／delegated=1／`system_admin`=0；來源仍保留RD v7與legacy planning v6 direct任用。Platform重新整理後顯示PDM入口；從正常入口登入PDM後可見RD工作功能，`/settings`則顯示僅系統管理員可管理，補足delegated RD Allow與`system_admin` Deny。Org正常畫面亦讀回legacy planning的v6目錄、scope、期間及current published狀態。
+
+為完成本機旅程，人類明確授權三個既有runtime service account暫時取得只含`iam.serviceAccounts.getOpenIdToken`的最小角色。驗證後立即撤除；最終provider readback三者direct binding=false、effective permission=false、`generateIdToken`皆403。localhost已恢復原8網域；任務私有ADC恢復原hash，token cache歸零；11000／13000／15000及隔離PG port皆無listener，Governor session結束。PDM UI登出成功；Platform UI登出因瀏覽器前景操作逾時未取得完成證據，剩餘本機session由runtime停止及一次性DB移除失效。
+
+Platform聚焦3檔47 PASS及typecheck、OrgMaster聚焦2檔27 PASS及journey syntax均PASS。證據owner為OrgMaster：`output/qa/dev-058/local-sso-bilateral-r17-readback-20261025.json`，SHA-256=`5097553085CB2C694BA99CBF096B632EACBE96A24255CE3D336482497B4EB855`。R17關閉上表正常代理與legacy planning UI子項，不擴增或縮減52 QA／17 AC／CG分母，也不改QA50 PARTIAL。未變更Secret，未執行正式migration、部署、正式業務資料寫入或正式reader／writer發布。
