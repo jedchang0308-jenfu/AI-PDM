@@ -217,10 +217,14 @@ export async function setDrawingPackageModelBasisAsync(input: {
   sharedModelVersionId?: string | null;
   twoDOnlyReason?: string | null;
   confirmTwoDOnly?: boolean;
-}) {
-  const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
+}, options: SharedModelAccessOptions = {}) {
+  const client = options.client ?? getAsyncDatabaseClient();
+  const repository = new AsyncShared3dBaselineRepository(client);
   const pkg = await repository.getDrawingPackage(input.packageId);
   if (!pkg) throw new Shared3dBaselineError("DRAWING_PACKAGE_NOT_FOUND", "找不到圖面版次附件包。", 404);
+  if (options.companyId && pkg.companyId !== options.companyId) {
+    throw new Shared3dBaselineError("DRAWING_PACKAGE_COMPANY_MISMATCH", "圖面版次附件包不屬於目前公司。", 403);
+  }
 
   const now = new Date().toISOString();
   let basis: DrawingPackageModelBasis;
@@ -270,9 +274,15 @@ export async function setDrawingPackageModelBasisAsync(input: {
       packageId: pkg.id,
       basisType: basis.basisType,
       sharedModelVersionId: basis.sharedModelVersionId,
-      reviewStatus: basis.reviewStatus
-    }
-  });
+      reviewStatus: basis.reviewStatus,
+      ...(options.principalAudit ? {
+        principalAudit: options.principalAudit,
+        securityActor: { kind: "verified_principal", principalId: options.principalAudit.principalId }
+      } : {})
+    },
+    companyId: options.principalAudit?.companyId ?? pkg.companyId,
+    scopeKind: "tenant"
+  }, client);
   return basis;
 }
 
@@ -426,10 +436,11 @@ export async function ensureApprovedDrawingPackageSharedModelBasisAsync(input: {
 
 export async function resolveRequiredMaForBaselineAsync(
   input: { ownerScope: SharedModelOwnerScope; ownerCode: string },
-  client: AsyncDatabaseClient = getAsyncDatabaseClient()
+  client: AsyncDatabaseClient = getAsyncDatabaseClient(),
+  companyId?: string | null
 ): Promise<RequiredMaResolverResult> {
   const repository = new AsyncShared3dBaselineRepository(client);
-  const owner = await resolveOwner(input, repository);
+  const owner = await resolveOwner(input, repository, companyId);
   const requiredDrawings = await repository.listRequiredMaDrawings(owner);
   const releasedPackages = await repository.listReleasedPackagesForDrawings(owner.companyId, requiredDrawings.map((drawing) => drawing.id));
   const packagesByDrawing = new Map<string, ReleasedDrawingPackage[]>();
@@ -457,9 +468,11 @@ export async function createManufacturingBaselineDraftAsync(input: {
   actorId: string;
   selectedPackageIds?: string[];
   exclusions?: Array<{ drawingNumberId: string; reason: string; approved: boolean }>;
-}) {
-  const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
-  const resolver = await resolveRequiredMaForBaselineAsync({ ownerScope: input.ownerScope, ownerCode: input.ownerCode });
+}, options: SharedModelAccessOptions = {}) {
+  const client = options.client ?? getAsyncDatabaseClient();
+  const repository = new AsyncShared3dBaselineRepository(client);
+  const resolver = await resolveRequiredMaForBaselineAsync(
+    { ownerScope: input.ownerScope, ownerCode: input.ownerCode }, client, options.companyId);
   const model = await repository.getSharedModelById(input.sharedModelVersionId);
   if (!model || model.companyId !== resolver.owner.companyId || model.partRootId !== resolver.owner.partRootId) {
     throw new Shared3dBaselineError("BASELINE_SHARED_MODEL_INVALID", "製造基準包的共用 3D 不屬於此 part/root。", 409);
@@ -530,16 +543,41 @@ export async function createManufacturingBaselineDraftAsync(input: {
     snapshotJson: JSON.stringify({ createdFrom: "required_ma_resolver", resolverMissing: resolver.missing })
   };
   await repository.insertManufacturingBaseline(baseline, items);
+  if (options.principalAudit) {
+    await createAuditLogAsync({
+      actorId: input.actorId,
+      action: "ManufacturingBaselineDraftCreated",
+      detail: {
+        baselineId: baseline.id,
+        sharedModelVersionId: model.id,
+        itemCount: items.length,
+        principalAudit: options.principalAudit,
+        securityActor: { kind: "verified_principal", principalId: options.principalAudit.principalId }
+      },
+      companyId: options.principalAudit.companyId,
+      scopeKind: "tenant"
+    }, client);
+  }
   return { baseline, items, resolver };
 }
 
-export async function releaseManufacturingBaselineAsync(input: { baselineId: string; actorId: string }) {
-  const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
+export async function releaseManufacturingBaselineAsync(
+  input: { baselineId: string; actorId: string },
+  options: SharedModelAccessOptions = {}
+) {
+  const client = options.client ?? getAsyncDatabaseClient();
+  const repository = new AsyncShared3dBaselineRepository(client);
   const baseline = await repository.getManufacturingBaseline(input.baselineId);
   if (!baseline) throw new Shared3dBaselineError("BASELINE_NOT_FOUND", "找不到製造基準包。", 404);
+  if (options.companyId && baseline.companyId !== options.companyId) {
+    throw new Shared3dBaselineError("BASELINE_COMPANY_MISMATCH", "製造基準包不屬於目前公司。", 403);
+  }
   if (baseline.status !== "Draft") throw new Shared3dBaselineError("BASELINE_IMMUTABLE", "已 Released 的製造基準包不可原地修改或重複發行。", 409);
   const model = await repository.getSharedModelById(baseline.sharedModelVersionId);
   if (!model || model.status !== "Released") throw new Shared3dBaselineError("BASELINE_MODEL_NOT_RELEASED", "製造基準包使用的共用 3D 必須已 Released。", 409);
+  if (model.companyId !== baseline.companyId || model.partRootId !== baseline.partRootId) {
+    throw new Shared3dBaselineError("BASELINE_SHARED_MODEL_INVALID", "製造基準包的共用 3D 不屬於此 part/root。", 409);
+  }
   const items = await repository.listManufacturingBaselineItems(baseline.id);
   const missing = items.filter((item) => item.inclusionStatus === "included" && !item.packageId);
   if (missing.length > 0) {
@@ -570,7 +608,17 @@ export async function releaseManufacturingBaselineAsync(input: { baselineId: str
       audit: {
         actorId: input.actorId,
         action: "ManufacturingBaselineReleased",
-        detail: { baselineId: baseline.id, sharedModelVersionId: model.id, itemCount: items.length }
+        detail: {
+          baselineId: baseline.id,
+          sharedModelVersionId: model.id,
+          itemCount: items.length,
+          ...(options.principalAudit ? {
+            principalAudit: options.principalAudit,
+            securityActor: { kind: "verified_principal", principalId: options.principalAudit.principalId }
+          } : {})
+        },
+        companyId: options.principalAudit?.companyId ?? baseline.companyId,
+        scopeKind: "tenant"
       }
     });
   } catch (error) {

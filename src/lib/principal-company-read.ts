@@ -77,7 +77,10 @@ export async function withPrincipalCompanyWrite(
   request: Request, routePath: string, permissionCode: string,
   write: (snapshot: AsyncDatabaseClient, company: PdmCompanyContext,
     verified: VerifiedPrincipalRequest) => Promise<Response>,
-  options: { isolationLevel?: "read_committed" | "serializable"; expectedScopeResolver?: "workspace" | "Part company" } = {}
+  options: {
+    isolationLevel?: "read_committed" | "serializable";
+    expectedScopeResolver?: "workspace" | "Part company" | "package company" | "baseline company";
+  } = {}
 ): Promise<Response> {
   const policy = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
   if (request.method !== "POST" || policy?.path !== routePath ||

@@ -92,6 +92,14 @@ export function buildRolePolicyRegistry(activeCapabilities, catalog) {
         legacyCode: 'numbering.attachments.manage', method: 'POST',
         path: 'src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts',
       })
+      if (key === 'drawing:edit') callerBindings.push({
+        caller: 'src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts',
+        condition: 'shared-model-basis-parent-and-model-edit',
+      })
+      if (key === 'drawing:review') callerBindings.push({
+        caller: 'src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts',
+        condition: 'two-d-only-combined-confirmation-parent-and-model-review',
+      })
       if (key === 'model:edit') callerBindings.push({
         caller: 'src/lib/platform-command-service.ts',
         condition: 'canonical-attachment-cad-or-intermediate-parent-and-model-edit',
@@ -101,6 +109,9 @@ export function buildRolePolicyRegistry(activeCapabilities, catalog) {
       if (key === 'model:review') callerBindings.push({
         caller: 'src/lib/pdm-principal-review-resource.ts',
         condition: 'submitted-canonical-cad-or-intermediate-parent-and-model-review',
+      }, {
+        caller: 'src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts',
+        condition: 'two-d-only-combined-confirmation-parent-and-model-review',
       })
       return {
         groupId, groupLabel, groupOrder, actionId, actionLabel, actionOrder,

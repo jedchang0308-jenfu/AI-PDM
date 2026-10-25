@@ -1387,16 +1387,6 @@
       ],
       "routes": [
         {
-          "path": "src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts",
-          "method": "POST",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.drawing_revision_lifecycle_review",
-          "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
-          "scopeResolver": "package company",
-          "preservedGuards": "package company＋assigned reviewer／state"
-        },
-        {
           "path": "src/app/api/numbering/drawing-revision-packages/supplements/[supplementId]/decision/route.ts",
           "method": "POST",
           "discriminator": null,
@@ -2435,6 +2425,16 @@
           "authorizationTarget": "pdm.shared_model.manage",
           "scopeResolver": "Part company",
           "preservedGuards": "Part company＋owner／content validation"
+        },
+        {
+          "path": "src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "pdm.shared_model.manage",
+          "authorizationTarget": "pdm.shared_model.manage",
+          "scopeResolver": "package company",
+          "preservedGuards": "package company＋drawing/model edit；2D-only confirmation also drawing/model review"
         }
       ],
       "callerEvidence": [],

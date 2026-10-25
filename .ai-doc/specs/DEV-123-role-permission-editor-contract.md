@@ -1,6 +1,6 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-24（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474及caller／發布續接修正PR #480已合併且required PR CI通過；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。結果、來源與缺口統一見QA§6，尚未整體驗收。本輪已授權PDM既有protected發布／驗收與jenfu-platform-prod／orgmaster-prod相容migration及reader部署；不含人員指派改寫、IAM或Secrets。
+建立：2026-10-12；修訂：2026-10-26（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / QA123-50 Local PASS / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474及caller／發布續接修正PR #480已合併且required PR CI通過；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。PR #479目前補齊model-basis及manufacturing baseline三條Principal mutation；R19隔離HTTP／PostgreSQL已PASS，來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)兩項均SUCCESS。結果、來源與缺口統一見QA§6，尚未整體驗收。**目前只續接隔離開發與非正式驗證；依人類後續指示，暫不執行正式migration、部署或正式資料寫入，亦不變更IAM或Secrets。** 10/23的正式相容發布授權只記為歷史，不能用來繞過這項持續限制。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
 
@@ -138,6 +138,8 @@ flowchart LR
 | transfer.edit | `transfer.package.create,transfer.package.update,transfer.package.review.submit,transfer.package.review.withdraw,manufacturing.baseline.manage`與技轉target的`submission.create,submission.update,submission.share` | 原draft／收件人及平台share guard；edit不新增外部人員／任用，不改public share authority |
 | transfer.review | `approval.request.decide,approval.request.apply,submission.review,submission.decide,submission.lifecycle.decide`的transfer target | 既有transfer review package kind、指定reviewer/no-self |
 | transfer.publish | `transfer.package.publish,manufacturing.baseline.release,submission.retry`的交付發行 | 已核准／可發行及併發guard；integration同步不由此啟用 |
+
+本版接線沿用既有簡化生命週期，不新增第二套核准資料或流程。model-basis連結shared model須`drawing.edit AND model.edit`；同一既有請求建立並確認2D-only時，再須`drawing.review AND model.review`，保留`confirmTwoDOnly`、原因、company／owner及稽核檢查，不新增指定reviewer或no-self欄位。manufacturing baseline草稿須`transfer.edit`；release須`transfer.publish AND model.publish`，並保留Draft CAS、Released model、model company／part-root、必要MA package及排除原因／狀態檢查。這些action是既有操作的授權入口，不代表新增獨立approval workflow。
 
 剩餘特殊legacy操作明確處置：
 - `approval.request.cleanup`維持原受控清理資格／kind限制，不轉成任意role的edit/publish，不新增清理權。
@@ -329,7 +331,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 9. OrgMaster 相容範圍（另案執行）
 
-OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節只列AI-PDM所需外部相容；**10/23起可在授權隔離工作樹協同開發／驗證相容reader與caller，但10/23人類另已允許jenfu-platform-prod／orgmaster-prod之034–036相容migration與reader部署；不含人員指派改寫、IAM或Secrets；PDM branch／PR／required CI／既有protected release workflow發布與驗收屬本輪授權，仍須實際證據**，不推定DEV-121 v7授權已包含此功能。canonical repo為`C:\VIBE CODING\OrgMaster`；來源`AIPDM/DEV-123#orgmaster-compatibility`，由其owner核對規範與現況。
+OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節只列AI-PDM所需外部相容；**目前可在授權隔離工作樹協同開發／驗證相容reader與caller，並交付branch／PR／required CI；正式migration、部署及正式資料寫入暫停，IAM／Secrets不在範圍。** 10/23曾允許jenfu-platform-prod／orgmaster-prod的034–036相容migration與reader部署，已完成的schema保留為歷史結果；後續正式操作以頁首現行限制為準，不推定DEV-121 v7授權已包含此功能。canonical repo為`C:\VIBE CODING\OrgMaster`；來源`AIPDM/DEV-123#orgmaster-compatibility`，由其owner核對規範與現況。
 
 | 對照 | 外部必需結果／範圍 |
 |---|---|
