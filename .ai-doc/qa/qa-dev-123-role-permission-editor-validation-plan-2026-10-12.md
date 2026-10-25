@@ -279,7 +279,7 @@ QA123-29／52本機子項重判如下。相同owner／機制／oracle可合併r1
 | QA52七canonical／active custom名稱、順序與完整UI狀態 | UI子項PASS：Org r15與本輪PDM實際元件各驗矩陣／明細／歷史／唯讀／錯誤／viewport；r14另有正常custom任用。mock UI不當作逐一正常任用七角色的DB結果 |
 | QA52採購／生管alias與原priority | 正常UI scope／期間子項PASS：R17在Org畫面讀回legacy planning的v6目錄、`company-jenfu`、有效期間與current published狀態；identity/profile/status/priority仍由current-native-r3兩身份同步停復與原欄位不變證據支持，新選項只列canonical沿Org r15及既有固定契約測試 |
 | QA52current／schema／version／hash錯配拒絕 | 沿既有C26真current/history負例及未變reader契約重用；current-native-r3補當前來源的實際consumer正例。不是本輪重新注入全部fault，也不靠UI marker判相容 |
-| QA29／52整案判定與QA50 | 核心交易、正常代理、停復及相關UI子項具本機組合證據；不因此宣稱52 QA整體PASS。QA50缺合法STEP／STP／IGES／IGS仍BLOCKED，正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
+| QA29／52整案判定與QA50 | 核心交易、正常代理、停復及相關UI子項具本機組合證據；不因此宣稱52 QA整體PASS。R18已以合法SLDPRT＋STEP關閉QA50 multipleBindings外部來源缺口；model-basis及baseline create／release仍為非Principal舊入口，QA50保持PARTIAL。正式reader／writer與正式驗收NOT_RUN（本輪禁止） |
 
 2026-10-25續接查核發現Org代理來源UI只按application/status列任用，未同步server的角色／來源資格。這是靜態可證的選單缺口，後端原本仍拒絕非法代理，未宣稱已實際發生越權。OrgMaster PR #153的r16（`60a7cded5010b46d0607245284ca784cc4d3009d`）已修正：排除inactive角色、不可代理角色、legacy-only生管、system_admin、已到期／未生效來源及停用員工；代理人只列不同於來源的有效員工，送出時檢查未來期限且不超過source。`GovernanceDelegationSources.test.tsx`補合法完整命令／讀回與非法來源不出現；相關4檔26 PASS及build（tsc/client/server）PASS，required Production Source QC run `40118220606` SUCCESS，沒有DB或後端授權變更。此結果補QA29／52的產品UI資格與表單契約；mock API元件證據不替代上表保留的正常UI／原生發布。舊planning補驗只需用畫面讀回UI既有的名稱、scope、期間、目錄、狀態；不可見identity／provenance／priority以原生API／DB對照，不為驗收新增技術欄位到產品。此補驗尚未執行。
 
@@ -302,3 +302,11 @@ Org owner最終讀回：manager direct=0、delegated=0、system_admin=0；來源
 為完成本機旅程，人類明確授權三個既有runtime service account暫時取得只含`iam.serviceAccounts.getOpenIdToken`的最小角色。驗證後立即撤除；最終provider readback三者direct binding=false、effective permission=false、`generateIdToken`皆403。localhost已恢復原8網域；任務私有ADC恢復原hash，token cache歸零；11000／13000／15000及隔離PG port皆無listener，Governor session結束。PDM UI登出成功；Platform UI登出因瀏覽器前景操作逾時未取得完成證據，剩餘本機session由runtime停止及一次性DB移除失效。
 
 Platform聚焦3檔47 PASS及typecheck、OrgMaster聚焦2檔27 PASS及journey syntax均PASS。證據owner為OrgMaster：`output/qa/dev-058/local-sso-bilateral-r17-readback-20261025.json`，SHA-256=`5097553085CB2C694BA99CBF096B632EACBE96A24255CE3D336482497B4EB855`。R17關閉上表正常代理與legacy planning UI子項，不擴增或縮減52 QA／17 AC／CG分母，也不改QA50 PARTIAL。未變更Secret，未執行正式migration、部署、正式業務資料寫入或正式reader／writer發布。
+
+### 2026-10-25 R18：合法 STEP 關閉 QA50 multipleBindings 外部來源缺口
+
+使用者在原授權J資料夾新增`D-0007-MA1.STEP`與`D-0007-MA1.IGS`。唯讀格式查核確認STEP為SolidWorks 2025輸出的AP214，含完整`ISO-10303-21`／HEADER／DATA／END及533個entity；IGES含1個S、4個G、570個D、584個P及1個T區段。兩者依現行`pdm-file-ownership`皆分類為`intermediate`，因此本次選STEP；原生`D-0007-MA1.SLDPRT`與`SLDDRW`由同資料夾既有ZIP逐entry解出到Governor temp，避免SolidWorks占用原檔，也沒有把STEP與IGS互相冒充兩個角色。來源manifest=`dev123-native-model-review-authorized-sources-20261025-r3.json`，SHA-256=`A1FE0C2D059AE57BCB329A2083BB07C16689B33CDA25C5AF78772B69E0079B6D`。
+
+原生r3沿現有numbering201→三檔upload200→submit200→review決策路徑完成14個HTTP案例。實際file assets讀回`drawing_2d`、`cad_3d`、`intermediate`各一筆，內容hash分別精確對應SLDDRW、SLDPRT與STEP；review package同時凍結三個不同role，`multipleBindings.status=PASS`。分別撤`model.review`與`drawing.review`皆得403，兩次168張`ai_pdm_core`全表row count／digest不變；恢復後approve200並留下精確Principal／profile completed receipt。baseline own空合法part200／foreign403及全表不變沿同run通過。
+
+主證據=`dev123-native-model-review-http-20261025-r3.json`，SHA-256=`373B14B2F0F698F7C71B0E91AF3CB163F7CA45B4B65C811D4C3C85C2E090BBB8`；status=`PASS_WITH_NOT_RUN`，PG ERROR/FATAL=0、asyncErrors=0、source before／after相同，PG64871與bridge58260均由Governor讀回released，runtime root已移除。第一次啟動因Windows loader絕對路徑未轉`file:///`而在runtime／案例前停止；只修啟動參數後重跑，產品與斷言未變，原件=`dev123-native-model-review-launch-precondition-20261025-r3.json`。此外部來源BLOCKED已關閉；QA50仍因model-basis及baseline create／release的非Principal舊入口維持PARTIAL，52 QA／17 AC／CG分母不變。本輪沒有正式migration、部署、正式資料寫入、IAM或Secret變更。

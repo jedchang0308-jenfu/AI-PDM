@@ -32,7 +32,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - R17依明確授權暫授三個既有runtime service account最小ID-token簽發角色，以公司Google正常SSO完成Org代理建立／發布、PDM delegated RD Allow與`system_admin` Deny，以及舊生管目錄／scope／期間讀回；其後IAM direct／effective皆false、簽發403，localhost、私有ADC、三端／PG／Governor均完成收尾。精確時點、證據與限制見QA末段。
 - [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：已合併且required CI通過；PDM 086–088／OrgMaster 034–036正式schema已套用，先前consumer因Platform session 401未上線，writer暫緩。來源、收據、恢復與待驗範圍見QA §6。
 - [PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)：本機r14以公司Google正常SSO完成custom角色建立、OrgMaster指派／發布、撤銷重疊`system_admin`及PDM allow／deny；R17再完成正常代理表單／發布、PDM delegated RD判權與舊生管目錄／scope／期間讀回。OrgMaster DEV-058的24目的維持24 PASS／0 PARTIAL／0 BLOCKED，仍In Progress／Not Released。Org相容修正在[OrgMaster PR #153](https://github.com/jedchang0308-jenfu/OrgMaster/pull/153)，Platform本機入口修正在[Jenfu-Platform PR #140](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/140)。
-- 本輪不執行正式migration、部署或正式資料寫入。臨時最小IAM已完全撤除，Secret未變更；正式reader／writer與QA50合法STEP／IGES雙model binding仍待完成，52 QA／17 AC／CG尚未整體驗收或套用新矩陣。
+- 本輪不執行正式migration、部署或正式資料寫入。臨時最小IAM已完全撤除，Secret未變更；R18已用合法SLDPRT＋STEP完成QA50 multipleBindings，外部來源缺口關閉。正式reader／writer仍待完成，QA50因model-basis及baseline create／release非Principal舊入口維持PARTIAL；52 QA／17 AC／CG尚未整體驗收或套用新矩陣。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
 
