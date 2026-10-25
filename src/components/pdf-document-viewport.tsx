@@ -52,6 +52,7 @@ export function PdfDocumentViewport({ bytes, sourceKey, title, showControls = tr
   useEffect(() => {
     if (!document) return;
     let disposed = false, sequence = 0, frame = 0;
+    let scheduledRenderKey = "";
     let observer: ResizeObserver | null = null;
     let page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>> | null = null;
     const failAfterTimeout = () => {
@@ -62,12 +63,10 @@ export function PdfDocumentViewport({ bytes, sourceKey, title, showControls = tr
     const render = () => {
       if (disposed) return;
       const current = ++sequence;
-      setRenderState("loading"); setRenderedPage(0);
       window.clearTimeout(timeout);
       timeout = window.setTimeout(() => {
         if (!disposed && current === sequence) failAfterTimeout();
       }, 60_000);
-      renderTaskRef.current?.cancel();
       // Settle the previous task before touching its canvas; sequence guards
       // alone cannot prevent two PDF.js renders using the same canvas.
       const queued = renderQueueRef.current.catch(() => undefined).then(async () => {
@@ -92,7 +91,14 @@ export function PdfDocumentViewport({ bytes, sourceKey, title, showControls = tr
         if (!disposed && current === sequence && !(error instanceof Error && error.name === "RenderingCancelledException")) setRenderState("failed");
       });
     };
-    const schedule = () => { if (disposed) return; window.cancelAnimationFrame(frame); frame = window.requestAnimationFrame(render); };
+    const schedule = () => {
+      const stage = stageRef.current;
+      if (disposed || !stage) return;
+      const renderKey = `${Math.max(1, stage.clientWidth - 16)}:${window.devicePixelRatio || 1}`;
+      if (renderKey === scheduledRenderKey) return;
+      scheduledRenderKey = renderKey;
+      window.cancelAnimationFrame(frame); frame = window.requestAnimationFrame(render);
+    };
     void document.getPage(Math.min(document.numPages, Math.max(1, pageNumber))).then(next => {
       page = next;
       if (disposed) { page.cleanup(); return; }
