@@ -24,7 +24,7 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — R17正常代理雙端旅程完成（2026-10-25）
+## DEV-123#role-permission-editor — R19 QA50本機工程PASS（2026-10-26）
 
 - [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
 - [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
@@ -32,9 +32,11 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - R17依明確授權暫授三個既有runtime service account最小ID-token簽發角色，以公司Google正常SSO完成Org代理建立／發布、PDM delegated RD Allow與`system_admin` Deny，以及舊生管目錄／scope／期間讀回；其後IAM direct／effective皆false、簽發403，localhost、私有ADC、三端／PG／Governor均完成收尾。精確時點、證據與限制見QA末段。
 - [PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)：已合併且required CI通過；PDM 086–088／OrgMaster 034–036正式schema已套用，先前consumer因Platform session 401未上線，writer暫緩。來源、收據、恢復與待驗範圍見QA §6。
 - [PR #479](https://github.com/jedchang0308-jenfu/AI-PDM/pull/479)：本機r14以公司Google正常SSO完成custom角色建立、OrgMaster指派／發布、撤銷重疊`system_admin`及PDM allow／deny；R17再完成正常代理表單／發布、PDM delegated RD判權與舊生管目錄／scope／期間讀回。OrgMaster DEV-058的24目的維持24 PASS／0 PARTIAL／0 BLOCKED，仍In Progress／Not Released。Org相容修正在[OrgMaster PR #153](https://github.com/jedchang0308-jenfu/OrgMaster/pull/153)，Platform本機入口修正在[Jenfu-Platform PR #140](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/140)。
-- 本輪不執行正式migration、部署或正式資料寫入。臨時最小IAM已完全撤除，Secret未變更；R18已用合法SLDPRT＋STEP完成QA50 multipleBindings，外部來源缺口關閉。正式reader／writer仍待完成，QA50因model-basis及baseline create／release非Principal舊入口維持PARTIAL；52 QA／17 AC／CG尚未整體驗收或套用新矩陣。
+- 本輪不執行正式migration、部署或正式資料寫入。臨時最小IAM已完全撤除，Secret未變更；R18已用合法SLDPRT＋STEP完成multipleBindings，R19再完成model-basis、baseline draft／release的25個Principal HTTP案例及9個獨立撤權零寫入負例，QA50本機工程判定PASS。正式reader／writer仍待完成；52 QA／17 AC／CG尚未整體正式驗收或套用新矩陣。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
+
+PR #479 current slice接上既有model-basis／manufacturing baseline mutation的Principal company fence、必要action AND及同交易audit；不新增approval workflow。R19證據與兩次fixture首敗見QA末段，current exact-head required CI待provider讀回。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 

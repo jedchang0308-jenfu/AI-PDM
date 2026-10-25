@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-25。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-26。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；PR #479的model-basis／manufacturing baseline Principal接線已完成R19隔離QA，current exact-head required CI待provider讀回。Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
@@ -39,3 +39,5 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 2026-10-23登入政策決策：人類選擇沿用現有公司Google管理員登入政策，移除本次實作額外加入的AAL2硬限制；不新增MFA系統，也不把AAL1冒記為AAL2。既有verified Principal/session及human_privileged、direct global exact-Principal system_admin資格保持，post-lock assurance須與registered session一致。此決策僅限DEV-123，不修改其他DEV-121管理API或SSO信任契約。
 
 2026-10-24發布續接修正：正式schema已完成而consumer尚未就緒，原capsule到期後須以不可變prior38證據重新封存，不重送DDL。依既有app／worker來源分工，applied-only的DB/source觀察不重播保留worker的舊build graph；runtime/ref及普通worker流程保護維持。封閉forward索引、零Job association及schema-only派生旗標見release spec§26.4；不增加產品狀態、人工簽核或任意操作入口。實際source修正／驗證及尚未發布範圍仍只記QA§6。
+
+2026-10-26既有操作接線決策：DEV-123只把model-basis、baseline draft及baseline release接到20個合併action，不為內部自用流程新增approval request、指定reviewer或第二人核准狀態。shared-model basis須drawing/model edit AND；同請求2D-only沿用既有`confirmTwoDOnly`並加drawing/model review AND；baseline draft須transfer edit；release須transfer/model publish AND。company／owner、Draft CAS、Released model、model part-root、required-MA與排除檢查及Principal audit維持，未授任一必要action即403且同交易無寫入。這是既有domain guard的授權接線，不把矩陣publish當成新審批平台。

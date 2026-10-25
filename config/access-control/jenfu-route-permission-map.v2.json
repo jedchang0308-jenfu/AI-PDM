@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "2eec4aa98321e0be97f8ed46dadcb38a67afdddf86104312d546faf4daf1a72b",
+  "sourceSha256": "63f50bf5bb5077852c9839ec97416be8f7fc29e01cee8b5461de66a5c65da03d",
   "denominator": {
     "uniqueFiles": 151,
     "uniqueMethods": 173,
@@ -324,10 +324,10 @@
       "method": "POST",
       "discriminator": null,
       "authorizationMode": "permission",
-      "permissionCode": "numbering.drawing_revision_lifecycle_review",
-      "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
+      "permissionCode": "pdm.shared_model.manage",
+      "authorizationTarget": "pdm.shared_model.manage",
       "scopeResolver": "package company",
-      "preservedGuards": "package company＋assigned reviewer／state"
+      "preservedGuards": "package company＋drawing/model edit；2D-only confirmation also drawing/model review"
     },
     {
       "path": "src/app/api/numbering/drawing-revision-packages/supplements/[supplementId]/decision/route.ts",

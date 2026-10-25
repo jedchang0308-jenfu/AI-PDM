@@ -53,6 +53,12 @@ test('model review records its conditional direct caller without broadening gene
   assert.ok(!generic.requiredActions.includes('pdm.model.review'))
   assert.ok(registry.businessActions.find(action=>action.code==='pdm.drawing.edit').routeBindings.some(binding=>
     binding.method==='POST' && binding.path==='src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts'))
+  assert.ok(registry.businessActions.find(action=>action.code==='pdm.drawing.edit').callerBindings.some(binding=>
+    binding.caller==='src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts'))
+  assert.ok(registry.businessActions.find(action=>action.code==='pdm.drawing.review').callerBindings.some(binding=>
+    binding.condition==='two-d-only-combined-confirmation-parent-and-model-review'))
   assert.ok(registry.businessActions.find(action=>action.code==='pdm.model.edit').callerBindings.some(binding=>
     binding.caller==='src/lib/platform-command-service.ts'))
+  assert.ok(model.callerBindings.some(binding=>
+    binding.condition==='two-d-only-combined-confirmation-parent-and-model-review'))
 })
