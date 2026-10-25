@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-26。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；PR #479的model-basis／manufacturing baseline Principal接線已完成R19隔離QA，current exact-head required CI待provider讀回。Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-26。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；PR #479的model-basis／manufacturing baseline Principal接線已完成R19隔離QA，來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)兩項均SUCCESS。Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 

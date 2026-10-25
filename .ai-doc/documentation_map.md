@@ -36,7 +36,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
 
-PR #479 current slice接上既有model-basis／manufacturing baseline mutation的Principal company fence、必要action AND及同交易audit；不新增approval workflow。R19證據與兩次fixture首敗見QA末段，current exact-head required CI待provider讀回。
+PR #479 current slice接上既有model-basis／manufacturing baseline mutation的Principal company fence、必要action AND及同交易audit；不新增approval workflow。R19證據與兩次fixture首敗見QA末段；來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)兩項均SUCCESS。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
