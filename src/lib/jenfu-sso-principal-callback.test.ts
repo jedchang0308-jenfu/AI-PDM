@@ -66,11 +66,68 @@ function principalProof(now = Date.now()) {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
   mocks.producerConfig = null;
   mocks.producerIdentityIssuer = null;
 });
 
 describe("principal-first SSO callback routing", () => {
+  it.each([
+    [401, "sso_reauthentication_required"],
+    [403, "sso_access_denied"],
+    [403, "sso_principal_stale"],
+    [400, "sso_code_invalid"],
+    [400, "sso_code_expired"],
+    [400, "sso_code_consumed"],
+    [400, "sso_pkce_invalid"]
+  ])("preserves only the safe broker status/code pair %i %s", async (status, code) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const cookie = started.headers.get("set-cookie")!.split(";")[0];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code }), { status })));
+
+    const rejected = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=https%3A%2F%2Fplatform.example%2Fapi%2Fsso`,
+      { headers: { cookie } }
+    ));
+
+    expect(rejected.status).toBe(303);
+    expect(rejected.headers.get("location")).toBe(`https://pdm.example/login?auth_error=${code}`);
+    expect(rejected.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(rejected.cookies.getAll().map(item => item.name)).toEqual(["__Host-jenfu_sso_tx"]);
+    expect(rejected.headers.get("cache-control")).toBe("no-store");
+    expect(rejected.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(mocks.issuePrincipal).not.toHaveBeenCalled();
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [503, JSON.stringify({ code: "sso_reauthentication_required" })],
+    [401, JSON.stringify({ code: "sso_access_denied" })],
+    [403, JSON.stringify({ code: "private-provider-detail" })],
+    [403, "not-json-private-provider-detail"],
+    [403, "null"],
+    [403, JSON.stringify({ code: "sso_access_denied", detail: "x".repeat(4096) })]
+  ])("keeps unsafe or mismatched broker failure %i generic", async (status, body) => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const cookie = started.headers.get("set-cookie")!.split(";")[0];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status })));
+
+    const rejected = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=https%3A%2F%2Fplatform.example%2Fapi%2Fsso`,
+      { headers: { cookie } }
+    ));
+
+    expect(rejected.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_dependency_unavailable");
+    expect(rejected.cookies.getAll().map(item => item.name)).toEqual(["__Host-jenfu_sso_tx"]);
+    expect(rejected.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(JSON.stringify(logged.mock.calls)).not.toContain("private-provider-detail");
+    expect(mocks.issuePrincipal).not.toHaveBeenCalled();
+  });
+
   it("accepts a v2 proof through the principal issuer without calling the UID resolver", async () => {
     const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start?returnTo=%2Fdrawings"));
     const authorization = new URL(started.headers.get("location")!);

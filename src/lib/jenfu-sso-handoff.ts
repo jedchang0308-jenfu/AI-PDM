@@ -21,6 +21,34 @@ function transactionCookieName(config: ReturnType<typeof getJenfuSsoHandoffConfi
 const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
 
+const BROKER_PUBLIC_FAILURES = new Map<string, number>([
+  ["sso_reauthentication_required", 401],
+  ["sso_access_denied", 403],
+  ["sso_principal_stale", 403],
+  ["sso_code_invalid", 400],
+  ["sso_code_expired", 400],
+  ["sso_code_consumed", 400],
+  ["sso_pkce_invalid", 400]
+]);
+
+class BrokerExchangeFailure extends Error {
+  constructor(readonly publicCode: string) { super("BROKER_EXCHANGE_FAILED"); }
+}
+
+async function brokerFailure(response: Response): Promise<never> {
+  let code = "";
+  try {
+    const body = await response.text();
+    if (Buffer.byteLength(body, "utf8") <= 4096) {
+      const parsed = JSON.parse(body) as { code?: unknown } | null;
+      if (typeof parsed?.code === "string") code = parsed.code;
+    }
+  } catch { /* Unrecognized broker responses stay generic. */ }
+  const expectedStatus = BROKER_PUBLIC_FAILURES.get(code);
+  if (expectedStatus !== undefined && response.status === expectedStatus) throw new BrokerExchangeFailure(code);
+  throw new Error("BROKER_EXCHANGE_UNAVAILABLE");
+}
+
 type Transaction = { state: string; verifier: string; returnTo: string; issuer: string; expiresAt: number };
 type CallbackStage =
   | "service_identity"
@@ -56,6 +84,7 @@ function decode(value: string | undefined): Transaction | null {
 function error(code: string, status: number) { return NextResponse.json({ code }, { status, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } }); }
 
 function callbackErrorCode(errorValue: unknown) {
+  if (errorValue instanceof BrokerExchangeFailure) return errorValue.publicCode;
   if ((errorValue instanceof JenfuPrincipalAccountError && errorValue.code === "principal_account_inactive") ||
     (errorValue instanceof JenfuPrincipalAdmissionError && errorValue.code === "principal_not_active" && errorValue.httpStatus === 403)) {
     return "principal_not_active";
@@ -68,7 +97,7 @@ function callbackErrorCode(errorValue: unknown) {
     "entitlement_scope_mismatch", "permission_explicit_deny", "permission_not_granted"
   ].includes(errorValue.code)) return "principal_access_denied";
   const code = errorValue instanceof Error ? errorValue.message : "";
-  if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
+  if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED") return "sso_code_invalid";
   if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return "sso_principal_stale";
   if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return "auth_token_invalid";
   return "sso_dependency_unavailable";
@@ -175,7 +204,7 @@ export async function jenfuSsoCallback(request: Request) {
     const service = await jenfuSsoServiceToken(config.broker);
     stage = "broker_exchange";
     const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) }).finally(() => clearTimeout(timeout));
-    if (!brokerResponse.ok) throw new Error("BROKER_DENIED");
+    if (!brokerResponse.ok) await brokerFailure(brokerResponse);
     stage = "handoff_parse";
     const proof: unknown = await brokerResponse.json();
     const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
