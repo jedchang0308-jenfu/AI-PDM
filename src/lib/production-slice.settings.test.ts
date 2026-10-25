@@ -11,6 +11,11 @@ const commands = [
   "/api/settings-secret-probe-jobs/job-one/heartbeat", "/api/settings-secret-probe-jobs/job-one/complete",
   "/api/recognition-workers/heartbeat"
 ];
+const rolePolicyCommands = [
+  "/api/settings/access/role-policies/drafts",
+  "/api/settings/access/role-policies/drafts/00000000-0000-4000-8000-000000000001/save",
+  "/api/settings/access/role-policies/applications"
+];
 afterEach(() => vi.unstubAllEnvs());
 describe("DEV122 settings dispatch retains the existing owner guards", () => {
   it.each(commands)("dispatches only POST %s in the actual slice", path => {
@@ -48,5 +53,25 @@ describe("DEV122 settings dispatch retains the existing owner guards", () => {
   it.each(["/settings/security/extra", "/settings/integrations", "/settings/workflow/extra", "/settings/system"])("keeps unopened settings page closed: %s", path => {
     expect(isProductionSliceOpenPagePath(path, active)).toBe(false);
     expect(productionSliceClientStatus(active).openPagePaths).not.toContain(path);
+  });
+});
+
+describe("DEV123 role-policy commands reach their existing owner guards", () => {
+  it.each(rolePolicyCommands)("dispatches exact POST %s in the active slice", path => {
+    expect(isProductionSliceAllowedApiMutation("POST", path, active)).toBe(true);
+    expect(isProductionSliceAllowedApiMutation("POST", path, { PDM_PRODUCTION_SLICE_MODE: "unknown" })).toBe(false);
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", active.PDM_PRODUCTION_SLICE_MODE);
+    expect(middleware(new NextRequest("https://pdm.example" + path, { method: "POST" })).headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it.each([
+    ["PATCH", "/api/settings/access/role-policies/drafts"],
+    ["POST", "/api/settings/access/role-policies/drafts/00000000-0000-4000-8000-000000000001"],
+    ["POST", "/api/settings/access/role-policies/drafts/00000000-0000-4000-8000-000000000001/preview"],
+    ["POST", "/api/settings/access/role-policies/commands/00000000-0000-4000-8000-000000000001"],
+    ["POST", "/api/settings/access/role-policies/publications"],
+    ["POST", "/api/settings/access/role-policies/applications/extra"]
+  ])("keeps unsupported role-policy mutation blocked: %s %s", (method, path) => {
+    expect(isProductionSliceAllowedApiMutation(method, path, active)).toBe(false);
   });
 });
