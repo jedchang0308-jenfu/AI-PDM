@@ -357,3 +357,17 @@ R20關閉正式consumer rollout、writer rollout、protected deployment、正常
 本輪結果只刷新受影響的 source／release-control／database／build 責任面；不因測試數量增加而新增 52 案、17 AC 或 CG 分母。依 §4 映射，QA123-01..52 與 CG123-01/02 的現有本機、原生、L4 及 R20 正式 evidence 可繼續重用，這次回歸確認 current source 沒有 regression。仍未把下列「需要正式逐一重播」的目的改判為整案 PASS：正式環境 CAS／unknown／撤權競爭、全部 20-action 業務 caller、七 canonical 角色逐一人員任用、正式窄版 viewport。它們仍是驗收完整度缺口，不是本次回歸的產品失敗。
 
 因此 DEV-123 目前維持：`Production Released / Core Role Lifecycle Observed / Current-source regression PASS / Whole Acceptance Partial`。本輪沒有新增 localhost、IAM、Secret、正式 migration、正式部署或正式資料寫入；OrgMaster 仍只負責人員角色指派與 published grant。
+
+### 2026-10-26 R22：缺口續查與 exact-source focused regression
+
+本輪在隔離工作樹 `codex/dev123-gap-closure-20261026` 只執行可安全重播的 current-source／契約驗證；沒有啟動正式 runtime、沒有寫入正式資料，也沒有重送 migration、部署或 IAM／Secret 變更。
+
+| 驗證 | 實際結果／判定 |
+|---|---|
+| `npm run test:dev-123:contracts` | PASS：registry `roles=9 / businessActions=20 / legacyBindings=66`；Node 8/8；Vitest 62 files／595 tests。證據：`output/qa/dev-123/dev123-gap-closure-20261026-contracts.log`。 |
+| DEV-123 focused role-policy suite | 首次 48/49：唯一失敗為未設定 `ORGMASTER_DEV058_ROOT` 的 fail-closed 前置檢查，未進入產品斷言；綁定隔離 OrgMaster contract source 後 49/49 PASS，涵蓋候選角色／停用恢復、CAS／身份與 session admission、嚴格 payload、草稿防重、apply replay、route actor binding。這個前置失敗保留，不改判為產品缺陷。 |
+| `npm run test:dev-123:bilateral` | PASS：owner manifest 與 consumer manifest／migration hash 相符，Node 1/1＋Vitest 1/1。重跑使用 `C:\VIBE CODING\.worktrees\OrgMaster\dev058-controlled-rotation-fix-20261024` 的隔離來源；沒有把未指定來源的第一次失敗隱藏。證據：`output/qa/dev-123/dev123-gap-closure-20261026-bilateral.log`。 |
+| `npm run check:db-boundary`、`npm run typecheck:app` | PASS；沒有新增或修改共享 migration／DB ACL。 |
+| DEV-117 continuous／QC／abort | 本輪不重跑高成長 continuous：Governor 對 C: 10 GiB `integration_test` 預留判定 `BLOCKED`（可用預留後低於保護底線）；沿用 R21 同一 current-source、輸入與無漂移條件下的 497/497、隔離 QC `artifact=true; primary=true; cleanup=true`、abort 6/6 證據，不把未重跑寫成新結果。 |
+
+R22 關閉的是 current-source focused regression 與 exact-source bilateral 的可重播缺口；它不縮減正式驗收分母，也不把本機結果升格為正式結果。正式仍未逐一重播的四類缺口維持原標記：正式 CAS／unknown／撤權競爭、全部 20-action caller 的正式真人旅程、七個 canonical role 的逐一正式任用，以及正式 390×844 窄版 viewport。正式 desktop、fresh Google SSO、writer／reader rollout、歷史與停用角色只沿 R20 已取得的 readback 認列。整體仍為 `Whole Acceptance Partial`。

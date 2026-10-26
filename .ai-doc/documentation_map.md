@@ -36,6 +36,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - fresh公司Google登入後，正式AI-PDM讀回七角色、五作業／同格動作、RD角色工作台、歷史詳情及停用custom角色；active版唯讀、PDM管理資格仍由OrgMaster指派，desktop無page-level overflow且console error=0。歷史可追溯正式角色新增／能力變更／停用；本次最終browser pass沒有新增草稿或正式寫入。
 - 判定為`Production Released / Core Role Lifecycle Observed / Current-source Regression PASS / Whole Acceptance Partial`；52 QA／17 AC／CG未被本次正式旅程全部覆蓋，未逐一重播的衝突／unknown、全部20-action caller、七角色逐一任用與正式窄版viewport不冒稱PASS。臨時IAM已撤除、Secret未變更，R17 localhost恢復原8網域；本次沒有新增localhost。
 - R21 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均 PASS；首次 bilateral 缺少來源路徑的前置失敗保留，修正 exact source 後通過。結果只確認 current source 未回歸，不縮減 52／17／CG 分母或 OrgMaster 人員指派邊界。
+- R22 gap follow-up：隔離工作樹重播 contracts `9/20/66`、Node `8/8`、Vitest `62 files／595 tests`；focused role-policy 首次 `48/49` 只因缺 `ORGMASTER_DEV058_ROOT` fail-closed，綁定隔離 OrgMaster contract source 後 `49/49`；bilateral `1＋1`、DB boundary、typecheck PASS。DEV-117 continuous 本輪因 C: 10 GiB 預留會低於 Governor 保護底線而未重跑，沿用無漂移的 R21 497/497／QC／abort evidence，不冒稱新結果。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用及正式窄版仍未充分驗證，原分母不變。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
 
