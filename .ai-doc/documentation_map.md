@@ -26,17 +26,18 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — 正式發布完成／current-source回歸通過／整體驗收部分完成（2026-10-26）
+## DEV-123#role-permission-editor — 正式管理生命週期通過／整體驗收部分完成（2026-10-27）
 
 - [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
 - [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
 - [QA](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)：52目的／17AC／CG覆蓋與唯一驗證結果入口。
 - AI-PDM [PR #487](https://github.com/jedchang0308-jenfu/AI-PDM/pull/487)與release [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)：main `ad74f179…`、required CI及正式owner workflow成功；`ai-pdm-prod-3092d00b3653`承接100%流量，terminal `PASS / RELEASED`，086–088沿既有forward evidence且本次未重送DDL。
 - OrgMaster相容reader release [40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430)：`orgmaster-prod-a3b9e9e107ca`承接100%流量，candidate／canonical的Platform SSO、governance session、managed identity與未登入／撤銷正反例PASS；人員指派、scope、期間、代理與特權任用責任仍屬OrgMaster。
-- fresh公司Google登入後，正式AI-PDM讀回七角色、五作業／同格動作、RD角色工作台、歷史詳情及停用custom角色；active版唯讀、PDM管理資格仍由OrgMaster指派，desktop無page-level overflow且console error=0。歷史可追溯正式角色新增／能力變更／停用；本次最終browser pass沒有新增草稿或正式寫入。
-- 判定為`Production Released / Core Role Lifecycle Observed / Current-source Regression PASS / Whole Acceptance Partial`；52 QA／17 AC／CG未被本次正式旅程全部覆蓋，未逐一重播的衝突／unknown、全部20-action caller、七角色逐一任用與正式窄版viewport不冒稱PASS。臨時IAM已撤除、Secret未變更，R17 localhost恢復原8網域；本次沒有新增localhost。
+- fresh公司Google登入後，正式AI-PDM讀回七角色、五作業／同格動作、角色工作台、歷史詳情及停用custom角色；active版唯讀、PDM管理資格仍由OrgMaster指派，desktop與390×844均無page-level overflow且console error=0。R23／R24另完成同管理者雙分頁CAS、unknown provider readback及custom角色跨AI-PDM／OrgMaster生命週期。
+- 判定為`Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`；52 QA／17 AC／CG未被正式旅程全部覆蓋。不同管理者CAS、20 business caller逐一旅程、七角色逐一任用及in-flight業務寫入／長任務撤權競爭仍未執行；臨時custom角色最終inactive、OrgMaster兩項臨時指派revoked。沒有新增localhost、IAM、Secret、migration或PDM業務資料。
 - R21 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均 PASS；首次 bilateral 缺少來源路徑的前置失敗保留，修正 exact source 後通過。結果只確認 current source 未回歸，不縮減 52／17／CG 分母或 OrgMaster 人員指派邊界。
 - R22 gap follow-up：隔離工作樹重播 contracts `9/20/66`、Node `8/8`、Vitest `62 files／595 tests`；focused role-policy 首次 `48/49` 只因缺 `ORGMASTER_DEV058_ROOT` fail-closed，綁定隔離 OrgMaster contract source 後 `49/49`；bilateral `1＋1`、DB boundary、typecheck PASS。DEV-117 continuous 本輪因 C: 10 GiB 預留會低於 Governor 保護底線而未重跑，沿用無漂移的 R21 497/497／QC／abort evidence，不冒稱新結果。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用及正式窄版仍未充分驗證，原分母不變。
+- R23／R24 formal administration：正式390×844、同管理者CAS與unknown outcome PASS；建立20-action custom角色，OrgMaster第23版發布兩項臨時任用、第24版撤銷，角色恢復後已撤指派不復活，最後角色再停用。provider readback為AI-PDM applications 200、OrgMaster versions 201；final services `ai-pdm-prod-3092d00b3653`／`orgmaster-prod-ea3dfa78a218`各100% traffic。詳見[QA R23／R24](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#2026-10-26-r23正式管理操作casunknown-與動態角色往返)及[結構化證據](qa/DEV-123-formal-administration-lifecycle-2026-10-26.json)。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
 

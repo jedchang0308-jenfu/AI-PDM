@@ -1,6 +1,6 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-26（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Production Released / Normal SSO + Read-only UI PASS / Current-source Regression PASS / Whole Acceptance Partial`。PR #487已將正式role-policy writes開啟並合併至main `ad74f179747cdd807c6bf8a4958dba81434b5074`；required CI [40230252364](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40230252364)及正式發布 [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)成功，`ai-pdm-prod-3092d00b3653`承接100%流量。PDM 086–088與OrgMaster相容schema已生效；OrgMaster reader亦已正式發布並通過正常SSO smoke，先前的`Consumer Rollout Blocked / Writer Held`已解除。正式公司Google登入、七角色／五作業矩陣、角色工作台、歷史／停用角色及生效版唯讀狀態已由正常入口讀回；正式歷史亦可追溯角色新增、能力變更與停用。結果與剩餘分母統一見QA§6；發布成功不等於52 QA／17 AC／CG全數正式驗收。
+建立：2026-10-12；修訂：2026-10-27（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`。PR #487已將正式role-policy writes開啟並合併至main `ad74f179747cdd807c6bf8a4958dba81434b5074`；required CI [40230252364](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40230252364)及正式發布 [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)成功，`ai-pdm-prod-3092d00b3653`承接100%流量。PDM 086–088與OrgMaster相容schema已生效；OrgMaster reader亦已正式發布並通過正常SSO smoke，先前的`Consumer Rollout Blocked / Writer Held`已解除。正式公司Google登入、七角色／五作業矩陣、角色工作台、歷史／停用角色及生效版唯讀狀態已由正常入口讀回；R23／R24另完成正式同管理者CAS、unknown readback、390×844與custom角色 assign→publish→inactive→revoke→reactivate-no-resurrection→final-inactive 旅程。結果與剩餘分母統一見QA§6；發布與管理生命週期成功仍不等於52 QA／17 AC／CG全數正式驗收。
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。既有產品契約不因正式發布改寫；本次發布／驗收結論及未覆蓋範圍見§16。
 
@@ -425,13 +425,21 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 | Schema | 086–088沿先前`FORWARD_APPLIED`原生收據重用，本次full release提交0個migration job；沒有重播DDL或改寫已套用migration |
 | OrgMaster consumer | 相容reader正式revision `orgmaster-prod-a3b9e9e107ca`承接100%流量；candidate與canonical SSO/session／managed identity正反例均PASS。OrgMaster仍唯一負責人員角色指派、scope、期間、代理、撤銷與特權任用 |
 | 正常入口 | 公司Google正常登入後由AI-PDM首頁進入`/settings/workflow`，管理者身分、七canonical角色、五作業分組、每格五動作、單角色工作台、歷史版本與停用custom角色可讀；生效版控制唯讀，`PDM 管理`仍標明管理資格由OrgMaster指派 |
-| 正式資料 | 歷史明細讀回先前正式旅程的custom角色新增、兩項審核能力及其後停用，且同stable角色保留於歷史；本次最終browser pass沒有新增草稿、勾選、套用或其他正式資料寫入 |
-| 未關閉分母 | 既有本機／原生／正式證據依QA映射認列；未在正式環境逐一重播的衝突、unknown outcome、全部20-action業務caller、窄版viewport與七角色逐一任用等目的仍不得冒稱完成，因此DEV-123維持`Whole Acceptance Partial` |
+| 正式資料 | R23／R24建立一個DEV-123臨時custom角色、20-action政策及兩項OrgMaster臨時指派，完成發布／停用／撤銷／恢復不復活／再停用；最終角色為inactive、兩項臨時指派為revoked，歷史保留。沒有修改PDM圖料／料號／BOM業務資料、IAM、Secret或migration |
+| 未關閉分母 | 既有本機／原生／正式證據依QA映射認列；正式同管理者CAS、unknown與窄版已關閉，但不同管理者同時CAS、全部20-action業務caller、七角色逐一任用及in-flight業務寫入／長任務撤權競爭仍不得冒稱完成，因此DEV-123維持`Whole Acceptance Partial` |
 
-本次正式驗收沒有新增localhost、IAM或Secret，也沒有改寫OrgMaster人員指派。OrgMaster相容程式／發布只作外部依賴讀回，範圍仍以§9為準；本文件PR只更新AI-PDM文件。
+本次正式驗收沒有新增localhost、IAM、Secret、migration或PDM業務資料；OrgMaster只執行經授權的臨時人員角色指派／發布／撤銷，最終維持revoked，沒有改寫Principal或接管AI-PDM capability policy。OrgMaster相容範圍仍以§9為準；本文件PR只更新AI-PDM文件。
 
 ## 17. 2026-10-26 全量回歸續接
 
 由最新 `origin/main` `4ef3c00ba8532b20b47cf4e4525985406856a4b7` 建立隔離工作樹後，確認產品驗收來源仍是已發布 `ad74f179…` 的祖先；本輪只更新文件，沒有把文件差異混入產品 artifact。DEV-123 contracts 以 62 files／595 tests PASS，bilateral 以正式 OrgMaster reader exact source `20a0a584…` 重跑 PASS，DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（含 isolated build artifact／primary／cleanup 全為 true）及 abort 6/6 均 PASS。第一次 bilateral 因未提供 `ORGMASTER_DEV058_ROOT` 的前置失敗保留，不算產品 assertion 失敗。
 
 這些結果確認目前 source／release-control／database／build 沒有 regression，並支援既有 QA §4 對 QA123-01..52、AC123-01..17、CG123-01/02 的等效 evidence 映射；不改變 52 QA／17 AC／CG 分母，也不把尚未在正式環境逐一重播的 CAS／unknown／撤權競爭、20-action caller、七角色逐一任用或正式窄版 viewport 冒稱為 `52/52 Formal PASS`。因此架構決策仍為單一原子 apply、OrgMaster 人員指派邊界不變，整案狀態維持 `Whole Acceptance Partial`，但 current-source regression 已完成。
+
+## 18. 2026-10-26～27 正式管理生命週期收斂
+
+正式正常SSO管理者完成同管理者雙分頁CAS拒絕、390×844 viewport、dynamic custom role 20-action設定、apply結果不明provider readback，以及AI-PDM與OrgMaster的連續生命週期。AI-PDM草稿`4d69c947-9dbf-4eb5-bc27-13b6296ef108`建立`DEV123 正式驗收 202610262223`；OrgMaster第23版發布外部專員與custom角色臨時指派，第24版撤銷兩者；AI-PDM再恢復角色驗證已撤指派不復活，最後以草稿`426288db-3414-4827-a216-82f35a747b2b`停用。正式provider logs的四次AI-PDM applications均為200，OrgMaster第23／24版POST均為201；最終current readback為AI-PDM角色inactive、OrgMaster臨時指派revoked。
+
+正式服務最終讀回：AI-PDM latest created／ready `ai-pdm-prod-3092d00b3653`、100% traffic、digest `sha256:d9c3f8b…`；OrgMaster readback當下latest created／ready `orgmaster-prod-ea3dfa78a218`、100% traffic、digest `sha256:a95cf4b…`。後者只記最終current serving revision；第23／24版實際寫入revision仍以provider request logs為準。
+
+此旅程關閉的是正式管理面與跨系統生命週期，不把「矩陣可設定20 actions」替換成「20個business caller均已真人操作」。不同管理者同時CAS、20 caller逐一allow／deny、七canonical角色逐一人員任用，以及需要可拋棄業務資料的in-flight write／long-task撤權競爭仍是`NOT RUN / Partially Covered`。架構決策未改：AI-PDM擁有capability policy；OrgMaster擁有人員／Principal指派、scope、期間與撤銷；系統管理資格不可由矩陣自授。

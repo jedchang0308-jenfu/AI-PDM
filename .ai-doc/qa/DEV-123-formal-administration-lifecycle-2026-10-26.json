@@ -1,0 +1,82 @@
+{
+  "schema": "dev123.formal-administration-lifecycle.v1",
+  "capturedAt": "2026-10-26T23:59:41.0980977+08:00",
+  "project": "AI-PDM",
+  "environment": "jenfu-platform-prod",
+  "actorDisplayName": "[鉦富]張仕杰 Jed",
+  "actorBoundary": "existing company Google administrator session; no credential recorded",
+  "independentQc": false,
+  "services": {
+    "aiPdm": {
+      "revision": "ai-pdm-prod-3092d00b3653",
+      "trafficPercent": 100,
+      "imageDigest": "sha256:d9c3f8b2267475969cd00dc6e68b0e24504d41f18ba830024c0b1033ff43b068"
+    },
+    "orgMasterFinalReadback": {
+      "revision": "orgmaster-prod-ea3dfa78a218",
+      "trafficPercent": 100,
+      "imageDigest": "sha256:a95cf4bfbeb39ef75c3285289c0c20ca532a34b192afdd5a3460a5fbb2410a2c"
+    }
+  },
+  "temporaryRole": {
+    "displayName": "DEV123 正式驗收 202610262223",
+    "businessActionsConfigured": 20,
+    "finalState": "INACTIVE"
+  },
+  "drafts": {
+    "casAndCreate": "4d69c947-9dbf-4eb5-bc27-13b6296ef108",
+    "firstDeactivate": "d8ad5865-25c4-4b22-88d4-181d99928cb1",
+    "reactivate": "42554faf-1df0-42a3-bd3b-e8957bcbd362",
+    "finalDeactivate": "426288db-3414-4827-a216-82f35a747b2b",
+    "orgMasterRevoke": "draft-5c5f07dd-1cdf-418e-b122-f4c7f5333819"
+  },
+  "orgMasterVersions": {
+    "assignmentPublication": 23,
+    "revocationPublication": 24,
+    "finalTemporaryAssignmentState": "REVOKED"
+  },
+  "providerRequests": {
+    "aiPdmApplications": [
+      { "timestamp": "2026-10-26T14:23:02.723575Z", "status": 200 },
+      { "timestamp": "2026-10-26T14:38:22.086768Z", "status": 200 },
+      { "timestamp": "2026-10-26T15:54:27.646029Z", "status": 200 },
+      { "timestamp": "2026-10-26T15:57:34.177906Z", "status": 200 }
+    ],
+    "orgMasterVersions": [
+      { "timestamp": "2026-10-26T14:28:06.753164Z", "status": 201, "version": 23 },
+      { "timestamp": "2026-10-26T14:41:44.775334Z", "status": 201, "version": 24 }
+    ]
+  },
+  "passed": [
+    "formal 390x844 responsive viewport",
+    "same-administrator two-tab CAS rejection",
+    "unknown apply outcome provider readback without resubmission",
+    "custom-role 20-action matrix configuration",
+    "dynamic OrgMaster catalog and stale-catalog rejection",
+    "assignment publication, inactive catalog, revocation publication",
+    "reactivation does not resurrect revoked assignment",
+    "final inactive role and revoked assignment baseline"
+  ],
+  "notRunOrPartial": [
+    "different-administrator concurrent CAS",
+    "all 20 business callers as production allow/deny journeys",
+    "one-by-one production assignment for all seven canonical roles",
+    "in-flight production business write or long-task revocation race"
+  ],
+  "forbiddenEffectsObserved": {
+    "iamChange": false,
+    "secretChange": false,
+    "migration": false,
+    "businessPdmDataWrite": false
+  },
+  "localScreenshotSha256": {
+    "dev123-formal-cas-conflict.png": "2540acd0e6d2b21ab8558307b5a778260bb4e285945e037d63c542789339e0ba",
+    "dev123-formal-unknown-outcome.png": "8d2d54e4534454a4c63f3e46d52ea965984653717ee30431c7582c85a29e557c",
+    "dev123-formal-unknown-recovered.png": "15598eb3d8f788438a4c764ca0c6cfc1cf98e7bedf85d8e7c4e04b29237e0f9f",
+    "dev123-formal-orgmaster-version23.png": "c672513d0f022faaddf8f16aa8f9d52763770c5a0d0f01e96579f5d28c73019a",
+    "dev123-formal-orgmaster-version24.png": "ce35015d687a49dc94937a587083ff2374c095e4b987856c0dd9d4860f573b4b",
+    "dev123-formal-no-resurrection.png": "4601e8e75a5efa978586a72c0f66e086caae395f92cb21906143c6df68d833df",
+    "dev123-formal-final-inactive.png": "468f1daced21bfaf67c1c1398c7c6b342b502867a1d5a8d8c02d10570ea1684a",
+    "dev123-formal-orgmaster-final-revoked.png": "59c04765e0a65c8efe8eceadba2cc4fb025d1b7300d4dc92f6e953141be6e523"
+  }
+}

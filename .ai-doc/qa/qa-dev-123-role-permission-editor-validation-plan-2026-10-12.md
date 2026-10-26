@@ -371,3 +371,29 @@ R20關閉正式consumer rollout、writer rollout、protected deployment、正常
 | DEV-117 continuous／QC／abort | 本輪不重跑高成長 continuous：Governor 對 C: 10 GiB `integration_test` 預留判定 `BLOCKED`（可用預留後低於保護底線）；沿用 R21 同一 current-source、輸入與無漂移條件下的 497/497、隔離 QC `artifact=true; primary=true; cleanup=true`、abort 6/6 證據，不把未重跑寫成新結果。 |
 
 R22 關閉的是 current-source focused regression 與 exact-source bilateral 的可重播缺口；它不縮減正式驗收分母，也不把本機結果升格為正式結果。正式仍未逐一重播的四類缺口維持原標記：正式 CAS／unknown／撤權競爭、全部 20-action caller 的正式真人旅程、七個 canonical role 的逐一正式任用，以及正式 390×844 窄版 viewport。正式 desktop、fresh Google SSO、writer／reader rollout、歷史與停用角色只沿 R20 已取得的 readback 認列。整體仍為 `Whole Acceptance Partial`。
+
+### 2026-10-26 R23：正式管理操作、CAS、unknown 與動態角色往返
+
+本輪由公司 Google 正常 SSO 的直接全域管理者 `[鉦富]張仕杰 Jed`，在正式 `ai-pdm-prod-3092d00b3653` 執行限定的角色治理驗收。只建立 DEV-123 臨時角色政策與 OrgMaster 驗收指派；沒有修改 IAM／Secret、migration、PDM 圖料／料號／BOM 業務資料或其他系統角色。這是實際正式管理操作證據，不是獨立 QC。
+
+| 驗證 | 實際結果／判定 |
+|---|---|
+| 正式 390×844 | PASS：同一正常入口以 390×844 viewport 顯示矩陣與角色工作台，document 無 page-level horizontal overflow，矩陣保留內部水平捲動，console warn/error 為空；完成後已解除 viewport override。正式窄版缺口關閉。 |
+| 同管理者雙分頁 CAS | PASS：草稿 `4d69c947-9dbf-4eb5-bc27-13b6296ef108` 的主分頁由 revision 1→2→3，第二分頁使用 stale revision 被拒；再以 stale revision 2 對 revision 3 重播，UI 明示「版本或登入身分已變更，請重新讀取；未保存修改仍保留」，沒有 force overwrite。證據：`output/qa/dev-123/dev123-formal-cas-conflict.png`。不同管理者同時競爭未執行。 |
+| 動態角色與 20-action 設定 | PASS：建立 `DEV123 正式驗收 202610262223`，四個 business group 各啟用查看／下載／編輯／審核／發布，共 20 項；`PDM 管理`仍不可由 capability matrix 自授。這證明 20-action 矩陣設定，不等於 20 個 business caller 已逐一正式操作。 |
+| 套用結果不明復原 | PASS：同草稿保存至 revision 5 後，以原因「DEV-123 正式驗收：自訂角色與結果不明復原」套用；browser 顯示「操作結果待確認」時沒有重送，provider readback 證明 `POST /api/settings/access/role-policies/applications` 為 200，後續 current workspace／drafts GET 均 200，active readback 為同一角色及 20 actions。證據：`dev123-formal-unknown-outcome.png`、`dev123-formal-unknown-recovered.png`。 |
+| OrgMaster 動態目錄與 stale 拒絕 | PASS：stale catalog 指派先以「外部角色目錄版本與指派快照不一致／已過期」拒絕；fresh catalog 後在驗收草稿建立 `DEV014 Free Google` 的 `外部專員` project-scope 指派及 custom-role workspace 指派。沒有改寫 Principal、IAM 或 Secret。 |
+| OrgMaster 任用發布 | PASS：以理由「DEV-123 正式驗收：外部專員與自訂角色任用」發布第 23 版；provider 於 `2026-10-26T14:28:06.753164Z` 記錄 `POST /api/orgmaster/governance/versions` 201，UI readback 為第 23 版／22 assignments。證據：`dev123-formal-orgmaster-version23.png`。 |
+
+### 2026-10-26 R24：停用、撤權、恢復不復活與安全基線
+
+| 驗證 | 實際結果／判定 |
+|---|---|
+| 停用即停止授權 | PASS：AI-PDM 草稿 `d8ad5865-25c4-4b22-88d4-181d99928cb1` 停用臨時角色並套用，current readback 顯示 `已停用`；能力值留在歷史但不授權。 |
+| inactive 期間 OrgMaster 控制 | PASS：inactive catalog 下不能新增 custom-role 指派，既有項只能保留歷史／撤銷；還原草稿 `draft-5c5f07dd-1cdf-418e-b122-f4c7f5333819` 撤銷外部專員與 custom-role 兩項臨時指派。 |
+| OrgMaster 撤權發布 | PASS：以理由「DEV-123 正式驗收：撤銷臨時角色指派並還原權限」發布第 24 版；provider 於 `2026-10-26T14:41:44.775334Z` 記錄 POST 201，UI readback 為第 24 版／22 assignments，兩項皆 `已撤銷`。證據：`dev123-formal-orgmaster-version24.png`。 |
+| 恢復角色不復活已撤指派 | PASS：AI-PDM 草稿 `42554faf-1df0-42a3-bd3b-e8957bcbd362` 以原因「DEV-123 正式驗收：恢復角色驗證已撤指派不復活」恢復；provider 於 `2026-10-26T15:54:27.646029Z` 記錄 applications POST 200。OrgMaster current readback 仍顯示外部專員與 `DEV123 正式驗收 202610262223` 指派皆 `已撤銷`，沒有自動復活。證據：`dev123-formal-no-resurrection.png`。 |
+| 最終停用基線 | PASS：AI-PDM 草稿 `426288db-3414-4827-a216-82f35a747b2b` 以原因「DEV-123 正式驗收：完成生命週期後停用臨時角色」套用；provider 於 `2026-10-26T15:57:34.177906Z` 記錄 applications POST 200。current readback 的臨時角色為 `已停用`；OrgMaster current readback 的 custom-role 與外部專員臨時指派仍為 `已撤銷`。證據：`dev123-formal-final-inactive.png`、`dev123-formal-orgmaster-final-revoked.png`。 |
+| 正式服務 readback | PASS：AI-PDM latest created／ready=`ai-pdm-prod-3092d00b3653`、100% traffic、digest `sha256:d9c3f8b…`；最終 OrgMaster latest created／ready=`orgmaster-prod-ea3dfa78a218`、100% traffic、digest `sha256:a95cf4b…`。後者是最終 readback 時的 current serving revision；第 23／24 版寫入時的實際 revisions 另由 provider logs 保留。 |
+
+R23／R24 關閉正式 390×844、同管理者雙分頁 CAS、unknown outcome readback、動態 custom role 20-action 設定、真實 OrgMaster 動態目錄／stale 拒絕，以及 assign→publish→inactive→revoke→reactivate-no-resurrection→final-inactive 生命週期。仍未關閉的是：不同管理者同時 CAS、20 個 business caller 的正式真人 allow／deny 逐一旅程、七個 canonical role 各自逐一正式任用，以及有可拋棄業務資料才能安全執行的 in-flight business write／long-task 撤權競爭。這些保持 `NOT RUN / Partially Covered`，所以整體仍是 `Whole Acceptance Partial`，不是 `52/52 Formal PASS`。
