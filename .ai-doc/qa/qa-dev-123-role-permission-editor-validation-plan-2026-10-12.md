@@ -340,3 +340,20 @@ Platform聚焦3檔47 PASS及typecheck、OrgMaster聚焦2檔27 PASS及journey syn
 | 收尾 | 本次production browser驗證沒有建立本機runtime、port、PG、localhost allowlist、IAM、Secret或正式資料寫入；因此沒有新增localhost需移除。先前R17的localhost恢復原8網域與臨時IAM撤除證據維持有效。 |
 
 R20關閉正式consumer rollout、writer rollout、protected deployment、正常fresh SSO、desktop matrix／workbench讀回及已執行角色生命週期的歷史可追溯性。它**不**單獨關閉全部52 QA／17 AC／CG：正式環境未逐一重播CAS衝突、unknown outcome、撤權競爭、全部20-action業務caller、七角色逐一任用與窄版viewport；這些目的按既有本機／原生／L4證據映射認列，缺正式層者維持未充分驗證。整體判定為`Production Released / Core Role Lifecycle Observed / Whole Acceptance Partial`，不是`NOT_RUN`，也不是`52/52 Formal PASS`。
+
+### 2026-10-26 R21：DEV-123 全量來源回歸與 52 案映射續接
+
+本輪從最新 `origin/main` `4ef3c00ba8532b20b47cf4e4525985406856a4b7` 建立乾淨隔離工作樹；產品來源仍是已發布 `ad74f179…` 的祖先，差異僅為本輪文件，沒有把文件變更混入產品驗收。執行前確認 task-owned `node_modules`、測試租約、臨時路徑與輸入邊界；完成後測試租約、Governor session、隔離 build runtime 及 OrgMaster exact-source worktree 均已收斂／釋放。
+
+| 驗證 | 實際結果／判定 |
+|---|---|
+| `npm run test:dev-123:contracts` | PASS：registry check、Node 8/8、Vitest 62 files／595 tests；支持七角色、20 action、66 legacy binding、caller／guard／evaluator 的 current source regression。 |
+| `npm run test:dev-123:bilateral` | 首次保留一個前置失敗：未設定 `ORGMASTER_DEV058_ROOT`，未進入產品 assertion；改以正式 reader source `20a0a58477b4b49451d3690f5a3162a4f193b2ca` 的 detached exact worktree 重跑，owner/consumer manifest hash 與 migration hash 均 PASS，Node 1/1＋Vitest 1/1 PASS。 |
+| `npm run check:db-boundary`、`npm run typecheck:app` | 均 PASS；仍符合 `DEV010_DB_RULESET_V1`，未修改共享資料庫。 |
+| `npm run test:dev-117:continuous` | PASS：497/497；保留來源鎖定、migration／candidate／traffic、IAM／Secret fail-closed、回讀、重試／unknown 及 DEV-123 forward-continuation regression。 |
+| `npm run qc:dev-117:continuous` | PASS；含隔離 Next build，`artifact=true; primary=true; cleanup=true`，126 pages 產生完成；沒有正式資料、traffic 或 migration mutation。 |
+| `npm run test:dev-117:abort` | PASS：6/6；abort／rollback／unknown cardinality 保護通過。 |
+
+本輪結果只刷新受影響的 source／release-control／database／build 責任面；不因測試數量增加而新增 52 案、17 AC 或 CG 分母。依 §4 映射，QA123-01..52 與 CG123-01/02 的現有本機、原生、L4 及 R20 正式 evidence 可繼續重用，這次回歸確認 current source 沒有 regression。仍未把下列「需要正式逐一重播」的目的改判為整案 PASS：正式環境 CAS／unknown／撤權競爭、全部 20-action 業務 caller、七 canonical 角色逐一人員任用、正式窄版 viewport。它們仍是驗收完整度缺口，不是本次回歸的產品失敗。
+
+因此 DEV-123 目前維持：`Production Released / Core Role Lifecycle Observed / Current-source regression PASS / Whole Acceptance Partial`。本輪沒有新增 localhost、IAM、Secret、正式 migration、正式部署或正式資料寫入；OrgMaster 仍只負責人員角色指派與 published grant。

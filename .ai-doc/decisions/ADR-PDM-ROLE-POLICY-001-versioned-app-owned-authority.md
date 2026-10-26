@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-26。狀態：`Accepted / Implemented / Production Released`。先前Org consumer 401與PDM writer暫緩已由後續正式release關閉：AI-PDM main `ad74f179…`與OrgMaster相容reader皆承接100%正式流量，兩端protected workflow、candidate／canonical smoke及terminal receipt均PASS。此結果確認既定架構可發布，不新增state/readiness/generation、第二人核准或獨立啟用層；52 QA／17 AC／CG仍依實際證據逐項認列，不因release成功自動全數PASS。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-26。狀態：`Accepted / Implemented / Production Released / Current-source Regression PASS / Whole Acceptance Partial`。先前Org consumer 401與PDM writer暫緩已由後續正式release關閉：AI-PDM main `ad74f179…`與OrgMaster相容reader皆承接100%正式流量，兩端protected workflow、candidate／canonical smoke及terminal receipt均PASS。此結果確認既定架構可發布，不新增state/readiness/generation、第二人核准或獨立啟用層；52 QA／17 AC／CG仍依實際證據逐項認列，不因release成功自動全數PASS。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
@@ -48,3 +48,9 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 - OrgMaster release [40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430)的相容reader與正常Platform SSO、governance session、managed identity read及未登入／撤銷負例均PASS；這關閉首次writer上線前的consumer相容依賴。
 - 正式AI-PDM正常Google登入後，矩陣、單角色工作台、歷史版本及停用角色皆沿同一active publication讀回；active view沒有第二個enable按鈕或額外readiness狀態。這是本ADR「一次原子apply、相容只在上線驗」的實際架構驗證。
 - 正式歷史可讀到custom角色新增、能力變更與停用；停用後保留角色與歷史，符合既定生命週期。完整案例分母與未覆蓋範圍仍由QA維護。
+
+## 2026-10-26 current-source regression readback
+
+在不改變架構或正式資料的前提下，從最新 `origin/main` 建立隔離工作樹完成 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均通過。這驗證既有單一原子 apply、來源鎖定、CAS／unknown／撤權與發布控制契約未因文件同步而漂移；不新增第二套啟用層、readiness view、角色指派權限或 release gate。
+
+此回歸不改判 52 QA／17 AC／CG 的正式完整度：正式逐一的 CAS／unknown／撤權競爭、20-action caller、七角色逐一任用與窄版 viewport 仍依 QA 的分層證據與未覆蓋標記處理。架構狀態維持 `Accepted / Implemented / Production Released / Current-source Regression PASS / Whole Acceptance Partial`。

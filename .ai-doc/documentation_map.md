@@ -26,7 +26,7 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — 正式發布完成／整體驗收部分完成（2026-10-26）
+## DEV-123#role-permission-editor — 正式發布完成／current-source回歸通過／整體驗收部分完成（2026-10-26）
 
 - [SPEC](specs/DEV-123-role-permission-editor-contract.md)：七角色、五作業／20動作、原子套用與OrgMaster相容邊界。
 - [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)：單一資料事實來源、必要保護及精簡決策。
@@ -34,7 +34,8 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 - AI-PDM [PR #487](https://github.com/jedchang0308-jenfu/AI-PDM/pull/487)與release [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)：main `ad74f179…`、required CI及正式owner workflow成功；`ai-pdm-prod-3092d00b3653`承接100%流量，terminal `PASS / RELEASED`，086–088沿既有forward evidence且本次未重送DDL。
 - OrgMaster相容reader release [40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430)：`orgmaster-prod-a3b9e9e107ca`承接100%流量，candidate／canonical的Platform SSO、governance session、managed identity與未登入／撤銷正反例PASS；人員指派、scope、期間、代理與特權任用責任仍屬OrgMaster。
 - fresh公司Google登入後，正式AI-PDM讀回七角色、五作業／同格動作、RD角色工作台、歷史詳情及停用custom角色；active版唯讀、PDM管理資格仍由OrgMaster指派，desktop無page-level overflow且console error=0。歷史可追溯正式角色新增／能力變更／停用；本次最終browser pass沒有新增草稿或正式寫入。
-- 判定為`Production Released / Core Role Lifecycle Observed / Whole Acceptance Partial`；52 QA／17 AC／CG未被本次正式旅程全部覆蓋，未逐一重播的衝突／unknown、全部20-action caller、七角色逐一任用與正式窄版viewport不冒稱PASS。臨時IAM已撤除、Secret未變更，R17 localhost恢復原8網域；本次沒有新增localhost。
+- 判定為`Production Released / Core Role Lifecycle Observed / Current-source Regression PASS / Whole Acceptance Partial`；52 QA／17 AC／CG未被本次正式旅程全部覆蓋，未逐一重播的衝突／unknown、全部20-action caller、七角色逐一任用與正式窄版viewport不冒稱PASS。臨時IAM已撤除、Secret未變更，R17 localhost恢復原8網域；本次沒有新增localhost。
+- R21 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均 PASS；首次 bilateral 缺少來源路徑的前置失敗保留，修正 exact source 後通過。結果只確認 current source 未回歸，不縮減 52／17／CG 分母或 OrgMaster 人員指派邊界。
 
 來源修正（已合併且required PR CI通過）：[PR #480](https://github.com/jedchang0308-jenfu/AI-PDM/pull/480)收斂PG manifest／CSV、外部安全預覽、匯出建立、共享模型Principal caller與過期schema capsule的fresh continuation；舊capsule已過期，不重播migration。來源驗證、required CI連結與未驗目的統一記QA §6。
 
