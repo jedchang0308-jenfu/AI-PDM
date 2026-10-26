@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-26。狀態：`Accepted / Implemented / Production Released / Current-source Regression PASS / Whole Acceptance Partial`。先前Org consumer 401與PDM writer暫緩已由後續正式release關閉：AI-PDM main `ad74f179…`與OrgMaster相容reader皆承接100%正式流量，兩端protected workflow、candidate／canonical smoke及terminal receipt均PASS。此結果確認既定架構可發布，不新增state/readiness/generation、第二人核准或獨立啟用層；52 QA／17 AC／CG仍依實際證據逐項認列，不因release成功自動全數PASS。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-27。狀態：`Accepted / Implemented / Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`。先前Org consumer 401與PDM writer暫緩已由後續正式release關閉：AI-PDM main `ad74f179…`與OrgMaster相容reader皆承接100%正式流量，兩端protected workflow、candidate／canonical smoke及terminal receipt均PASS。R23／R24正式管理旅程另確認單一原子apply、CAS／unknown recovery與AI-PDM capability／OrgMaster assignment權責分離；沒有新增state/readiness/generation、第二人核准或獨立啟用層。52 QA／17 AC／CG仍依實際證據逐項認列，不因release或管理生命週期成功自動全數PASS。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
@@ -53,10 +53,16 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 
 在不改變架構或正式資料的前提下，從最新 `origin/main` 建立隔離工作樹完成 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均通過。這驗證既有單一原子 apply、來源鎖定、CAS／unknown／撤權與發布控制契約未因文件同步而漂移；不新增第二套啟用層、readiness view、角色指派權限或 release gate。
 
-此回歸不改判 52 QA／17 AC／CG 的正式完整度：正式逐一的 CAS／unknown／撤權競爭、20-action caller、七角色逐一任用與窄版 viewport 仍依 QA 的分層證據與未覆蓋標記處理。架構狀態維持 `Accepted / Implemented / Production Released / Current-source Regression PASS / Whole Acceptance Partial`。
+此回歸不改判 52 QA／17 AC／CG 的正式完整度；後續R23／R24已關閉正式同管理者CAS、unknown及窄版viewport，但不同管理者同時CAS、20-action caller、七角色逐一任用與in-flight業務撤權競爭仍依QA未覆蓋標記處理。架構狀態維持 `Accepted / Implemented / Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`。
 
 ## 2026-10-26 focused gap follow-up
 
 R22 在獨立工作樹只重播 current-source 契約與 exact-source bilateral：contracts registry `9/20/66`、Node `8/8`、Vitest `62/595`、focused role-policy `49/49`（首次缺 OrgMaster source 的 `48/49` fail-closed 前置失敗保留）、bilateral `1＋1`、DB boundary與typecheck均通過。這些結果支持單一原子 apply、manager authority split、角色生命週期與 caller guard 沒有因文件同步漂移；不引入新的 readiness、第二套命令ledger或角色指派權限。
 
 高成長 continuous 本輪因本機 Governor 對 10 GiB 預留判定會跌破 C: 保護底線而未執行；既有 R21 497/497、isolated QC 及 abort 證據只在 source／輸入無漂移時重用。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用與正式窄版 viewport仍屬 QA 分層未充分驗證，不得因本輪 focused PASS 改判整案通過。
+
+## 2026-10-27 正式管理生命週期架構讀回
+
+R23／R24以正式正常SSO管理者完成同管理者雙分頁CAS、apply結果不明查回、custom角色20-action設定，以及OrgMaster第23版任用／第24版撤銷。AI-PDM停用角色後OrgMaster不得新增該角色指派；角色恢復後已撤指派不自動復活；最終角色再次inactive且指派維持revoked。這驗證「AI-PDM擁有capability policy、OrgMaster擁有人員指派／撤銷」的雙權威邊界，不需要跨系統兩階段commit、每次apply readiness、第二套enablement或同步刪除歷史。
+
+正式四次AI-PDM applications皆由provider記錄200，OrgMaster兩次versions POST皆201；unknown畫面出現時只做current readback，沒有重送。系統管理資格仍不可由矩陣自授，PDM業務資料、IAM、Secret與migration均未改。不同管理者同時CAS、20個business caller逐一旅程、七canonical角色逐一任用與in-flight業務寫入／長任務撤權競爭仍留在QA，不成為新增架構層的理由。

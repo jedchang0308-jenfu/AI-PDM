@@ -76,17 +76,19 @@ Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、
 
 <a id="dev-123-role-permission-editor"></a>
 
-## DEV-123#role-permission-editor — 正式發布完成／current-source回歸通過／整體驗收部分完成（2026-10-26）
+## DEV-123#role-permission-editor — 正式管理生命週期通過／整體驗收部分完成（2026-10-27）
 
 七角色、五作業、20動作、角色增停恢復與原子套用已實作並正式發布。AI-PDM [PR #487](https://github.com/jedchang0308-jenfu/AI-PDM/pull/487)合併至main `ad74f179…`，required CI與owner release [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)成功；revision `ai-pdm-prod-3092d00b3653`承接100%流量，terminal為`PASS / RELEASED`。PDM 086–088沿已封存forward收據重用，本次沒有重送migration job。
 
 OrgMaster相容reader亦已正式發布：[40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430)以source `20a0a584…`完成candidate／canonical SSO、governance session、managed identity read、未登入及撤銷正反例，revision `orgmaster-prod-a3b9e9e107ca`承接100%流量；先前consumer 401阻塞與writer held已解除。OrgMaster仍只負責人員指派、scope、期間、代理、撤銷與特權任用，AI-PDM沒有接手或改寫該責任。
 
-fresh公司Google登入後，正式AI-PDM正常入口已讀回七canonical角色、五作業／五同格動作、RD角色工作台、歷史詳情與五個停用custom角色；active版唯讀、PDM管理資格仍明示由OrgMaster指派，desktop無page-level水平溢出且console error=0。正式歷史可追溯custom角色新增、圖號／料號審核能力與後續停用；本次最後browser pass只讀，沒有另建草稿或正式寫入。先前本機R14／R17、R18與R19證據繼續支持正常任用／代理、合法三role review package、model-basis與baseline mutations。精確來源、首敗、收據與清理見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+fresh公司Google登入後，正式AI-PDM正常入口已讀回七canonical角色、五作業／五同格動作、角色工作台、歷史詳情與停用custom角色；active版唯讀、PDM管理資格仍明示由OrgMaster指派，desktop與390×844均無page-level水平溢出且console error=0。R23／R24完成正式同管理者雙分頁CAS、unknown outcome provider readback、custom角色20-action設定與OrgMaster第23／24版任用／撤銷；恢復角色後已撤指派沒有復活，最終custom角色inactive、兩項臨時指派revoked。先前本機R14／R17、R18與R19證據繼續支持正常任用／代理、合法三role review package、model-basis與baseline mutations。精確來源、首敗、收據與清理見[QA §6](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
-目前結論：`Production Released / Core Role Lifecycle Observed / Current-source Regression PASS / Whole Acceptance Partial`。正式consumer／writer、schema、部署與正常SSO不再是缺口；52 QA／17 AC／CG仍保留原分母，尚未在正式環境逐一重播的CAS／unknown／撤權競爭、全部20-action caller、七角色逐一任用及窄版viewport不得冒稱PASS。本輪從最新main隔離工作樹完成DEV-123 contracts 62 files／595 tests、exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（隔離build artifact／primary／cleanup=true）及abort 6/6；第一次bilateral缺少來源路徑的前置失敗保留，修正來源後通過。本次文件同步沒有新增localhost、IAM、Secret或正式資料寫入；OrgMaster相容範圍另列[SPEC §9](specs/DEV-123-role-permission-editor-contract.md#9-orgmaster-相容範圍另案執行)。
+目前結論：`Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`。正式consumer／writer、schema、部署、正常SSO、同管理者CAS、unknown與390×844不再是缺口；52 QA／17 AC／CG仍保留原分母。未正式逐一重播的是不同管理者同時CAS、全部20-action business caller、七角色逐一任用及in-flight業務寫入／長任務撤權競爭。本輪正式寫入只限DEV-123臨時角色政策與OrgMaster兩項臨時指派；最終角色inactive、指派revoked，沒有新增localhost、IAM、Secret、migration或PDM業務資料。OrgMaster相容範圍另列[SPEC §9](specs/DEV-123-role-permission-editor-contract.md#9-orgmaster-相容範圍另案執行)。
 
 2026-10-26 R22 缺口續查：在 `codex/dev123-gap-closure-20261026` 隔離工作樹重播 `test:dev-123:contracts`，registry `9/20/66`、Node `8/8`、Vitest `62 files／595 tests` PASS；focused role-policy 首次 `48/49` 僅因未設 `ORGMASTER_DEV058_ROOT` fail-closed，綁定隔離 OrgMaster contract source 後 `49/49` PASS；`test:dev-123:bilateral` owner／consumer `1＋1` PASS，DB boundary與typecheck PASS。高成長 DEV-117 continuous本輪因 Governor 10 GiB 預留會低於 C: 保護底線而未重跑，R21 的 497/497、隔離 QC、abort 6/6 只在輸入無漂移時重用，未冒稱為本輪新結果。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用、正式窄版 viewport仍是未充分驗證，不縮減原52／17／CG分母。
+
+2026-10-26～27 R23／R24 正式管理生命週期：正常SSO管理者在正式AI-PDM完成390×844、同管理者雙分頁CAS拒絕、custom角色20-action設定與apply結果不明查回；OrgMaster stale catalog先拒絕，fresh後發布第23版臨時任用，再於角色inactive時撤銷並發布第24版。AI-PDM恢復角色後OrgMaster兩項已撤指派未復活，最後再停用角色。provider記錄AI-PDM applications POST 200及OrgMaster versions POST 201；final readback為`ai-pdm-prod-3092d00b3653`與`orgmaster-prod-ea3dfa78a218`各100% traffic，角色inactive、指派revoked。未修改IAM／Secret／migration／PDM業務資料；不是獨立QC。不同管理者CAS、20 business caller逐一旅程、七canonical角色逐一正式任用及in-flight業務寫入／長任務撤權競爭仍未執行。
 
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
