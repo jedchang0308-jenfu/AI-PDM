@@ -54,3 +54,9 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 在不改變架構或正式資料的前提下，從最新 `origin/main` 建立隔離工作樹完成 current-source regression：DEV-123 contracts 62 files／595 tests、OrgMaster exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（isolated build artifact／primary／cleanup=true）及 abort 6/6 均通過。這驗證既有單一原子 apply、來源鎖定、CAS／unknown／撤權與發布控制契約未因文件同步而漂移；不新增第二套啟用層、readiness view、角色指派權限或 release gate。
 
 此回歸不改判 52 QA／17 AC／CG 的正式完整度：正式逐一的 CAS／unknown／撤權競爭、20-action caller、七角色逐一任用與窄版 viewport 仍依 QA 的分層證據與未覆蓋標記處理。架構狀態維持 `Accepted / Implemented / Production Released / Current-source Regression PASS / Whole Acceptance Partial`。
+
+## 2026-10-26 focused gap follow-up
+
+R22 在獨立工作樹只重播 current-source 契約與 exact-source bilateral：contracts registry `9/20/66`、Node `8/8`、Vitest `62/595`、focused role-policy `49/49`（首次缺 OrgMaster source 的 `48/49` fail-closed 前置失敗保留）、bilateral `1＋1`、DB boundary與typecheck均通過。這些結果支持單一原子 apply、manager authority split、角色生命週期與 caller guard 沒有因文件同步漂移；不引入新的 readiness、第二套命令ledger或角色指派權限。
+
+高成長 continuous 本輪因本機 Governor 對 10 GiB 預留判定會跌破 C: 保護底線而未執行；既有 R21 497/497、isolated QC 及 abort 證據只在 source／輸入無漂移時重用。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用與正式窄版 viewport仍屬 QA 分層未充分驗證，不得因本輪 focused PASS 改判整案通過。

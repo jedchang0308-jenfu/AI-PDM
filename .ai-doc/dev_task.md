@@ -86,6 +86,8 @@ fresh公司Google登入後，正式AI-PDM正常入口已讀回七canonical角色
 
 目前結論：`Production Released / Core Role Lifecycle Observed / Current-source Regression PASS / Whole Acceptance Partial`。正式consumer／writer、schema、部署與正常SSO不再是缺口；52 QA／17 AC／CG仍保留原分母，尚未在正式環境逐一重播的CAS／unknown／撤權競爭、全部20-action caller、七角色逐一任用及窄版viewport不得冒稱PASS。本輪從最新main隔離工作樹完成DEV-123 contracts 62 files／595 tests、exact-source bilateral 1＋1、DB boundary、typecheck、DEV-117 continuous 497/497、continuous QC（隔離build artifact／primary／cleanup=true）及abort 6/6；第一次bilateral缺少來源路徑的前置失敗保留，修正來源後通過。本次文件同步沒有新增localhost、IAM、Secret或正式資料寫入；OrgMaster相容範圍另列[SPEC §9](specs/DEV-123-role-permission-editor-contract.md#9-orgmaster-相容範圍另案執行)。
 
+2026-10-26 R22 缺口續查：在 `codex/dev123-gap-closure-20261026` 隔離工作樹重播 `test:dev-123:contracts`，registry `9/20/66`、Node `8/8`、Vitest `62 files／595 tests` PASS；focused role-policy 首次 `48/49` 僅因未設 `ORGMASTER_DEV058_ROOT` fail-closed，綁定隔離 OrgMaster contract source 後 `49/49` PASS；`test:dev-123:bilateral` owner／consumer `1＋1` PASS，DB boundary與typecheck PASS。高成長 DEV-117 continuous本輪因 Governor 10 GiB 預留會低於 C: 保護底線而未重跑，R21 的 497/497、隔離 QC、abort 6/6 只在輸入無漂移時重用，未冒稱為本輪新結果。正式 CAS／unknown／撤權競爭、20-action 全caller、七角色逐一任用、正式窄版 viewport仍是未充分驗證，不縮減原52／17／CG分母。
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。
