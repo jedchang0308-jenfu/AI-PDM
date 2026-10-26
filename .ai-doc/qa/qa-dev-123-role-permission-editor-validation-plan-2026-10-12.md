@@ -1,6 +1,6 @@
 # DEV-123 角色權限設定驗證計畫
 
-建立：2026-10-12；修訂：2026-10-25。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已授權AI-PDM與OrgMaster隔離工作樹協同開發；進度、有效結果與缺口只在§6記錄，非獨立QC或整體PASS。
+建立：2026-10-12；修訂：2026-10-26。Owner：AIPDM/DEV-123。依[唯一SPEC](../specs/DEV-123-role-permission-editor-contract.md)及[本輪精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-coo-simplification)；本輪已完成AI-PDM writer與OrgMaster相容reader正式發布及正常SSO／UI讀回。進度、有效結果與缺口只在§6記錄；發布與本輪RD驗證不冒稱獨立QC或52案整體PASS。
 
 ## 1. 驗證範圍與方式
 
@@ -319,4 +319,24 @@ Platform聚焦3檔47 PASS及typecheck、OrgMaster聚焦2檔27 PASS及journey syn
 
 主證據=`output/qa/dev-123/dev123-native-model-baseline-http-20261026-r6.json`，SHA-256=`38F3AEBE1BE1E618DC485663FEEFFECFD074D46E83083BDCE1662562A3C310AE`；status=`PASS`、PG ERROR/FATAL=0、asyncErrors=0、source before／after相同，bridge50446已釋放，runtime root已移除，Governor session `3833393b-4f9d-47ce-b3cd-d48883522ab4`已ended且temp cleanup成立。r4首敗`E31309E017FFAE07EBF57AF3527D16DE752ACFF671B4742BC0AFD3EA3600F9B7`把aggregate drawing ID誤當formal drawing-number ID；r5首敗`E063369C91540EEB14072E04F946D0674597FE738D597A0CAF75FAA2E796CF1C`未把隔離fixture圖號轉入resolver要求的Active狀態；r6只修fixture關聯／狀態，產品與權限oracle未放寬。R17另有公司Google正常SSO與委派actor證據；本run不是fresh Google SSO、完整Next browser或正式資料驗收。
 
-R18已關閉合法multipleBindings，R19關閉model-basis及baseline create／release的Principal正反向缺口，因此QA123-50本機工程判定改為PASS；來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)由provider讀回DEV-012 Isolated PostgreSQL Cutover與Production Slice QC均SUCCESS。52 QA／17 AC／CG整案仍未宣稱全部正式驗收，正式reader／writer、migration、部署及正式資料寫入仍NOT_RUN。本輪沒有IAM或Secret變更。
+截至R19，合法multipleBindings、model-basis及baseline create／release的Principal正反向缺口已關閉，QA123-50本機工程判定改為PASS；來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)由provider讀回DEV-012 Isolated PostgreSQL Cutover與Production Slice QC均SUCCESS。R19當時的正式reader／writer、migration、部署及正式資料寫入仍為NOT_RUN；此時間點狀態由下方R20正式結果取代，52 QA／17 AC／CG整案未自動改為PASS。
+
+### 2026-10-26 R20：正式reader／writer發布與正常SSO讀回
+
+先前「暫不執行正式操作」限制已由人類後續「請執行」明確取代；本節只認列實際執行及讀回，不追認更早的失敗。正式目標仍限`jenfu-platform-prod`的`ai-pdm-prod`與`orgmaster-prod`及各自owner資源；沒有改寫OrgMaster人員指派、擴張IAM／Secrets或執行down migration。
+
+| 證據／範圍 | 實際結果與判定邊界 |
+|---|---|
+| AI-PDM [PR #487](https://github.com/jedchang0308-jenfu/AI-PDM/pull/487)／required CI [40230252364](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40230252364) | PR已合併至main `ad74f179747cdd807c6bf8a4958dba81434b5074`；DEV-012 Isolated PostgreSQL Cutover與Production Slice QC均SUCCESS。這是正式release受測來源，不把文件commit或後續main漂移混入該產物。 |
+| AI-PDM owner release [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098) | `prepare/build/migrate/candidate/verify/decision/activate/canonical/finalize`全數SUCCESS；release `DEV122-RD-WIF-40231212962-1`、intent SHA-256=`39efdc00468fbcc1f1a9a409a38bbeb3e507a58db062b217574b72fd74dcf664`，terminal `PASS / RELEASED / remainingHumanAction=0`。candidate與canonical的ready=200、未登入permission=401；temporary candidate tags=0。 |
+| AI-PDM artifact／traffic讀回 | digest=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:d9c3f8b2267475969cd00dc6e68b0e24504d41f18ba830024c0b1033ff43b068`；revision `ai-pdm-prod-3092d00b3653` ready且承接100%流量，previous=`ai-pdm-prod-ab3062e73000`。正式入口為`https://ai-pdm-prod-9536592944.asia-east1.run.app`。 |
+| AI-PDM migration接續 | migration-admission=`HISTORICAL_EVIDENCE_REUSED`，本次full release的migration job submissions=0；重用先前release `DEV122-RD-WIF-39988578179-1`之native ledger38／applied3／replayed35與086–088 forward apply證據，沒有重播DDL。 |
+| OrgMaster consumer release [40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430) | exact source `20a0a58477b4b49451d3690f5a3162a4f193b2ca`、release `ORGMASTER-REL-20261025211538664-20A0A58` terminal `PASS / RELEASED / remainingHumanAction=0`；migration=`UNCHANGED_VERIFIED`、pending=0、executed=0。revision `orgmaster-prod-a3b9e9e107ca`與digest `sha256:b92c662f…`承接100%流量。 |
+| OrgMaster正式SSO／reader smoke | candidate 13項觀察PASS：auth mode、Platform Principal session、SSO start／authorize／callback、session reload、authenticated probe、governance session、managed identity read皆為200／303，三個未登入與revoked為401；canonical再以正常Platform SSO完成session／preference read 200及未登入／撤銷401。這關閉先前`Consumer Rollout Blocked`，不把OrgMaster人員指派責任移入AI-PDM。 |
+| AI-PDM正常公司Google登入 | fresh登入後正常首頁顯示`[鉦富]張仕杰 Jed`，再進`/settings/workflow`；沒有使用localhost、測試帳密、fixture session或直接API繞過。這支持正常入口與fresh SSO，不記錄token／cookie／驗證碼。 |
+| 正式矩陣／角色工作台 | 生效版讀到七canonical角色`RD、RD主管、QA/QC、生產人員、採購／生管、外部專員、PDM管理員`及五作業`圖號、料號、模型／BOM、技轉交付、PDM管理`；四個一般作業每格為`查看／下載／編輯／審核／發布`。點入RD角色工作台後五組與矩陣值一致並可返回。生效版全部能力控制唯讀、`建立草稿`可用、`新增角色`停用；本輪未點寫入控制。 |
+| 必要保護與歷史 | `PDM管理員`的PDM管理欄顯示查看，管理控制鎖定並標明「管理須由 OrgMaster 指派系統管理資格」；五個DEV058／DEV123驗證custom角色皆保留且標`已停用`。最新active詳情可讀到停用角色原因；前一歷史版可讀到新增同stable角色及圖號／料號`審核：未授予 → 允許`。這證明正式歷史與停用保留可追溯；本次只讀回，不將歷史存在本身擴大為所有寫入負例PASS。 |
+| Desktop UI／console | viewport 1536×639時document `clientWidth=1521 / scrollWidth=1521`，無page-level水平溢出；矩陣以內部`overflow-x:auto`承載較寬custom角色欄（1242／2326）。matrix、RD workbench、歷史清單／詳情往返正常；browser error log為0。正式窄版viewport本次未重跑，沿既有本機390×844證據，不冒稱production narrow PASS。 |
+| 收尾 | 本次production browser驗證沒有建立本機runtime、port、PG、localhost allowlist、IAM、Secret或正式資料寫入；因此沒有新增localhost需移除。先前R17的localhost恢復原8網域與臨時IAM撤除證據維持有效。 |
+
+R20關閉正式consumer rollout、writer rollout、protected deployment、正常fresh SSO、desktop matrix／workbench讀回及已執行角色生命週期的歷史可追溯性。它**不**單獨關閉全部52 QA／17 AC／CG：正式環境未逐一重播CAS衝突、unknown outcome、撤權競爭、全部20-action業務caller、七角色逐一任用與窄版viewport；這些目的按既有本機／原生／L4證據映射認列，缺正式層者維持未充分驗證。整體判定為`Production Released / Core Role Lifecycle Observed / Whole Acceptance Partial`，不是`NOT_RUN`，也不是`52/52 Formal PASS`。

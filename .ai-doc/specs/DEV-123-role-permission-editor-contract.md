@@ -1,8 +1,8 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-26（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / QA123-50 Local PASS / Required CI Passed / Schema Applied / Consumer Rollout Blocked / Writer Held`。PR #474及caller／發布續接修正PR #480已合併且required PR CI通過；PDM 086–088及OrgMaster 034–036正式schema已套用，OrgMaster新版reader在Platform session驗證失敗後中止並恢復原traffic，PDM writer尚未部署。PR #479目前補齊model-basis及manufacturing baseline三條Principal mutation；R19隔離HTTP／PostgreSQL已PASS，來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)兩項均SUCCESS。結果、來源與缺口統一見QA§6，尚未整體驗收。**目前只續接隔離開發與非正式驗證；依人類後續指示，暫不執行正式migration、部署或正式資料寫入，亦不變更IAM或Secrets。** 10/23的正式相容發布授權只記為歷史，不能用來繞過這項持續限制。
+建立：2026-10-12；修訂：2026-10-26（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Implemented / Required CI Passed / Production Released / Normal SSO + Read-only UI PASS / Whole Acceptance Partial`。PR #487已將正式role-policy writes開啟並合併至main `ad74f179747cdd807c6bf8a4958dba81434b5074`；required CI [40230252364](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40230252364)及正式發布 [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)成功，`ai-pdm-prod-3092d00b3653`承接100%流量。PDM 086–088與OrgMaster相容schema已生效；OrgMaster reader亦已正式發布並通過正常SSO smoke，先前的`Consumer Rollout Blocked / Writer Held`已解除。正式公司Google登入、七角色／五作業矩陣、角色工作台、歷史／停用角色及生效版唯讀狀態已由正常入口讀回；正式歷史亦可追溯角色新增、能力變更與停用。結果與剩餘分母統一見QA§6；發布成功不等於52 QA／17 AC／CG全數正式驗收。
 
-本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。實作沿本輪授權，正式操作限制維持。
+本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)只記取捨，[QA](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。既有產品契約不因正式發布改寫；本次發布／驗收結論及未覆蓋範圍見§16。
 
 ## 1. 人類決策與第一版邊界
 
@@ -393,7 +393,7 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 ## 13. 交接與文件責任
 
-實作與驗證進行中；具體結果、首敗與缺口統一見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)，任務板記下一步。文件／本機檢查不代表正式驗收，52目的／17AC／CG保持原分母。
+實作與正式rollout已完成；具體結果、首敗與缺口統一見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)，任務板記現況。正式release、正常SSO及已觀察UI只支持其實際覆蓋，不把未逐項驗證的52目的／17AC／CG改成PASS。
 
 產品／安全／資料API／相容語意只在本SPEC維護；ADR只記取捨，QA只記案例與證據，任務板只記進度／下一步，文件索引只導覽。相同要求不在五處各寫一套；後續RD同步真正受影響的權威段落即可，不另造COO報告、規則台帳或必簽核文件。
 
@@ -413,6 +413,19 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 
 可直接核對的**設計存量**：參考新資料集4→3；額外owner mode 3→0；每次apply讀consumer readiness/revision→不讀；命令ledger涵蓋3種寫入→只記apply；draft hash／confirmation hash／activation generation均取消。這是設計機制減量；實作結果見QA，尚未量測工時、效能或正式交付改善。後續RD依QA驗證正常套用、衝突／unknown、無OrgMaster readiness依賴及必要拒絕後按既有流程交付；COO不成為日常節點。
 
-## 15. 2026-10-23 Implementation in progress
+## 15. 2026-10-23 Implementation history
 
 本輪已在對齊最新main的獨立branch實作，提交[PR #474](https://github.com/jedchang0308-jenfu/AI-PDM/pull/474)，required CI結果只記於下列QA入口。資料集維持三個，無state/readiness/generation；DEV-035 manager fence保留。結果、來源與未驗證層級只在[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)維護。PDM既有protected發布／驗收已授權；OrgMaster 034–036相容migration與reader部署已獲10/23人類授權（jenfu-platform-prod／orgmaster-prod），不含人員指派改寫、IAM或Secrets，未自動啟用政策或變更人員任用。
+
+## 16. 2026-10-26 正式發布與驗收邊界
+
+| 面向 | 定案結果 |
+|---|---|
+| AI-PDM writer | main `ad74f179…`、revision `ai-pdm-prod-3092d00b3653`及digest `sha256:d9c3f8b…`已由既有owner workflow發布，100%正式流量；terminal為`PASS / RELEASED / remainingHumanAction=0` |
+| Schema | 086–088沿先前`FORWARD_APPLIED`原生收據重用，本次full release提交0個migration job；沒有重播DDL或改寫已套用migration |
+| OrgMaster consumer | 相容reader正式revision `orgmaster-prod-a3b9e9e107ca`承接100%流量；candidate與canonical SSO/session／managed identity正反例均PASS。OrgMaster仍唯一負責人員角色指派、scope、期間、代理、撤銷與特權任用 |
+| 正常入口 | 公司Google正常登入後由AI-PDM首頁進入`/settings/workflow`，管理者身分、七canonical角色、五作業分組、每格五動作、單角色工作台、歷史版本與停用custom角色可讀；生效版控制唯讀，`PDM 管理`仍標明管理資格由OrgMaster指派 |
+| 正式資料 | 歷史明細讀回先前正式旅程的custom角色新增、兩項審核能力及其後停用，且同stable角色保留於歷史；本次最終browser pass沒有新增草稿、勾選、套用或其他正式資料寫入 |
+| 未關閉分母 | 既有本機／原生／正式證據依QA映射認列；未在正式環境逐一重播的衝突、unknown outcome、全部20-action業務caller、窄版viewport與七角色逐一任用等目的仍不得冒稱完成，因此DEV-123維持`Whole Acceptance Partial` |
+
+本次正式驗收沒有新增localhost、IAM或Secret，也沒有改寫OrgMaster人員指派。OrgMaster相容程式／發布只作外部依賴讀回，範圍仍以§9為準；本文件PR只更新AI-PDM文件。

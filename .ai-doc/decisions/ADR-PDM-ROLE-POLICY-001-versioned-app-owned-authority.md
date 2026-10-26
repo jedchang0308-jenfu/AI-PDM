@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001：內部自用角色權限，單一原子套用
 
-建立：2026-10-12；修訂：2026-10-26。狀態：架構決策及PR #480的caller／發布續接修正已合併並通過required PR CI，兩端正式schema已套用；PR #479的model-basis／manufacturing baseline Principal接線已完成R19隔離QA，來源commit `bdb5155effb38fd36f67e548b5f272eca1fbe5d3`的required CI [40210711554](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40210711554)兩項均SUCCESS。Org consumer verify在Platform session 401前置失敗，未到Org callback，既定恢復完成且未切流量，PDM writer暫緩。**目前依人類後續指示，只續接隔離開發與非正式驗證；暫不執行正式migration、部署或正式資料寫入，IAM／Secrets不變更。** 此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
+建立：2026-10-12；修訂：2026-10-26。狀態：`Accepted / Implemented / Production Released`。先前Org consumer 401與PDM writer暫緩已由後續正式release關閉：AI-PDM main `ad74f179…`與OrgMaster相容reader皆承接100%正式流量，兩端protected workflow、candidate／canonical smoke及terminal receipt均PASS。此結果確認既定架構可發布，不新增state/readiness/generation、第二人核准或獨立啟用層；52 QA／17 AC／CG仍依實際證據逐項認列，不因release成功自動全數PASS。此ADR只記取捨，唯一行為／資料/API契約見[SPEC](../specs/DEV-123-role-permission-editor-contract.md)，案例與唯一結果入口見[QA §6](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#6-2026-10-23-本機-implementation-evidence)。
 
 ## 問題與選擇
 
@@ -22,7 +22,7 @@
 
 apply後新請求採新policy，已判權短請求可完成；browser暫存可失效，server保存與CAS負責正確性。OrgMaster人員任用／published-grant、DB及IdP依賴仍存在，這不是改成各系統配人或宣稱離線可用。
 
-52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。可在授權隔離工作樹協同開發／驗證[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)所列相容範圍。10/23的PDM protected發布與OrgMaster 034–036相容migration／reader部署授權保留為歷史；目前正式操作依頁首後續限制暫停，不含人員指派改寫、IAM或Secrets。
+52目的／17AC／CG與真實consumer驗證保留，可參數化／共用旅程及有效證據；既有required CI、forward-only DB boundary與release執行器未改。現行contract pair以producer manifest的34欄為欄位基準，資料責任仍為三資料集，無state/readiness/generation。OrgMaster相容範圍維持[SPEC§9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-compatibility)：其正式reader已發布，但人員指派、IAM與Secrets責任沒有移入AI-PDM。
 
 ## 替換與退出
 
@@ -41,3 +41,10 @@ AI-PDM PR #474及OrgMaster相容實作已合併並通過各自required CI，兩�
 2026-10-24發布續接修正：正式schema已完成而consumer尚未就緒，原capsule到期後須以不可變prior38證據重新封存，不重送DDL。依既有app／worker來源分工，applied-only的DB/source觀察不重播保留worker的舊build graph；runtime/ref及普通worker流程保護維持。封閉forward索引、零Job association及schema-only派生旗標見release spec§26.4；不增加產品狀態、人工簽核或任意操作入口。實際source修正／驗證及尚未發布範圍仍只記QA§6。
 
 2026-10-26既有操作接線決策：DEV-123只把model-basis、baseline draft及baseline release接到20個合併action，不為內部自用流程新增approval request、指定reviewer或第二人核准狀態。shared-model basis須drawing/model edit AND；同請求2D-only沿用既有`confirmTwoDOnly`並加drawing/model review AND；baseline draft須transfer edit；release須transfer/model publish AND。company／owner、Draft CAS、Released model、model part-root、required-MA與排除檢查及Principal audit維持，未授任一必要action即403且同交易無寫入。這是既有domain guard的授權接線，不把矩陣publish當成新審批平台。
+
+## 2026-10-26 正式架構讀回
+
+- AI-PDM PR #487與required CI完成後，owner release [40231963098](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40231963098)以既有`prepare → build → migrate → candidate → verify → activate → canonical → finalize`流程發布；current schema沿已封存forward evidence重用，未重送DDL。
+- OrgMaster release [40234669430](https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/40234669430)的相容reader與正常Platform SSO、governance session、managed identity read及未登入／撤銷負例均PASS；這關閉首次writer上線前的consumer相容依賴。
+- 正式AI-PDM正常Google登入後，矩陣、單角色工作台、歷史版本及停用角色皆沿同一active publication讀回；active view沒有第二個enable按鈕或額外readiness狀態。這是本ADR「一次原子apply、相容只在上線驗」的實際架構驗證。
+- 正式歷史可讀到custom角色新增、能力變更與停用；停用後保留角色與歷史，符合既定生命週期。完整案例分母與未覆蓋範圍仍由QA維護。
