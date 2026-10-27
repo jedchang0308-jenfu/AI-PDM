@@ -14,6 +14,7 @@ export const RUNTIME_STATE_TARGET = Object.freeze({
   region: 'asia-east1',
   database: 'jenfu_prod',
   applicationService: 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',
+  applicationContainer: 'ai-pdm',
 })
 export const RUNTIME_STATE_SELECTORS = Object.freeze({
   companyId: 'company-jenfu',

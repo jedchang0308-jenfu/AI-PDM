@@ -152,14 +152,19 @@ export async function readProviderRuntimeState(transport, now = () => new Date()
   if (serving.length !== 1 || serving[0].percent !== 100 || traffic.reduce((total, row) => total + row.percent, 0) !== 100) fail('RUNTIME_STATE_SERVICE_INVALID')
   const revision = await transport.request(`https://run.googleapis.com/v2/${serving[0].revision}`, { method: 'GET', redirect: 'error' })
   const containers = revision?.containers
-  if (revision?.name !== serving[0].revision || !Array.isArray(containers) || containers.length !== 1 || typeof containers[0]?.image !== 'string' || !/@sha256:[a-f0-9]{64}$/u.test(containers[0].image)) fail('RUNTIME_STATE_REVISION_INVALID')
-  const matches = (containers[0].env ?? []).filter(row => row?.name === 'PDM_OPENSWX_DISPATCH_ENABLED')
+  const applicationContainers = Array.isArray(containers)
+    ? containers.filter(row => row?.name === RUNTIME_STATE_TARGET.applicationContainer)
+    : []
+  const application = applicationContainers[0]
+  if (revision?.name !== serving[0].revision || applicationContainers.length !== 1 ||
+      typeof application?.image !== 'string' || !/@sha256:[a-f0-9]{64}$/u.test(application.image)) fail('RUNTIME_STATE_REVISION_INVALID')
+  const matches = (application.env ?? []).filter(row => row?.name === 'PDM_OPENSWX_DISPATCH_ENABLED')
   if (matches.length > 1 || (matches[0] && ((matches[0].value !== '0' && matches[0].value !== '1') || Object.hasOwn(matches[0], 'valueSource')))) fail('RUNTIME_STATE_DISPATCH_FLAG_INVALID')
   const value = matches[0]?.value ?? '0'
   return {
     observedAt: now(),
     service: { name: service.name, generation: String(service.generation), latestReadyRevision: service.latestReadyRevision, traffic },
-    revision: { name: revision.name, image: containers[0].image, trafficPercent: serving[0].percent,
+    revision: { name: revision.name, image: application.image, trafficPercent: serving[0].percent,
       sourceRevision: null, sourceRevisionStatus: 'NOT_READ_BY_THIS_DIAGNOSTIC' },
     openswxDispatch: { configured: matches.length === 1, value, enabled: value === '1' },
   }

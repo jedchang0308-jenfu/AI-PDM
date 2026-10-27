@@ -121,13 +121,34 @@ test('provider readback exposes only the exact non-secret dispatch flag', async 
   const transport = { async request(url) {
     requests.push(url)
     if (url.endsWith('/services/ai-pdm-prod')) return { name: serviceName, generation: '256', latestReadyRevision: revisionName, trafficStatuses: [{ revision: 'ai-pdm-prod-abc123', percent: 100 }] }
-    if (url.endsWith('/revisions/ai-pdm-prod-abc123')) return { name: revisionName, containers: [{ image: `asia-east1-docker.pkg.dev/p/r/i@sha256:${'e'.repeat(64)}`, env: [{ name: 'SECRET_TOKEN', valueSource: { secretKeyRef: { secret: 'hidden' } } }, { name: 'PDM_OPENSWX_DISPATCH_ENABLED', value: '1' }] }] }
+    if (url.endsWith('/revisions/ai-pdm-prod-abc123')) return { name: revisionName, containers: [
+      { name: 'ai-pdm', image: `asia-east1-docker.pkg.dev/p/r/i@sha256:${'e'.repeat(64)}`, env: [{ name: 'SECRET_TOKEN', valueSource: { secretKeyRef: { secret: 'hidden' } } }, { name: 'PDM_OPENSWX_DISPATCH_ENABLED', value: '1' }] },
+      { name: 'cloud-sql-proxy', image: `gcr.io/cloud-sql-connectors/cloud-sql-proxy@sha256:${'f'.repeat(64)}`, env: [] },
+    ] }
     throw new Error('unexpected URL')
   } }
   const state = await readProviderRuntimeState(transport, () => '2026-10-27T00:00:00.000Z')
   assert.deepEqual(state.openswxDispatch, { configured: true, value: '1', enabled: true })
   assert.equal(JSON.stringify(state).includes('SECRET_TOKEN'), false)
   assert.equal(requests.length, 2)
+})
+
+test('provider readback rejects a missing or duplicate named application container', async () => {
+  const serviceName = RUNTIME_STATE_TARGET.applicationService
+  const revisionName = `${serviceName}/revisions/ai-pdm-prod-abc123`
+  for (const containers of [
+    [{ name: 'cloud-sql-proxy', image: `proxy@sha256:${'f'.repeat(64)}` }],
+    [
+      { name: 'ai-pdm', image: `app@sha256:${'e'.repeat(64)}` },
+      { name: 'ai-pdm', image: `app@sha256:${'e'.repeat(64)}` },
+    ],
+  ]) {
+    const transport = { async request(url) {
+      if (url.endsWith('/services/ai-pdm-prod')) return { name: serviceName, generation: '256', latestReadyRevision: revisionName, trafficStatuses: [{ revision: 'ai-pdm-prod-abc123', percent: 100 }] }
+      return { name: revisionName, containers }
+    } }
+    await assert.rejects(readProviderRuntimeState(transport), /REVISION_INVALID/u)
+  }
 })
 
 test('provider readback rejects empty or split serving traffic before reading revision env', async () => {
