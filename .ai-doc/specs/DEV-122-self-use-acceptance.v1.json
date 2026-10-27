@@ -1,5 +1,17 @@
 {
   "schemaVersion": "aipdm.dev122.self-use-acceptance.v1",
+  "taskDisposition": {
+    "date": "2026-10-27",
+    "status": "CLOSED_PARTIAL_HANDOFF",
+    "successorTask": "DEV-125",
+    "authority": "DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff",
+    "countsAsProductPass": false,
+    "historicalEvidenceEdited": false,
+    "localVerifiedIssues": ["D122-01", "D122-02", "D122-03", "D122-04", "D122-06"],
+    "transferredOutcomes": ["D122-05", "admin_recognition", "native_cad_full_custom_properties"],
+    "remainingProductionVerificationOwner": "DEV-125",
+    "deferredIssues": ["D122-07"]
+  },
   "productModel": {
     "audience": "single-company-internal",
     "primaryViewport": "desktop",
@@ -9,7 +21,7 @@
   "originalAcceptance": {
     "issues": 7,
     "groups": 29,
-    "status": "ACTIVE_NOT_ACCEPTED",
+    "status": "NOT_ACCEPTED_TRANSFERRED_TO_DEV125",
     "isActiveAcceptanceDenominator": true
   },
   "capabilitiesDoNotReplaceOriginalDenominator": true,

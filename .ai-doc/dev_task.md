@@ -1,10 +1,20 @@
-## DEV-122 CURRENT：七個 issue outcome（2026-10-23）
+## DEV-122／124／125：現行任務分工（2026-10-27）
 
-現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
+依使用者「系統精簡、OpenSWX 不使用就拆掉、不雙系統並行、舊任務盡量結案、新架構移到新任務」指示，以下是唯一現行工作分配。任務結案不等於功能 PASS，舊失敗與未驗證據保留。
 
-2026-10-27 收斂結果：D122-01～04、D122-06 已有本機結果，並不等於正式驗收；D122-05 仍是目前需完成的使用者可見缺口；D122-07 維持 `DISABLED_DEFERRED`。正式 service 已包含 preview lease v2 與 PDF viewer／liveness 修正，故下一步不是再次部署相同來源，而是先完成 `D122-05A` 固定唯讀診斷，再依 asset／job／derivative／worker process 實況執行 `D122-05B` 最小修復與驗收。實作順序與責任分流見[現行交付切片](specs/DEV-122-ai-pdm-internal-function-issues.md#current-delivery-handoff-20261027)。
+| 任務 | 處置 | 後續責任 |
+|---|---|---|
+| DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
+| DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED` | 取消修復及恢復排程；原 UNKNOWN 保留。退出盤點與實際拆除統一交 125，未宣稱已移除。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `PLANNED / RD Contract Ready / IMPLEMENTATION_NOT_STARTED` | 唯一後續開發入口；Windows 安裝、電腦清單、解析整合、舊缺口驗收與 OpenSWX 程式／專用資源退出。 |
 
-## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
+<a id="dev-125-windows-service"></a>
+
+DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；只補當前切片的詳細工程契約，不新增平行框架。既有 reader／preview／broker 重用 DEV-035／056／058。正常 PDF 與附件修復可獨立先做，不要求所有工作等待 Windows 安裝。完成須有實際解析、使用者可見結果及 OpenSWX 退出證據，不能只以 PAUSED 結案。
+
+以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。本次只交付任務文件，沒有刪除程式或雲端服務。
+
+## DEV-122 D122-05 — 移交前 A0001-M01 正式預覽缺口（2026-10-27）
 
 正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。provider readback 已確認目前正式 revision／image 對應 source `ad74f179…`，且該 source 已包含 lease v2 與 PDF viewer／render liveness 修正，所以本案不是「DEV-122 source 尚未部署」。目前 canonical GET 可能 recovery／enqueue 並寫 access audit，不可當唯讀 triage；須先補 `D122-05A` 固定唯讀 readback，再由 `D122-05B` 修正被證明的 metadata／binding／derivative／worker runtime 責任。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
 
@@ -38,9 +48,9 @@ PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通�
 
 實際 planner=`AFFECTED_SLICES(documentation, database, release-control)`；worker／app／authorization／preview／recognition／infrastructure／abort／lint／isolated build均未選。fresh planner 17／17、release-core 214／214、database 27／27與 `DEV010_DB_RULESET_V1` PASS；evidence SHA `c89e25edcd3d8534eceabc3f91e5f786591981b086a850d524df22c3672ddb37`。本地唯讀 production-shaped C95 replay亦以 ledger35／terminal `ai-pdm-085` PASS，且 OpenSWX 讀取數為0。正式重試、candidate／activate及專用測試 RD actor UI／API 正負驗收須待 protected PR／required CI 後執行；DEV-122原7 issues／29 groups維持`NOT_ACCEPTED`。
 
-## DEV-124 — OpenSWX worker 獨立修復（ACTIVE 124-A／ENTRY READBACK FAILED／ROOT CAUSE PENDING／124-B NOT STARTED）
+## DEV-124 — 已取消修復，拆除移交 DEV-125
 
-責任只涵蓋 worker descriptor、historical/current reader、profile／deadline、Secret IAM continuation、artifact reuse、Cloud Run Job／Scheduler、dispatch recovery 與 OpenSWX `claim → heartbeat → complete`。2026-10-27 01:35Z 的[唯讀 provider baseline](qa/DEV-124-openswx-provider-baseline-2026-10-27.json)為 Job Ready 但最近 execution `NonZeroExitCode`，Scheduler `PAUSED`；這不是 SolidWorks preview 或 recognition consumer。fresh operation `DEV124-A-READBACK-20261027-R1` 已通過 source／hash／WIF 綁定並啟動固定 read-only runner，但 workflow `40434430269` 以 `RD_PERMISSION_STATE_EXECUTION_FAILED` 終止；目前仍無 current DB row／consumer 判定，不得改寫為 no work。下一步先讀 exact execution 的去敏錯誤與 receipt，再視原因修正現有 readback 或拆出 actor-independent 固定唯讀診斷；Scheduler 維持 `PAUSED`、124-B 不開始。完整責任、實作順序、驗證與 stop conditions 見[DEV-124 開發契約](specs/DEV-124-openswx-worker-independent-repair.md)。
+狀態 `CLOSED_CANCELLED_REPLACED`；[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)保留 124-A readback 失敗及 active row UNKNOWN，不能當成 no work。2026-10-27 的 Job Ready／execution 失敗／Scheduler PAUSED 是歷史 provider baseline，不代表已拆除。後續只由 [DEV-125 §4](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#4-openswx-拆除契約)做安全退出盤點與移除，不恢復 124-B 修復或 124-C 排程驗收。
 
 ## DEV-121#rd-capabilities — 2026-10-22 RD readback relevance 與關卡解耦（本地驗證中，正式服務未變更）
 
@@ -235,16 +245,16 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 
 <a id="dev-122-current"></a>
 
-## DEV-122 CURRENT（2026-10-19；內部自用精簡契約）
+## DEV-122 結案入口（2026-10-27）
 
-- 狀態：`ACTIVE_CAPABILITIES_PENDING`。
-- 現行施工／選測視圖：`identity_roles`、`pdm_lifecycle`、`drawing_preview`、`operations` 四項能力，共 11 個優先核心案例。
-- 總驗收分母：原始 7 issues／29 groups，保留原失敗與既有證據；四項能力不取代它。
-- 現行契約：[DEV-122 internal self-use contract](specs/DEV-122-ai-pdm-internal-function-issues.md)。
+- 狀態：`CLOSED_PARTIAL_HANDOFF`；原功能整體仍 `NOT_ACCEPTED`。
+- 後續工作：[DEV-125 唯一契約與承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)。01～04、06 已有本機結果，05／辨識／CAD 與適用未驗結果移交；四項能力與 11 案保留為可重用選測視圖。
+- 原始七項結果與 29 診斷 ID 保留，結案不刪未驗項或增加 PASS。
+- 處置來源：[DEV-122 結案與證據](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027)。
 - 機器可讀分母：[DEV-122 self-use acceptance](specs/DEV-122-self-use-acceptance.v1.json)。
 - 歷史原文：[DEV-122 contract history](specs/DEV-122-ai-pdm-internal-function-issues.history-through-2026-10-19.md) 與 [DEV task history](dev_task.DEV-122-history-through-2026-10-19.md)。
-- supplier 維持 `DISABLED_DEFERRED / NOT_PASS`，完整原生 CAD 維持 `USER_OWNED_PENDING_NOT_PASS`，本次不恢復施工。刪除無條件全流程窄 viewport、逐案完整證據包與無關 gate。
-- 本次只精簡契約與關卡，不執行正式發布、IAM／Secret 或正式資料修改。
+- supplier 維持 `DISABLED_DEFERRED / NOT_PASS`；完整原生 CAD 的未驗結果交 125，不在 122 另行施工。
+- 以下 release-control／RD 恢復點保留歷史語境，不是本次重播指示。
 - release-control 收斂沿用 PR #387：reviewed application source 只由 protected intent revision／canonical source lock 負責；worker artifact 由 input manifest、effective recipe、provider build identity 與 image digest 負責。tar／gzip／GCS object hash 只驗各自傳輸物件，不再跨 app、worker、attempt 或 descriptor 充當 source identity。reader capability、requested revision 的 profile policy 與 executable byte origin 分開判定；舊 receipt 維持 immutable，正式 recovery 仍引用者不刪相容 reader。
 - RD 正式發布恢復點維持可追溯：C67 owner run `39254333670` 在 prepare 以 `DATA_CUTOVER_AUTHORITY_REF_INVALID` 停止，build／migration／candidate／traffic 均未執行；C69 只有 exact-source 輸入準備，未派送。正式 service 仍在既有 revision／traffic，085、catalog v7 與專用測試 RD 帳號正負驗收仍未完成。
 
