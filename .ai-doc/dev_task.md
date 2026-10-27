@@ -10,7 +10,9 @@
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約 §11.6](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#116-google-自助連結與-r25-正式發布2026-10-28)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。OpenSWX 已退出，PR #535 修復保留，#533 已關閉且未合併。#536～#538、required CI、main CI 與 R25 正式發布已完成，installer=`0.1.0-ci.1383`；不能因此關閉整體 DEV。下一步是完成 R25 實機自助連結、RD／採購生管／生產權限驗收、跨使用者隔離／即時撤權、Windows lifecycle、離線 queue 接續、低權限三格式／A0001 預覽／辨識與 redaction。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.6](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#116-google-自助連結與-r25-正式發布2026-10-28)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。OpenSWX 已退出，PR #535 修復保留，#533 已關閉且未合併。#536～#538、required CI、main CI 與 R25 正式發布已完成，installer=`0.1.0-ci.1383`；不能因此關閉整體 DEV。下一步先完成 §11.7 修正版 CI／發布，再以其同來源 installer 完成實機自助連結、RD／採購生管／生產權限驗收、跨使用者隔離／即時撤權、Windows lifecycle、離線 queue 接續、低權限三格式／A0001 預覽／辨識與 redaction。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
+
+R25 正式負向 smoke 發現 preview capability heartbeat 被 production slice 提前 403；同切片 PR #539 修正 exact admission、一般使用者跳過管理 probe 及 key 的當前工作租約範圍，補 role／mapping／caller 撤權驗證。現況為 local focused PASS、required CI／修正版發布待完成；UAC 已取消或過期，本機仍 `.1370`。後續安裝驗收以修正版發布的同來源 installer 為準，詳見 DEV-125 §11.7。
 
 以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #500 fixed readback 已於 run `40498277520` 完成 R15；PR #525／#526 其後完成 provider／active source 退出，不需要再次擴張 IAM、重建 OpenSWX 或重放已刪 executor。
 

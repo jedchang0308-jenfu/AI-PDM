@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R25 / USER-OWNED WINDOWS DEVICE ARCHITECTURE FINAL / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.6 是最新發布證據，較早紀錄只供追溯。OpenSWX 修復、排程與 provider 資源已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R25 / PREVIEW_HEARTBEAT_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.6 是發布證據，§11.7 是該版本正式驗收發現的 corrective，較早紀錄只供追溯。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
@@ -89,6 +89,8 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 | `POST /api/windows-service/heartbeat` | current-instance bearer 與 `x-pdm-worker-id=<deviceId>:<instanceId>`，每 10 秒更新裝置 lastSeenAt；沿用既有 capability heartbeat 的 code／version／fingerprint 欄位，不由 client 自訂授權用途。 |
 | `GET /api/windows-service/jobs/{kind}/{id}/status` | current-instance bearer；kind 固定 preview／recognition／probe。只回同公司、目前租約或 completion.workerId 屬該 instance 的 `{status,leaseBasis,completion:{resultDigest,terminalStatus,committedAt}|null}`；其他身分／工作 404，無來源內容，不 enqueue／recover／更新 attempt。供 complete ACK 遺失讀回，最多三次；digest 與本次不同則衝突，不自動補送。 |
 | 既有 worker API | 保留 `/api/preview-jobs/**`、`/api/preview-workers/**`、`/api/recognition-jobs/**`、`/api/recognition-workers/heartbeat`、`/api/settings-secret-probe-jobs/**`；每個 claim／source／heartbeat／complete 均取得 owner-bound device actor 並重驗 current account／Principal mapping／grant／resource permission。不得留下 native 靜態 token、匿名、固定身分或共享 key fallback。 |
+| Native key broker | `GET /api/preview-workers/solidworks-document-manager-key?kind=preview&jobId=…` 必須攜帶既有 `x-pdm-preview-lease`；`kind=recognition` 另帶 `sourceId` 與 `x-pdm-recognition-lease`。沿原 owner／company／generation／current source permission 驗證，不讀 CAD bytes；provider I/O 後再重驗裝置與工作才回 credential。無工作租約的 idle 裝置回 403，無跨工作 key cache。管理 probe 仍使用自己 job 的 credential API。 |
+| Native readiness | 同一裝置驗證入口的 `GET …/solidworks-document-manager-key?readiness=1` 只回 `{available:boolean}`，只讀 active reference／支援的 provider metadata，不讀或回傳 key。無 active credential 時 worker 不 claim 業務工作；claim 後 provider 暫時故障在同一 lease 下等待、heartbeat 持續，不 failed complete 或重新 claim；真正 device／job authority 拒絕仍立即停止。 |
 
 新服務 protocol 不支援、缺必要 fence → 426 `WORKER_PROTOCOL_UNSUPPORTED`；無效／已撤銷 bearer，或 owner account／Principal／grant／resource permission 已失效 → 403 `WORKER_DEVICE_UNAUTHORIZED`；DB 不可用 → 503，不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；`queued` 工作不因等待逾時而失敗或遞增 attempt，只有已被領取的 `running/extracting` 租約逾期才依既有上限回收。單次 poll 無工作沿各既有 claim 的 200-null／204 契約。省略／不匹配租約 → 409 `WORKER_LEASE_STALE`，來源變更沿現有 stale-source 錯誤。
 
@@ -105,7 +107,9 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 | Settings probe | claim 限定 company 與 initiator Principal；claim／heartbeat／credential／complete 每次重驗 owner current `settings.secret.manage` 與 exact probe lease。key 只送進授權裝置的受控程序記憶體，不出現在 UI、API readback、DB completion 或 log。 |
 | PDF／附件 | 先在固定唯讀來源查明 MIME／extension／source binding／current hash；只修被證明錯誤的 resolver／viewer。PDF 原檔走既有受保護 preview API，不送 Document Manager，不把可閱讀 PDF 改成 PNG。若需修正式 metadata，另用正常 writer 與具名資料範圍，不能在 viewer GET 偷做回填。 |
 
-撤銷競爭固定鎖序為「device row → 既有 job／source／parent locks」。每次寫入及來源／key 讀取的授權決策，在同一 DB transaction 持有 device row share lock 並重新檢查 active／instance；claim／start／revoke 一開始即取該列排他鎖。跨三個 owner 的 claim 先查該 instance 是否已有有效租約，有則不領第二件；不靠 client 自律避免重複占用。撤銷 commit 之後不得接受新授權決策；已在撤銷之前取得授權的串流 bytes 無法回收，不宣稱中途抹除。原 parent-lock、initiator 撤權及 source-hash fence 只加嚴不取代。工作 heartbeat 沿現有 5 秒節奏／失聯回收與 attempt 上限；失聯後重領產生新 fence，舊結果零寫入。
+每個 request 先從 DB 重驗 active device／instance、owner account、Principal mapping 與 published grant；job／source owner 再於自己的 transaction 重驗現行資源權限及 generation fence。provider I/O 不跨網路持有 DB lock，key 回傳前重新驗證 device 及工作；來源 bytes 沿既有讀取前後 source／resource fence。撤銷 commit 後開始的後續 request 必須拒絕；先前已授權的串流或已啟動 COM 不承諾中途回收。這是本任務的立即撤權契約，不宣稱尚未實作的跨三個 queue device-row 互斥。
+
+Windows 排程器維持單一原生執行。一般逐件處理；若業務工作尚未取得 key、亦未下載／執行 CAD，保留原工作 heartbeat／attempt，允許管理 probe 在同一程序取得序列化的恢復回合，以免唯一使用者電腦等待失效 active key 時無法測試替代版本。probe 與業務工作各用自己的 owner／company／generation，非管理員仍取不到 probe。恢復後重新驗證工作及 key 才繼續；不建立另一個 parser 或常開主機。原 parent-lock、initiator 撤權、source-hash guard、5 秒工作 heartbeat／失聯回收與 attempt 上限保留，重領後舊 fence 的結果零寫入。
 
 <a id="openswx-retirement"></a>
 
@@ -270,3 +274,19 @@ same-source installer=`0.1.0-ci.1383 / protocol 1 / 29,267,355 bytes / SHA-256 a
 實機 R25 安裝目前停在 Windows UAC 等待使用者本人確認；舊服務仍為 `.1370 / Running / NT AUTHORITY\\LocalService`。新版自助連結、低權限服務三格式工作、正式撤銷、重啟／覆蓋／重裝／多電腦與 A0001 UI 尚未取得完整證據，維持 `PARTIAL / NOT_RUN`。已定位真實 `A0053.SLDASM`（174,437 bytes、SHA-256 `a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694`）；定位與隔離 native reader 結果不能代替正式服務驗收。此次未新增 IAM、Secret 或 OrgMaster／其他專案修改。
 
 驗收補強使用既有 `qc:dev-125:postgres`，由 9 組增加至 11 組且全通過：RD／採購（對應採購生管）／生產三個非管理角色各自建立兩個不同裝置憑證，驗證自己的清單、拒絕他人撤銷、撤銷其中一台不影響另一台；另在每次 repository authentication 之間實際移除／變更／加入歧義的 Principal mapping，原 credential 隨即拒絕，恢復 mapping 後再驗可用。這些是隔離 DB 行為證據，不是正式 Google SSO／安裝／多實體電腦 PASS。task-owned PostgreSQL 暫存目錄與 port `53223` 已確認移除／釋放。
+
+### 11.7 R25 正式 worker admission 首敗與修正（2026-10-28）
+
+正式 canonical 的 21 個無有效憑證請求皆回 403、private/no-store，未記錄回應原文／key／token／CAD bytes；其中 20 個由 device auth 拒絕，`POST /api/preview-workers/heartbeat` 卻是 middleware 回 `feature_not_open_in_production_slice`。因此它只證明未匿名開放，也揭露合法裝置的 capability heartbeat 同樣被 production-slice admission 阻擋，不能把 21 個拒絕統稱為功能 PASS。首份原始結果保留在 task-owned `output/dev125-acceptance/r25-anonymous-denial-smoke.json`，SHA-256=`eb955652b576df4ea4e854bdc17d4b697d4669b94eec77f02026a20c80405880`。
+
+PR #539 在同一切片加入 exact `POST /api/preview-workers/heartbeat` admission，仍經既有 current device auth／company／capability guard；不開 wildcard、非 POST 或未知 slice。回歸先重現 `expected false to be true`，修正後 Windows middleware／實際 heartbeat handler 37/37 PASS；另新增 Recognition source GET 與 Probe credential／heartbeat／complete 的實際 handler＋共享 auth 撤銷測試 8/8 PASS（repository lookup／domain 依賴為 test doubles），保留 owner／company 參數及拒絕前零 domain side effect 的斷言。typecheck 與受影響檢查通過；local isolated build 因容量預留不足未啟動，由 required CI 的隔離 runner 執行。required CI／修正版發布及正式正向結果尚待完成。
+
+R25 安裝的提升權限呼叫已由 Windows 回覆「操作被使用者取消」；沒有完成安裝，本機版本仍 `.1370`。後續只安裝修正版正式發布所綁定的套件；Google 自助連結、Windows lifecycle 及低權限原生三格式驗收仍未完成。
+
+同一 corrective 查核另發現非管理員每輪都先呼叫 probe claim，而該 owner 要求 `settings.secret.manage`，導致 RD 等使用者在進入正常工作前反覆 503；修正為裝置有效但不具管理 probe 權限時回空 queue 204，且在任何 reconciliation／claim 前判斷，依賴不可用仍 503。原本 key broker 只驗裝置、worker 又在 claim 前抓取並 cache 60 秒，亦不符合 §4；改為 preview／recognition claim 成功後依精確租約取 key，不保留跨工作 cache，provider 回覆前後均重驗 device、owner 與來源權限。probe 原生驗證成功時，在自己的 lease 下回報相符版本／fingerprint heartbeat，保留既有 activation 的 ready 證據來源。
+
+新增的實際 handler＋auth／lease 檢查合計 85 個 focused Vitest、worker 排程 2 個 Node 情境通過；key broker 覆蓋無租約、錯 owner／來源、非原生來源、provider I/O 期間裝置或資源撤權及依賴錯誤遮蔽。worker 情境以隔離 stage 與 mock HTTP 證明 idle 不取 key、claim→工作租約 key→source 順序，沒有執行原生 COM。DEV-125 contract 為 Node 13／Vitest 39 通過；原生三格式與正式修正版結果仍需另外驗收。
+
+後續 source review 發現 claim-first 若直接將 key 404／503 當業務失敗會損失 attempt，已在同 PR 修正：先做不含明文的 active-reference readiness；無 active credential 不 claim，claim 後暫時錯誤則在同 lease 及 heartbeat 下等待，provider 403／404／409 也只映射安全依賴 503，不冒充 device／job 撤權。只有真正授權拒絕退出；尚未取得 key 時不送 failed completion。新增 7 個 worker runtime 情境已全通過，涵蓋未 ready、不跨工作 cache／先 claim、Preview key 404／503 和 Recognition key 503 保留同一租約，以及 lease denial 不 failed complete；這些仍是 mock HTTP 排程證據，不是正式 COM 或 DB attempt readback。metadata-only helper 與 provider／source 錯誤映射亦有 focused 測試。
+
+同一 review 也補上管理 probe 恢復回合：key 暫時不可讀時，尚未開始原生處理的業務租約保持 pulse，序列化輪詢自己目前有權的 probe，再重試原 key；測試確認此回合位於兩次 key 讀取之間，且不重新 claim 業務工作。§6 同步以實際 per-request 授權與單一原生執行界線取代未實作的跨 queue device mutex 敘述；立即拒絕撤銷後新請求的要求不變。

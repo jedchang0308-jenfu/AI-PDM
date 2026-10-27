@@ -1343,6 +1343,12 @@ async function readClaimedPreviewSourceInSnapshot(snapshot: AsyncDatabaseClient,
   return { job, source, initiator };
 }
 
+/** Check the same current holder/source authority without loading CAD bytes. */
+export async function hasClaimedPreviewSourceAccessAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput) {
+  return client.transaction(async snapshot => Boolean(await readClaimedPreviewSourceInSnapshot(snapshot, input)),
+    { isolationLevel: "repeatable_read", readOnly: true });
+}
+
 /** A workload token is not access to every asset: only the running claim holder
  * may read this job's same-company immutable source, preserving its Principal. */
 export async function readClaimedPreviewSourceAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput) {

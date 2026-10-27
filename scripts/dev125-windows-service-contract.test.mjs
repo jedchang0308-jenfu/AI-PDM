@@ -214,7 +214,8 @@ test("DEV-125B runs probe, preview and recognition in one installed scheduler wi
   assert.match(service, /Promise\.all\(\[\s*heartbeatLoop\([\s\S]+runWindowsWorker/u);
   for (const endpoint of ["/api/settings-secret-probe-jobs/claim", "/api/preview-jobs/claim",
     "/api/recognition-jobs/claim", "/api/windows-service/jobs/"]) assert.ok(worker.includes(endpoint), endpoint);
-  assert.match(worker, /if \(await processProbe\(credentials, workerId\)\) continue;[\s\S]+documentManagerCredential/u);
+  assert.match(worker, /if \(await processProbe\(credentials, workerId\)\) continue;[\s\S]+processPreview[\s\S]+processRecognition/u);
+  assert.doesNotMatch(worker, /let activeCredential|Date\.now\(\) \+ 60_000/u);
   assert.match(worker, /120_000/u);
   assert.match(worker, /taskkill\.exe[\s\S]+\/t[\s\S]+\/f/u);
   assert.match(worker, /maxSourceBytes = 268_435_456/u);

@@ -16,7 +16,7 @@ vi.mock("@/lib/principal-job-authority", async importOriginal => ({
   requireCurrentPrincipalJobAuthority: mocks.authority
 }));
 
-import { completePreviewJobAsync, readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
+import { completePreviewJobAsync, hasClaimedPreviewSourceAccessAsync, readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
 
 const bytes = Buffer.from("preview-source");
 const digest = createHash("sha256").update(bytes).digest("hex");
@@ -46,6 +46,16 @@ beforeEach(()=>{vi.clearAllMocks(); companyValid=true;holderValid=true;
 });
 const input={jobId:"job-one",workerId:"worker-one",ownerPrincipalId:"principal-one",leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:digest,attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"}};
 describe("claimed preview source boundary",()=> {
+ it("authorizes a current credential lease without loading CAD bytes",async()=>{
+  expect(await hasClaimedPreviewSourceAccessAsync(client,input)).toBe(true);
+  expect(mocks.read).not.toHaveBeenCalled();
+  expect(mocks.putObject).not.toHaveBeenCalled();
+ });
+ it("denies credential lease access after the current resource permission is revoked",async()=>{
+  mocks.authority.mockRejectedValueOnce(new PrincipalJobAuthorityError("PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403));
+  expect(await hasClaimedPreviewSourceAccessAsync(client,input)).toBe(false);
+  expect(mocks.read).not.toHaveBeenCalled();
+ });
  it("delivers verified bytes with original Principal through a read-only snapshot",async()=>{
   expect(await readClaimedPreviewSourceAsync(client,input)).toMatchObject({bytes,contentHash:digest,principalId:"principal-one"});
   expect(client.transaction).toHaveBeenCalledWith(expect.any(Function),{isolationLevel:"repeatable_read",readOnly:true});

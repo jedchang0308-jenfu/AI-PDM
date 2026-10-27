@@ -1,8 +1,8 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T19:33:59.820Z",
-  "status": "RELEASED_R25_FORMAL_ACCEPTANCE_IN_PROGRESS",
+  "recordedAt": "2026-10-27T20:03:00.000Z",
+  "status": "RELEASED_R25_PREVIEW_HEARTBEAT_CORRECTIVE_IN_PROGRESS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -29,7 +29,8 @@
   },
   "localVerification": {
     "typecheckApp": "PASS",
-    "dev125Contract": "PASS_42",
+    "dev125Contract": "PASS_52_13_NODE_39_VITEST",
+    "correctiveFocused": "PASS_137_VITEST_AND_7_WORKER_RUNTIME_CASES",
     "postgresDeviceOwner": "PASS_11",
     "postgresDeviceOwnerScope": "TASK_OWNED_POSTGRES_NOT_PRODUCTION: three non-manager roles each enroll two independent devices and self-revoke; removed, changed or ambiguous Principal mapping denies next authentication; existing account, grant, device and instance cases retained",
     "postgresCleanup": "PASS_TEMP_ROOT_REMOVED_PORT_53223_RELEASED",
@@ -84,7 +85,8 @@
     "installer": {"version":"0.1.0-ci.1383","protocolVersion":1,"sha256":"aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d","size":29267355,"sourceRevision":"06d370bba2749230e4c70c8ae7bfa4580613a6e6","artifactId":12763163010,"localDownloadHash":"PASS","releaseCapsuleBinding":"PASS"}
   },
   "currentWindowsAcceptance": {
-    "status": "WAITING_FOR_HUMAN_UAC",
+    "status": "UAC_CANCELLED_OR_EXPIRED_INSTALL_NOT_EXECUTED",
+    "uacObservation": "Windows elevation launch returned operation cancelled; no installer process remains and installed version is unchanged",
     "installerVersion": "0.1.0-ci.1383",
     "installedVersionBeforeUpgrade": "0.1.0-ci.1370",
     "observedServiceAccount": "NT AUTHORITY\\LocalService",
@@ -93,6 +95,18 @@
     "overlayIdempotency": "NOT_RUN_FORMAL",
     "nativeThreeFormatUnderService": "NOT_RUN",
     "knownAssemblySample": {"fileName":"A0053.SLDASM","size":174437,"sha256":"a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694","status":"LOCATED_NOT_FORMAL_PARSE_PROOF"}
+  },
+  "previewHeartbeatCorrective": {
+    "pullRequest": 539,
+    "status": "LOCAL_IMPLEMENTED_REQUIRED_CI_AND_RELEASE_PENDING",
+    "productionFinding": {"source":"R25","endpoint":"POST /api/preview-workers/heartbeat","status":403,"error":"feature_not_open_in_production_slice","impact":"valid device capability heartbeat is blocked before owner authentication"},
+    "negativeSmoke": {"observedAt":"2026-10-27T19:42:48.428Z","requests":21,"allDenied":true,"deviceAuthDenials":20,"sliceDenial":1,"proofScope":"ANONYMOUS_DENIAL_ONLY_NOT_VALID_WORKER_SUCCESS","rawResultSha256":"eb955652b576df4ea4e854bdc17d4b697d4669b94eec77f02026a20c80405880","rawBodiesRecorded":false},
+    "relatedSourceFindings": ["non-manager device probe claim failed before business work", "native key was fetched before job claim and cached across jobs"],
+    "changes": ["exact POST preview capability heartbeat admission with existing device guards", "non-manager probe claim returns empty queue before reconciliation", "native key requires owned current preview or recognition lease and source", "device and source authority rechecked after provider I/O", "worker checks metadata readiness then claims and holds key only within current job", "provider outages wait on the same job lease without failed completion or reclaim", "successful leased probe reports its version/fingerprint heartbeat"],
+    "focusedVerification": {"vitest":137,"workerRuntime":7,"postgres":11,"nativeComExecutedByTheseTests":false},
+    "attemptLossReview": "P1_FOUND_AND_CORRECTED_BEFORE_RELEASE_METADATA_PREFLIGHT_AND_SAME_LEASE_PROVIDER_WAIT_WITH_SERIAL_PROBE_RECOVERY",
+    "localIsolatedBuild": "NOT_RUN_CAPACITY_RESERVATION_BLOCKED_REQUIRED_CI_ISOLATED_BUILD_REQUIRED",
+    "formalFeatureAcceptance": "PENDING_CORRECTIVE_RELEASE_AND_WINDOWS_INSTALL"
   },
   "previousReleaseR20": {
     "releaseId": "DEV125-WINDOWS-20261027-R20",

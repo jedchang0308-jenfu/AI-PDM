@@ -6,7 +6,9 @@
 
 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`；[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125`。DEV-125 為 `RELEASED_R25 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE`。PR #535 official interop 保留，#533 已關閉未合併，owner-bound self-link 與覆蓋安裝修正已由 #536～#538 合併。migration 089 immutable、090 已套用；OrgMaster 無裝置 writer 或安裝管理責任。
 
-最新發布來源為 `06d370bba2749230e4c70c8ae7bfa4580613a6e6`；PR CI `40565759836`、main CI `40566610056` 與 R25 owner run `40567208247` 全成功。revision `ai-pdm-prod-8effb9783333` 唯一 100% traffic、零 tag；migration applied 0／replayed 40／ledger 40。same-source installer `.1383` hash 已核對；Windows UAC 等本人確認，實機自助連結／三角色／生命週期／三格式／正式 UI 仍待驗收。完整來源與收據見 DEV-125 §11.6／QA JSON。
+最新發布來源為 `06d370bba2749230e4c70c8ae7bfa4580613a6e6`；PR CI `40565759836`、main CI `40566610056` 與 R25 owner run `40567208247` 全成功。revision `ai-pdm-prod-8effb9783333` 唯一 100% traffic、零 tag；migration applied 0／replayed 40／ledger 40。same-source installer `.1383` hash 已核對；UAC 已取消或過期、本機仍 `.1370`，實機自助連結／三角色／生命週期／三格式／正式 UI 仍待驗收。完整來源與收據見 DEV-125 §11.6／QA JSON。
+
+R25 後續正式負向 smoke 發現 preview capability heartbeat 提前被 slice 擋下；PR #539 正在同切片修正 admission、非管理員 probe 及工作租約 key 範圍，local focused 已通過，required CI／新發布待完成。UAC 已取消或過期、本機仍 `.1370`；後續只以修正版 same-source installer 進行正式實機驗收。見 DEV-125 §11.7。
 
 以下 DEV-122／124 入口保留移交前證據用途，不是平行待辦。既有 [Windows ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)與[SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)只維護原生處理邊界與可重用契約，不複製 DEV-125 裝置／安裝規格。
 
