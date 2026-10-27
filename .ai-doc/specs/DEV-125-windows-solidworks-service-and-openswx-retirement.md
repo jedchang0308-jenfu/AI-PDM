@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R26 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.8 為最新 R26 發布與驗收邊界，§11.6～11.7 保留 R25 及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.9 為最新 R27 發布與驗收邊界，§11.6～11.8 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
@@ -311,6 +311,16 @@ same-source installer=`0.1.0-ci.1391`、29,267,659 bytes、SHA-256=`8079fb62ab1d
 
 仍待實機自助連結、RD／採購生管／生產三個既有公司 Google 帳號、實體 Windows lifecycle／多電腦、正式正向工作與撤權／離線接續、低權限三格式解析，以及 A0001 原生預覽／PDF／辨識；已請使用者指定角色帳號，不以管理員模擬。發布工作流 `remainingHumanAction=0` 只描述發布完成，DEV-125 整體尚未結案。完整 URI／外部 bytes hash、舊 R25 收據及驗收項目均保留在 QA JSON。
 
-### 11.9 R26 後續 HTTP 拒絕分類補齊（2026-10-28）
+<a id="dev125-r27-release"></a>
 
-API 契約核對發現 preview claim／heartbeat 沒有把 `PrincipalJobAuthorityError` 轉為 HTTP，complete 又僅依一般字串 mapper 分類，會將 typed 403／503 交給框架或誤回 500。原有 domain guard 仍拒絕原檔與結果、claim 亦不消耗 attempt；缺口是 worker 無法據正確 status 區別撤權與相依服務失效。本輪僅補這三個入口的 typed enum response／private,no-store，保留原 400／409 與未知錯誤路徑；不改授權決策、資料、installer／worker、migration、IAM 或 Secret。三個實際 route 的 40 案通過，其中 6 案覆蓋 typed 403／503、不回 private error.message，並補明確 owner Principal 傳遞；required CI 與後續發布完成前不改判為正式修正。
+### 11.9 R27 HTTP 拒絕分類補齊與正式發布（2026-10-28）
+
+API 契約核對發現 preview claim／heartbeat 沒有把 `PrincipalJobAuthorityError` 轉為 HTTP，complete 又僅依一般字串 mapper 分類，會將 typed 403／503 交給框架或誤回 500。原有 domain guard 仍拒絕原檔與結果、claim 亦不消耗 attempt；缺口是 worker 無法據正確 status 區別撤權與相依服務失效。PR #540 僅補這三個入口的 typed enum response／private,no-store，保留原 400／409 與未知錯誤路徑；不改授權決策、資料、installer／worker 邏輯、migration、IAM 或 Secret。三個實際 route 的 40 案通過，其中 6 案覆蓋 typed 403／503、不回 private error.message，並補明確 owner Principal 傳遞。
+
+PR #540 合併 source=`3b6b38208fdb2787740bb28388026702b182566f`；required CI `40587727379`、exact-main CI `40589008519`、R27 owner run `40589771592` 均成功。正式 revision=`ai-pdm-prod-2767a0101c8f`，image=`sha256:55148a71bca231b50026afcbcb382a6d9f5d43531d16aae6479779db43c395f2`。固定唯讀 diagnostics `40591599517` 在 `2026-10-27T22:03:39.359Z` 讀回 generation 295、reconciling=false、最新 Ready／Created 相符及唯一 100% traffic；finalize 零 tag。migration applied=0／replayed=40／ledger=40／boundary PASS，execution=`ai-pdm-prod-migration-runner-qrgk6`。官方 interop、090 與其他安全邊界維持前版；沒有新的 IAM、Secret 或 OrgMaster 修改。
+
+canonical SSO／session smoke 通過，另 23 條正式未授權請求全為 `403 / WORKER_DEVICE_UNAUTHORIZED / private,no-store`，結果 SHA-256=`fa3c3f490cf11971a035b07fb7a6c199e48bd7c03bdeabf3eec72a4e272cc6b4`。這驗證正式 device guard，沒有把尚未執行的合法裝置／角色撤權分支冒充正式 PASS；typed domain response 的證據是上述實際 route 回歸與 exact-source CI。
+
+最新 same-source installer=`0.1.0-ci.1393`、29,267,890 bytes、SHA-256=`04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c`；CI、build evidence 與 deployment capsule 一致。`.1393` 尚未在本機啟動安裝，最後讀回仍為 `.1370 / Running / LocalService`，無安裝程序。`.1391` 的 Chrome 暫存／UAC 狀態只保留為前版紀錄，不能當作 `.1393` 已安裝或完成正式下載。使用者仍需處理實際下載提示／UAC，並指定 RD、採購／生管、生產的既有公司 Google 驗收帳號；帳號頁唯讀盤點因瀏覽器導覽逾時未完成，沒有變更角色。
+
+後續仍是 §11.8 所列 Windows／Google 自助連結、三角色、撤權／隔離、離線／生命週期／多電腦、低權限原生三格式，以及 A0001 預覽／PDF／辨識的正式正向驗收。R27 發布已完成，整體 DEV-125 未結案。QA JSON 保存當次收據、前版 immutable refs 與各未驗項目；本輪文件變更不改 app/build/test inputs，不因更新驗收狀態另行部署。

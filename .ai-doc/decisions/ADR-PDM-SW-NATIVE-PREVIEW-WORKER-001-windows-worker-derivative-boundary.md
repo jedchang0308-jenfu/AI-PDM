@@ -2,7 +2,7 @@
 
 ## 2026-10-28 最新架構定案：使用者自有 Windows 裝置、Google 自助連結與 OpenSWX 退役
 
-現行狀態：`Accepted / Architecture Finalized / RELEASED_R26 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#539 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download 與工作租約 key guard；R26 正式來源為 `c7ede379f011250e51da65dcba509ed67b5c1a0b`。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.8／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
+現行狀態：`Accepted / Architecture Finalized / RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#540 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download、工作租約 key guard 與 typed HTTP 拒絕；R27 正式來源為 `3b6b38208fdb2787740bb28388026702b182566f`。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.9／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
 
 使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 
