@@ -3,6 +3,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { heartbeatPreviewJobAsync } from "@/lib/preview-derivatives";
 import { parsePreviewLeaseEnvelope, previewLeaseProtocolVersion } from "@/lib/preview-worker-lease";
 import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-service-auth";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 
 export const runtime = "nodejs";
 
@@ -19,10 +20,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
   const workerId = actor.id;
   const leaseBasis = parsePreviewLeaseEnvelope(body);
   if (!leaseBasis) return NextResponse.json({ error: "INVALID_PREVIEW_LEASE" }, { status: 400 });
-  const accepted = await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), {
-    jobId, workerId, ownerPrincipalId: actor.ownerPrincipalId, leaseBasis
-  });
-  return accepted
-    ? NextResponse.json({ ok: true, leaseProtocolVersion: previewLeaseProtocolVersion })
-    : NextResponse.json({ code: "PREVIEW_JOB_CLAIM_LOST" }, { status: 409 });
+  try {
+    const accepted = await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), {
+      jobId, workerId, ownerPrincipalId: actor.ownerPrincipalId, leaseBasis
+    });
+    return accepted
+      ? NextResponse.json({ ok: true, leaseProtocolVersion: previewLeaseProtocolVersion })
+      : NextResponse.json({ code: "PREVIEW_JOB_CLAIM_LOST" }, { status: 409 });
+  } catch (error) {
+    if (error instanceof PrincipalJobAuthorityError) return NextResponse.json({ error: error.code }, {
+      status: error.status, headers: { "cache-control": "private, no-store" }
+    });
+    throw error;
+  }
 }

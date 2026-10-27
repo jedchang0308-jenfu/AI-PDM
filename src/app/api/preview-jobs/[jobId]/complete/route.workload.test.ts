@@ -9,9 +9,10 @@ vi.mock("@/lib/worker-service-auth", async importOriginal => ({
   ...await importOriginal<typeof import("@/lib/worker-service-auth")>(), authenticateWorkerService: mocks.auth
 }));
 import { POST } from "./route";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 const workerId = "device-one:instance-one";
 const actor = { kind: "windows_service_device", id: workerId, deviceId: "device-one", companyId: "company-one",
-  instanceId: "instance-one", credentialHash: "a".repeat(64), device: {}, purposes: [], capabilities: [] };
+  ownerPrincipalId: "principal-one", instanceId: "instance-one", credentialHash: "a".repeat(64), device: {}, purposes: [], capabilities: [] };
 const basis = { companyId: "company-one", sourceFileAssetId: "asset-one", sourceContentHash: "a".repeat(64), attemptCount: 1, lockedAt: "2026-10-23T00:00:00.000Z" };
 const params = { params: Promise.resolve({ jobId: "job-one" }) };
 function request(body: object, authorized = true) {
@@ -29,7 +30,7 @@ it("keeps an authenticated worker cancellation distinct from a failed renderer",
   const response = await POST(request({ status: "cancelled", leaseBasis: basis, workerId, derivatives: [{ unsafe: "ignored" }] }), params);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ accepted: true, derivativeIds: [], leaseProtocolVersion: 2 });
-  expect(mocks.complete).toHaveBeenCalledWith({}, { workerId, jobId: "job-one", status: "cancelled", leaseBasis: basis, cancelReason:"operator_shutdown" });
+  expect(mocks.complete).toHaveBeenCalledWith({}, { workerId, ownerPrincipalId: "principal-one", jobId: "job-one", status: "cancelled", leaseBasis: basis, cancelReason:"operator_shutdown" });
 });
 it.each([undefined, {}, { ...basis, attemptCount: 0 }, { ...basis, sourceContentHash: "wrong" }])("rejects incomplete cancellation basis before database access: %j", async leaseBasis => {
   const response = await POST(request({ status: "cancelled", leaseBasis }), params);
@@ -62,4 +63,15 @@ it.each(["failed", "skipped", "succeeded", "cancelled"])("echoes the negotiated 
   const response = await POST(request({ status }), params);
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ accepted: true, leaseProtocolVersion: 2 });
+});
+
+it.each([
+  ["PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403],
+  ["PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE",503]
+] as const)("returns a safe typed completion refusal for %s",async(code,status)=>{
+  const error=new PrincipalJobAuthorityError(code,status);error.message="private-provider-detail";
+  mocks.complete.mockRejectedValueOnce(error);
+  const response=await POST(request({status:"cancelled"}),params);
+  expect(response.status).toBe(status);expect(await response.json()).toEqual({error:code});
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
 });

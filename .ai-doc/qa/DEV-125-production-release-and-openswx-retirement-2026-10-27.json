@@ -1,8 +1,8 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T20:03:00.000Z",
-  "status": "RELEASED_R25_PREVIEW_HEARTBEAT_CORRECTIVE_IN_PROGRESS",
+  "recordedAt": "2026-10-27T21:20:41.063Z",
+  "status": "RELEASED_R26_FORMAL_ACCEPTANCE_IN_PROGRESS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -19,13 +19,35 @@
   },
   "currentCandidate": {
     "branch": "main",
-    "revision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
-    "pullRequest": 538,
-    "relatedPullRequests": [535, 536, 537, 538],
-    "replacedDraftPullRequest": {"number":533,"state":"CLOSED","merged":false,"closedAt":"2026-10-27T17:24:02Z"},
-    "requiredCi": {"run":40565759836,"conclusion":"success"},
-    "mainCi": {"run":40566610056,"conclusion":"success","checks":["DEV-012 Isolated PostgreSQL Cutover","Production Slice QC"]},
-    "productionRelease": "DEV125-SELFLINK-20261028-R25"
+    "revision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+    "pullRequest": 539,
+    "relatedPullRequests": [
+      535,
+      536,
+      537,
+      538,
+      539
+    ],
+    "replacedDraftPullRequest": {
+      "number": 533,
+      "state": "CLOSED",
+      "merged": false,
+      "closedAt": "2026-10-27T17:24:02Z",
+      "description": "CLOSED_UNMERGED_WITH_EXPLICIT_WITHDRAWAL_NOTICE; unknown merge worktree preserved"
+    },
+    "requiredCi": {
+      "run": 40579710850,
+      "conclusion": "success"
+    },
+    "mainCi": {
+      "run": 40581270745,
+      "conclusion": "success",
+      "checks": [
+        "DEV-012 Isolated PostgreSQL Cutover",
+        "Production Slice QC"
+      ]
+    },
+    "productionRelease": "DEV125-SELFLINK-20261028-R26"
   },
   "localVerification": {
     "typecheckApp": "PASS",
@@ -41,11 +63,20 @@
     "principalPreviewRecognitionFocused": "PASS_96",
     "routePolicySource": "PASS",
     "lint": "PASS_0_ERRORS_9_PREEXISTING_WARNINGS",
-    "isolatedBuild": "PASS_PRIMARY_UNCHANGED",
+    "isolatedBuild": "NOT_RUN_FOR_CORRECTIVE_CAPACITY_BLOCKED",
     "initialInstallerCompile": "FAIL_CSHARP5_AWAIT_IN_CATCH_AND_FALSE_PASS_DETECTED",
     "installerCompileCorrection": "PASS_MAIN_CI_OFFICIAL_INSTALLER_0.1.0-ci.1383",
     "installerOverlayCorrection": "PASS_CONTRACT_13_NODE_29_VITEST_AND_AFFECTED_SLICE_FORMAL_PENDING",
-    "notProductionProof": true
+    "notProductionProof": true,
+    "historicalIsolatedBuildObservation": {
+      "status": "PASS_PRIMARY_UNCHANGED",
+      "scope": "PRIOR_RECORD_NOT_CURRENT_R26_PROOF"
+    },
+    "exactMainCiIsolatedBuild": {
+      "run": 40581270745,
+      "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+      "status": "PASS"
+    }
   },
   "acceptanceMatrix": [
     {"id":"SELF-LINK-RD","actor":"RD","expected":"Google SSO self-link without PDM manager approval","status":"PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"},
@@ -61,6 +92,14 @@
     {"id":"SECRET-BYTES-REDACTION","expected":"No Document Manager key, device token or CAD bytes in UI, API logs or evidence","status":"PLANNED_FORMAL"}
   ],
   "previousReleasedSource": {
+    "revision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
+    "pullRequest": 538,
+    "relatedPullRequests": [535, 536, 537, 538],
+    "requiredCiRun": 40565759836,
+    "mainCiRun": 40566610056,
+    "requiredCiConclusion": "success"
+  },
+  "previousReleasedSourceR20": {
     "revision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
     "pullRequest": 531,
     "relatedPullRequests": [529, 530, 531],
@@ -68,6 +107,96 @@
     "requiredCiConclusion": "success"
   },
   "release": {
+    "releaseId": "DEV125-SELFLINK-20261028-R26",
+    "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+    "githubRun": 40582723848,
+    "githubRunConclusion": "success",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-SELFLINK-20261028-R26/3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
+    "releaseIntentSha256": "3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
+    "deploymentCapsuleSha256": "c082671e5a78e95f648c23f5785a59e317d2688ede0f295a03a2bc277c97f169",
+    "terminalReceiptSha256": "d4ec4b55703a7a020ff4d53943be43fa295b7708e7c21cd7597a1ea1d89297ab",
+    "terminalResult": "RELEASED",
+    "remainingHumanAction": 0,
+    "remainingHumanActionScope": "RELEASE_WORKFLOW_ONLY_NOT_PRODUCT_ACCEPTANCE",
+    "stages": {
+      "prepare": "PASS",
+      "windowsInstallerBind": "PASS",
+      "build": "PASS",
+      "migrate": "PASS",
+      "candidate": "PASS",
+      "entrypoint": "PASS",
+      "verify": "PASS",
+      "decision": "PASS",
+      "activate": "PASS",
+      "canonical": "PASS",
+      "finalize": "PASS",
+      "terminal": "PASS"
+    },
+    "database": {
+      "disposition": "FORWARD_APPLIED",
+      "applied": 0,
+      "replayed": 40,
+      "ledgerCount": 40,
+      "boundaryStatus": "PASS",
+      "migration089Modified": false,
+      "migration090": "APPLIED_AND_REPLAYED",
+      "executionName": "ai-pdm-prod-migration-runner-d9vzc"
+    },
+    "service": {
+      "name": "ai-pdm-prod",
+      "revision": "ai-pdm-prod-e1c3d515850c",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:8e016521852c0efba2427ae0aef10e5c2ed6624c0601ca14dc157919d03e353e",
+      "trafficPercent": 100,
+      "trafficTargets": 1,
+      "tags": 0,
+      "ready": true
+    },
+    "smoke": {
+      "candidate": "PASS",
+      "canonical": "PASS",
+      "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+      "authModeProbe": 200,
+      "platformSessionProbe": 200,
+      "ssoStartAuthorizeCallback": 303,
+      "targetSessionProbe": 200,
+      "authenticatedProbe": 200,
+      "unauthenticatedProbe": 401,
+      "revokedSessionProbe": 401
+    },
+    "installer": {
+      "version": "0.1.0-ci.1391",
+      "protocolVersion": 1,
+      "sha256": "8079fb62ab1df48c8c50f88373f999f78c999739dc00be4a63b86410db674b95",
+      "size": 29267659,
+      "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+      "artifactId": 12768734960,
+      "localDownloadHash": "PASS",
+      "releaseCapsuleBinding": "PASS"
+    },
+    "providerReadback": {
+      "githubRun": 40585061298,
+      "observedAt": "2026-10-27T21:15:23.679Z",
+      "generation": "291",
+      "reconciling": false,
+      "resultRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/a48847e29124b6acd25de1008b5b408e968df80cd402d5a980cb084071a741e9/d3de1291157e80887b9d22ea346238e107151a8f1e47240308b45d0eaeddd78f.json",
+        "sha256": "0dc89d78f404a5a73f903ea58a0aac4da1afd0f9f74b51cf304645f13b748d2d"
+      },
+      "canonicalReportDigest": "d3de1291157e80887b9d22ea346238e107151a8f1e47240308b45d0eaeddd78f",
+      "runtimeMutation": false,
+      "databaseMutation": false
+    },
+    "negativeSmoke": {
+      "observedAt": "2026-10-27T21:14:19.422Z",
+      "requests": 23,
+      "deviceAuthDenials": 23,
+      "status": "PASS",
+      "rawResultSha256": "296254be1d3c842cc664d3f2291cd31e3b1ed158bdc1799ba01d40f813f2a64e",
+      "rawBodiesRecorded": false,
+      "credentialsRecorded": false
+    }
+  },
+  "previousReleaseR25": {
     "releaseId": "DEV125-SELFLINK-20261028-R25",
     "sourceRevision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
     "githubRun": 40567208247,
@@ -79,39 +208,199 @@
     "terminalResult": "RELEASED",
     "remainingHumanAction": 0,
     "remainingHumanActionScope": "RELEASE_WORKFLOW_ONLY_NOT_PRODUCT_ACCEPTANCE",
-    "stages": {"prepare":"PASS","windowsInstallerBind":"PASS","build":"PASS","migrate":"PASS","candidate":"PASS","entrypoint":"PASS","verify":"PASS","decision":"PASS","activate":"PASS","canonical":"PASS","finalize":"PASS","terminal":"PASS"},
-    "database": {"disposition":"FORWARD_APPLIED","applied":0,"replayed":40,"ledgerCount":40,"boundaryStatus":"PASS","migration089Modified":false,"migration090":"APPLIED_AND_REPLAYED","executionName":"ai-pdm-prod-migration-runner-n47wz"},
-    "service": {"name":"ai-pdm-prod","revision":"ai-pdm-prod-8effb9783333","imageDigest":"asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:d9088c0f17638c43d24f95f62a677394ff2121095151016e6f23180405433816","trafficPercent":100,"trafficTargets":1,"tags":0,"ready":true},
-    "smoke": {"candidate":"PASS","canonical":"PASS","origin":"https://ai-pdm-prod-9536592944.asia-east1.run.app","authModeProbe":200,"platformSessionProbe":200,"ssoStartAuthorizeCallback":303,"targetSessionProbe":200,"authenticatedProbe":200,"unauthenticatedProbe":401,"revokedSessionProbe":401},
-    "installer": {"version":"0.1.0-ci.1383","protocolVersion":1,"sha256":"aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d","size":29267355,"sourceRevision":"06d370bba2749230e4c70c8ae7bfa4580613a6e6","artifactId":12763163010,"localDownloadHash":"PASS","releaseCapsuleBinding":"PASS"}
+    "stages": {
+      "prepare": "PASS",
+      "windowsInstallerBind": "PASS",
+      "build": "PASS",
+      "migrate": "PASS",
+      "candidate": "PASS",
+      "entrypoint": "PASS",
+      "verify": "PASS",
+      "decision": "PASS",
+      "activate": "PASS",
+      "canonical": "PASS",
+      "finalize": "PASS",
+      "terminal": "PASS"
+    },
+    "database": {
+      "disposition": "FORWARD_APPLIED",
+      "applied": 0,
+      "replayed": 40,
+      "ledgerCount": 40,
+      "boundaryStatus": "PASS",
+      "migration089Modified": false,
+      "migration090": "APPLIED_AND_REPLAYED",
+      "executionName": "ai-pdm-prod-migration-runner-n47wz"
+    },
+    "service": {
+      "name": "ai-pdm-prod",
+      "revision": "ai-pdm-prod-8effb9783333",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:d9088c0f17638c43d24f95f62a677394ff2121095151016e6f23180405433816",
+      "trafficPercent": 100,
+      "trafficTargets": 1,
+      "tags": 0,
+      "ready": true
+    },
+    "smoke": {
+      "candidate": "PASS",
+      "canonical": "PASS",
+      "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+      "authModeProbe": 200,
+      "platformSessionProbe": 200,
+      "ssoStartAuthorizeCallback": 303,
+      "targetSessionProbe": 200,
+      "authenticatedProbe": 200,
+      "unauthenticatedProbe": 401,
+      "revokedSessionProbe": 401
+    },
+    "installer": {
+      "version": "0.1.0-ci.1383",
+      "protocolVersion": 1,
+      "sha256": "aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d",
+      "size": 29267355,
+      "sourceRevision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
+      "artifactId": 12763163010,
+      "localDownloadHash": "PASS",
+      "releaseCapsuleBinding": "PASS"
+    }
   },
   "currentWindowsAcceptance": {
-    "status": "UAC_CANCELLED_OR_EXPIRED_INSTALL_NOT_EXECUTED",
-    "uacObservation": "Windows elevation launch returned operation cancelled; no installer process remains and installed version is unchanged",
-    "installerVersion": "0.1.0-ci.1383",
+    "status": "ELEVATION_NOT_COMPLETED_INSTALL_NOT_EXECUTED",
+    "uacObservation": "Launcher returned InvalidOperationException; no installer process remains; installed version is still .1370. Cause not inferred; a new UAC handoff requires the user.",
+    "installerVersion": "0.1.0-ci.1391",
     "installedVersionBeforeUpgrade": "0.1.0-ci.1370",
     "observedServiceAccount": "NT AUTHORITY\\LocalService",
     "serviceStateBeforeUpgrade": "Running",
     "googleSelfLink": "NOT_RUN",
     "overlayIdempotency": "NOT_RUN_FORMAL",
     "nativeThreeFormatUnderService": "NOT_RUN",
-    "knownAssemblySample": {"fileName":"A0053.SLDASM","size":174437,"sha256":"a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694","status":"LOCATED_NOT_FORMAL_PARSE_PROOF"}
+    "knownAssemblySample": {
+      "fileName": "A0053.SLDASM",
+      "size": 174437,
+      "sha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+      "status": "LOCATED_NOT_FORMAL_PARSE_PROOF"
+    },
+    "installedVersionReadback": "0.1.0-ci.1370",
+    "installerProcessCount": 0,
+    "productionUi": {
+      "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+      "actorScope": "EXISTING_COMPANY_GOOGLE_ADMIN_ONLY_NOT_THREE_ROLE_PROOF",
+      "authenticatedSettingsPage": "PASS",
+      "installerLink": "PASS",
+      "emptyDeviceList": "PASS",
+      "manualRegistrationCodeFields": "ABSENT",
+      "formalGooglePairing": "NOT_RUN"
+    },
+    "productionInstallerDownload": {
+      "status": "EXACT_BYTES_PASS_BROWSER_COMPLETION_PENDING",
+      "source": "AUTHENTICATED_CANONICAL_PAGE_LINK",
+      "version": "0.1.0-ci.1391",
+      "size": 29267659,
+      "sha256": "8079fb62ab1df48c8c50f88373f999f78c999739dc00be4a63b86410db674b95",
+      "browserState": "UNCONFIRMED_FULL_TEMPORARY_FILE",
+      "browserDownloadsInspection": "AUTOMATIC_POLICY_REJECTED_CHROME_SCHEME_HTTP_HTTPS_ONLY",
+      "bypassAttempted": false,
+      "userHandoff": "CHECK_CHROME_DOWNLOAD_INDICATOR_AND_COMPLETE_WINDOWS_UAC"
+    }
   },
   "previewHeartbeatCorrective": {
     "pullRequest": 539,
-    "status": "LOCAL_IMPLEMENTED_REQUIRED_CI_AND_RELEASE_PENDING",
-    "productionFinding": {"source":"R25","endpoint":"POST /api/preview-workers/heartbeat","status":403,"error":"feature_not_open_in_production_slice","impact":"valid device capability heartbeat is blocked before owner authentication"},
-    "negativeSmoke": {"observedAt":"2026-10-27T19:42:48.428Z","requests":21,"allDenied":true,"deviceAuthDenials":20,"sliceDenial":1,"proofScope":"ANONYMOUS_DENIAL_ONLY_NOT_VALID_WORKER_SUCCESS","rawResultSha256":"eb955652b576df4ea4e854bdc17d4b697d4669b94eec77f02026a20c80405880","rawBodiesRecorded":false},
-    "relatedSourceFindings": ["non-manager device probe claim failed before business work", "native key was fetched before job claim and cached across jobs"],
-    "changes": ["exact POST preview capability heartbeat admission with existing device guards", "non-manager probe claim returns empty queue before reconciliation", "native key requires owned current preview or recognition lease and source", "device and source authority rechecked after provider I/O", "worker checks metadata readiness then claims and holds key only within current job", "provider outages wait on the same job lease without failed completion or reclaim", "successful leased probe reports its version/fingerprint heartbeat"],
-    "focusedVerification": {"vitest":171,"workerRuntime":7,"postgres":11,"nativeComExecutedByTheseTests":false},
-    "initialRequiredCiFailure": {"run":40575253108,"check":"Production Slice QC","step":"Verify preview and recognition slice","test":"production-slice.settings.test.ts","cause":"Historical deny-list still blocked exact preview heartbeat, contradicting current guarded admission","correction":"Move exact POST heartbeat into admitted cases; keep suffix and non-POST paths blocked; rerun both settings and actual device-handler tests"},
-    "correctedPreviewSliceLocal": {"vitest":327,"settingsAndActualDeviceHandler":73,"dev079SourceContract":"PASS","dev079IsolatedOwnerInvariant":"PASS","requiredCi":"PENDING_NEW_HEAD"},
-    "viewDownloadCorrective": {"finding":"server preview view-only guard and recognition download-only guard were insufficient for per-user Windows delivery of original CAD","correction":"require both actions on actual resource groups before claim, source, heartbeat, complete and job key; include native part/assembly model scope before attempt increment","focusedBehaviorTests":44,"typecheck":"PASS","changedLint":"PASS","priorHeadCiRun":40576800557,"priorHeadCiConclusion":"success","currentHeadRequiredCi":"PENDING_NEW_HEAD","productionProof":false},
-    "firstLoginCorrective": {"finding":"installer pairing URL without an existing app session showed forbidden instead of automatically starting company SSO","correction":"401 starts existing SSO with exact pairing returnTo; authenticated session skips redundant login; 403 and 503 never trigger login loops","capturedHookBehaviorTests":4,"formalBrowserProof":false},
+    "status": "RELEASED_R26_NEGATIVE_SMOKE_PASS_FORMAL_WINDOWS_PENDING",
+    "productionFinding": {
+      "source": "R25",
+      "endpoint": "POST /api/preview-workers/heartbeat",
+      "status": 403,
+      "error": "feature_not_open_in_production_slice",
+      "impact": "valid device capability heartbeat is blocked before owner authentication"
+    },
+    "negativeSmoke": {
+      "observedAt": "2026-10-27T19:42:48.428Z",
+      "requests": 21,
+      "allDenied": true,
+      "deviceAuthDenials": 20,
+      "sliceDenial": 1,
+      "proofScope": "ANONYMOUS_DENIAL_ONLY_NOT_VALID_WORKER_SUCCESS",
+      "rawResultSha256": "eb955652b576df4ea4e854bdc17d4b697d4669b94eec77f02026a20c80405880",
+      "rawBodiesRecorded": false
+    },
+    "relatedSourceFindings": [
+      "non-manager device probe claim failed before business work",
+      "native key was fetched before job claim and cached across jobs"
+    ],
+    "changes": [
+      "exact POST preview capability heartbeat admission with existing device guards",
+      "non-manager probe claim returns empty queue before reconciliation",
+      "native key requires owned current preview or recognition lease and source",
+      "device and source authority rechecked after provider I/O",
+      "worker checks metadata readiness then claims and holds key only within current job",
+      "provider outages wait on the same job lease without failed completion or reclaim",
+      "successful leased probe reports its version/fingerprint heartbeat"
+    ],
+    "focusedVerification": {
+      "vitest": 171,
+      "workerRuntime": 7,
+      "postgres": 11,
+      "nativeComExecutedByTheseTests": false
+    },
+    "initialRequiredCiFailure": {
+      "run": 40575253108,
+      "check": "Production Slice QC",
+      "step": "Verify preview and recognition slice",
+      "test": "production-slice.settings.test.ts",
+      "cause": "Historical deny-list still blocked exact preview heartbeat, contradicting current guarded admission",
+      "correction": "Move exact POST heartbeat into admitted cases; keep suffix and non-POST paths blocked; rerun both settings and actual device-handler tests"
+    },
+    "correctedPreviewSliceLocal": {
+      "vitest": 327,
+      "settingsAndActualDeviceHandler": 73,
+      "dev079SourceContract": "PASS",
+      "dev079IsolatedOwnerInvariant": "PASS",
+      "requiredCi": "PASS_40576800557_FOR_THAT_HEAD",
+      "sourceRevision": "90c32be8538f2f83390b1921b88b9622c5b69b0c"
+    },
+    "viewDownloadCorrective": {
+      "finding": "server preview view-only guard and recognition download-only guard were insufficient for per-user Windows delivery of original CAD",
+      "correction": "require both actions on actual resource groups before claim, source, heartbeat, complete and job key; include native part/assembly model scope before attempt increment",
+      "focusedBehaviorTests": 44,
+      "typecheck": "PASS",
+      "changedLint": "PASS",
+      "priorHeadCiRun": 40576800557,
+      "priorHeadCiConclusion": "success",
+      "currentHeadRequiredCi": "PASS_40579710850_AND_EXACT_MAIN_40581270745",
+      "productionProof": false,
+      "currentPolicyMissing": "DENY_503_NO_LEGACY_FALLBACK"
+    },
+    "firstLoginCorrective": {
+      "finding": "installer pairing URL without an existing app session showed forbidden instead of automatically starting company SSO",
+      "correction": "401 starts existing SSO with exact pairing returnTo; authenticated session skips redundant login; 403 and 503 never trigger login loops",
+      "capturedHookBehaviorTests": 4,
+      "formalBrowserProof": false
+    },
     "attemptLossReview": "P1_FOUND_AND_CORRECTED_BEFORE_RELEASE_METADATA_PREFLIGHT_AND_SAME_LEASE_PROVIDER_WAIT_WITH_SERIAL_PROBE_RECOVERY",
     "localIsolatedBuild": "NOT_RUN_CAPACITY_RESERVATION_BLOCKED_REQUIRED_CI_ISOLATED_BUILD_REQUIRED",
-    "formalFeatureAcceptance": "PENDING_CORRECTIVE_RELEASE_AND_WINDOWS_INSTALL"
+    "formalFeatureAcceptance": "PARTIAL_23_FORMAL_AUTH_DENIALS_PASS_WINDOWS_INSTALL_AND_POSITIVE_JOBS_PENDING",
+    "currentRequiredCi": {
+      "run": 40579710850,
+      "conclusion": "success"
+    },
+    "exactMainCi": {
+      "run": 40581270745,
+      "conclusion": "success"
+    },
+    "productionRelease": "DEV125-SELFLINK-20261028-R26"
+  },
+  "previewHttpErrorCorrective": {
+    "status": "LOCAL_IMPLEMENTED_REQUIRED_CI_AND_RELEASE_PENDING",
+    "foundInSourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+    "finding": "preview claim and heartbeat did not map typed authority errors; complete used a generic message mapper, yielding 500 instead of intended 403 or 503",
+    "securityDisposition": "DOMAIN_REFUSAL_REMAINS_FAIL_CLOSED_NO_CAD_KEY_RESULT_OR_ATTEMPT_INCREASE",
+    "changes": "map only PrincipalJobAuthorityError to its enum and HTTP status with private,no-store; retain existing input, lease and unknown-error behavior",
+    "realRouteTests": 40,
+    "newTyped403503Cases": 6,
+    "nativeComProof": false,
+    "migrationChange": false,
+    "workerInstallerLogicChange": false,
+    "iamSecretOrgMasterChange": false
   },
   "previousReleaseR20": {
     "releaseId": "DEV125-WINDOWS-20261027-R20",
@@ -265,12 +554,13 @@
     "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "PARTIAL_R25_RELEASE_CHAIN_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
+    "V125-12": "PARTIAL_R26_RELEASE_CHAIN_AND_NEGATIVE_AUTH_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Install and Google-self-link the same-source Windows service on authorized RD, procurement-production-control and production user contexts",
+    "Complete Windows elevation and install the verified R26 .1391 package; the current machine remains .1370",
+    "Google-self-link under authorized RD, procurement-production-control and production users; existing role-specific accounts are awaiting user identification",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",
     "Verify A0001-M01 native preview, PDF, role-scoped recognition and normal UI outcomes",
