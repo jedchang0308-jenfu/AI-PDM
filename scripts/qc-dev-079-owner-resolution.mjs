@@ -223,14 +223,15 @@ assert.ok(otherPart?.id, "multi-owner fail-closed coverage requires a second com
 const session = await recognition.rerunDrawingRecognition({ sessionId: sourceSession.id, companyId, actorId: actor.id, roles: [actor.role] });
 db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?").run(new Date(0).toISOString(), session.id);
 db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id <> ? AND status = 'queued'").run("2999-12-31T00:00:00.000Z", session.id);
-const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-079-owner", maxAttempts: 2 });
+const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-079-owner", companyId, maxAttempts: 2 });
 assert.equal(job?.sessionId, session.id, "worker must claim the task-owned A0044 rerun");
 assert.deepEqual([...new Set(job.targetContext.parts.map((item) => item.partNumber))], ["A0044-P01"]);
 
 const ingestedProjection = await recognition.completeDrawingRecognitionJob({
   sessionId: session.id,
   workerId: "qc-dev-079-owner",
-  sourceSetFingerprint: job.sourceSetFingerprint,
+  leaseBasis: { companyId: job.companyId, sourceSetFingerprint: job.sourceSetFingerprint,
+    attemptCount: job.attemptCount, lockedAt: job.lockedAt },
   results: [{
     sourceId: job.sources.find((item) => /\.sldasm$/iu.test(item.fileName))?.id ?? job.sources[0].id,
     adapterCode: "qc-dev-079-owner.v1",

@@ -48,7 +48,7 @@ const session = await recognition.createDrawingRecognitionSession({
   sourceContextId: revisionId
 });
 db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?").run(new Date(0).toISOString(), session.id);
-const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-068-a0005", maxAttempts: 2 });
+const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-068-a0005", companyId, maxAttempts: 2 });
 assert.equal(job?.sessionId, session.id, "worker must claim the new session");
 assert.equal(job.targetContext.drawingNumber, "A0005-M01");
 assert.deepEqual(job.targetContext.parts.map((part) => part.partNumber), ["A0005-P01", "A0005-P02", "A0005-P03"]);
@@ -60,7 +60,8 @@ const results = job.sources.flatMap((source) => {
 const projection = await recognition.completeDrawingRecognitionJob({
   sessionId: job.sessionId,
   workerId: "qc-dev-068-a0005",
-  sourceSetFingerprint: job.sourceSetFingerprint,
+  leaseBasis: { companyId: job.companyId, sourceSetFingerprint: job.sourceSetFingerprint,
+    attemptCount: job.attemptCount, lockedAt: job.lockedAt },
   results
 });
 assert.equal(projection.status, "review_ready");
@@ -157,7 +158,7 @@ assert.equal(appendOnlyProtected, true, "decision audit rows must be append-only
 
 const rerun = await recognition.rerunDrawingRecognition({ sessionId: session.id, companyId, actorId: actor.id, roles: [actor.role] });
 db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?").run(new Date(0).toISOString(), rerun.id);
-const rerunJob = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-068-a0005-rerun", maxAttempts: 2 });
+const rerunJob = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-068-a0005-rerun", companyId, maxAttempts: 2 });
 assert.equal(rerunJob?.sessionId, rerun.id);
 const rerunResults = rerunJob.sources.flatMap((source) => {
   const fixture = adapters.buildA0005FixtureResult(rerunJob, source);
@@ -182,7 +183,9 @@ rerunResults.push({
     applicabilityScope: p01.partNumber
   }]
 });
-const rerunProjection = await recognition.completeDrawingRecognitionJob({ sessionId: rerun.id, workerId: "qc-dev-068-a0005-rerun", sourceSetFingerprint: rerunJob.sourceSetFingerprint, results: rerunResults });
+const rerunProjection = await recognition.completeDrawingRecognitionJob({ sessionId: rerun.id, workerId: "qc-dev-068-a0005-rerun",
+  leaseBasis: { companyId: rerunJob.companyId, sourceSetFingerprint: rerunJob.sourceSetFingerprint,
+    attemptCount: rerunJob.attemptCount, lockedAt: rerunJob.lockedAt }, results: rerunResults });
 const changedCandidate = rerunProjection.candidates.find((candidate) => candidate.category === "part_attribute" && candidate.fieldKey === "material" && candidate.applicabilityScope === "A0005-P02");
 const missingValueCandidate = rerunProjection.candidates.find((candidate) => candidate.category === "part_attribute" && candidate.fieldKey === "reference_motor_code" && candidate.variantStatus === "unrecognized");
 assert.ok(changedCandidate && missingValueCandidate);

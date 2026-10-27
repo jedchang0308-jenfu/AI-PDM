@@ -279,11 +279,13 @@ try {
     PDM_DRAWING_RECOGNITION_V1: "true",
     PDM_AUTH_SECRET: "dev-079-invariant-isolated"
   });
-  const [{ createAsyncDatabaseClient }, { DrawingRecognitionAsyncRepository }, recognition] = await Promise.all([
+  const [{ createAsyncDatabaseClient }, { DrawingRecognitionAsyncRepository }, recognition, { ensureDev125WindowsServiceSchema }] = await Promise.all([
     import("../src/lib/db-async-provider.ts"),
     import("../src/lib/repositories/drawing-recognition-async-repository.ts"),
-    import("../src/lib/drawing-recognition.ts")
+    import("../src/lib/drawing-recognition.ts"),
+    import("../src/lib/db.ts")
   ]);
+  ensureDev125WindowsServiceSchema(fixtureDb);
   const asyncClient = createAsyncDatabaseClient({ kind: "sqlite", database: fixtureDb });
   const repository = new DrawingRecognitionAsyncRepository(asyncClient);
   const legacyImpact = await repository.calculateImpact({
@@ -332,14 +334,16 @@ try {
   const rerun = await recognition.rerunDrawingRecognition({ sessionId: sourceSession.id, companyId: acceptedOwnerless.company_id, actorId: actor.id, roles: [actor.role], client: asyncClient });
   fixtureDb.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?").run(new Date(0).toISOString(), rerun.id);
   fixtureDb.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id <> ? AND status = 'queued'").run("2999-12-31T00:00:00.000Z", rerun.id);
-  const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev079-invariant", maxAttempts: 2, allowNativeSources: true, client: asyncClient });
+  const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev079-invariant", companyId: acceptedOwnerless.company_id,
+    maxAttempts: 2, allowNativeSources: true, client: asyncClient });
   assert.equal(job.sessionId, rerun.id);
   const owner = job.targetContext.parts.find((part) => part.partNumber === "A0002-P01");
   assert.ok(owner?.id);
   let projection = await recognition.completeDrawingRecognitionJob({
     sessionId: rerun.id,
     workerId: "qc-dev079-invariant",
-    sourceSetFingerprint: job.sourceSetFingerprint,
+    leaseBasis: { companyId: job.companyId, sourceSetFingerprint: job.sourceSetFingerprint,
+      attemptCount: job.attemptCount, lockedAt: job.lockedAt },
     client: asyncClient,
     results: [{
       sourceId: job.sources.find((source) => /\.sld(?:prt|asm)$/i.test(source.fileName))?.id ?? job.sources[0].id,
