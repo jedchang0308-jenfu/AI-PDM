@@ -1,8 +1,8 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T21:20:41.063Z",
-  "status": "RELEASED_R26_FORMAL_ACCEPTANCE_IN_PROGRESS",
+  "recordedAt": "2026-10-27T22:07:41.935Z",
+  "status": "RELEASED_R27_FORMAL_ACCEPTANCE_IN_PROGRESS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -19,14 +19,15 @@
   },
   "currentCandidate": {
     "branch": "main",
-    "revision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
-    "pullRequest": 539,
+    "revision": "3b6b38208fdb2787740bb28388026702b182566f",
+    "pullRequest": 540,
     "relatedPullRequests": [
       535,
       536,
       537,
       538,
-      539
+      539,
+      540
     ],
     "replacedDraftPullRequest": {
       "number": 533,
@@ -36,18 +37,18 @@
       "description": "CLOSED_UNMERGED_WITH_EXPLICIT_WITHDRAWAL_NOTICE; unknown merge worktree preserved"
     },
     "requiredCi": {
-      "run": 40579710850,
+      "run": 40587727379,
       "conclusion": "success"
     },
     "mainCi": {
-      "run": 40581270745,
+      "run": 40589008519,
       "conclusion": "success",
       "checks": [
         "DEV-012 Isolated PostgreSQL Cutover",
         "Production Slice QC"
       ]
     },
-    "productionRelease": "DEV125-SELFLINK-20261028-R26"
+    "productionRelease": "DEV125-SELFLINK-20261028-R27"
   },
   "localVerification": {
     "typecheckApp": "PASS",
@@ -73,10 +74,11 @@
       "scope": "PRIOR_RECORD_NOT_CURRENT_R26_PROOF"
     },
     "exactMainCiIsolatedBuild": {
-      "run": 40581270745,
-      "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+      "run": 40589008519,
+      "sourceRevision": "3b6b38208fdb2787740bb28388026702b182566f",
       "status": "PASS"
-    }
+    },
+    "previewHttpRoutes": "PASS_40_REQUIRED_CI_CONFIRMED"
   },
   "acceptanceMatrix": [
     {"id":"SELF-LINK-RD","actor":"RD","expected":"Google SSO self-link without PDM manager approval","status":"PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"},
@@ -92,11 +94,17 @@
     {"id":"SECRET-BYTES-REDACTION","expected":"No Document Manager key, device token or CAD bytes in UI, API logs or evidence","status":"PLANNED_FORMAL"}
   ],
   "previousReleasedSource": {
-    "revision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
-    "pullRequest": 538,
-    "relatedPullRequests": [535, 536, 537, 538],
-    "requiredCiRun": 40565759836,
-    "mainCiRun": 40566610056,
+    "revision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+    "pullRequest": 539,
+    "relatedPullRequests": [
+      535,
+      536,
+      537,
+      538,
+      539
+    ],
+    "requiredCiRun": 40579710850,
+    "mainCiRun": 40581270745,
     "requiredCiConclusion": "success"
   },
   "previousReleasedSourceR20": {
@@ -107,14 +115,14 @@
     "requiredCiConclusion": "success"
   },
   "release": {
-    "releaseId": "DEV125-SELFLINK-20261028-R26",
-    "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
-    "githubRun": 40582723848,
+    "releaseId": "DEV125-SELFLINK-20261028-R27",
+    "sourceRevision": "3b6b38208fdb2787740bb28388026702b182566f",
+    "githubRun": 40589771592,
     "githubRunConclusion": "success",
-    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-SELFLINK-20261028-R26/3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
-    "releaseIntentSha256": "3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
-    "deploymentCapsuleSha256": "c082671e5a78e95f648c23f5785a59e317d2688ede0f295a03a2bc277c97f169",
-    "terminalReceiptSha256": "d4ec4b55703a7a020ff4d53943be43fa295b7708e7c21cd7597a1ea1d89297ab",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-SELFLINK-20261028-R27/14d74f8d4eb1c88a2bc276922222b6f2954b033549871082857948e101f51e9c",
+    "releaseIntentSha256": "14d74f8d4eb1c88a2bc276922222b6f2954b033549871082857948e101f51e9c",
+    "deploymentCapsuleSha256": "cf1daddcaab0fd85b27fdeab7378794cd0c30420672798404c2d1b520192cbb4",
+    "terminalReceiptSha256": "c809f563b4e56f46bce0e27849136de52100d0773cd14634392eab46362d6868",
     "terminalResult": "RELEASED",
     "remainingHumanAction": 0,
     "remainingHumanActionScope": "RELEASE_WORKFLOW_ONLY_NOT_PRODUCT_ACCEPTANCE",
@@ -140,12 +148,12 @@
       "boundaryStatus": "PASS",
       "migration089Modified": false,
       "migration090": "APPLIED_AND_REPLAYED",
-      "executionName": "ai-pdm-prod-migration-runner-d9vzc"
+      "executionName": "ai-pdm-prod-migration-runner-qrgk6"
     },
     "service": {
       "name": "ai-pdm-prod",
-      "revision": "ai-pdm-prod-e1c3d515850c",
-      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:8e016521852c0efba2427ae0aef10e5c2ed6624c0601ca14dc157919d03e353e",
+      "revision": "ai-pdm-prod-2767a0101c8f",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:55148a71bca231b50026afcbcb382a6d9f5d43531d16aae6479779db43c395f2",
       "trafficPercent": 100,
       "trafficTargets": 1,
       "tags": 0,
@@ -164,37 +172,57 @@
       "revokedSessionProbe": 401
     },
     "installer": {
-      "version": "0.1.0-ci.1391",
+      "version": "0.1.0-ci.1393",
       "protocolVersion": 1,
-      "sha256": "8079fb62ab1df48c8c50f88373f999f78c999739dc00be4a63b86410db674b95",
-      "size": 29267659,
-      "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
-      "artifactId": 12768734960,
+      "sha256": "04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c",
+      "size": 29267890,
+      "sourceRevision": "3b6b38208fdb2787740bb28388026702b182566f",
+      "artifactId": 12772967923,
       "localDownloadHash": "PASS",
       "releaseCapsuleBinding": "PASS"
     },
     "providerReadback": {
-      "githubRun": 40585061298,
-      "observedAt": "2026-10-27T21:15:23.679Z",
-      "generation": "291",
+      "githubRun": 40591599517,
+      "observedAt": "2026-10-27T22:03:39.359Z",
+      "generation": "295",
       "reconciling": false,
       "resultRef": {
-        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/a48847e29124b6acd25de1008b5b408e968df80cd402d5a980cb084071a741e9/d3de1291157e80887b9d22ea346238e107151a8f1e47240308b45d0eaeddd78f.json",
-        "sha256": "0dc89d78f404a5a73f903ea58a0aac4da1afd0f9f74b51cf304645f13b748d2d"
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/e798d9bc5dc1f5e095acbda63118629e6aacb722a191298aaf83f802c1998a64/b5549de51fdc42db078f5198f0d7f3e18c58581961d49c015ef333955b8313c3.json",
+        "sha256": "2a6d9385741a4f408a44f46f46f28e7451f4fa86f7691d16618916d75ae43c37"
       },
-      "canonicalReportDigest": "d3de1291157e80887b9d22ea346238e107151a8f1e47240308b45d0eaeddd78f",
+      "canonicalReportDigest": "b5549de51fdc42db078f5198f0d7f3e18c58581961d49c015ef333955b8313c3",
       "runtimeMutation": false,
       "databaseMutation": false
     },
     "negativeSmoke": {
-      "observedAt": "2026-10-27T21:14:19.422Z",
+      "observedAt": "2026-10-27T22:03:33.286Z",
       "requests": 23,
       "deviceAuthDenials": 23,
       "status": "PASS",
-      "rawResultSha256": "296254be1d3c842cc664d3f2291cd31e3b1ed158bdc1799ba01d40f813f2a64e",
+      "rawResultSha256": "fa3c3f490cf11971a035b07fb7a6c199e48bd7c03bdeabf3eec72a4e272cc6b4",
       "rawBodiesRecorded": false,
       "credentialsRecorded": false
     }
+  },
+  "previousReleaseR26": {
+    "releaseId": "DEV125-SELFLINK-20261028-R26",
+    "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
+    "githubRun": 40582723848,
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-SELFLINK-20261028-R26/3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
+    "releaseIntentSha256": "3cb3e2e1c7e0309f8ba9d003a5cdf55b31fad232540d36b0116926ad2ce276c3",
+    "deploymentCapsuleSha256": "c082671e5a78e95f648c23f5785a59e317d2688ede0f295a03a2bc277c97f169",
+    "terminalReceiptSha256": "d4ec4b55703a7a020ff4d53943be43fa295b7708e7c21cd7597a1ea1d89297ab",
+    "terminalResult": "RELEASED",
+    "service": {
+      "name": "ai-pdm-prod",
+      "revision": "ai-pdm-prod-e1c3d515850c",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:8e016521852c0efba2427ae0aef10e5c2ed6624c0601ca14dc157919d03e353e",
+      "trafficPercent": 100,
+      "trafficTargets": 1,
+      "tags": 0,
+      "ready": true
+    },
+    "evidenceDocumentRevision": "3b6b38208fdb2787740bb28388026702b182566f"
   },
   "previousReleaseR25": {
     "releaseId": "DEV125-SELFLINK-20261028-R25",
@@ -265,9 +293,9 @@
     }
   },
   "currentWindowsAcceptance": {
-    "status": "ELEVATION_NOT_COMPLETED_INSTALL_NOT_EXECUTED",
-    "uacObservation": "Launcher returned InvalidOperationException; no installer process remains; installed version is still .1370. Cause not inferred; a new UAC handoff requires the user.",
-    "installerVersion": "0.1.0-ci.1391",
+    "status": "AWAITING_USER_WINDOWS_INSTALL_AND_ROLE_ACTORS",
+    "uacObservation": "No .1393 install attempt; the earlier .1391 elevation did not complete. Current installed version remains .1370; browser download review and Windows UAC require the user.",
+    "installerVersion": "0.1.0-ci.1393",
     "installedVersionBeforeUpgrade": "0.1.0-ci.1370",
     "observedServiceAccount": "NT AUTHORITY\\LocalService",
     "serviceStateBeforeUpgrade": "Running",
@@ -289,9 +317,23 @@
       "installerLink": "PASS",
       "emptyDeviceList": "PASS",
       "manualRegistrationCodeFields": "ABSENT",
-      "formalGooglePairing": "NOT_RUN"
+      "formalGooglePairing": "NOT_RUN",
+      "reuseBasis": "WINDOWS_SERVICE_UI_SOURCE_UNCHANGED_C7EDE379_TO_3B6B3820"
     },
     "productionInstallerDownload": {
+      "status": "NOT_RUN_PENDING_USER_BROWSER_DOWNLOAD_REVIEW",
+      "version": "0.1.0-ci.1393",
+      "size": 29267890,
+      "expectedSha256": "04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c",
+      "actualDownloadedBytesVerified": false
+    },
+    "latestInstallerLaunch": "NOT_RUN_PENDING_USER",
+    "r26ElevationAttempt": {
+      "status": "ELEVATION_NOT_COMPLETED_INSTALL_NOT_EXECUTED",
+      "observation": "Launcher returned InvalidOperationException; no installer process remains; installed version is still .1370. Cause not inferred; a new UAC handoff requires the user.",
+      "installerProcessCount": 0
+    },
+    "previousProductionInstallerDownloadR26": {
       "status": "EXACT_BYTES_PASS_BROWSER_COMPLETION_PENDING",
       "source": "AUTHENTICATED_CANONICAL_PAGE_LINK",
       "version": "0.1.0-ci.1391",
@@ -301,7 +343,8 @@
       "browserDownloadsInspection": "AUTOMATIC_POLICY_REJECTED_CHROME_SCHEME_HTTP_HTTPS_ONLY",
       "bypassAttempted": false,
       "userHandoff": "CHECK_CHROME_DOWNLOAD_INDICATOR_AND_COMPLETE_WINDOWS_UAC"
-    }
+    },
+    "roleActorInventory": "NOT_RUN_BROWSER_NAVIGATION_TIMEOUT_NO_ASSIGNMENT_CHANGE"
   },
   "previewHeartbeatCorrective": {
     "pullRequest": 539,
@@ -390,7 +433,7 @@
     "productionRelease": "DEV125-SELFLINK-20261028-R26"
   },
   "previewHttpErrorCorrective": {
-    "status": "LOCAL_IMPLEMENTED_REQUIRED_CI_AND_RELEASE_PENDING",
+    "status": "RELEASED_R27_SOURCE_AND_CI_PASS_FORMAL_ROLE_CASES_PENDING",
     "foundInSourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
     "finding": "preview claim and heartbeat did not map typed authority errors; complete used a generic message mapper, yielding 500 instead of intended 403 or 503",
     "securityDisposition": "DOMAIN_REFUSAL_REMAINS_FAIL_CLOSED_NO_CAD_KEY_RESULT_OR_ATTEMPT_INCREASE",
@@ -400,7 +443,20 @@
     "nativeComProof": false,
     "migrationChange": false,
     "workerInstallerLogicChange": false,
-    "iamSecretOrgMasterChange": false
+    "iamSecretOrgMasterChange": false,
+    "pullRequest": 540,
+    "sourceRevision": "3b6b38208fdb2787740bb28388026702b182566f",
+    "requiredCi": {
+      "run": 40587727379,
+      "conclusion": "success"
+    },
+    "mainCi": {
+      "run": 40589008519,
+      "conclusion": "success"
+    },
+    "ownerRun": 40589771592,
+    "formalAnonymousSmoke": "PASS_23_DEVICE_AUTH_REJECTIONS_NOT_TYPED_DOMAIN_BRANCH_PROOF",
+    "formalRolePermissionAndDependencyCases": "NOT_RUN_NO_LINKED_ROLE_DEVICE"
   },
   "previousReleaseR20": {
     "releaseId": "DEV125-WINDOWS-20261027-R20",
@@ -554,12 +610,12 @@
     "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "PARTIAL_R26_RELEASE_CHAIN_AND_NEGATIVE_AUTH_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
+    "V125-12": "PARTIAL_R27_RELEASE_CHAIN_AND_NEGATIVE_AUTH_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Complete Windows elevation and install the verified R26 .1391 package; the current machine remains .1370",
+    "Complete browser download review, Windows UAC and installation of verified R27 .1393; current machine remains .1370",
     "Google-self-link under authorized RD, procurement-production-control and production users; existing role-specific accounts are awaiting user identification",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",
