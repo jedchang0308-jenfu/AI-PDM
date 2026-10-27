@@ -30,7 +30,9 @@
   "localVerification": {
     "typecheckApp": "PASS",
     "dev125Contract": "PASS_42",
-    "postgresDeviceOwner": "PASS_9",
+    "postgresDeviceOwner": "PASS_11",
+    "postgresDeviceOwnerScope": "TASK_OWNED_POSTGRES_NOT_PRODUCTION: three non-manager roles each enroll two independent devices and self-revoke; removed, changed or ambiguous Principal mapping denies next authentication; existing account, grant, device and instance cases retained",
+    "postgresCleanup": "PASS_TEMP_ROOT_REMOVED_PORT_53223_RELEASED",
     "affectedProductionSlice": "PASS",
     "continuousReleaseContract": "PASS_382",
     "principalCallerContract": "PASS_597",
@@ -45,9 +47,9 @@
     "notProductionProof": true
   },
   "acceptanceMatrix": [
-    {"id":"SELF-LINK-RD","actor":"RD","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
-    {"id":"SELF-LINK-PPC","actor":"採購／生管","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
-    {"id":"SELF-LINK-PRODUCTION","actor":"生產人員","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
+    {"id":"SELF-LINK-RD","actor":"RD","expected":"Google SSO self-link without PDM manager approval","status":"PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"},
+    {"id":"SELF-LINK-PPC","actor":"採購／生管","expected":"Google SSO self-link without PDM manager approval","status":"PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"},
+    {"id":"SELF-LINK-PRODUCTION","actor":"生產人員","expected":"Google SSO self-link without PDM manager approval","status":"PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"},
     {"id":"NO-MANUAL-CODE","expected":"No registration ID or one-time code field in web or configurator","status":"PASS_SOURCE_CONTRACT"},
     {"id":"OWNER-ISOLATION","expected":"Device A cannot obtain B-only job or CAD bytes","status":"PASS_FOCUSED_AND_POSTGRES"},
     {"id":"IMMEDIATE-REVOCATION","expected":"Role, account, Principal mapping or device revoke denies next request","status":"PASS_POSTGRES_FORMAL_PENDING"},

@@ -268,3 +268,5 @@ PR #533 已於 `2026-10-27T17:24:02Z` 關閉且未合併；未知 worktree 修�
 same-source installer=`0.1.0-ci.1383 / protocol 1 / 29,267,355 bytes / SHA-256 aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d`。CI artifact、build evidence、release capsule 及下載實檔一致。candidate／canonical smoke 的 session、登入 probe 均 200，SSO start／authorize／callback 303，未登入／撤銷 session 401。terminal receipt 外部 SHA-256=`41e9c1152bae64982bf4fd7ce17b8256500dc56649b0901fe4178266208b70fb`；完整 refs 見 QA JSON。
 
 實機 R25 安裝目前停在 Windows UAC 等待使用者本人確認；舊服務仍為 `.1370 / Running / NT AUTHORITY\\LocalService`。新版自助連結、低權限服務三格式工作、正式撤銷、重啟／覆蓋／重裝／多電腦與 A0001 UI 尚未取得完整證據，維持 `PARTIAL / NOT_RUN`。已定位真實 `A0053.SLDASM`（174,437 bytes、SHA-256 `a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694`）；定位與隔離 native reader 結果不能代替正式服務驗收。此次未新增 IAM、Secret 或 OrgMaster／其他專案修改。
+
+驗收補強使用既有 `qc:dev-125:postgres`，由 9 組增加至 11 組且全通過：RD／採購（對應採購生管）／生產三個非管理角色各自建立兩個不同裝置憑證，驗證自己的清單、拒絕他人撤銷、撤銷其中一台不影響另一台；另在每次 repository authentication 之間實際移除／變更／加入歧義的 Principal mapping，原 credential 隨即拒絕，恢復 mapping 後再驗可用。這些是隔離 DB 行為證據，不是正式 Google SSO／安裝／多實體電腦 PASS。task-owned PostgreSQL 暫存目錄與 port `53223` 已確認移除／釋放。

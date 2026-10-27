@@ -302,6 +302,122 @@ try {
       instanceId: uuid(), expectedRowVersion: active.rowVersion, serviceVersion: "0.1.0", protocolVersion: 1 }), "WINDOWS_SERVICE_INSTANCE_CONFLICT");
   });
 
+  await check("RD, procurement and manufacturing self-enroll independent computers without an administrator role", async () => {
+    const deviceIds = new Set();
+    const credentialHashes = new Set();
+    for (const role of [
+      { code: "rd", stableId: "role-rd" },
+      { code: "procurement", stableId: "role-procurement" },
+      { code: "manufacturing", stableId: "role-manufacturing" }
+    ]) {
+      const principalId = `selflink-${role.code}`;
+      const employeeId = `employee-${principalId}`;
+      const profileId = `profile-${principalId}`;
+      const subject = `subject-${principalId}`;
+      const sessionHash = hash(`session-${principalId}`);
+      await admin.query("INSERT INTO ai_pdm_core.users VALUES ($1,'company-jenfu')", [profileId]);
+      await admin.query(`
+        INSERT INTO ai_pdm_core.principal_accounts VALUES
+          ($1,'company-jenfu',$2,$3,'human_personal','active',1,1,true,'aal1',NULL)
+      `, [principalId, profileId, employeeId]);
+      await admin.query(`
+        INSERT INTO ai_pdm_core.principal_session_records VALUES
+          ($1,$2,7,1,1,now()-interval '1 minute',now()-interval '1 minute',
+           now()+interval '1 hour',NULL,'aal1')
+      `, [principalId, sessionHash]);
+      await admin.query(`
+        INSERT INTO orgmaster_contract.test_active_principal_accounts VALUES
+          ('organization.active-principal.v1','https://accounts.google.com',$1,$2,$3,'active')
+      `, [subject, principalId, employeeId]);
+      await admin.query(`
+        INSERT INTO orgmaster_contract.test_ai_pdm_principal_grants VALUES
+          ('jenfu.orgmaster.ai-pdm-principal-grants.v4','version-current',1,$1,'direct',NULL,
+           'ai-pdm',$2,$3,'employee',NULL,$4,$5,
+           'ai-pdm.role-catalog.2026-09-03.v3','global',NULL,now()-interval '1 day',NULL,now()-interval '1 day')
+      `, [`assignment-${principalId}`, principalId, employeeId, role.stableId, role.code]);
+      const grantedRoles = await admin.query(`
+        SELECT role_code FROM orgmaster_contract.test_ai_pdm_principal_grants WHERE principal_id=$1
+      `, [principalId]);
+      assert.deepEqual(grantedRoles.rows.map((row) => row.role_code), [role.code]);
+      const owned = [];
+      for (let computer = 1; computer <= 2; computer += 1) {
+        const code = crypto.randomBytes(32).toString("base64url");
+        const credentialHash = hash(crypto.randomBytes(32).toString("base64url"));
+        const requestId = uuid();
+        const codeHash = hash(code);
+        const enrollment = await repository.createEnrollment({
+          companyId: "company-jenfu", createdBy: principalId, creatorSessionHash: sessionHash,
+          creatorAuthEpoch: 7, creatorIdentityIssuer: "https://accounts.google.com",
+          creatorIdentitySubject: subject, requestId, codeHash,
+          requestHash: devices.windowsServiceRequestHash({ companyId: "company-jenfu", requestId, codeHash })
+        });
+        const created = await repository.enroll({
+          enrollmentId: enrollment.enrollment.id, code, credentialHash, deviceId: uuid(),
+          name: `${role.code}-PC-${computer}`, serviceVersion: "test-selflink", protocolVersion: 1,
+          sourceKey: `source-${principalId}-${computer}`
+        });
+        assert.equal(created.created, true);
+        assert.equal(created.device.ownerPrincipalId, principalId);
+        const authorized = await repository.findAuthorizedByCredentialHash(credentialHash);
+        assert.equal(authorized.owner.principalId, principalId);
+        deviceIds.add(created.device.id);
+        credentialHashes.add(credentialHash);
+        owned.push({ device: created.device, credentialHash });
+      }
+      const listed = await repository.list("company-jenfu", principalId);
+      assert.deepEqual(new Set(listed.map((row) => row.id)), new Set(owned.map((row) => row.device.id)));
+      await expectCode(() => repository.revoke({
+        companyId: "company-jenfu", deviceId: owned[0].device.id,
+        expectedRowVersion: owned[0].device.rowVersion, actorPrincipalId: "principal-rd", canManageAll: false
+      }), "WINDOWS_SERVICE_DEVICE_FORBIDDEN");
+      await repository.revoke({
+        companyId: "company-jenfu", deviceId: owned[0].device.id,
+        expectedRowVersion: owned[0].device.rowVersion, actorPrincipalId: principalId, canManageAll: false
+      });
+      assert.equal(await repository.findAuthorizedByCredentialHash(owned[0].credentialHash), null);
+      assert.equal((await repository.findAuthorizedByCredentialHash(owned[1].credentialHash)).device.id, owned[1].device.id);
+    }
+    assert.equal(deviceIds.size, 6);
+    assert.equal(credentialHashes.size, 6);
+  });
+
+  await check("removing, changing or making the owner Principal mapping ambiguous denies the next authentication", async () => {
+    assert.equal((await repository.findAuthorizedByCredentialHash(hash(deviceToken))).owner.principalId, "principal-rd");
+    const removed = await admin.query(`
+      DELETE FROM orgmaster_contract.test_active_principal_accounts WHERE principal_id='principal-rd' RETURNING *
+    `);
+    try {
+      assert.equal(await repository.findAuthorizedByCredentialHash(hash(deviceToken)), null);
+    } finally {
+      const row = removed.rows[0];
+      await admin.query(`
+        INSERT INTO orgmaster_contract.test_active_principal_accounts VALUES ($1,$2,$3,$4,$5,$6)
+      `, [row.contract_version, row.principal_issuer, row.principal_subject, row.principal_id,
+        row.employee_id, row.employee_status]);
+    }
+    await admin.query(`
+      UPDATE orgmaster_contract.test_active_principal_accounts SET employee_id='employee-b' WHERE principal_id='principal-rd'
+    `);
+    try {
+      assert.equal(await repository.findAuthorizedByCredentialHash(hash(deviceToken)), null);
+    } finally {
+      await admin.query(`
+        UPDATE orgmaster_contract.test_active_principal_accounts SET employee_id='employee-rd' WHERE principal_id='principal-rd'
+      `);
+    }
+    await admin.query(`
+      INSERT INTO orgmaster_contract.test_active_principal_accounts
+      SELECT contract_version,principal_issuer,'ambiguous-subject',principal_id,employee_id,employee_status
+      FROM orgmaster_contract.test_active_principal_accounts WHERE principal_id='principal-rd'
+    `);
+    try {
+      assert.equal(await repository.findAuthorizedByCredentialHash(hash(deviceToken)), null);
+    } finally {
+      await admin.query("DELETE FROM orgmaster_contract.test_active_principal_accounts WHERE principal_subject='ambiguous-subject'");
+    }
+    assert.equal((await repository.findAuthorizedByCredentialHash(hash(deviceToken))).owner.principalId, "principal-rd");
+  });
+
   await check("device authentication is owner-bound and account or role revocation denies the next request", async () => {
     const found = await repository.findAuthorizedByCredentialHash(hash(deviceToken));
     assert.equal(found.owner.principalId, "principal-rd");
