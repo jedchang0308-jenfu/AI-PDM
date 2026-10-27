@@ -151,6 +151,7 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
 
 export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
   const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`
+  const runnerSourceRevision = existingInfra?.reusedSourceRevision ?? existingInfra?.sourceRevision
   const task = job?.template?.template
   const containers = task?.containers
   const container = Array.isArray(containers) ? containers.find((row) => row?.name === 'migration') : null
@@ -165,7 +166,7 @@ export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
     || job.template?.taskCount !== 1 || job.template?.parallelism !== 1
     || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s'
     || containers?.length !== 1 || !container || container.image !== existingInfra?.migrationRunnerDigest
-    || environment?.PDM_SOURCE_REVISION !== existingInfra?.reusedSourceRevision) fail('INFRA_REUSE_PROVIDER_JOB_MISMATCH')
+    || !H40.test(runnerSourceRevision ?? '') || environment?.PDM_SOURCE_REVISION !== runnerSourceRevision) fail('INFRA_REUSE_PROVIDER_JOB_MISMATCH')
   return {
     name: job.name,
     uid: job.uid,
@@ -198,7 +199,7 @@ export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundat
     schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', ownerApplicationId: profile.application.id,
     projectId: profile.target.projectId, region: profile.target.region, releaseId,
     sourceRevision: sourceLock.sourceRevision, foundationManifestSha256: foundation.foundationManifestSha256,
-    reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: existingInfra.reusedSourceRevision,
+    reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: existingInfra.reusedSourceRevision ?? existingInfra.sourceRevision,
     migrationRunnerDigest: existingInfra.migrationRunnerDigest, controllerImageDigest: existingInfra.controllerImageDigest,
     providerJobReadback,
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
@@ -385,11 +386,12 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       transport.readJson(exactRef(input.foundationReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.existingInfraReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
+    const runnerSourceRevision = existingInfraResult.value.reusedSourceRevision ?? existingInfraResult.value.sourceRevision
     if (profile.application.id === 'ai-pdm') {
       migrationRunnerCompatibilityVerifier({
         root,
         currentSourceRevision: sourceLockResult.value.sourceRevision,
-        runnerSourceRevision: existingInfraResult.value.reusedSourceRevision,
+        runnerSourceRevision,
       })
     }
     const providerJob = await transport.request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`)

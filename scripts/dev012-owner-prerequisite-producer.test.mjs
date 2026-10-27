@@ -91,7 +91,7 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -124,7 +124,7 @@ test('infra reuse producer reads the live migration job before publishing provid
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -154,7 +154,7 @@ test('AI-PDM infra reuse checks runner executable inputs before reading or publi
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -175,7 +175,10 @@ test('AI-PDM infra reuse checks runner executable inputs before reading or publi
     migrationRunnerCompatibilityVerifier: () => { throw Object.assign(new Error('MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED'), { code: 'MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED' }) },
   }), /MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED/u)
   assert.equal(providerReads, 0)
-  const result = await executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: () => true })
+  const result = await executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: value => {
+    assert.equal(value.runnerSourceRevision, core.sourceRevision)
+    return true
+  } })
   assert.equal(result.value.providerJobReadback.sourceRevision, 'f'.repeat(40))
   assert.equal(providerReads, 1)
 })
@@ -187,7 +190,7 @@ test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () =
   const workflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     mutationProfile: 'APP_INFRA_AIPDM_PRINCIPAL_MIGRATION_WIF', allowedWorkflowRefs: [workflowRef],
