@@ -126,6 +126,29 @@ export function executionMatches(execution, expectedArgs, providerStateBase64, o
     env.DEV125_OPENSWX_PROVIDER_STATE_BASE64 === providerStateBase64
 }
 
+export async function listMigrationExecutions(transport) {
+  const base = `https://run.googleapis.com/v2/${JOB_NAME}/executions?pageSize=100`
+  const executions = []
+  const names = new Set()
+  const tokens = new Set()
+  let pageToken = null
+  for (let pageNumber = 0; pageNumber < 10; pageNumber += 1) {
+    const url = pageToken === null ? base : `${base}&pageToken=${encodeURIComponent(pageToken)}`
+    const page = await transport.request(url)
+    if (!Array.isArray(page?.executions)) fail('DEV125_CLEANUP_EXECUTIONS_INVALID')
+    for (const execution of page.executions) {
+      if (typeof execution?.name !== 'string' || !execution.name || names.has(execution.name)) fail('DEV125_CLEANUP_EXECUTIONS_INVALID')
+      names.add(execution.name)
+      executions.push(execution)
+    }
+    if (page.nextPageToken == null || page.nextPageToken === '') return executions
+    if (typeof page.nextPageToken !== 'string' || page.nextPageToken.length > 4096 || tokens.has(page.nextPageToken)) fail('DEV125_CLEANUP_EXECUTIONS_INVALID')
+    tokens.add(page.nextPageToken)
+    pageToken = page.nextPageToken
+  }
+  fail('DEV125_CLEANUP_EXECUTIONS_TRUNCATED')
+}
+
 async function optionalJson(transport, uri) {
   try {
     const row = await transport.readBytes(uri, { prefixes: ['receipts'] })
@@ -203,9 +226,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   let match = null
   const deadline = Date.now() + 20 * 60 * 1000
   while (!match && Date.now() < deadline) {
-    const page = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}/executions?pageSize=100`)
-    if (page?.nextPageToken) fail('DEV125_CLEANUP_EXECUTIONS_TRUNCATED')
-    const found = (page?.executions ?? []).filter(row => executionMatches(row, expectedArgs, providerStateBase64, operation))
+    const found = (await listMigrationExecutions(ownerTransport)).filter(row => executionMatches(row, expectedArgs, providerStateBase64, operation))
     if (found.length > 1) fail('DEV125_CLEANUP_EXECUTION_CARDINALITY_INVALID')
     if (found.length === 1) match = found[0]
     else await sleep(1000)
