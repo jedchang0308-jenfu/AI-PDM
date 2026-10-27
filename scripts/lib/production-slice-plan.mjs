@@ -16,12 +16,14 @@ const SLICE_ORDER = Object.freeze([
 
 const RELEASE_CONTROL = [
   /^\.github\/workflows\//u,
-  /^(?:Dockerfile|\.dockerignore|\.gitattributes|package(?:-lock)?\.json)$/u,
+  /^(?:Dockerfile|\.dockerignore|\.gitattributes|\.gitignore|package(?:-lock)?\.json)$/u,
   /^config\/release\//u,
   /^tools\/dev-117\//u,
   /^infra\/google-cloud\/dev-117-production-release\//u,
   /^scripts\/(?:lib\/)?dev0?12-/u,
   /^scripts\/(?:lib\/)?dev117-/u,
+  /^scripts\/(?:lib\/)?dev125-(?:verify-windows-installer-artifact|windows-installer-artifact)/u,
+  /^scripts\/dev125-windows-installer-evidence\.test\.mjs$/u,
   /^scripts\/(?:lib\/)?dev122-applied-continuation-capsule-refresh(?:\.|-)/u,
   /^scripts\/lib\/dev121-owner-release-proof\.mjs$/u,
   /^scripts\/qc-dev-117-/u,
@@ -41,7 +43,8 @@ const RELEASE_CONTROL_ONLY = [
 
 const WORKER = [
   /^windows-service\//u,
-  /^scripts\/(?:build-dev125-windows-installer|qc-dev125-windows-service)/u,
+  /^worker-downloads\/windows-service\//u,
+  /^scripts\/(?:lib\/)?(?:build-dev125-windows-installer|qc-dev125-windows-service|dev125-(?:verify-windows-installer-artifact|windows-installer-artifact|production-slice-windows-service))/u,
   /^scripts\/dev125-windows-service-contract\.test\.mjs$/u,
   /^scripts\/solidworks-document-manager-(?:credential-probe|metadata-exporter|preview-exporter)\.cs$/u,
   /^config\/solidworks-metadata-field-aliases\.json$/u,

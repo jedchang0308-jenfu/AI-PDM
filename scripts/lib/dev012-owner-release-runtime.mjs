@@ -6,6 +6,7 @@ import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 import { readAiPdmReleaseObservation, verifyOwnerProviderReadback, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
 import { fetchProviderBytes, fetchProviderRead } from './dev012-read-retry.mjs'
+import { assertDev125WindowsInstallerReceipt } from './dev125-windows-installer-artifact.mjs'
 import {
   ownerPrivateObjectMediaWindow,
   OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
@@ -47,6 +48,18 @@ export class OwnerReleaseError extends Error {
 
 function fail(code, detail = '') {
   throw new OwnerReleaseError(code, detail)
+}
+
+function assertDev125WindowsInstallerBuildInput(value, sourceRevision) {
+  const keys = ['fileName', 'protocolVersion', 'sha256', 'size', 'sourceRevision', 'version']
+  if (!value || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(keys) ||
+      !/^AI-PDM-Windows-Setup-[0-9A-Za-z._-]{1,40}\.exe$/u.test(value.fileName ?? '') ||
+      !Number.isSafeInteger(value.size) || value.size < 1 || value.size > 256 * 1024 * 1024) {
+    fail('DEV125_INSTALLER_BUILD_INPUT_INVALID')
+  }
+  const receipt = assertDev125WindowsInstallerReceipt({ sourceRevision: value.sourceRevision, version: value.version,
+    protocolVersion: value.protocolVersion, sha256: value.sha256 }, sourceRevision)
+  return { input: value, receipt }
 }
 
 function sleepDefault(milliseconds) {
@@ -951,12 +964,16 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     }
   }
 
-  async function createBuild({ profile, intent, sourceObject, deadlineAt }) {
+  async function createBuild({ profile, intent, sourceObject, deadlineAt, windowsInstaller = null }) {
     assertImmutableRef(sourceObject.ref, profile.artifact.releaseBucket, ['source'])
     if (!/^[1-9][0-9]*$/u.test(String(sourceObject.metadata?.generation ?? '')) || profile.build?.dockerBuilderImage !== 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c' || !/^[A-Za-z0-9._/-]+$/u.test(profile.build?.dockerfile ?? '') || !/^[A-Za-z0-9._-]+$/u.test(profile.build?.dockerTarget ?? '')) fail('BUILD_PROFILE_INVALID')
     const parsed = parseGsUri(sourceObject.ref.uri, profile.artifact.releaseBucket, 'source')
     const tag = `${profile.artifact.uri}:release-${intent.sourceRevision}`
-    const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.']
+    const installer = profile.application.id === 'ai-pdm'
+      ? assertDev125WindowsInstallerBuildInput(windowsInstaller, intent.sourceRevision)
+      : null
+    const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen',
+      ...(installer ? ['--build-arg', 'DEV125_INSTALLER_REQUIRED=true'] : []), '--tag', tag, '.']
     const body = {
       source: { storageSource: { bucket: parsed.bucket, object: parsed.object, generation: String(sourceObject.metadata.generation) } },
       steps: [{ name: profile.build.dockerBuilderImage, dir: 'source', args }],
@@ -972,7 +989,8 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     const build = await waitBuild(operation, deadlineAt, profile.target.projectId, profile.target.region)
     const result = build.results?.images?.find((row) => row.name === tag)
     if (build.status !== 'SUCCESS' || build.projectId !== profile.target.projectId || build.serviceAccount !== body.serviceAccount || build.options?.requestedVerifyOption !== 'VERIFIED' || build.sourceProvenance?.resolvedStorageSource?.bucket !== parsed.bucket || build.sourceProvenance?.resolvedStorageSource?.object !== parsed.object || String(build.sourceProvenance?.resolvedStorageSource?.generation) !== String(sourceObject.metadata.generation) || !/^sha256:[a-f0-9]{64}$/u.test(result?.digest ?? '')) fail('BUILD_READBACK_MISMATCH')
-    return { build, request: body, tag, artifactDigest: `${profile.artifact.uri}@${result.digest}` }
+    return { build, request: body, tag, artifactDigest: `${profile.artifact.uri}@${result.digest}`,
+      ...(installer ? { windowsInstaller: installer.receipt } : {}) }
   }
 
   async function readArtifactImage(profile, artifactDigest) {

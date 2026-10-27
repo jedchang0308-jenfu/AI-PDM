@@ -127,6 +127,35 @@ test('Cloud Build gets the exact regional build resource, pinned builder, source
   assert.ok(!seen[0].body.steps[0].args.some((value) => value === 'SOURCE_VERSION=REL-001'))
 })
 
+test('AI-PDM Cloud Build requires and returns the exact DEV-125 installer binding', async () => {
+  const aiProfile = { ...profile, application: { ...profile.application, id: 'ai-pdm' } }
+  const sourceUri = `gs://${bucket}/source/releases/R/source.tgz`
+  const buildTag = `${aiProfile.artifact.uri}:release-${H40}`
+  const seen = []
+  const build = {
+    status: 'SUCCESS', projectId: aiProfile.target.projectId,
+    serviceAccount: `projects/${aiProfile.target.projectId}/serviceAccounts/${aiProfile.identities.builder}`,
+    options: { requestedVerifyOption: 'VERIFIED' },
+    sourceProvenance: { resolvedStorageSource: { bucket, object: 'source/releases/R/source.tgz', generation: '9' } },
+    results: { images: [{ name: buildTag, digest: `sha256:${H64}` }] },
+  }
+  const fetchImpl = async (url, options = {}) => {
+    seen.push({ url: String(url), body: options.body ? JSON.parse(options.body) : null })
+    if (options.method === 'POST') return json({ name: 'operations/build/5554e6a9-1c0f-48bd-877a-7f04d651915e', metadata: { build: { id: '5554e6a9-1c0f-48bd-877a-7f04d651915e' } } })
+    return json(build)
+  }
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
+  const input = { profile: aiProfile, intent: { sourceRevision: H40, sourceSha256: H64, releaseId: 'REL-DEV125' },
+    sourceObject: { ref: { uri: sourceUri, sha256: H64 }, metadata: { generation: '9' } }, deadlineAt: '2999-01-01T00:00:00.000Z' }
+  await assert.rejects(transport.createBuild(input), /DEV125_INSTALLER_BUILD_INPUT_INVALID/u)
+  const windowsInstaller = { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1,
+    sha256: 'b'.repeat(64), fileName: 'AI-PDM-Windows-Setup-0.1.0-test.exe', size: 12345 }
+  const result = await transport.createBuild({ ...input, windowsInstaller })
+  assert.deepEqual(result.windowsInstaller, { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1,
+    sha256: 'b'.repeat(64) })
+  assert.ok(seen.find(row => row.body)?.body.steps[0].args.includes('DEV125_INSTALLER_REQUIRED=true'))
+})
+
 test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed', async () => {
   const digest = `${profile.artifact.uri}@sha256:${H64}`
   const resourceUri = `https://${digest}`

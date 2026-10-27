@@ -67,6 +67,13 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/claim$/u },
   { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
   { method: "POST", pattern: /^\/api\/recognition-workers\/heartbeat$/u },
+  // DEV-125 Windows service admission only. The page/API owners still enforce
+  // manager Principal or current device credentials, tenant and lease fences.
+  { method: "POST", pattern: /^\/api\/settings\/windows-service\/enrollments$/u },
+  { method: "POST", pattern: /^\/api\/settings\/windows-service\/devices\/[^/]+\/revoke$/u },
+  { method: "POST", pattern: /^\/api\/windows-service\/(?:enroll|start|heartbeat)$/u },
+  { method: "POST", pattern: /^\/api\/preview-jobs\/claim$/u },
+  { method: "POST", pattern: /^\/api\/preview-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
   // DEV-123 role-policy writes still pass the verified Principal, manager,
   // Origin, revision, CAS and transactional publication guards in their owner.
   { method: "POST", pattern: /^\/api\/settings\/access\/role-policies\/drafts$/u },
@@ -223,6 +230,7 @@ export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = p
   const normalizedPath = normalizePathname(pathname);
   if (getProductionSliceState(env).active &&
     (normalizedPath === "/settings" || normalizedPath === "/settings/security" || normalizedPath === "/settings/workflow" ||
+     normalizedPath === "/settings/windows-service" ||
      normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
      /^\/parts\/[^/]+\/attachments$/u.test(normalizedPath) ||
      /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
@@ -267,7 +275,8 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
     numberingLifecycle: lifecycle,
-    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals", "/settings", "/settings/security", "/settings/workflow"]
+    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals", "/settings", "/settings/security", "/settings/workflow",
+      "/settings/windows-service"]
       .filter((path) => isProductionSliceOpenPagePath(path, env))
   };
 }

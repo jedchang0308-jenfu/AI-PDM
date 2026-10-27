@@ -96,6 +96,21 @@ jobs:
         run: |
           echo "capsule_uri=${REFRESHED_URI:-$BOUND_URI}" >> "$GITHUB_OUTPUT"
           echo "capsule_sha256=${REFRESHED_SHA256:-$BOUND_SHA256}" >> "$GITHUB_OUTPUT"
+      - name: Bind exact-source DEV-125 Windows installer
+        if: ${{ steps.builder_auth.outcome == 'success' }}
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -euo pipefail
+          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
+          [[ "${#run_ids[@]}" -eq 1 ]]
+          artifact_name="dev125-windows-installer-$GITHUB_SHA"
+          artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
+          mkdir -p "$artifact_root" "$GITHUB_WORKSPACE/worker-downloads/windows-service"
+          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+          node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
+          cp "$artifact_root/worker-downloads/windows-service/"* "$GITHUB_WORKSPACE/worker-downloads/windows-service/"
+          echo "DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
       - id: prepare
         name: Execute prepare
         if: ${{ steps.classify.outputs.kind == 'release' || steps.classify.outputs.kind == 'applied_release' }}

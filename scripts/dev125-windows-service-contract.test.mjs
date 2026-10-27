@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { Script } from "node:vm";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -41,6 +42,37 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.doesNotMatch(build, /SolidWorks\.Interop\.sw(?:documentmgr|const)\.dll/u);
   assert.match(notices, /Document Manager is not redistributed/u);
   assert.doesNotMatch(build, /swdocumentmgr\.dll[^\r\n]+(?:https?:\/\/|Invoke-WebRequest)/iu);
+});
+
+test("DEV-125A exact-source installer is admitted into the immutable app image", () => {
+  const ci = read(".github/workflows/ci.yml");
+  const owner = read(".github/workflows/deploy-ai-pdm-independent-production.yml");
+  const principalOwner = read(".github/workflows/deploy-ai-pdm-principal-migrations-production.yml");
+  const dockerfile = read("Dockerfile");
+  const release = read("scripts/dev117-ai-pdm-continuous-release.mjs");
+  const executor = read("scripts/lib/dev012-owner-stage-executor.mjs");
+  const affected = read("scripts/run-production-slice-tests.mjs");
+  for (const workflow of [owner, principalOwner]) {
+    assert.match(workflow, /gh run list[^\r\n]+--workflow "AI PDM CI"[^\r\n]+--commit "\$GITHUB_SHA"[^\r\n]+--event push[^\r\n]+--status success/u);
+    assert.match(workflow, /gh run download "\$\{run_ids\[0\]\}"[^\r\n]+--name "\$artifact_name"/u);
+    assert.match(workflow, /dev125-verify-windows-installer-artifact\.mjs[^\r\n]+--source-revision "\$GITHUB_SHA"[^\r\n]+--require-build-evidence/u);
+    assert.match(workflow, /DEV125_INSTALLER_ROOT=\$GITHUB_WORKSPACE/u);
+  }
+  assert.equal((ci.match(/if: github\.event_name != 'pull_request' \|\| steps\.slice\.outputs\.docs_only != 'true'/gu) ?? []).length, 3);
+  assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/worker-downloads \.\/worker-downloads/u);
+  assert.match(dockerfile, /PDM_WINDOWS_INSTALLER_REQUIRED=\$\{DEV125_INSTALLER_REQUIRED\}/u);
+  assert.match(dockerfile, /DEV125_INSTALLER_DIGEST_INVALID/u);
+  const imageVerification = dockerfile.split(/\r?\n/u).find(line => line.startsWith('RUN ["/nodejs/bin/node", "-e",'));
+  assert.ok(imageVerification);
+  const imageVerificationArgs = JSON.parse(imageVerification.slice(4));
+  assert.equal(imageVerificationArgs[0], '/nodejs/bin/node');
+  assert.doesNotThrow(() => new Script(imageVerificationArgs[2]));
+  assert.match(release, /createGitArchiveWithDev125Installer\(root, sourceRevision, process\.env\.DEV125_INSTALLER_ROOT\)/u);
+  assert.match(release, /windowsInstallerRequired: true/u);
+  assert.match(executor, /windowsInstallerRequired[\s\S]+DEV125_INSTALLER_BUILD_READBACK_MISMATCH/u);
+  assert.match(executor, /const installerEvidence = windowsInstaller \? \{ windowsInstaller \} : \{\}/u);
+  assert.match(affected, /dev125-windows-installer-artifact\.test\.mjs/u);
+  assert.match(affected, /dev125-production-slice-windows-service\.test\.mjs/u);
 });
 
 test("DEV-125A service has one fixed device protocol and no legacy worker credential fallback", () => {

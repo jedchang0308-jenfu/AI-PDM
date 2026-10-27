@@ -6,7 +6,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport, createAiPdmBuildReadbackTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { createGitArchiveWithDev125Installer, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
@@ -51,7 +51,8 @@ async function main() {
   const result = await executeOwnerStage({
     ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: principalWorkflowPath,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
-    createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
+    createSourceArchive: async (sourceRevision) => createGitArchiveWithDev125Installer(root, sourceRevision, process.env.DEV125_INSTALLER_ROOT),
+    windowsInstallerRequired: true,
     readSource: createContinuousReleaseSourceReader(root),
     buildMigrationBundle: async (sourceRevision, context) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision, context),
   })

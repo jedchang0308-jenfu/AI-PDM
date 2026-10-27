@@ -4,6 +4,7 @@ import { UNLINKED_PROFILE_CLEANUP_PREFIX, assertUnlinkedProfileCleanupRef, asser
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
+import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConfig, assertMigrationSubmissionIntent, migrationSubmissionIntentUri, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt, assertStageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
@@ -14,6 +15,7 @@ import { assertHistoricalPrincipalOnlyRecoveryReadback, assertPrincipalOnlyRecov
 import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, observationDeadline, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
+import { assertDev125WindowsInstallerReceipt, verifyDev125WindowsInstallerArtifact } from './dev125-windows-installer-artifact.mjs'
 import { appliedRdPermissionSmokeSuite, assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, forwardAppliedMigrationProofRefs, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
 import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, normalizeReleaseEvidence, profileForReleaseMode, requiresPrincipalOnlyMigrationFence, requiresPrincipalOnlyRuntimeAuthority } from './dev117-release-control-policy.mjs'
 
@@ -74,6 +76,10 @@ export function parseOwnerStageArgs(argv, expectedBucket) {
 }
 
 export function createGitArchive(root, sourceRevision) {
+  return createGitArchiveBytes(root, sourceRevision, [])
+}
+
+function createGitArchiveBytes(root, sourceRevision, additionalFiles) {
   if (!H40.test(sourceRevision ?? '')) fail('SOURCE_REVISION_INVALID')
   const run = (args, encoding = 'utf8') => {
     const result = spawnSync('git', args, { cwd: root, encoding, maxBuffer: 256 * 1024 * 1024, windowsHide: true })
@@ -85,9 +91,31 @@ export function createGitArchive(root, sourceRevision) {
   // the explicit canonical recipe,
   // core.autocrlf/core.eol can rewrite text entries and fail closed later as
   // source archive drift.
-  const bytes = run(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', sourceRevision], null)
+  if (!Array.isArray(additionalFiles) || additionalFiles.some(file =>
+    !/^[A-Za-z0-9._/-]+$/u.test(file) || file.startsWith('/') || file.includes('../'))) fail('SOURCE_ARCHIVE_ADDITIONAL_FILE_INVALID')
+  const additionalArgs = additionalFiles.flatMap(file => [
+    `--prefix=source/${path.posix.dirname(file)}/`, `--add-file=${file}`
+  ])
+  const bytes = run(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar',
+    ...additionalArgs, '--prefix=source/', sourceRevision], null)
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) fail('SOURCE_ARCHIVE_FAILED')
   return bytes
+}
+
+export function createGitArchiveWithDev125Installer(root, sourceRevision, installerRoot) {
+  if (path.resolve(installerRoot ?? '') !== path.resolve(root)) fail('DEV125_INSTALLER_ROOT_INVALID')
+  const installer = verifyDev125WindowsInstallerArtifact({ root: installerRoot, sourceRevision })
+  return {
+    bytes: createGitArchiveBytes(root, sourceRevision, installer.relativeFiles),
+    windowsInstaller: {
+      sourceRevision: installer.sourceRevision,
+      version: installer.version,
+      protocolVersion: installer.protocolVersion,
+      sha256: installer.sha256,
+      fileName: installer.fileName,
+      size: installer.size,
+    },
+  }
 }
 
 export function createGitSourceIdentity(root, sourceRevision) {
@@ -440,6 +468,7 @@ function assertDeployment(value, profile, intent, intentRef, intentSha256) {
   if (intent.programOnlyBaseline) assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile, intent, deployment: value })
   else if (value.programOnlyBaseline || value.sourceMigrationBundleRef) fail('DEPLOYMENT_CAPSULE_JOIN_INVALID')
   if (Object.hasOwn(value, 'openswxWorker')) fail('RETIRED_WORKER_BINDING_REJECTED')
+  if (Object.hasOwn(value, 'windowsInstaller')) assertDev125WindowsInstallerReceipt(value.windowsInstaller, intent.sourceRevision)
   if (profile.productionData?.required === true) {
     assertImmutableRef(value.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
     assertImmutableRef(value.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
@@ -792,7 +821,7 @@ async function readCleanupMigrationBundle({ transport, deployment, intent, profi
   return bundle
 }
 
-export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
+export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null, windowsInstallerRequired = false }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths, releaseMode, workflowAuthority, fullOwnerAppliedContinuation } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
   // One-time cutover is an explicit workflow responsibility. Ordinary full,
@@ -936,8 +965,16 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     }
     const sourceIdentityBytes = await createSourceIdentity(intent.sourceRevision)
     if (!Buffer.isBuffer(sourceIdentityBytes) || sha256(sourceIdentityBytes) !== intent.sourceSha256) fail('SOURCE_IDENTITY_HASH_MISMATCH')
-    const sourceBytes = await createSourceArchive(intent.sourceRevision)
+    const sourceArchiveInput = await createSourceArchive(intent.sourceRevision)
+    const sourceBytes = Buffer.isBuffer(sourceArchiveInput) ? sourceArchiveInput : sourceArchiveInput?.bytes
+    const windowsInstallerInput = Buffer.isBuffer(sourceArchiveInput) ? null : sourceArchiveInput?.windowsInstaller
     if (!Buffer.isBuffer(sourceBytes) || sourceBytes.length === 0) fail('SOURCE_ARCHIVE_FAILED')
+    if (windowsInstallerRequired && !windowsInstallerInput) fail('DEV125_INSTALLER_RECEIPT_REQUIRED')
+    const windowsInstaller = windowsInstallerInput
+      ? assertDev125WindowsInstallerReceipt({ sourceRevision: windowsInstallerInput.sourceRevision,
+        version: windowsInstallerInput.version, protocolVersion: windowsInstallerInput.protocolVersion,
+        sha256: windowsInstallerInput.sha256 }, intent.sourceRevision)
+      : null
     if (repair) {
       const archived = parseAiPdmMigrationArchive({ bytes: sourceBytes, sourceRevision: intent.sourceRevision, bundle: repair.current.bundle, deadlineAt: intent.deadlineAt })
       assertAiPdmMigrationEquivalent(repair.content, archived)
@@ -961,15 +998,20 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       bundle = await transport.putBytes(programPolicy.effectiveMigrationBundleRef.uri, bundles.effective.bytes, { bucket: profile.artifact.releaseBucket, prefix: profile.artifact.migrationBundlePrefix, contentType: 'application/json' })
       if (canonicalize(bundle.ref) !== canonicalize(programPolicy.effectiveMigrationBundleRef)) fail('PROGRAM_ONLY_BASELINE_INVALID')
     }
-    const build = await transport.createBuild({ profile, intent, sourceObject: source, deadlineAt: intent.deadlineAt })
+    const build = await transport.createBuild({ profile, intent, sourceObject: source, deadlineAt: intent.deadlineAt,
+      windowsInstaller: windowsInstallerInput })
+    if (windowsInstallerRequired && canonicalize(assertDev125WindowsInstallerReceipt(build.windowsInstaller, intent.sourceRevision)) !== canonicalize(windowsInstaller)) {
+      fail('DEV125_INSTALLER_BUILD_READBACK_MISMATCH')
+    }
     const artifact = await transport.readArtifactImage(profile, build.artifactDigest)
     const analysis = await transport.waitArtifactEvidence({ profile, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, deadlineAt: intent.deadlineAt })
-    const provenance = await transport.putJson(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, cloudBuild: publicBuildReceipt(build.build), artifactRegistry: artifact, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    const installerEvidence = windowsInstaller ? { windowsInstaller } : {}
+    const provenance = await transport.putJson(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, ...installerEvidence, cloudBuild: publicBuildReceipt(build.build), artifactRegistry: artifact, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const sbom = await transport.putJson(paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, ...analysis.sbomExport, occurrenceNames: analysis.sbomOccurrenceNames, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const scan = await transport.putJson(paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, buildOccurrenceNames: analysis.buildOccurrenceNames, discoveryOccurrenceNames: analysis.discoveryOccurrenceNames, vulnerabilityCount: analysis.vulnerabilityCount, blockingVulnerabilityCount: analysis.blockingVulnerabilityCount, ...(analysis.rawHighOrCriticalVulnerabilityCount !== undefined ? { rawHighOrCriticalVulnerabilityCount: analysis.rawHighOrCriticalVulnerabilityCount, notAffectedAssessments: analysis.notAffectedAssessments } : {}), maximumAllowedSeverity: profile.build.maximumAllowedSeverity, observedAt: analysis.observedAt, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
-    const buildStage = await writeStage(transport, paths, profile, intent, 'build', prepare.ref, { artifactDigest: build.artifactDigest, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, migrationBundleRef: bundle.ref, ...programDeployment, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
+    const buildStage = await writeStage(transport, paths, profile, intent, 'build', prepare.ref, { artifactDigest: build.artifactDigest, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, migrationBundleRef: bundle.ref, ...installerEvidence, ...programDeployment, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
     const cutoverDeploymentAuthority = !dataCutoverGateEnabled(profile) ? {} : prepare.value.facts.dataCutover.status === 'DATA_READY_FOR_CANDIDATE' ? { dataCutoverHandoffRef: prepare.value.facts.dataCutover.handoffReceiptRef } : { dataCutoverCompletionRef: prepare.value.facts.dataCutover.completionReceiptRef }
-    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, ...programDeployment, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, migrationRunnerSourceRevision: prepare.value.facts.migrationRunnerSourceRevision, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
+    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, ...installerEvidence, ...programDeployment, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, migrationRunnerSourceRevision: prepare.value.facts.migrationRunnerSourceRevision, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
     assertDeployment(deployment, profile, intent, intentRef, capsuleSha256)
     return transport.putJson(paths.deployment, deployment, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }

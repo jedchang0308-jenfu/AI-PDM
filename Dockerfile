@@ -6,6 +6,7 @@ ARG SOURCE_TREE=unknown
 ARG SOURCE_CREATED_AT=1970-01-01T00:00:00Z
 ARG SOURCE_VERSION=unversioned
 ARG SOURCE_STATE=unknown
+ARG DEV125_INSTALLER_REQUIRED=false
 
 FROM ${NODE_IMAGE} AS dependencies
 WORKDIR /app
@@ -98,13 +99,16 @@ ARG SOURCE_TREE
 ARG SOURCE_CREATED_AT
 ARG SOURCE_VERSION
 ARG SOURCE_STATE
+ARG DEV125_INSTALLER_REQUIRED
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=8080 \
     PDM_DATA_DIR=/tmp/ai-pdm/data \
-    PDM_REPOSITORY_DIR=/tmp/ai-pdm/repository
+    PDM_REPOSITORY_DIR=/tmp/ai-pdm/repository \
+    PDM_SOURCE_REVISION=${SOURCE_REVISION} \
+    PDM_WINDOWS_INSTALLER_REQUIRED=${DEV125_INSTALLER_REQUIRED}
 LABEL org.opencontainers.image.title="AI PDM" \
       org.opencontainers.image.source="https://github.com/jedchang0308-jenfu/AI-PDM" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
@@ -115,7 +119,9 @@ LABEL org.opencontainers.image.title="AI PDM" \
 COPY --from=builder --chown=65532:65532 /app/.next/standalone ./
 COPY --from=builder --chown=65532:65532 /app/.next/static ./.next/static
 COPY --from=builder --chown=65532:65532 /app/public ./public
+COPY --from=builder --chown=65532:65532 /app/worker-downloads ./worker-downloads
 COPY --from=builder --chown=65532:65532 /app/.ai-doc/reference/pdm-management-policy-draft.md ./.ai-doc/reference/pdm-management-policy-draft.md
+RUN ["/nodejs/bin/node", "-e", "const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');const d='/app/worker-downloads/windows-service',p=path.join(d,'manifest.json'),required=process.env.PDM_WINDOWS_INSTALLER_REQUIRED==='true';if(!fs.existsSync(p)){if(required)throw Error('DEV125_INSTALLER_MANIFEST_MISSING');process.exit(0)}const m=JSON.parse(fs.readFileSync(p,'utf8')),keys=['contractVersion','fileName','protocolVersion','sha256','size','sourceRevision','version'];if(JSON.stringify(Object.keys(m).sort())!==JSON.stringify(keys)||m.contractVersion!=='ai-pdm.windows-service-installer.v1'||m.sourceRevision!==process.env.PDM_SOURCE_REVISION||m.protocolVersion!==1||!/^AI-PDM-Windows-Setup-[0-9A-Za-z._-]{1,40}\\.exe$/.test(m.fileName)||!Number.isSafeInteger(m.size)||!/^[a-f0-9]{64}$/.test(m.sha256))throw Error('DEV125_INSTALLER_MANIFEST_INVALID');const entries=fs.readdirSync(d).sort(),allowed=new Set(['.gitkeep','manifest.json',m.fileName]);if(entries.some(v=>!allowed.has(v)))throw Error('DEV125_INSTALLER_DIRECTORY_INVALID');const b=fs.readFileSync(path.join(d,m.fileName));if(b.length!==m.size||crypto.createHash('sha256').update(b).digest('hex')!==m.sha256)throw Error('DEV125_INSTALLER_DIGEST_INVALID')"]
 USER 65532:65532
 EXPOSE 8080
 ENTRYPOINT ["/nodejs/bin/node"]

@@ -48,6 +48,8 @@ sw-addin/obj/
 cloud-functions/**/node_modules/
 
 # External installer/runtime media kept out of source control.
+/worker-downloads/windows-service/*
+!/worker-downloads/windows-service/.gitkeep
 *.cab
 *.msi
 *.msp
