@@ -7,6 +7,7 @@ import { bindDiagnosticRef } from './dev117-production-diagnostics.mjs'
 import { runMain as runMigrationRunner } from './dev117-production-migration-runner.mjs'
 import {
   assertRuntimeReadback,
+  listMigrationExecutions,
   summarizeProviderState,
 } from './dev125-openswx-retirement-cleanup.mjs'
 import {
@@ -81,6 +82,30 @@ test('fixed diagnostic namespace admits only the DEV-125 cleanup path', () => {
   const workflow = fs.readFileSync(new URL('../.github/workflows/read-ai-pdm-rd-permission-state-production.yml', import.meta.url), 'utf8')
   assert.match(workflow, /kind == 'openswx-retirement-cleanup'/u)
   assert.match(workflow, /dev125-openswx-retirement-cleanup\.mjs/u)
+})
+
+test('cleanup execution discovery reads every bounded page and rejects duplicate or looping inventory', async () => {
+  const first = { name: 'projects/p/locations/r/jobs/j/executions/first' }
+  const second = { name: 'projects/p/locations/r/jobs/j/executions/second' }
+  const requests = []
+  const transport = { async request(url) {
+    requests.push(url)
+    return requests.length === 1
+      ? { executions: [first], nextPageToken: 'page/2' }
+      : { executions: [second] }
+  } }
+  assert.deepEqual(await listMigrationExecutions(transport), [first, second])
+  assert.match(requests[1], /pageToken=page%2F2/u)
+
+  await assert.rejects(listMigrationExecutions({ async request(url) {
+    return url.includes('pageToken=')
+      ? { executions: [first] }
+      : { executions: [first], nextPageToken: 'repeat' }
+  } }), /EXECUTIONS_INVALID/u)
+
+  await assert.rejects(listMigrationExecutions({ async request() {
+    return { executions: [], nextPageToken: 'repeat' }
+  } }), /EXECUTIONS_INVALID/u)
 })
 
 test('cleanup operation is bounded to one exact readback receipt and at most 20 rows', () => {
