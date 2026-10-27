@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { assertStageReceipt, canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { assertReconciledPrincipalAbortBinding } from './dev121-principal-only-release.mjs'
-import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation, assertHistoricalAppliedContinuationRuntimeBinding, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation, assertHistoricalAppliedContinuationRuntimeConfig, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
 import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
 import { fetchProviderRead } from './dev012-read-retry.mjs'
 
@@ -686,7 +686,6 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
     || runtimeRow.value.ownerApplicationId !== 'ai-pdm' || runtimeRow.value.status !== 'VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
   const runtime = runtimeRow.value.runtimeConfig ?? runtimeRow.value
   const { assertRuntimeConfig } = await import('./dev012-owner-release-runtime.mjs')
-  assertHistoricalAppliedContinuationRuntimeBinding(runtime, historicalIntent, AI_BUCKET)
   const sourceLock = await readRef(intent.sourceLockRef, AI_BUCKET, token, fetchImpl)
   if (sourceLock.value.sourceSha256 !== intent.sourceSha256 || sourceLock.value.migrationManifestSha256 !== intent.migrationManifestSha256) fail('SOURCE_LOCK_INVALID')
   admitAiPdmEvidenceSource({ bytes: sourceLock.bytes, ref: sourceLock.ref })
@@ -694,7 +693,7 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
   if (bundle.bundle.manifestSha256 !== intent.migrationManifestSha256) fail('MIGRATION_BUNDLE_MANIFEST_INVALID')
   const archived = await observeArchiveContent({ source: chain.deployment.value.sourceObject, revision: sourceRevision, bundle: bundle.bundle, token, fetchImpl })
   const profile = JSON.parse(strictUtf8(archived.content.files.get(PROFILE_PATH)))
-  assertRuntimeConfig(profile, runtime)
+  assertHistoricalAppliedContinuationRuntimeConfig(profile, runtime, historicalIntent, assertRuntimeConfig)
   const transport = {
     async readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null } = {}) {
       if (prefixes.length !== 1 || !['receipts', 'source/migration-bundles'].includes(prefixes[0])) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')

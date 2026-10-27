@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { assertAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeConfig, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
 import { assertNoForwardMigrationSubmission, readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
@@ -45,6 +45,43 @@ test('historical applied continuation admits only the exact sealed retired worke
     [runtime, { openswxWorkerRef: { ...descriptorRef, uri: `gs://${bucket}/receipts/releases/arbitrary.json` } }],
   ]) assert.throws(() => assertHistoricalAppliedContinuationRuntimeBinding(changedRuntime, changedIntent), /APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID/u)
   assert.doesNotThrow(() => assertHistoricalAppliedContinuationRuntimeBinding({ plainEnvironment: {}, secretVersions: {} }, {}))
+})
+
+test('historical runtime validation removes only the retired extension before current-shape validation', () => {
+  const descriptorRef = ref(`gs://${bucket}/receipts/dev-122/openswx-worker/historical.json`)
+  const profileWithRetiredExtension = {
+    artifact: { releaseBucket: bucket },
+    environment: {
+      requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET', 'PDM_WORKLOAD_AUTH_CREDENTIALS'],
+      fixedValues: { NODE_ENV: 'production' }, controlledValues: {},
+      allowedSecretIds: { SESSION_SECRET: 'session', PDM_WORKLOAD_AUTH_CREDENTIALS: 'workload' },
+      optionalExtensions: { openswxDispatch: { name: 'PDM_OPENSWX_DISPATCH_ENABLED', off: '0', on: '1', binding: 'openswxWorkerRef' } },
+    },
+  }
+  const runtime = {
+    plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '1' },
+    secretVersions: { SESSION_SECRET: '9', PDM_WORKLOAD_AUTH_CREDENTIALS: '3' },
+    openswxWorker: { descriptorRef, purpose: 'full', sourceRevision: appliedSource, workerProfileSha256: 'f'.repeat(64) },
+    template: { containers: [{ name: 'app', env: [
+      { name: 'NODE_ENV', value: 'production' }, { name: 'PDM_OPENSWX_DISPATCH_ENABLED', value: '1' },
+      { name: 'SESSION_SECRET', valueSource: { secretKeyRef: { secret: 'session', version: '9' } } },
+      { name: 'PDM_WORKLOAD_AUTH_CREDENTIALS', valueSource: { secretKeyRef: { secret: 'workload', version: '3' } } },
+    ] }] },
+    serviceTemplateSha256: '0'.repeat(64),
+  }
+  let normalized
+  const result = assertHistoricalAppliedContinuationRuntimeConfig(profileWithRetiredExtension, runtime, { openswxWorkerRef: descriptorRef }, (normalizedProfile, normalizedRuntime) => {
+    normalized = { profile: normalizedProfile, runtime: normalizedRuntime }
+    return 'VALIDATED'
+  })
+  assert.equal(result, 'VALIDATED')
+  assert.equal(Object.hasOwn(normalized.runtime, 'openswxWorker'), false)
+  assert.equal(Object.hasOwn(normalized.runtime.plainEnvironment, 'PDM_OPENSWX_DISPATCH_ENABLED'), false)
+  assert.equal(Object.hasOwn(normalized.runtime.secretVersions, 'PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
+  assert.equal(normalized.runtime.template.containers[0].env.some(row => row.name.includes('OPENSWX') || row.name.includes('WORKLOAD_AUTH')), false)
+  assert.equal(normalized.profile.environment.requiredSecretNames.includes('PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
+  assert.equal(normalized.runtime.serviceTemplateSha256, sha256(canonicalize(normalized.runtime.template)))
+  assert.equal(Object.hasOwn(runtime, 'openswxWorker'), true)
 })
 
 function providerJob() {
