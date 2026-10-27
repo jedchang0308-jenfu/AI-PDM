@@ -47,7 +47,7 @@ DEV-124 取消後，本輪為 DEV-125 安全退出盤點本機實作 actor-indep
 - 同一 operation 同步承載已移交 DEV-125 的 D122-05 指定圖檔唯讀 preview state，避免再新增一條相同權限的 production workflow；它只建立修復／退出基線，不是功能驗收。
 - 整體流程不是零副作用：會建立一個 Cloud Run Job execution，並 create-only 寫 submission／database／final GCS evidence；但不得修改 business DB row、service configuration、Scheduler、Job template、IAM 或 Secret。
 
-新程式需先經 protected PR／required CI 合併，再由既有 app-owned release 將含新 branch 的 exact migration-runner image 安裝到正式 Job，之後才能建立 fresh immutable operation並執行 DEV-125 退出前讀回。舊 runner image 不支援新參數；不得把本機測試或舊 R1 operation 當正式 readback。
+新程式已由 PR #500 經 protected PR／required CI 合併；仍須由既有 app-owned release 將 exact main `b7b0f4e…` 的 migration-runner image 安裝到正式 Job，之後才能建立 fresh immutable operation 並執行 DEV-125 退出前讀回。2026-10-27 的首次正式 attempt 使用較早 source，且在 activation 前因 Platform session smoke 失敗安全回滾，所以尚未完成此 runner rollout。舊 runner image 不支援新參數；不得把本機測試或舊 R1 operation 當正式 readback。
 
 PR #499 的 source retirement 與雲端 resource retirement 是兩個證據層：前者已刪除 active UI／API、OpenSWX reader／worker、release profile 與相依測試；後者仍須對 exact Job、Scheduler、executions、service accounts、bindings 與 Secret references 做 fresh provider inventory，並依 DEV-125 的退出順序處理。沒有後者不得把 DEV-125 V125-11 標為 PASS。
 
