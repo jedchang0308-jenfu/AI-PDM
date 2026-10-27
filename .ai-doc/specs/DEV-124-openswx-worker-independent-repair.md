@@ -1,12 +1,12 @@
 # DEV-124：OpenSWX metadata worker 獨立修復
 
-狀態：`CLOSED_CANCELLED_REPLACED`（2026-10-27）；OpenSWX 修復取消，功能驗收未通過，實體拆除尚未執行。
+狀態：`CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125`（2026-10-27）；OpenSWX 修復取消且功能驗收不改判通過，後續 DB 排空、專用 provider 資源與 active source 拆除已由 DEV-125 完成。
 
-依使用者要求，後續只採 Windows SolidWorks 解析路徑。DEV-124 不再修復、重建或恢復 OpenSWX Scheduler；其安全退出盤點、程式及專用雲端資源移除由 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md) §4 承接。不得把本次取消寫成 `COMPLETED`、`DEFERRED_NO_CURRENT_NEED` 或資源已刪除：active DB row／consumer 尚屬 UNKNOWN，退出前須讀回並處理，不以無證據宣稱無人使用。
+依使用者要求，後續只採 Windows SolidWorks 解析路徑。DEV-124 不再修復、重建或恢復 OpenSWX Scheduler；其安全退出由 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md#openswx-retirement) 承接。退出前的 active DB row／consumer UNKNOWN 為當時真實限制，現已由 immutable cleanup／runtime receipts 證明 `pendingCount=0`、`activeRowCount=0`與 dispatch disabled；後續 provider readback 並證明 Job、Scheduler、專用 service accounts／token Secret／roles 已不存在。這是「已取消功能的安全退出完成」，不回寫 124-A／B／C 功能 PASS。
 
 **下文完整保留為歷史修復計畫及證據，原 124-A／B／C 不再排程執行。** 只在 DEV-125 安全退出需要時重用既有唯讀能力與收據，不為拆除先把整套 OpenSWX 修好。
 
-來源基準：`origin/main` `9d4881755bae7f6b77d77487e32e9d9bec9f50dd`（2026-10-27）；PR #499 已合併 OpenSWX active source／release dependency 退役，required CI run `40460654463` 通過。本輪安全退出 fixed readback 仍待其本身的 PR／required CI／merge、runner rollout 與正式 fresh operation。
+現行結案基準：`origin/main` `3720c7cea8f294f086e34a175fdf911283971007`（2026-10-27）。PR #525 合併 provider declarations 刪除，精確 apply 後 worker tfstate serial 7 為零 managed address，readback tfstate serial 5 只保留 shared prebuild controls；PR #526 合併退役 Terraform roots、runtime cleanup／readback operation 與 active executor 移除。本文下方 124-A／B／C、「尚待 readback／rollout／provider 退出」均是當時歷史語境，不是現行待辦。
 
 ## 1. 目的與責任邊界
 
