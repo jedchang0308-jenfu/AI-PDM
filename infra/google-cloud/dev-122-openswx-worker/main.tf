@@ -24,7 +24,6 @@ resource "google_secret_manager_secret" "reader_token" {
       replicas { location = "asia-east1" }
     }
   }
-  lifecycle { prevent_destroy = true }
 }
 resource "google_secret_manager_secret_iam_member" "reader_token_access" {
   project   = "jenfu-platform-prod"
@@ -48,7 +47,7 @@ resource "google_cloud_run_v2_job" "reader" {
   project             = "jenfu-platform-prod"
   location            = "asia-east1"
   name                = "ai-pdm-prod-openswx-metadata"
-  deletion_protection = true
+  deletion_protection = false
   template {
     task_count  = 1
     parallelism = 1
@@ -66,7 +65,6 @@ resource "google_cloud_run_v2_job" "reader" {
   }
   # After bootstrap the protected owner performs exact etag-fenced Job updates.
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [template]
   }
 }
@@ -116,7 +114,6 @@ resource "google_cloud_scheduler_job" "dispatch" {
     }
   }
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [paused]
   }
 }
