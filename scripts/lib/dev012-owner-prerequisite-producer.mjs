@@ -33,6 +33,21 @@ export function validateHistoricalBaselineIntent(value, profile, validateIntent)
   try {
     return validateIntent(value, profile)
   } catch (error) {
+    if (error?.code === 'RELEASE_INTENT_INVALID'
+      && profile.application?.id === 'ai-pdm'
+      && value?.openswxWorkerRef) {
+      const ref = value.openswxWorkerRef
+      const prefix = `gs://${profile.artifact.releaseBucket}/receipts/dev-122/openswx-worker/`
+      if (Object.keys(ref).sort().join(',') !== 'sha256,uri'
+        || !H64.test(ref.sha256 ?? '')
+        || !ref.uri?.startsWith(prefix)
+        || !ref.uri.endsWith('.json')
+        || ref.uri.includes('..')) throw error
+      const currentShape = structuredClone(value)
+      delete currentShape.openswxWorkerRef
+      validateIntent(currentShape, profile)
+      return value
+    }
     const entries = profile.migrations?.entries
     const currentHasDeferred085 = [35, 38, 39].includes(entries?.length)
       && entries[34]?.order === 35

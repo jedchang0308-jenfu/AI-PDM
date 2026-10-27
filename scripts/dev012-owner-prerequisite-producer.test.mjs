@@ -206,6 +206,33 @@ test('historical baseline fallback never masks a non-program-only or unrelated v
   assert.throws(() => validateHistoricalBaselineIntent({ programOnlyBaseline: {} }, profile35, () => { throw Object.assign(new Error('other'), { code: 'RELEASE_INTENT_INVALID' }) }), /other/u)
 })
 
+test('routine authority validates but does not propagate the retired OpenSWX baseline binding', () => {
+  const releaseBucket = 'jenfu-platform-prod-aipdm-release'
+  const historical = {
+    releaseId: 'DEV122-HISTORICAL-BASELINE',
+    sourceRevision: H40,
+    openswxWorkerRef: {
+      uri: `gs://${releaseBucket}/receipts/dev-122/openswx-worker/historical.json`,
+      sha256: H64,
+    },
+  }
+  const currentProfile = { application: { id: 'ai-pdm' }, artifact: { releaseBucket }, migrations: { entries: [] } }
+  const validate = (value) => {
+    if (Object.hasOwn(value, 'openswxWorkerRef')) {
+      throw Object.assign(new Error('retired field is not valid for a new intent'), { code: 'RELEASE_INTENT_INVALID' })
+    }
+    assert.deepEqual(value, { releaseId: historical.releaseId, sourceRevision: historical.sourceRevision })
+    return value
+  }
+  assert.deepEqual(validateHistoricalBaselineIntent(historical, currentProfile, validate), historical)
+  assert.throws(() => validateHistoricalBaselineIntent({ ...historical,
+    openswxWorkerRef: { ...historical.openswxWorkerRef, uri: `gs://${releaseBucket}/receipts/other/historical.json` } }, currentProfile, validate),
+  /retired field is not valid/u)
+  assert.throws(() => validateHistoricalBaselineIntent({ ...historical,
+    openswxWorkerRef: { ...historical.openswxWorkerRef, sha256: 'bad' } }, currentProfile, validate),
+  /retired field is not valid/u)
+})
+
 test('DEV-013 transition authority binds provider baseline, desired runtime and verified predecessor', () => {
   const transitionProfile = structuredClone(profile)
   transitionProfile.application.id = 'ai-pdm'
