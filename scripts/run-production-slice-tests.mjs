@@ -36,8 +36,6 @@ const CORE_TESTS = [
 
 const DATABASE_TESTS = [
   'scripts/dev117-production-migration-runner.test.mjs',
-  'scripts/lib/dev122-preview-openswx-runtime-readback.test.mjs',
-  'scripts/dev125-openswx-retirement-cleanup.test.mjs',
 ]
 
 const RD_PERMISSION_DATABASE_TESTS = [

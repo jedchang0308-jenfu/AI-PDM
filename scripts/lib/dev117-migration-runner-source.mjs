@@ -14,9 +14,7 @@ export const MIGRATION_RUNNER_EXECUTABLE_INPUTS = Object.freeze([
   'scripts/lib/dev121-ai-pdm-quiescence.mjs',
   'scripts/lib/dev121-migration-fence.mjs',
   'scripts/lib/dev121-unlinked-profile-cleanup.mjs',
-  'scripts/lib/dev122-preview-openswx-runtime-readback.mjs',
   'scripts/lib/dev122-rd-permission-state-readback.mjs',
-  'scripts/lib/dev125-openswx-retirement-cleanup.mjs',
 ])
 
 function fail(code) {

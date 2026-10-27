@@ -250,9 +250,11 @@ test('stable diagnostic binder rejects the retired OpenSWX recovery namespace', 
     /DIAGNOSTIC_REF_INVALID/u)
 })
 
-test('stable diagnostic binder routes the fixed preview and OpenSWX runtime namespace', () => {
-  const binding = bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-preview-runtime-readback/state.json#sha256=${'b'.repeat(64)}`)
-  assert.deepEqual(binding, { operation_uri: 'gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-preview-runtime-readback/state.json', operation_sha256: 'b'.repeat(64), kind: 'preview-openswx-runtime-state' })
+test('stable diagnostic binder rejects retired DEV-125 OpenSWX namespaces', () => {
+  for (const pathname of ['dev125-preview-runtime-readback/state.json', 'dev125-retirement-cleanup/operation.json']) {
+    assert.throws(() => bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/${pathname}#sha256=${'b'.repeat(64)}`),
+      /DIAGNOSTIC_REF_INVALID/u)
+  }
 })
 
 test('stable workflow keeps readonly diagnostics approval-free and contains no retired recovery job', () => {
@@ -260,12 +262,11 @@ test('stable workflow keeps readonly diagnostics approval-free and contains no r
   assert.match(workflow, /WIF_PROVIDER: projects\/9536592944\/locations\/global\/workloadIdentityPools\/jenfu-prod-release\/providers\/aipdm-github/u)
   assert.doesNotMatch(workflow, /vars\.AIPDM_PROD_WIF_PROVIDER/u)
   assert.match(workflow, /id: verifier_auth\s+if: steps.bind.outputs.kind == 'service-state'/u)
-  assert.match(workflow, /id: deployer_auth\s+if: steps.bind.outputs.kind == 'rd-permission-state' \|\| steps.bind.outputs.kind == 'preview-openswx-runtime-state' \|\| steps.bind.outputs.kind == 'openswx-retirement-cleanup'/u)
+  assert.match(workflow, /id: deployer_auth\s+if: steps.bind.outputs.kind == 'rd-permission-state'/u)
   assert.match(workflow, /service_account: aipdm-prod-verifier@/u)
   assert.match(workflow, /dev122-rd-permission-state-readback.mjs --stage readback/u)
   assert.match(workflow, /dev117-production-diagnostics.mjs --service-state/u)
-  assert.match(workflow, /dev122-preview-openswx-runtime-readback.mjs --stage readback/u)
-  assert.match(workflow, /dev125-openswx-retirement-cleanup.mjs --stage cleanup/u)
+  assert.doesNotMatch(workflow, /preview-openswx-runtime-state|openswx-retirement-cleanup|dev122-preview-openswx-runtime-readback|dev125-openswx-retirement-cleanup/u)
   assert.doesNotMatch(workflow, /dev122-openswx-dispatch-recovery|\n  recovery:/iu)
   assert.equal((workflow.match(/environment: production/gu) ?? []).length, 0)
   assert.match(workflow, /permissions: \{ contents: read, checks: read, id-token: write \}/u)

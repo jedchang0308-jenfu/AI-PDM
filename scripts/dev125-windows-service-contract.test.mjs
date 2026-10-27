@@ -83,6 +83,10 @@ test("DEV-125B exposes only the installed Windows service and retires legacy wor
     "scripts/run-solidworks-document-manager-preview-worker.mjs",
     "scripts/run-windows-shell-preview-worker.mjs",
     "scripts/start-drawing-recognition-worker.ps1",
+    "scripts/dev122-preview-openswx-runtime-readback.mjs",
+    "scripts/lib/dev122-preview-openswx-runtime-readback.mjs",
+    "scripts/dev125-openswx-retirement-cleanup.mjs",
+    "scripts/lib/dev125-openswx-retirement-cleanup.mjs",
     "src/lib/openswx-metadata.ts"
   ]) assert.equal(fs.existsSync(path.join(root, retiredPath)), false, retiredPath);
   assert.match(localLauncher, /DEV-125 Windows service is installed and managed separately/u);
@@ -92,7 +96,10 @@ test("DEV-125B removes OpenSWX provider declarations while retaining shared preb
   const sharedPrebuildReadback = read("infra/google-cloud/dev-122-openswx-release-readback/prebuild-list-readback.tf");
 
   for (const retiredPath of [
+    "infra/google-cloud/dev-122-openswx-worker/backend.tf",
     "infra/google-cloud/dev-122-openswx-worker/main.tf",
+    "infra/google-cloud/dev-122-openswx-worker/README.md",
+    "infra/google-cloud/dev-122-openswx-worker/versions.tf",
     "infra/google-cloud/dev-122-openswx-release-readback/main.tf",
     "infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf"
   ]) assert.equal(fs.existsSync(path.join(root, retiredPath)), false, retiredPath);
