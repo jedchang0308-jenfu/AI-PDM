@@ -126,6 +126,28 @@ export function assertAppliedContinuationRuntimeBinding(runtimeConfig, intent) {
     || Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
 }
 
+// Historical applied-migration evidence may predate DEV-125 and therefore
+// retain the sealed DEV-122 worker binding. Validate that closed shape exactly;
+// callers must keep using assertAppliedContinuationRuntimeBinding for every
+// newly produced runtime and release intent.
+export function assertHistoricalAppliedContinuationRuntimeBinding(runtimeConfig, intent, bucket = DEFAULT_BUCKET) {
+  const worker = runtimeConfig?.openswxWorker
+  const ref = intent?.openswxWorkerRef
+  const hasRetired = worker != null || ref != null ||
+    Object.hasOwn(runtimeConfig?.plainEnvironment ?? {}, 'PDM_OPENSWX_DISPATCH_ENABLED') ||
+    Object.hasOwn(runtimeConfig?.secretVersions ?? {}, 'PDM_WORKLOAD_AUTH_CREDENTIALS')
+  if (!hasRetired) return assertAppliedContinuationRuntimeBinding(runtimeConfig, intent)
+  const workerKeys = ['descriptorRef', 'purpose', 'sourceRevision', 'workerProfileSha256']
+  if (!worker || !ref || JSON.stringify(Object.keys(worker).sort()) !== JSON.stringify(workerKeys.sort()) ||
+      canonicalize(worker.descriptorRef) !== canonicalize(ref) || worker.purpose !== 'full' ||
+      !H40.test(worker.sourceRevision ?? '') || !H64.test(worker.workerProfileSha256 ?? '') ||
+      runtimeConfig.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED !== '1' ||
+      !/^[1-9][0-9]*$/u.test(runtimeConfig.secretVersions?.PDM_WORKLOAD_AUTH_CREDENTIALS ?? '') ||
+      !H64.test(ref.sha256 ?? '') || !new RegExp(`^gs://${bucket}/receipts/dev-122/openswx-worker/[A-Za-z0-9][A-Za-z0-9._/-]*\\.json$`, 'u').test(ref.uri ?? '') ||
+      ref.uri.includes('..')) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
+  return { retainedHistoricalBinding: true }
+}
+
 // Candidate identity and artifact digest are already proven by the provider
 // readback sealed in the candidate receipt. HTTP probes verify only the RD
 // slice's observable behaviour; they must not create a second source of truth

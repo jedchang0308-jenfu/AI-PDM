@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { assertStageReceipt, canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { assertReconciledPrincipalAbortBinding } from './dev121-principal-only-release.mjs'
-import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation, assertAppliedContinuationRuntimeBinding, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
+import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation, assertHistoricalAppliedContinuationRuntimeBinding, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
 import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
 import { fetchProviderRead } from './dev012-read-retry.mjs'
 
@@ -665,7 +665,9 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
   const selected = assertOwnerReleaseRefSet('ai-pdm', { prepare: refs.prepare, migrate: null, terminal: null }, 'pre_migration')
   const root = selected.root
   const intentRef = { uri: `gs://${AI_BUCKET}/receipts/releases/${selected.releaseId}/release-intent.json`, sha256: root.split('/').at(-1) }
-  const intent = assertObservedCapsule((await readRef(intentRef, AI_BUCKET, token, fetchImpl)).value, intentRef, sourceRevision)
+  const intentRow = await readRef(intentRef, AI_BUCKET, token, fetchImpl)
+  const historicalIntent = intentRow.value
+  const intent = assertObservedCapsule(historicalIntent, intentRef, sourceRevision)
   if (!intent.appliedMigrationContinuation || intent.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
   const prepare = await readRef(refs.prepare, AI_BUCKET, token, fetchImpl)
   sameProof(prepare.value.facts?.prerequisiteRefs, Object.fromEntries(Object.entries({ sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }).map(([name, key]) => [name, intent[key]])))
@@ -683,8 +685,7 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
   if (runtimeRow.value.releaseId !== intent.releaseId || runtimeRow.value.sourceRevision !== sourceRevision
     || runtimeRow.value.ownerApplicationId !== 'ai-pdm' || runtimeRow.value.status !== 'VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
   const runtime = runtimeRow.value.runtimeConfig ?? runtimeRow.value
-  const { assertRuntimeConfig } = await import('./dev012-owner-release-runtime.mjs')
-  assertAppliedContinuationRuntimeBinding(runtime, intent)
+  assertHistoricalAppliedContinuationRuntimeBinding(runtime, historicalIntent, AI_BUCKET)
   const sourceLock = await readRef(intent.sourceLockRef, AI_BUCKET, token, fetchImpl)
   if (sourceLock.value.sourceSha256 !== intent.sourceSha256 || sourceLock.value.migrationManifestSha256 !== intent.migrationManifestSha256) fail('SOURCE_LOCK_INVALID')
   admitAiPdmEvidenceSource({ bytes: sourceLock.bytes, ref: sourceLock.ref })
