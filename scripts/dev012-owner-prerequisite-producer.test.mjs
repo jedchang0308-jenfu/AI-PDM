@@ -148,6 +148,38 @@ test('infra reuse producer reads the live migration job before publishing provid
   assert.equal(writes.length, 0)
 })
 
+test('AI-PDM infra reuse checks runner executable inputs before reading or publishing provider state', async () => {
+  const aiProfile = { ...profile, application: { id: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main' } }
+  const aiSourceLock = { ...sourceLock, ownerApplicationId: 'ai-pdm' }
+  const foundation = { foundationManifestSha256: 'e'.repeat(64) }
+  const core = {
+    schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: 'project', region: 'region',
+    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
+    controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
+    status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
+  }
+  const existingInfra = { ...core, receiptSha256: sha256(canonicalize(core)) }
+  const input = { schemaVersion: 'jenfu.dev012.app-infra-reuse-input.v1', sourceLockRef: ref('source-lock'), foundationReceiptRef: ref('foundation'), existingInfraReceiptRef: ref('original-infra') }
+  const values = new Map([[input.sourceLockRef.uri, aiSourceLock], [input.foundationReceiptRef.uri, foundation], [input.existingInfraReceiptRef.uri, existingInfra]])
+  let providerReads = 0
+  const base = {
+    stage: 'infra-reuse', releaseId: 'REL-001', input, profile: aiProfile, root: '.', observedAt: NOW,
+    transport: {
+      readJson: async row => ({ value: values.get(row.uri) }),
+      request: async () => { providerReads++; return providerJob() },
+      putJson: async (uri, value) => ({ ref: { uri, sha256: sha256(canonicalize(value)) }, value }),
+    },
+  }
+  await assert.rejects(executePrerequisiteProducer({ ...base,
+    migrationRunnerCompatibilityVerifier: () => { throw Object.assign(new Error('MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED'), { code: 'MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED' }) },
+  }), /MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED/u)
+  assert.equal(providerReads, 0)
+  const result = await executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: () => true })
+  assert.equal(result.value.providerJobReadback.sourceRevision, 'f'.repeat(40))
+  assert.equal(providerReads, 1)
+})
+
 test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () => {
   const aiProfile = { ...profile, application: { id: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main' } }
   const aiSourceLock = { ...sourceLock, ownerApplicationId: 'ai-pdm' }
