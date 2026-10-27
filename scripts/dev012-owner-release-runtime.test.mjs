@@ -3,7 +3,6 @@ import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256, ownerPrivateObjectMediaWindow, OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS } from './lib/dev012-owner-release-runtime.mjs'
-import { assertNumericSecret } from './lib/dev122-openswx-owner-release.mjs'
 
 const H40 = 'a'.repeat(40)
 const RUNNER_H40 = 'e'.repeat(40)
@@ -874,18 +873,16 @@ test('aligned-new assessment requires source identity; unrelated or escalated sc
 })
 
 
-test('B27 build readback uses verifier only for fixed live GETs and retains builder mutations', async () => {
+test('build readback uses verifier only for fixed live service GETs and retains builder mutations', async () => {
   const builder = 'MODELED-B27-BUILDER-TOKEN', verifier = 'MODELED-B27-VERIFIER-TOKEN', calls = []
   const service = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
-  const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata'
-  const scheduler = 'https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'
   const ownProfile = { application: { id: 'ai-pdm' }, target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'ai-pdm-prod' }, artifact: { releaseBucket: 'jenfu-platform-prod-aipdm-release' } }
   const transport = createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: verifier, fetchImpl: async (url, options) => {
     calls.push({ url, method: options.method ?? 'GET', token: options.headers.authorization, redirect: options.redirect })
     if (url.endsWith('/revisions/ai-pdm-prod-0123456789ab')) return json({ name: url.slice('https://run.googleapis.com/v2/'.length), service: 'ai-pdm-prod' })
     return json({ ok: true })
   } })
-  for (const url of [scheduler, job, service, `${service}/revisions/ai-pdm-prod-0123456789ab`, `${job}/executions?pageSize=100`, `${job}/executions?pageSize=100&pageToken=next`, `${job}/executions/execution-one`, `${job.replace('jenfu-platform-prod', '9536592944')}/executions/execution-one`]) {
+  for (const url of [service, `${service}/revisions/ai-pdm-prod-0123456789ab`]) {
     await transport.request(url)
     assert.equal(calls.at(-1).token, `Bearer ${verifier}`)
     assert.equal(calls.at(-1).redirect, 'error')
@@ -893,7 +890,7 @@ test('B27 build readback uses verifier only for fixed live GETs and retains buil
   await transport.getService(ownProfile)
   await transport.getRevision(ownProfile, 'ai-pdm-prod-0123456789ab')
   assert.equal(calls.at(-1).token, `Bearer ${verifier}`)
-  for (const [url, options] of [[scheduler, { method: 'POST' }], [job, { method: 'PATCH', body: '{}' }], [service, { method: 'DELETE' }], [job + ':run', { method: 'POST' }], [scheduler + ':resume', { method: 'POST' }], [job + ':getIamPolicy', {}], [job + '/executions?pageSize=100&filter=other', {}], [job + '/executions?pageSize=100&pageSize=100', {}], [job + '/executions?pageSize=100#fragment', {}], [service.replace('ai-pdm-prod', 'jenfu-platform-prod'), {}], [service.replace('jenfu-platform-prod', 'other-project'), {}], [service.replace('run.googleapis.com', 'runXgoogleapisXcom') + '/revisions/ai-pdm-prod-0123456789ab', {}], [service + '/revisions/latest', {}], ['https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/own-build', {}], ['https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release', {}]]) {
+  for (const [url, options] of [[service, { method: 'DELETE' }], [service.replace('ai-pdm-prod', 'jenfu-platform-prod'), {}], [service.replace('jenfu-platform-prod', 'other-project'), {}], [service.replace('run.googleapis.com', 'runXgoogleapisXcom') + '/revisions/ai-pdm-prod-0123456789ab', {}], [service + '/revisions/latest', {}], ['https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/own-build', {}], ['https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release', {}]]) {
     await transport.request(url, options)
     assert.equal(calls.at(-1).token, `Bearer ${builder}`, url)
   }
@@ -907,7 +904,7 @@ test('B27 build readback uses verifier only for fixed live GETs and retains buil
   for (const value of ['', builder]) assert.throws(() => createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: value }), { code: 'BUILD_READBACK_TOKEN_INVALID' })
 })
 
-test('B27 verifier denial and timeout fail without a mutation or builder fallback', async () => {
+test('verifier denial and timeout fail without a mutation or builder fallback', async () => {
   for (const mode of ['denied', 'timeout']) {
     const calls = []
     const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B27-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B27-VERIFIER-TOKEN', sleep: async () => {}, fetchImpl: async (url, options) => {
@@ -915,66 +912,9 @@ test('B27 verifier denial and timeout fail without a mutation or builder fallbac
       if (mode === 'timeout') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
       return json({}, 403)
     } })
-    await assert.rejects(transport.request('https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
+    await assert.rejects(transport.request('https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
     assert.equal(calls.length, mode === 'timeout' ? 3 : 1)
     assert.ok(calls.every(call => call.method === 'GET' && call.token === 'Bearer MODELED-B27-VERIFIER-TOKEN'))
-  }
-})
-
-test('B35 exact Secret version metadata GETs use the verifier with redirects disabled', async () => {
-  const builder = 'MODELED-B35-BUILDER-TOKEN', verifier = 'MODELED-B35-VERIFIER-TOKEN', calls = []
-  const transport = createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: verifier, fetchImpl: async (url, options) => {
-    calls.push({ url, options }); return json({ state: 'ENABLED' })
-  } })
-  for (const secret of ['aipdm-prod-openswx-reader-token', 'aipdm-prod-workload-auth-credentials']) {
-    for (const [version, options] of [['1', {}], ['123', { method: 'GET', redirect: 'follow', headers: { accept: 'application/json' } }]]) {
-      const requestedName = `projects/jenfu-platform-prod/secrets/${secret}/versions/${version}`
-      const canonicalName = assertNumericSecret(requestedName, secret)
-      assert.equal(canonicalName, `projects/9536592944/secrets/${secret}/versions/${version}`)
-      for (const name of [requestedName, canonicalName]) {
-        const url = `https://secretmanager.googleapis.com/v1/${name}`
-        assert.deepEqual(await transport.request(url, options), { state: 'ENABLED' })
-        assert.equal(calls.at(-1).url, url)
-        assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${verifier}`)
-        assert.equal(calls.at(-1).options.redirect, 'error')
-      }
-    }
-  }
-  assert.equal(calls.length, 8)
-})
-
-test('B35 invalid Secret requests and caller Authorization overrides fail before fetch', () => {
-  let calls = 0
-  const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B35-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B35-VERIFIER-TOKEN', fetchImpl: async () => { calls += 1; return json({}) } })
-  const url = 'https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/aipdm-prod-openswx-reader-token/versions/1'
-  for (const [changed, options] of [
-    [url.replace('/1', '/latest'), {}], [url.replace('/1', '/0'), {}], [url.replace('/1', '/01'), {}],
-    [url + '?alt=json', {}], [url + '#fragment', {}], [url + ':access', {}], [url + '/', {}],
-    [url.replace('jenfu-platform-prod', 'other-project'), {}], [url.replace('jenfu-platform-prod', '9536592945'), {}],
-    [url.replace('aipdm-prod-openswx-reader-token', 'own'), {}], [url.replace('https:', 'http:'), {}],
-    [url.replace('https://', 'https://user@'), {}], [url.replace('.com/', '.com:443/'), {}], [new URL(url), {}],
-    [url, { method: 'POST' }], [url, { method: 'PATCH' }], [url, { method: 'DELETE' }], [url, { method: 'HEAD' }],
-    [url, { body: '{}' }], [url, { body: '' }],
-  ]) assert.throws(() => transport.request(changed, options), { code: 'BUILD_READBACK_SECRET_METADATA_INVALID' }, String(changed))
-  for (const headers of [{ authorization: 'Bearer override' }, { Authorization: 'Bearer override' }, { AUTHORIZATION: 'Bearer override' }, [['Authorization', 'Bearer override']], new Headers({ Authorization: 'Bearer override' })]) {
-    assert.throws(() => transport.request(url, { headers }), { code: 'BUILD_READBACK_AUTHORIZATION_INVALID' })
-  }
-  assert.equal(calls, 0)
-})
-
-test('B35 Secret metadata verifier denial or timeout has no builder fallback', async () => {
-  for (const secret of ['aipdm-prod-openswx-reader-token', 'aipdm-prod-workload-auth-credentials']) {
-    for (const mode of ['denied', 'timeout']) {
-      const calls = []
-      const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B35-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B35-VERIFIER-TOKEN', sleep: async () => {}, fetchImpl: async (url, options) => {
-        calls.push({ url, options })
-        if (mode === 'timeout') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
-        return json({}, 403)
-      } })
-      await assert.rejects(transport.request(`https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/${secret}/versions/1`), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
-      assert.equal(calls.length, mode === 'timeout' ? 3 : 1)
-      assert.ok(calls.every(call => call.options.headers.authorization === 'Bearer MODELED-B35-VERIFIER-TOKEN' && call.options.redirect === 'error' && call.options.method === 'GET'))
-    }
   }
 })
 

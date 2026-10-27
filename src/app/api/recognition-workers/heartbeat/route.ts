@@ -6,7 +6,7 @@ import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const authentication = authenticateWorkerService(request, "recognition_heartbeat");
+  const authentication = await authenticateWorkerService(request, "recognition_heartbeat");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   const capabilityDenied = rejectWorkerCapability(actor, "solidworks_document_manager");

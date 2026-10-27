@@ -26,9 +26,8 @@ resource "google_storage_bucket_iam_member" "migrator_release_source_viewer" {
   }
 }
 
-# DEV-122 diagnostics and the one-time OpenSWX dispatch recovery are executed
-# inside the migration Job. Keep each input grant read-only and constrained to
-# its source-owned immutable operation prefix.
+# DEV-122 permission diagnostics execute inside the migration Job. Keep the
+# input grant read-only and constrained to its immutable operation prefix.
 resource "google_storage_bucket_iam_member" "migrator_rd_permission_readback_viewer" {
   count  = var.incident_runtime_enabled ? 1 : 0
   bucket = google_storage_bucket.release.name
@@ -37,17 +36,6 @@ resource "google_storage_bucket_iam_member" "migrator_rd_permission_readback_vie
   condition {
     title      = "aipdm-migrator-rd-permission-readback-viewer"
     expression = "resource.name.startsWith('projects/_/buckets/${var.release_bucket_name}/objects/source/rd-permission-readback/')"
-  }
-}
-
-resource "google_storage_bucket_iam_member" "migrator_openswx_dispatch_recovery_viewer" {
-  count  = var.incident_runtime_enabled ? 1 : 0
-  bucket = google_storage_bucket.release.name
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${data.google_service_account.migrator.email}"
-  condition {
-    title      = "aipdm-migrator-openswx-dispatch-recovery-viewer"
-    expression = "resource.name.startsWith('projects/_/buckets/${var.release_bucket_name}/objects/source/openswx-dispatch-recovery/')"
   }
 }
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PdmCommandMetadata } from "@/lib/platform-command";
+import type { VerifiedWorkloadActor } from "@/lib/worker-service-auth";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), audit: vi.fn(),
   authority: vi.fn(), transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
@@ -32,8 +33,15 @@ const snapshot = { kind: "postgres" };
 const verified = { profile: { pdmUserId: "profile-tester", companyId: "company-one" },
   session: { principalId:"principal-tester",profileVersion:7,employeeId:"employee",identityIssuer:"issuer",identitySubject:"subject",
     authEpoch:1,accountLifecycleVersion:2,authenticatedAt:"2026-10-05T00:00:00.000Z",issuedAt:"2026-10-05T00:00:01.000Z" } };
-const worker = { kind: "workload" as const, id: "worker-one", purposes: ["settings_secret_probe" as const],
-  capabilities: ["solidworks_document_manager" as const] };
+const worker: VerifiedWorkloadActor = {
+  kind: "windows_service_device", id: "worker-one", deviceId: "device-one", companyId: "company-one",
+  instanceId: "instance-one", credentialHash: "a".repeat(64),
+  device: { id: "device-one", companyId: "company-one", name: "Worker One", status: "active",
+    instanceId: "instance-one", serviceVersion: "test", protocolVersion: 1, registeredBy: "profile-tester",
+    registeredAt: "2026-10-05T00:00:00.000Z", lastSeenAt: null, revokedAt: null, revokedBy: null, rowVersion: 1 },
+  purposes: ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"],
+  capabilities: ["solidworks_3d_preview_png", "solidworks_2d_preview_png", "solidworks_document_manager"]
+};
 const reference = { id: "reference-one", kind: "solidworks_document_manager", provider: "solidworks_document_manager",
   lifecycleStatus: "draft", vaultProvider: "google_secret_manager", createdBy:"profile-draft-creator",version:1,metadataJson:JSON.stringify({companyId:"company-one",securityActor:{kind:"human",principalId:"creator",profileVersion:1}}) };
 function job(extra = {}) { return { id: "probe-one", secretReferenceId: reference.id, kind: reference.kind,
@@ -147,7 +155,7 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
   });
 
   it("rejects a technical credential for a different purpose before loading the job", async () => {
-    await expect(completeSettingsSecretProbe({ probeJobId: "probe-one", worker: { ...worker, purposes: ["preview_jobs"] },
+    await expect(completeSettingsSecretProbe({ probeJobId: "probe-one", worker: { ...worker, purposes: ["preview_jobs"] } as unknown as VerifiedWorkloadActor,
       status: "failed", resultCode: null, readerVersion: null })).rejects.toMatchObject({ code: "WORKLOAD_FORBIDDEN", status: 403 });
     expect(mocks.repository.getProbeJobById).not.toHaveBeenCalled();
   });

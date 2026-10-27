@@ -168,7 +168,7 @@ jobs:
           npm run qc:dev-121:route-policy-source
           npm run qc:dev-121:route-classification
           npm run qc:dev-121:inventory-runner
-          node --test scripts/lib/dev121-ai-pdm-quiescence.test.mjs scripts/lib/preview-worker-source.test.mjs scripts/lib/local-workload-auth.test.mjs scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs
+          node --test scripts/lib/dev121-ai-pdm-quiescence.test.mjs scripts/lib/preview-worker-source.test.mjs scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs
           node --test scripts/dev121-principal-candidate-smoke.test.mjs scripts/dev121-smoke-credential-reauth.test.mjs
           npm run qc:dev-046-phase2b
 

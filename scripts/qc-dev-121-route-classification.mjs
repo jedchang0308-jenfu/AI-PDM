@@ -183,6 +183,10 @@ const windowsServiceRoutes = new Map([
   ["POST /api/windows-service/heartbeat", {
     category: "windows_service_device",
     markers: ["authenticateWindowsServiceDevice(request)", ".heartbeat({"]
+  }],
+  ["GET /api/windows-service/jobs/[kind]/[jobId]", {
+    category: "windows_service_device",
+    markers: ["authenticateWindowsServiceDevice(request)", "worker_completion_json", "actor.companyId"]
   }]
 ]);
 const retiredRoutes = new Map([
@@ -216,13 +220,6 @@ const explicitPermissionCalls = new Map([
 const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
 const workerCapabilityGuard = /\b(?:authenticateWorkerService)\s*\(/u;
-export function classifyOpenSwxSchedulerRoute(relativeFile, method, routeSource, authSource) {
-  if (relativeFile !== "src/app/api/openswx-metadata-dispatch/recover/route.ts" || method !== "POST") return false;
-  containsAll(routeSource, ['from "@/lib/openswx-metadata-dispatch-auth"', "await authenticateOpenSwxScheduler(request);", "if (denied) return denied;", "await recoverOpenSwxDispatch("], "OpenSWX exact Scheduler route");
-  containsAll(authSource, ['from "google-auth-library"', "google.verifyIdToken({ idToken: token, audience: OPENSWX_SCHEDULER_AUDIENCE })", "verify: Verify = verifyGoogle", "c.sub !== subject", "c.email !== OPENSWX_SCHEDULER_EMAIL", "c.aud !== OPENSWX_SCHEDULER_AUDIENCE", "OPENSWX_SCHEDULER_NOT_CONFIGURED", "x-cloudscheduler-scheduletime", "Number.isSafeInteger(observedNow)", "schedulerInstant(request.headers.get(\"x-cloudscheduler-scheduletime\"))", "BigInt(observedNow) * 1_000_000n", "schedule.nanos < observedNanos - 60_000_000_000n", "schedule.nanos > observedNanos + 5_000_000_000n", "calendar.getUTCFullYear() !== year", "match[8] === \"-00:00\"", "padEnd(9, \"0\")"], "OpenSWX fixed signed Scheduler boundary");
-  return true;
-}
-
 function containsAll(source, needles, label) {
   for (const needle of needles) {
     if (!source.includes(needle)) throw new Error(`${label}: required boundary implementation missing ${needle}`);
@@ -437,7 +434,6 @@ function main() {
       }
       if (sessionGuard.test(graph)) { assign(key, "authenticated_domain"); continue; }
       if (workerCapabilityGuard.test(graph)) { assign(key, "worker_capability"); continue; }
-      if (classifyOpenSwxSchedulerRoute(relativeFile, handler.method, graph + text, readFileSync(join(appRoot, "src/lib/openswx-metadata-dispatch-auth.ts"), "utf8"))) { assign(key, "scheduler_oidc"); continue; }
       const identityMarker = identityProtocolRoutes.get(key);
       if (identityMarker) {
         if (!graph.includes(identityMarker)) throw new Error(`${key}: identity protocol handler lost ${identityMarker}`);

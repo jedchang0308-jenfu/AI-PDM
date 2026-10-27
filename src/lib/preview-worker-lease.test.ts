@@ -16,7 +16,7 @@ const basis: PreviewLeaseBasis = { companyId: "company-one", sourceFileAssetId: 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=", "base64");
 const output = { kind: "thumbnail_png" as const, fileName: "preview.png", mimeType: "image/png" as const, contentBase64: png.toString("base64") };
 const claim = () => claimPreviewJobAsync(client, { leaseProtocolVersion: 2, workerId: "worker-one",
-  supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] });
+  companyId: "company-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"] });
 const source = () => ({ ...database.prepare("SELECT * FROM file_assets").get() as object, company_id: "company-one" }) as Parameters<typeof enqueuePreviewJobForSourceAsync>[1]["source"];
 const initiator = { kind: "verified_principal" as const, principalId: "principal-one", employeeId: "employee-one",
   pdmUserId: "profile-one", companyId: "company-one", identityIssuer: "test", identitySubject: "worker-fixture",
@@ -46,7 +46,8 @@ beforeEach(() => {
     CREATE TABLE preview_jobs (id TEXT PRIMARY KEY, company_id TEXT, source_file_asset_id TEXT, source_content_hash TEXT,
       requested_kind TEXT, source_extension TEXT, status TEXT, priority INTEGER, attempt_count INTEGER,
       idempotency_key TEXT UNIQUE, generator_profile TEXT, error_code TEXT, error_summary TEXT, created_by TEXT,
-      created_at TEXT, updated_at TEXT, completed_at TEXT, metadata_json TEXT, locked_by TEXT, locked_at TEXT);
+      created_at TEXT, updated_at TEXT, completed_at TEXT, metadata_json TEXT, locked_by TEXT, locked_at TEXT,
+      worker_completion_json TEXT);
     CREATE TABLE file_derivatives (id TEXT PRIMARY KEY, company_id TEXT, source_file_asset_id TEXT, source_content_hash TEXT,
       derivative_kind TEXT, storage_provider TEXT, storage_key TEXT, original_path TEXT, file_name TEXT, mime_type TEXT,
       file_size INTEGER, content_hash TEXT, hash_algorithm TEXT, width INTEGER, height INTEGER, page_count INTEGER,

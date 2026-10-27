@@ -867,7 +867,8 @@ function probeProvenance(job: SettingsSecretProbeJob) {
 }
 
 function requireProbeWorker(actor: VerifiedWorkloadActor) {
-  if (actor.kind !== "workload" || !actor.id || !actor.purposes.includes("settings_secret_probe") ||
+  if (actor.kind !== "windows_service_device" || !actor.id || !actor.companyId || !actor.instanceId ||
+      !actor.purposes.includes("settings_secret_probe") ||
       !actor.capabilities.includes("solidworks_document_manager")) {
     throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "Worker purpose/capability 不符。", 403);
   }
@@ -911,6 +912,7 @@ export async function completeSettingsSecretProbe(input: {
     await repository.lockKind("solidworks_document_manager");
     const job = await repository.getProbeJobById(input.probeJobId, true);
     if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
+    if (job.companyId !== input.worker.companyId) throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "Worker 公司範圍不符。", 403);
     const digest = crypto.createHash("sha256").update(JSON.stringify({ workerId: input.worker.id,
       referenceId: job.secretReferenceId, attempt: input.leaseAttempt ?? null, ...result })).digest("hex");
     if (["passed","failed","blocked"].includes(job.status)) {
@@ -934,8 +936,12 @@ export async function completeSettingsSecretProbe(input: {
       throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTABLE","此版本已非可測試狀態。",409);
     }
     const completedAt = await repository.databaseNow();
-    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id, status: result.status,
-      resultCode: result.resultCode, readerVersion: result.readerVersion, completedAt, leaseAttempt: input.leaseAttempt })) {
+    const workerCompletionJson = JSON.stringify({ workerId: input.worker.id,
+      leaseBasis: { companyId: job.companyId, attemptCount: job.attemptCount, lockedAt: job.lockedAt ?? null },
+      resultDigest: digest, terminalStatus: result.status, committedAt: completedAt });
+    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id, companyId: input.worker.companyId,
+      status: result.status, resultCode: result.resultCode, readerVersion: result.readerVersion, completedAt,
+      leaseAttempt: input.leaseAttempt, workerCompletionJson })) {
       throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 狀態已變更。", 409);
     }
     const provenance = { probeJobId: job.id, companyId: job.companyId, initiator: probeProvenance(job),
@@ -969,6 +975,7 @@ export async function resolveSettingsSecretProbeCredential(probeJobId: string, w
   const repository = new AsyncSettingsSecretRepository(client);
   const job = await repository.getProbeJobById(probeJobId);
   if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
+  if (job.companyId !== worker.companyId) throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "Worker 公司範圍不符。", 403);
   requireProbeLease(job, worker, leaseAttempt);
   if (leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) {
     throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要新版 worker。", 409);

@@ -78,7 +78,8 @@ New-Item -ItemType Directory -Force -Path $stage,$downloadDirectory,
 Copy-Item -LiteralPath $node -Destination (Join-Path $stage 'runtime\node.exe')
 Copy-Item -LiteralPath $winSwPath -Destination (Join-Path $stage 'AipdmWindowsParsing.exe')
 Copy-Item -LiteralPath (Join-Path $root 'windows-service\service\AipdmWindowsParsing.xml') -Destination (Join-Path $stage 'AipdmWindowsParsing.xml')
-Copy-Item -LiteralPath (Join-Path $root 'windows-service\service\service.mjs') -Destination (Join-Path $stage 'service\service.mjs')
+Copy-Item -Path (Join-Path $root 'windows-service\service\*.mjs') -Destination (Join-Path $stage 'service')
+Copy-Item -LiteralPath (Join-Path $root 'config\solidworks-metadata-field-aliases.json') -Destination (Join-Path $stage 'service\solidworks-metadata-field-aliases.json')
 Copy-Item -LiteralPath (Join-Path $root 'windows-service\THIRD-PARTY-NOTICES.txt') -Destination (Join-Path $stage 'THIRD-PARTY-NOTICES.txt')
 
 $product = [ordered]@{
@@ -117,6 +118,9 @@ Write-Utf8NoBom (Join-Path $stage 'product.json') ($product | ConvertTo-Json -De
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerPreviewExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'scripts\solidworks-document-manager-preview-exporter.cs')
+& $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerCredentialProbe.exe')" `
+  /reference:Microsoft.CSharp.dll `
+  (Join-Path $root 'scripts\solidworks-document-manager-credential-probe.cs')
 
 $installerName = "AI-PDM-Windows-Setup-$Version.exe"
 $installerPath = Join-Path $downloadDirectory $installerName

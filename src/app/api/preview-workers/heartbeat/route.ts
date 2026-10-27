@@ -18,7 +18,7 @@ function previewCapability(value: unknown): PreviewCapabilityCode | null {
 }
 
 export async function POST(request: Request) {
-  const authentication = authenticateWorkerService(request, "preview_heartbeat");
+  const authentication = await authenticateWorkerService(request, "preview_heartbeat");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const authentication = authenticateWorkerService(request, "preview_heartbeat");
+  const authentication = await authenticateWorkerService(request, "preview_heartbeat");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
 

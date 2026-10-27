@@ -43,6 +43,7 @@ import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-r
 import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard';
 import { principalJobInitiatorFromVerifiedRequest } from '@/lib/principal-job-authority';
 import { requireRecognitionImpactCapabilities, requireRecognitionJobAuthority } from '@/lib/principal-recognition-capability';
+import type { RecognitionLeaseBasis } from '@/lib/recognition-worker-lease';
 
 type SessionRow = {
   id: string;
@@ -61,7 +62,7 @@ type SessionRow = {
   not_before: string | null;
   attempt_count: number | string;
   locked_by: string | null;
-  locked_at: string | null;
+  locked_at: string | Date | null;
   heartbeat_at: string | null;
   supersedes_session_id: string | null;
   row_version: number | string;
@@ -77,6 +78,7 @@ type SessionRow = {
   updated_at: string;
   formalized_by: string | null;
   formalized_at: string | null;
+  worker_completion_json?: unknown;
 };
 
 type SourceRow = {
@@ -425,46 +427,6 @@ export class DrawingRecognitionAsyncRepository {
    * mutating a recognition session.  Submit/commit guards use this one method
    * so source-set hashing cannot drift from create/amend/formalize semantics.
    */
-  /** Read-only auxiliary source selection. It never creates or mutates a DM session. */
-  async readContextSourceSnapshot(input: { companyId: string; sourceContextType: DrawingRecognitionSourceContextType; sourceContextId: string; sourceAssetIds: readonly string[] }) {
-    if (input.sourceContextType === "candidate_revision" && !await this.client.queryOne(`SELECT candidate.id FROM numbering_candidate_revision_drafts candidate JOIN numbering_draft_workspaces workspace ON workspace.id=candidate.workspace_id AND workspace.company_id=candidate.company_id WHERE candidate.id=:id AND candidate.company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })) throw new DrawingRecognitionError("OPENSWX_CONTEXT_NOT_FOUND", "找不到此公司來源。", 404);
-    const scope = await this.resolveContextScope(input.companyId, input.sourceContextType, input.sourceContextId);
-    if (!scope) throw new DrawingRecognitionError("OPENSWX_CONTEXT_NOT_FOUND", "找不到此公司來源。", 404);
-    let ownerId = scope.owner_id;
-    if (input.sourceContextType === "drawing_revision") {
-      const current = await this.client.query<{ owner_id: string | null }>(`SELECT work.owner_user_id AS owner_id
-        FROM canonical_workbench_states state
-        JOIN drawing_revisions revision ON revision.id=state.revision_id AND revision.company_id=state.company_id
-        JOIN drawings drawing ON drawing.id=revision.drawing_id AND drawing.company_id=revision.company_id
-        LEFT JOIN drawing_revision_works work ON work.id=state.work_id AND work.company_id=state.company_id
-          AND work.drawing_id=drawing.id AND state.canonical_entity_id=drawing.id AND work.branch_id=state.branch_id
-        WHERE state.company_id=:companyId AND state.revision_id=:id AND state.entity_type='drawing' AND state.work_id IS NOT NULL`, { companyId: input.companyId, id: input.sourceContextId });
-      if (current.length > 0) {
-        if (current.length !== 1 || !current[0].owner_id) throw new DrawingRecognitionError("OPENSWX_CONTEXT_OWNER_UNKNOWN", "目前圖面工作擁有者無法確認。", 403);
-        ownerId = current[0].owner_id;
-      }
-    }
-    if (!ownerId) {
-      const fallback = input.sourceContextType === "candidate_revision"
-        ? await this.client.queryOne<{ owner_id: string }>(`SELECT workspace.owner_id FROM numbering_candidate_revision_drafts candidate JOIN numbering_draft_workspaces workspace ON workspace.id=candidate.workspace_id AND workspace.company_id=candidate.company_id WHERE candidate.id=:id AND candidate.company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })
-        : input.sourceContextType === "drawing_number"
-          ? await this.client.queryOne<{ owner_id: string }>(`SELECT created_by AS owner_id FROM drawing_numbers WHERE id=:id AND company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })
-          : input.sourceContextType === "revision_package"
-            ? await this.client.queryOne<{ owner_id: string }>(`SELECT created_by AS owner_id FROM drawing_revision_packages WHERE id=:id AND company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId }) : null;
-      ownerId = fallback?.owner_id ?? null;
-    }
-    const owner = ownerId ? await this.client.queryOne<{ principal_id: string }>(`SELECT principal_id FROM principal_accounts WHERE company_id=:companyId AND pdm_user_id=:ownerId`, { companyId: input.companyId, ownerId }) : null;
-    if (!owner) throw new DrawingRecognitionError("OPENSWX_CONTEXT_OWNER_UNKNOWN", "來源擁有者無法確認。", 403);
-    const selected = input.sourceAssetIds;
-    if (!Array.isArray(selected) || selected.length < 1 || selected.length > 8 || new Set(selected).size !== selected.length || selected.some(id => typeof id !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/u.test(id))) throw new DrawingRecognitionError("OPENSWX_SOURCE_SELECTION_INVALID", "請選擇 1–8 個唯一 CAD 來源。", 400);
-    const available = await this.listContextSources(input.companyId, input.sourceContextType, input.sourceContextId);
-    const rows = selected.map(id => available.filter(row => row.file_asset_id === id).sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || a.source_role.localeCompare(b.source_role))[0]);
-    if (rows.some(row => !row)) throw new DrawingRecognitionError("OPENSWX_SOURCE_OWNERSHIP_LOST", "來源不屬於目前範圍。", 403);
-    const sources = rows.sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || a.file_asset_id.localeCompare(b.file_asset_id)).map((row, selectedOrdinal) => ({ id: row.file_asset_id, fileAssetId: row.file_asset_id, sha256: row.content_hash ?? "", bytes: Number(row.file_size), extension: row.file_ext.toLowerCase().replace(/^\./u, ""), storageGeneration: row.storage_generation, sourceRole: row.source_role, sortOrder: selectedOrdinal }));
-    if (sources.some(s => !/^[a-f0-9]{64}$/u.test(s.sha256 ?? "") || !Number.isSafeInteger(s.bytes) || s.bytes < 1 || s.bytes > 268435456 || !["sldprt", "sldasm", "slddrw"].includes(s.extension))) throw new DrawingRecognitionError("OPENSWX_SOURCE_BINDING_INVALID", "僅支援有內容指紋且符合大小限制的 CAD。", 413);
-    return { context: { companyId: input.companyId, sourceContextType: input.sourceContextType, sourceContextId: input.sourceContextId, ownerPrincipalId: owner.principal_id }, sources, fingerprint: sha256Canonical(sources) };
-  }
-
   async readCurrentSourceBasis(input: {
     companyId: string;
     sourceContextType: DrawingRecognitionSourceContextType;
@@ -964,6 +926,7 @@ export class DrawingRecognitionAsyncRepository {
 
   async claimJob(input: {
     workerId: string;
+    companyId: string;
     maxAttempts: number;
     allowNativeSources: boolean;
     targetSessionId?: string;
@@ -976,8 +939,11 @@ export class DrawingRecognitionAsyncRepository {
       if (Boolean(input.targetSessionId) !== Boolean(input.targetCompanyId)) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_TARGET_INVALID", "指定辨識工作必須同時包含工作與公司範圍。", 400);
       }
+      if (!input.companyId.trim() || (input.targetCompanyId && input.targetCompanyId !== input.companyId)) {
+        throw new DrawingRecognitionError("RECOGNITION_JOB_TARGET_INVALID", "辨識工作公司範圍不符。", 400);
+      }
       const targetFilter = input.targetSessionId
-        ? "AND id = :targetSessionId AND company_id = :targetCompanyId"
+        ? "AND id = :targetSessionId"
         : "";
       const claimableState = input.targetSessionId
         ? "status = 'queued'"
@@ -987,10 +953,18 @@ export class DrawingRecognitionAsyncRepository {
          )`;
       const session = await client.queryOne<SessionRow>(
         `SELECT * FROM drawing_recognition_sessions
-         WHERE attempt_count < :maxAttempts AND ${claimableState} ${targetFilter}
+         WHERE company_id = :companyId AND attempt_count < :maxAttempts AND ${claimableState} ${targetFilter}
+           AND (:allowNativeSources=0 OR EXISTS (
+             SELECT 1 FROM drawing_recognition_sources native_source
+             WHERE native_source.session_id=drawing_recognition_sessions.id
+               AND native_source.company_id=drawing_recognition_sessions.company_id
+               AND LOWER(REPLACE(native_source.file_ext,'.','')) IN ('sldprt','sldasm','slddrw')
+           ))
          ORDER BY priority ASC, created_at ASC LIMIT 1${lock}`,
         {
           maxAttempts: input.maxAttempts,
+          companyId: input.companyId,
+          allowNativeSources: input.allowNativeSources ? 1 : 0,
           timestamp,
           staleBefore,
           targetSessionId: input.targetSessionId ?? null,
@@ -1001,8 +975,9 @@ export class DrawingRecognitionAsyncRepository {
       await client.execute(
         `UPDATE drawing_recognition_sessions SET status = 'extracting', locked_by = :workerId, locked_at = :timestamp,
            heartbeat_at = :timestamp, attempt_count = attempt_count + 1, row_version = row_version + 1, updated_at = :timestamp,
-           error_code = NULL, error_summary = NULL WHERE id = :id`,
-        { id: session.id, workerId: input.workerId, timestamp }
+           error_code = NULL, error_summary = NULL, worker_completion_json = NULL
+         WHERE id = :id AND company_id = :companyId`,
+        { id: session.id, companyId: input.companyId, workerId: input.workerId, timestamp }
       );
       const sources = await client.query<SourceRow>(
         `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_key
@@ -1051,6 +1026,7 @@ export class DrawingRecognitionAsyncRepository {
         initiatorPrincipalId: session.initiator_principal_id ?? null,
         sourceSetFingerprint: session.source_set_fingerprint,
         attemptCount: Number(session.attempt_count) + 1,
+        lockedAt: timestamp,
         targetContext: {
           drawingId: drawing?.drawing_id ?? session.drawing_id,
           drawingNumber: drawing?.drawing_number ?? null,
@@ -1068,21 +1044,20 @@ export class DrawingRecognitionAsyncRepository {
     });
   }
 
-  async heartbeatJob(input: { sessionId: string; workerId: string }) {
-    const session = await this.client.queryOne<SessionRow>("SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId", { sessionId: input.sessionId });
-    if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
-      throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
-    }
-    await this.client.execute(
-      "UPDATE drawing_recognition_sessions SET heartbeat_at = :timestamp, updated_at = :timestamp WHERE id = :sessionId AND locked_by = :workerId",
-      { sessionId: input.sessionId, workerId: input.workerId, timestamp: now() }
-    );
+  async heartbeatJob(input: { sessionId: string; workerId: string; leaseBasis: RecognitionLeaseBasis }) {
+    const updated = await this.client.queryOne<{ id: string }>(
+      `UPDATE drawing_recognition_sessions SET heartbeat_at=:timestamp,updated_at=:timestamp
+       WHERE id=:sessionId AND company_id=:companyId AND status='extracting' AND locked_by=:workerId
+         AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt
+       RETURNING id`, { ...input, ...input.leaseBasis, timestamp: now() });
+    if (!updated) throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
   }
 
-  async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string }) {
+  async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string; leaseBasis: RecognitionLeaseBasis }) {
     const session = await this.client.queryOne<SessionRow>(
-      `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId`,
-      { sessionId: input.sessionId }
+      `SELECT * FROM drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId
+        AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt`,
+      { sessionId: input.sessionId, ...input.leaseBasis }
     );
     if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
       throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409, true);
@@ -1164,22 +1139,27 @@ export class DrawingRecognitionAsyncRepository {
     };
   }
 
-  async completeJob(input: { sessionId: string; workerId: string; sourceSetFingerprint: string; results: DrawingRecognitionAdapterCompletion[] }) {
+  async completeJob(input: { sessionId: string; workerId: string; leaseBasis: RecognitionLeaseBasis; results: DrawingRecognitionAdapterCompletion[] }) {
     if (input.results.length > 64) throw new DrawingRecognitionError("RECOGNITION_RESULT_LIMIT", "辨識 adapter 結果數量超過限制。", 400);
     return this.client.transaction(async (client) => {
       const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
       const session = await client.queryOne<SessionRow>(
-        `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId${lock}`,
-        { sessionId: input.sessionId }
+        `SELECT * FROM drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId${lock}`,
+        { sessionId: input.sessionId, companyId: input.leaseBasis.companyId }
       );
       if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
       }
       if (await requireRecognitionJobAuthority(client, session)) await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
-      if (session.source_set_fingerprint !== input.sourceSetFingerprint) {
+      const lockedAt = session.locked_at == null ? null : new Date(session.locked_at).toISOString();
+      if (session.source_set_fingerprint !== input.leaseBasis.sourceSetFingerprint ||
+          Number(session.attempt_count) !== input.leaseBasis.attemptCount || lockedAt !== input.leaseBasis.lockedAt) {
         throw new DrawingRecognitionError("RECOGNITION_SOURCE_STALE", "來源檔案集合已改變，請重新辨識。", 409);
       }
-      const sources = await client.query<SourceRow>("SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId", { sessionId: input.sessionId });
+      const sources = await client.query<SourceRow>(
+        "SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId AND company_id = :companyId",
+        { sessionId: input.sessionId, companyId: session.company_id }
+      );
       const sourceById = new Map(sources.map((source) => [source.id, source]));
       let observationCount = 0;
       let warningCount = 0;
@@ -1334,16 +1314,19 @@ export class DrawingRecognitionAsyncRepository {
         : warningCount > 0
           ? "extraction_partial"
           : "review_ready";
+      const completionReceipt = JSON.stringify({ workerId: input.workerId, leaseBasis: input.leaseBasis,
+        resultDigest: sha256Canonical({ results: input.results }), terminalStatus: status, committedAt: timestamp });
       await client.execute(
         `UPDATE drawing_recognition_sessions SET status = :status, locked_by = NULL, locked_at = NULL, heartbeat_at = NULL,
            warning_count = :warningCount, conflict_count = :conflictCount, unclassified_count = :unclassifiedCount,
-           error_code = :errorCode, error_summary = :errorSummary, row_version = row_version + 1, updated_at = :timestamp
-         WHERE id = :sessionId`,
+           error_code = :errorCode, error_summary = :errorSummary, row_version = row_version + 1, updated_at = :timestamp,
+           worker_completion_json = :completionReceipt
+         WHERE id = :sessionId AND company_id = :companyId`,
         {
           status, warningCount, conflictCount: Number(conflict?.count ?? 0), unclassifiedCount: Number(unclassified?.count ?? 0),
           errorCode: status === "extraction_failed" ? "all_adapters_failed" : null,
           errorSummary: status === "extraction_failed" ? "目前沒有可供審核的辨識結果；請確認本機辨識能力後重試。" : null,
-          timestamp, sessionId: session.id
+          timestamp, sessionId: session.id, companyId: session.company_id, completionReceipt
         }
       );
       return new DrawingRecognitionAsyncRepository(client).getProjection(session.id, session.company_id);

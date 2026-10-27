@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using SolidWorks.Interop.swdocumentmgr;
 
 internal static class SolidWorksDocumentManagerCredentialProbe
 {
@@ -9,22 +8,20 @@ internal static class SolidWorksDocumentManagerCredentialProbe
     {
         string key = Environment.GetEnvironmentVariable("PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY") ?? "";
         if (String.IsNullOrWhiteSpace(key)) return Emit("failed", "native_metadata_license_missing");
-        ISwDMApplication app = null;
+        object app = null;
         try
         {
             Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
             if (factoryType == null) return Emit("failed", "native_metadata_api_unavailable");
             object factoryObject = Activator.CreateInstance(factoryType);
-            ISwDMClassFactory factory = factoryObject as ISwDMClassFactory;
-            if (factory == null) return Emit("failed", "native_metadata_api_unavailable");
-            SwDMApplication rawApp = factory.GetApplication(key);
-            app = rawApp as ISwDMApplication;
-            Marshal.ReleaseComObject(factory);
+            if (factoryObject == null) return Emit("failed", "native_metadata_api_unavailable");
+            app = ((dynamic)factoryObject).GetApplication(key);
+            if (Marshal.IsComObject(factoryObject)) Marshal.ReleaseComObject(factoryObject);
             return app == null ? Emit("failed", "native_metadata_license_invalid") : Emit("succeeded", "native_metadata_probe_passed");
         }
         catch (COMException) { return Emit("failed", "native_metadata_license_invalid"); }
         catch { return Emit("failed", "native_metadata_credential_probe_failed"); }
-        finally { if (app != null) Marshal.ReleaseComObject(app); }
+        finally { if (app != null && Marshal.IsComObject(app)) Marshal.ReleaseComObject(app); }
     }
 
     private static int Emit(string status, string diagnostic)

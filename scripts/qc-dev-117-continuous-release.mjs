@@ -11,7 +11,13 @@ import { reportTestEnvironment } from './dev117-test-environment.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
 if (!await reportTestEnvironment({ root })) process.exit(2)
-const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/dev117-test-environment.test.mjs', 'scripts/dev117-release-efficiency.test.mjs', 'scripts/lib/dev121-principal-fence-operator.test.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs', 'scripts/dev122-applied-migration-continuation.test.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.test.mjs', 'scripts/lib/dev122-rd-permission-state-readback.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/dev117-owner-chain-preflight.test.mjs', 'scripts/dev117-release-control-policy.test.mjs', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-official-source-review.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const npmCli = process.env.npm_execpath
+if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
+const run = spawnSync(process.execPath, [npmCli, 'run', 'test:dev-117:continuous'], { cwd: root, encoding: 'utf8' })
+process.stdout.write(run.stdout ?? '')
+process.stderr.write(run.stderr ?? '')
+if (run.error) throw run.error
+if (run.status !== 0) process.exit(run.status || 1)
 const imageTempPrefix = path.resolve(os.tmpdir(), 'aipdm-dev122-sharp-');
 const imageTemp = fs.mkdtempSync(imageTempPrefix);
 const imageScope = { project: 'AI-PDM', purpose: 'DEV122 patched sharp converter and static preview contract CI', port: null, parentPid: process.pid, executable: process.execPath, PDM_DATA_DIR: path.join(imageTemp, 'unused-data'), PDM_REPOSITORY_DIR: path.join(imageTemp, 'unused-repository'), mutationScope: 'IMAGE_ONLY_NO_SCHEMA_OR_FIXTURES', cleanupCondition: 'Finite own Node CLI exits; own temp removed' };
@@ -33,8 +39,6 @@ try {
   fs.rmSync(imageTemp, { recursive: true, force: true });
   console.log('DEV122_SHARP_RUNTIME_CLEANUP=' + JSON.stringify({ taskTempRemoved: !fs.existsSync(imageTemp), port: null }));
 }
-const npmCli = process.env.npm_execpath
-if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
   ['npm run check:dev-121:role-catalog-v7', ['run', 'check:dev-121:role-catalog-v7']],
   ['npm run test:dev-117:abort', ['run', 'test:dev-117:abort']],
@@ -49,65 +53,35 @@ const ownerExitCommands = [
   return { command, result: 'PASS' }
 })
 const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`; const dir = path.join(root, 'output', 'dev-117', 's1b', runId); fs.mkdirSync(dir, { recursive: true })
-const files = [
-  'scripts/dev117-test-environment.mjs', 'scripts/dev117-test-environment.test.mjs',
-  'scripts/lib/dev012-read-retry.mjs', 'scripts/lib/production-slice-checkpoints.mjs', 'scripts/dev117-production-diagnostics.mjs', 'scripts/dev117-release-efficiency.test.mjs',
-  '.github/workflows/read-ai-pdm-rd-permission-state-production.yml', 'scripts/dev122-rd-permission-state-readback.mjs',
-  'scripts/lib/dev012-official-source-review.mjs', 'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs',
-  'scripts/dev122-openswx-history-basis.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev121-owner-release-proof.test.mjs', 'qa/dev-122/fixtures/secret-version-iam-fixture.mjs', '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
-  'qa/dev-122/fixtures/secret-version-iam-fixture.mjs',
-  'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',
-  'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs',
-  'infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf', '.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json',
-  'scripts/lib/dev121-preactivation-abort-continuation.mjs',
-  'scripts/lib/dev117-ai-pdm-program-only-baseline.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
-  'scripts/lib/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs',
-  'scripts/lib/dev122-applied-migration-continuation.mjs', 'scripts/dev122-applied-migration-continuation.test.mjs',
-  'scripts/lib/dev117-owner-chain-preflight.mjs', 'scripts/dev117-owner-chain-preflight.test.mjs', 'scripts/lib/dev117-release-control-policy.mjs', 'scripts/dev117-release-control-policy.test.mjs',
-  'scripts/lib/dev122-historical-reader.mjs', 'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
-  'scripts/lib/dev122-openswx-profile-context.mjs', 'scripts/lib/dev122-openswx-profile-context.test.mjs',
-  'scripts/lib/production-slice-plan.mjs', 'scripts/plan-production-slice.mjs', 'scripts/run-production-slice-tests.mjs', 'scripts/production-slice-plan.test.mjs',
-  'scripts/lib/dev122-openswx-native-source-reader.mjs',
-  'scripts/lib/dev122-applied-continuation-capsule-refresh.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.mjs', 'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
-  'scripts/lib/dev012-owner-prerequisite-producer.mjs', 'scripts/dev012-owner-prerequisite-producer.test.mjs', 'scripts/dev117-ai-pdm-prerequisite-producer.mjs',
-  'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
-  'scripts/dev122-openswx-bootstrap.mjs', 'scripts/lib/dev122-openswx-bootstrap.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs',
-  ...['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`),
-  'config/access-control/jenfu-role-catalog.v7.json', 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
-  'scripts/dev121-build-principal-role-catalog-v7.mjs', 'scripts/dev121-build-principal-role-catalog-v7.test.mjs',
-  'scripts/lib/dev122-rd-permission-state-readback.mjs', 'scripts/lib/dev122-rd-permission-state-readback.test.mjs',
-  'scripts/dev122-rd-permission-state-readback.mjs', '.github/workflows/read-ai-pdm-rd-permission-state-production.yml',
-  '.ai-doc/qa/DEV-122-RD-permission-test-account-verification-plan-2026-10-17.md',
-  'scripts/qc-dev-121-rd-capabilities-postgres.mjs',
+const files = [...new Set([
+  '.gitattributes', 'AGENTS.md', 'package.json',
+  '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md',
+  '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
-  '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md', '.gitattributes', 'AGENTS.md', 'package.json',
-  'config/platform/dev-010-n1c-ai-pdm.json',
-  'config/release/dev012-ai-pdm-production-data-cutover.json',
-  'config/release/dev117-ai-pdm-independent-production-v2.json',
-  'config/release/dev117-ai-pdm-independent-production-v3.json',
-  'config/release/dev117-production-release-infra-plan.json',
-  'db/postgres/064_release_cancelled_drawing_number_claims.sql',
-  'qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json',
-  'scripts/dev010-n1c-ai-pdm-package.mjs',
-  'scripts/dev010-n1c-ai-pdm-package.test.mjs',
-  'scripts/lib/dev117-ai-pdm-continuous-release.mjs', 'scripts/dev117-ai-pdm-continuous-release.mjs',
-  'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/qc-dev-117-continuous-release.mjs',
-  'scripts/lib/dev012-private-object-media-window.mjs', 'scripts/lib/dev012-owner-release-runtime.mjs', 'scripts/lib/dev012-owner-stage-executor.mjs', 'scripts/lib/dev015-gcc-applicability.mjs', 'scripts/dev015-native-image-inventory.cjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'config/release/dev015-gcc-pbds-applicability.json', 'config/release/dev015-gcc-aligned-new-applicability.json', 'scripts/lib/dev015-gcc-aligned-new-applicability.mjs', 'scripts/dev015-aligned-new-loader-inspection.cjs', 'scripts/lib/dev012-production-data-cutover.mjs', 'scripts/lib/dev012-production-migration-runner.mjs',
-  'scripts/lib/dev121-principal-candidate-smoke.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs',
-  'scripts/dev121-principal-only-recovery-server.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs',
-  'scripts/lib/dev121-principal-only-release.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs',
-  'scripts/dev121-principal-fence-operator.mjs', 'scripts/lib/dev121-principal-fence-operator.mjs', 'scripts/lib/dev121-principal-fence-operator.test.mjs',
-  'scripts/dev121-principal-recovery-operator.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs',
-  'scripts/lib/dev121-principal-recovery-operator.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs',
-  'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs',
-  'scripts/dev117-production-migration-runner.mjs', 'scripts/dev117-production-migration-runner.test.mjs',
-  'scripts/lib/dev121-unlinked-profile-cleanup.mjs', 'scripts/lib/dev121-unlinked-profile-cleanup.test.mjs',
-  'src/lib/firebase-client-auth.ts', 'src/app/login/page.tsx', 'src/app/globals.css',
   '.github/workflows/deploy-ai-pdm-independent-production.yml',
   '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
-  ...['tools/dev-117/abort-controller', 'infra/google-cloud/dev-117-production-release'].flatMap((directory) => fs.readdirSync(path.join(root, directory)).filter((name) => fs.statSync(path.join(root, directory, name)).isFile()).map((name) => `${directory}/${name}`)),
-].sort()
+  '.github/workflows/read-ai-pdm-rd-permission-state-production.yml',
+  'config/release/dev117-ai-pdm-independent-production-v3.json',
+  'config/release/dev117-production-release-infra-plan.json',
+  'scripts/dev117-test-environment.mjs', 'scripts/dev117-test-environment.test.mjs',
+  'scripts/lib/dev012-official-source-review.mjs',
+  'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs',
+  'scripts/qc-dev-117-continuous-release.mjs',
+  ...collectFiles('infra/google-cloud/dev-117-production-release'),
+  ...collectFiles('tools/dev-117/abort-controller'),
+  ...collectFiles('scripts').filter((file) => /\/(?:dev012|dev015|dev117|dev121|dev122-(?:applied|rd-permission)|production-slice|run-production-slice)/u.test(file)),
+])].sort()
+function collectFiles(directory) {
+  const absolute = path.join(root, directory)
+  if (!fs.existsSync(absolute)) throw new Error(`SOURCE_ROOT_MISSING:${directory}`)
+  return fs.readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
+    const relative = `${directory}/${entry.name}`
+    return entry.isDirectory() ? collectFiles(relative) : [relative]
+  })
+}
 const sourceSnapshotSha256 = createHash('sha256').update(files.map((file) => `${file}\0${createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')}`).join('\n')).digest('hex')
 const report = { schemaVersion: 'jenfu.dev117.s1b-owner-report.v2', runId, ownerApplicationId: 'ai-pdm', caseId: 'S1B-20', result: 'PASS', sourceFiles: files, sourceSnapshotAlgorithm: 'sha256(file-null-sha256-bytes)', sourceSnapshotSha256, contractSha256: currentContractHash(), contractVersion: 'CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP', evidenceScope: 'LOCAL_CONTRACT', releaseAuthority: false, ownerExitCommands: [{ command: 'npm run test:dev-117:continuous', result: 'PASS' }, { command: 'npm run qc:dev-117:continuous', result: 'SELF' }, ...ownerExitCommands], providerMutationSummary: { cloud: 0, database: 0, traffic: 0, credentials: 0, sibling: 0 }, cleanup: { runtime: 0, ports: 0, containers: 0, temporaryFiles: 0 }, createdAt: new Date().toISOString() }; report.evidenceSha256 = createHash('sha256').update(JSON.stringify(report)).digest('hex'); fs.writeFileSync(path.join(dir, 'owner-report.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' }); process.stdout.write(`DEV-117 continuous QC PASS ${path.relative(root, dir)}\n`)
-function currentContractHash() { return '857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5' }
+function currentContractHash() {
+  return JSON.parse(fs.readFileSync(path.join(root, 'config/release/dev117-ai-pdm-independent-production-v3.json'), 'utf8')).contractSha256
+}

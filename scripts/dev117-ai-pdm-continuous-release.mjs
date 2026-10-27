@@ -8,13 +8,11 @@ import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationB
 import { createOwnerTransport, createAiPdmBuildReadbackTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
-import { createFrozenWorkerSourceReader } from './lib/dev122-openswx-native-source-reader.mjs'
-
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
 const dataCutoverConfigPath = 'config/release/dev012-ai-pdm-production-data-cutover.json'
 
-export const createContinuousReleaseSourceReader = createFrozenWorkerSourceReader
+export const createContinuousReleaseSourceReader = (repositoryRoot) => (repositoryPath, sourceRevision) => readGitBlob(repositoryRoot, repositoryPath, sourceRevision)
 
 export function migrationDispositionFromStageResult(result) {
   const disposition = result?.value?.facts?.disposition
@@ -54,7 +52,7 @@ async function main() {
     ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: principalWorkflowPath,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
-    readWorkerSource: createContinuousReleaseSourceReader(root),
+    readSource: createContinuousReleaseSourceReader(root),
     buildMigrationBundle: async (sourceRevision, context) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision, context),
   })
   if (args.stage === 'migrate') {

@@ -118,19 +118,12 @@ export function assertForwardMigrationAssociation(value, { intent, deploymentRef
 }
 
 // An applied-migration continuation preserves the already sealed application
-// runtime while deliberately excluding worker evidence from the RD release
-// decision. Only the retained runtime/ref join remains in this authority;
-// worker profile, artifact and Secret semantics belong to the worker release.
+// runtime. DEV-125 retired the legacy worker runtime binding; a continuation
+// may therefore carry neither its environment flag nor descriptor.
 export function assertAppliedContinuationRuntimeBinding(runtimeConfig, intent) {
-  const flag = runtimeConfig?.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED ?? '0'
-  if (!intent.openswxWorkerRef) {
-    if (flag !== '0' || runtimeConfig?.openswxWorker) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
-    return
-  }
-  const binding = runtimeConfig?.openswxWorker
-  if (flag !== '1' || !binding || binding.purpose !== 'full'
-    || !H40.test(binding.sourceRevision ?? '') || !H64.test(binding.workerProfileSha256 ?? '')
-    || canonicalize(binding.descriptorRef) !== canonicalize(intent.openswxWorkerRef)) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
+  if (Object.hasOwn(runtimeConfig?.plainEnvironment ?? {}, 'PDM_OPENSWX_DISPATCH_ENABLED')
+    || Object.hasOwn(runtimeConfig ?? {}, 'openswxWorker')
+    || Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
 }
 
 // Candidate identity and artifact digest are already proven by the provider

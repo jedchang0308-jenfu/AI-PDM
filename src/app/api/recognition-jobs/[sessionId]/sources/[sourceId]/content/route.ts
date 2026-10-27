@@ -3,20 +3,24 @@ import { NextResponse } from "next/server";
 import { readClaimedDrawingRecognitionSource } from "@/lib/drawing-recognition";
 import { recognitionErrorResponse } from "@/lib/drawing-recognition-api";
 import { requireSafeRecognitionId } from "@/lib/drawing-recognition-contract";
+import { decodeRecognitionLeaseHeader, recognitionLeaseHeader } from "@/lib/recognition-worker-lease";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, context: { params: Promise<{ sessionId: string; sourceId: string }> }) {
-  const authentication = authenticateWorkerService(request, "recognition_jobs");
+  const authentication = await authenticateWorkerService(request, "recognition_jobs");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   try {
     const workerId = actor.id;
+    const leaseBasis = decodeRecognitionLeaseHeader(request.headers.get(recognitionLeaseHeader));
+    if (!leaseBasis || leaseBasis.companyId !== actor.companyId) return NextResponse.json({ error: "RECOGNITION_LEASE_REQUIRED" }, { status: 400 });
     const { sessionId, sourceId } = await context.params;
     const result = await readClaimedDrawingRecognitionSource({
       sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
       sourceId: requireSafeRecognitionId(sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
-      workerId: requireSafeRecognitionId(workerId, "RECOGNITION_WORKER_ID_INVALID")
+      workerId: requireSafeRecognitionId(workerId, "RECOGNITION_WORKER_ID_INVALID"),
+      leaseBasis
     });
     const safeName = result.fileName.replace(/[\r\n"\\]/gu, "_").slice(0, 180) || "source.bin";
     return new NextResponse(result.bytes as unknown as BodyInit, {

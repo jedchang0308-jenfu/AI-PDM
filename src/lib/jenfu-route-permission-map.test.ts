@@ -9,13 +9,12 @@ import {
 import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 describe("DEV-121 route authorization manifest", () => {
-  it("auxiliary context GET/POST/cancel bind only published review/run and preserve the exact denominator", () => {
-    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 155, uniqueMethods: 177, policyEntries: 187 });
+  it("retires the auxiliary context policies and preserves the exact denominator", () => {
+    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 153, uniqueMethods: 174, policyEntries: 184 });
     const path = "src/app/api/numbering/openswx-metadata/drawing_revision/own-context/route.ts";
-    expect(resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "numbering.recognition.review" })).toMatchObject({ permissionCode: "numbering.recognition.review" });
-    expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });
-    expect(resolveJenfuRoutePolicy(path.replace("/route.ts", "/cancel/route.ts"), "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });
-    expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.review" })).toBeNull();
+    expect(resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "numbering.recognition.review" })).toBeNull();
+    expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.run" })).toBeNull();
+    expect(resolveJenfuRoutePolicy(path.replace("/route.ts", "/cancel/route.ts"), "POST", { expectedPermissionCode: "numbering.recognition.run" })).toBeNull();
   });
   it('binds existing export creation to the Principal workspace writer', () => {
     expect(resolveJenfuRoutePolicyFromRequest(new Request('https://pdm.test/api/numbering/export-jobs', { method: 'POST' }),

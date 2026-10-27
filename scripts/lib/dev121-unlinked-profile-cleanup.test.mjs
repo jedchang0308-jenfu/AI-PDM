@@ -114,7 +114,6 @@ test('migration image closure contains the new helper and its imports use only b
     assertBundled('scripts/lib/dev121-unlinked-profile-cleanup.mjs')
     if (docker.includes('COPY scripts/dev117-production-migration-runner.mjs')) {
       assertBundled('scripts/lib/dev122-rd-permission-state-readback.mjs')
-      assertBundled('scripts/lib/dev122-openswx-dispatch-recovery.mjs')
     }
   }
   const helper = readFileSync(new URL('./dev121-unlinked-profile-cleanup.mjs', import.meta.url), 'utf8')

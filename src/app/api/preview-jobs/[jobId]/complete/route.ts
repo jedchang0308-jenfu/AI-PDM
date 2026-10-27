@@ -8,7 +8,7 @@ import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-servi
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
-  const authentication = authenticateWorkerService(request, "preview_jobs");
+  const authentication = await authenticateWorkerService(request, "preview_jobs");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
 

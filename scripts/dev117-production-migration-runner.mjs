@@ -100,47 +100,8 @@ async function runPermissionStateReadback({ argv, environment, fetchImpl, Client
   }
 }
 
-async function runOpenSwxDispatchRecovery({ argv, environment, fetchImpl, Client }) {
-  const {
-    OPENSWX_DISPATCH_RECOVERY_PREFIX,
-    OPENSWX_DISPATCH_RECOVERY_RECEIPT_PREFIX,
-    assertOpenSwxDispatchRecoveryOperation,
-    buildOpenSwxDispatchRecoveryReceipt,
-    executeOpenSwxDispatchRecovery,
-    parseOpenSwxDispatchRecoveryArgs,
-  } = await import('./lib/dev122-openswx-dispatch-recovery.mjs')
-  const args = parseOpenSwxDispatchRecoveryArgs(argv)
-  assertRunnerTarget(environment, TARGET)
-  if (environment.PDM_SOURCE_REVISION !== args.sourceRevision) throw new Error('OPENSWX_DISPATCH_RECOVERY_SOURCE_REVISION_MISMATCH')
-  parseGsUri(args.operationRef, TARGET.releaseBucket, OPENSWX_DISPATCH_RECOVERY_PREFIX)
-  parseGsUri(args.outputRef, TARGET.releaseBucket, OPENSWX_DISPATCH_RECOVERY_RECEIPT_PREFIX)
-  const token = await metadataAccessToken(fetchImpl)
-  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: TARGET.releaseBucket,
-    expectedPrefix: OPENSWX_DISPATCH_RECOVERY_PREFIX, token, fetchImpl })
-  let raw
-  try { raw = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('OPENSWX_DISPATCH_RECOVERY_OPERATION_JSON_INVALID') }
-  const operation = assertOpenSwxDispatchRecoveryOperation(raw, { bytes: object.bytes,
-    operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
-  const database = new Client(databaseOptions(environment, token))
-  await database.connect()
-  try {
-    const observedAt = new Date().toISOString()
-    const result = await executeOpenSwxDispatchRecovery(database, operation, observedAt)
-    const receipt = buildOpenSwxDispatchRecoveryReceipt({ operation,
-      operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: object.generation },
-      outputRef: args.outputRef, observedAt, result })
-    const publication = await publishGcsJson({ uri: args.outputRef,
-      expectedBucket: TARGET.releaseBucket, expectedPrefix: OPENSWX_DISPATCH_RECOVERY_RECEIPT_PREFIX,
-      value: receipt, token, fetchImpl })
-    return { ...receipt, outputGeneration: publication.generation, outputSha256: publication.sha256 }
-  } finally {
-    await database.end()
-  }
-}
-
 export async function runMain({ argv = process.argv.slice(2), environment = process.env, fetchImpl = fetch, Client = pg.Client } = {}) {
   if (argv[0] === '--permission-operation-ref') return runPermissionStateReadback({ argv, environment, fetchImpl, Client })
-  if (argv[0] === '--openswx-dispatch-recovery-operation-ref') return runOpenSwxDispatchRecovery({ argv, environment, fetchImpl, Client })
   const args = parseRunnerArgs(argv)
   assertRunnerTarget(environment, TARGET)
   parseGsUri(args.bundleRef, TARGET.releaseBucket, 'source/migration-bundles')

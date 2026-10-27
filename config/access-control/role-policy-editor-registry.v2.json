@@ -1338,28 +1338,6 @@
           "preservedGuards": "same-company session, actor scope and source set"
         },
         {
-          "legacyCode": "numbering.recognition.run",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-          "method": "POST",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.run",
-          "authorizationTarget": "numbering.recognition.run",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-        },
-        {
-          "legacyCode": "numbering.recognition.run",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
-          "method": "POST",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.run",
-          "authorizationTarget": "numbering.recognition.run",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-        },
-        {
           "legacyCode": "numbering.recognition.review",
           "path": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
           "method": "GET",
@@ -1446,17 +1424,6 @@
           "authorizationTarget": "numbering.recognition.review",
           "scopeResolver": "workspace",
           "preservedGuards": "same-company session, actor scope and source binding"
-        },
-        {
-          "legacyCode": "numbering.recognition.review",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-          "method": "GET",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.review",
-          "authorizationTarget": "numbering.recognition.review",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
         },
         {
           "legacyCode": "numbering.recognition.formalize",
@@ -2141,14 +2108,6 @@
           "caller": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts"
         },
         {
-          "legacyCode": "numbering.recognition.run",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts"
-        },
-        {
-          "legacyCode": "numbering.recognition.run",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts"
-        },
-        {
           "legacyCode": "numbering.recognition.review",
           "caller": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts"
         },
@@ -2183,10 +2142,6 @@
         {
           "legacyCode": "numbering.recognition.review",
           "caller": "src/app/numbering/recognition/[sessionId]/page.tsx"
-        },
-        {
-          "legacyCode": "numbering.recognition.review",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts"
         },
         {
           "legacyCode": "numbering.recognition.formalize",
@@ -3664,28 +3619,6 @@
           "preservedGuards": "same-company session, actor scope and source set"
         },
         {
-          "legacyCode": "numbering.recognition.run",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-          "method": "POST",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.run",
-          "authorizationTarget": "numbering.recognition.run",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-        },
-        {
-          "legacyCode": "numbering.recognition.run",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
-          "method": "POST",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.run",
-          "authorizationTarget": "numbering.recognition.run",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-        },
-        {
           "legacyCode": "numbering.recognition.review",
           "path": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
           "method": "GET",
@@ -3772,17 +3705,6 @@
           "authorizationTarget": "numbering.recognition.review",
           "scopeResolver": "workspace",
           "preservedGuards": "same-company session, actor scope and source binding"
-        },
-        {
-          "legacyCode": "numbering.recognition.review",
-          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-          "method": "GET",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "numbering.recognition.review",
-          "authorizationTarget": "numbering.recognition.review",
-          "scopeResolver": "workspace",
-          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
         },
         {
           "legacyCode": "numbering.recognition.formalize",
@@ -4462,14 +4384,6 @@
           "caller": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts"
         },
         {
-          "legacyCode": "numbering.recognition.run",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts"
-        },
-        {
-          "legacyCode": "numbering.recognition.run",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts"
-        },
-        {
           "legacyCode": "numbering.recognition.review",
           "caller": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts"
         },
@@ -4504,10 +4418,6 @@
         {
           "legacyCode": "numbering.recognition.review",
           "caller": "src/app/numbering/recognition/[sessionId]/page.tsx"
-        },
-        {
-          "legacyCode": "numbering.recognition.review",
-          "caller": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts"
         },
         {
           "legacyCode": "numbering.recognition.formalize",

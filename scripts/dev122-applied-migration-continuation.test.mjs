@@ -21,18 +21,14 @@ const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
 const ref = (uri, value = null) => ({ uri, sha256: value === null ? 'e'.repeat(64) : sha256(Buffer.from(`${canonicalize(value)}\n`)) })
 const sealed = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
 
-test('applied continuation retains runtime identity without reopening worker evidence', () => {
-  const descriptorRef = ref(`gs://${bucket}/receipts/dev-122/openswx-worker/retained-descriptor.json`)
-  const binding = { descriptorRef, sourceRevision: appliedSource, workerProfileSha256: 'f'.repeat(64), purpose: 'full' }
-  const runtime = { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' },
-    secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, openswxWorker: binding }
-  assert.doesNotThrow(() => assertAppliedContinuationRuntimeBinding(runtime, { openswxWorkerRef: descriptorRef }))
+test('applied continuation accepts the current runtime and rejects every retired worker binding', () => {
+  const runtime = { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '9' } }
+  assert.doesNotThrow(() => assertAppliedContinuationRuntimeBinding(runtime, {}))
   for (const changed of [
-    { runtime, intent: { openswxWorkerRef: ref(`gs://${bucket}/receipts/dev-122/openswx-worker/wrong.json`) } },
-    { runtime: { ...runtime, plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, intent: { openswxWorkerRef: descriptorRef } },
-    { runtime: { ...runtime, openswxWorker: { ...binding, workerProfileSha256: 'invalid' } }, intent: { openswxWorkerRef: descriptorRef } },
+    { runtime: { ...runtime, plainEnvironment: { ...runtime.plainEnvironment, PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, intent: {} },
+    { runtime: { ...runtime, openswxWorker: {} }, intent: {} },
+    { runtime, intent: { openswxWorkerRef: ref(`gs://${bucket}/receipts/dev-122/openswx-worker/retired.json`) } },
   ]) assert.throws(() => assertAppliedContinuationRuntimeBinding(changed.runtime, changed.intent), /APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID/u)
-  assert.doesNotThrow(() => assertAppliedContinuationRuntimeBinding({ plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, {}))
 })
 
 function providerJob() {

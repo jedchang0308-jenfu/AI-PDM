@@ -1,4 +1,3 @@
-import { assertProgramOnlyPolicy } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -13,13 +12,12 @@ import { assertDev116R02Receipt } from './dev116-r02-receipt.mjs'
 import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { assertUnlinkedProfileCleanupRef } from './dev121-unlinked-profile-cleanup.mjs'
-import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
 import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
 const H64 = /^[a-f0-9]{64}$/
-const V3_CONTRACT_SHA256 = '857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5'
+const V3_CONTRACT_SHA256 = 'e90585d9e0e329708a033f0537273ea69a40d83a3b8b8cc484b76c09898a87b0'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const LEGACY_STRICT_VALIDATORS = Object.freeze({ assertDev117ArtifactReceipt, assertDev117CandidateReceipt, assertDev117Level4Join, assertDev117AppReleaseReceipt, assertDev116R02Receipt })
 function fail(code, message) { const error = new Error(message); error.code = code; throw error }
@@ -40,10 +38,9 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (Object.hasOwn(value ?? {}, 'forwardAppliedMigrationContinuation')) {
     expected.push('forwardAppliedMigrationContinuation')
     assertForwardAppliedMigrationContinuation(value.forwardAppliedMigrationContinuation, profile.artifact.releaseBucket)
-    if (!value.appliedMigrationContinuation || !value.openswxWorkerRef) fail('RELEASE_INTENT_INVALID', 'Forward continuation requires existing migration and worker bindings')
+    if (!value.appliedMigrationContinuation) fail('RELEASE_INTENT_INVALID', 'Forward continuation requires existing migration authority')
   }
-  if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
-  if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) expected.push('programOnlyBaseline')
+  if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) fail('PROGRAM_ONLY_BASELINE_RETIRED')
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanupRef')) {
     expected.push('unlinkedProfileCleanupRef')
     assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
@@ -55,7 +52,6 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (value.baselineIntentRef && (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/[A-Za-z0-9._/-]+\\.json$`).test(value.baselineIntentRef.uri ?? '') || !H64.test(value.baselineIntentRef.sha256 ?? '') || JSON.stringify(Object.keys(value.baselineIntentRef).sort()) !== JSON.stringify(['sha256', 'uri']))) fail('RELEASE_INTENT_REF_INVALID', 'baselineIntentRef')
   if (value.principalOnlyFenceRef && (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/[A-Za-z0-9._/-]+\\.json$`).test(value.principalOnlyFenceRef.uri ?? '') || !H64.test(value.principalOnlyFenceRef.sha256 ?? '') || JSON.stringify(Object.keys(value.principalOnlyFenceRef).sort()) !== JSON.stringify(['sha256', 'uri']))) fail('RELEASE_INTENT_REF_INVALID', 'principalOnlyFenceRef')
   if (value.postAbortLedgerReadbackRef && (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/releases/[A-Z0-9][A-Z0-9-]{5,63}/[a-f0-9]{64}/ledger-readback-result\\.json$`).test(value.postAbortLedgerReadbackRef.uri ?? '') || !H64.test(value.postAbortLedgerReadbackRef.sha256 ?? '') || JSON.stringify(Object.keys(value.postAbortLedgerReadbackRef).sort()) !== JSON.stringify(['sha256', 'uri']) || !value.principalOnlyFenceRef || !value.principalOnlyRecovery || value.programOnlyBaseline || value.unlinkedProfileCleanupRef)) fail('RELEASE_INTENT_REF_INVALID', 'postAbortLedgerReadbackRef')
-  if (Object.hasOwn(value, 'programOnlyBaseline')) assertProgramOnlyPolicy(value.programOnlyBaseline, { profile, intent: value })
   assertPrincipalOnlyRecoveryBinding(value, profile.artifact.releaseBucket)
   return value
 }
@@ -80,11 +76,11 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   const integrationPlain = ['PDM_STORAGE_PROVIDER', 'PDM_GCS_PROJECT_ID', 'PDM_GCS_BUCKET', 'PDM_GCS_LIVE_ENABLED', 'PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
   const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_GCP_EXPECTED_PROJECT_NUMBER', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain]
-  const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames, 'PDM_WORKLOAD_AUTH_CREDENTIALS']
-  if (profile.environment.optionalExtensions != null && JSON.stringify(profile.environment.optionalExtensions) !== JSON.stringify({ openswxDispatch: { name: 'PDM_OPENSWX_DISPATCH_ENABLED', off: '0', on: '1', binding: 'openswxWorkerRef' } })) fail('OPENSWX_RUNTIME_EXTENSION_INVALID')
-  const expectedSecretIds = { ...v1.environment.allowedSecretReferences, PDM_WORKLOAD_AUTH_CREDENTIALS: 'aipdm-prod-workload-auth-credentials' }
+  const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames]
+  if (profile.environment.optionalExtensions != null) fail('RUNTIME_EXTENSION_RETIRED', 'Runtime extensions are not supported')
+  const expectedSecretIds = { ...v1.environment.allowedSecretReferences }
   if (JSON.stringify([...profile.environment.requiredPlainEnvironmentNames].sort()) !== JSON.stringify([...expectedPlain].sort()) || JSON.stringify([...profile.environment.requiredSecretNames].sort()) !== JSON.stringify([...expectedSecrets].sort())) fail('ENVIRONMENT_SET_DRIFT', 'V3 environment set must preserve owner integration and workload bindings')
-  if (JSON.stringify(Object.entries(profile.environment.allowedSecretIds ?? {}).sort()) !== JSON.stringify(Object.entries(expectedSecretIds).sort())) fail('WORKLOAD_SECRET_BINDING_DRIFT', 'V3 requires its own workload credential Secret; session secrets are not worker credentials')
+  if (JSON.stringify(Object.entries(profile.environment.allowedSecretIds ?? {}).sort()) !== JSON.stringify(Object.entries(expectedSecretIds).sort())) fail('SECRET_BINDING_DRIFT', 'V3 secret bindings drifted')
   const fixed = profile.environment.fixedValues || {}
   if (profile.environment.candidateOriginEnvironmentName !== 'PDM_RELEASE_CANDIDATE_ORIGIN'
     || fixed.PDM_PUBLIC_BASE_URL !== target.canonicalOrigin
@@ -183,7 +179,7 @@ export function assertDev117WorkflowSource(source) {
   const expectedJobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback', 'failure']
   const observedJobs = [...source.matchAll(/^  ([a-z][a-z-]+):$/gmu)].map((match) => match[1])
   if (JSON.stringify(observedJobs) !== JSON.stringify(expectedJobs)) fail('WORKFLOW_JOB_MISSING', 'Owner workflow must expose five logical stages plus failure recovery')
-  if (!/\n  failure:[\s\S]*?needs:\s*\[preflight, build, migrate, candidate-smoke, activate-readback\]/u.test(source)) fail('OPENSWX_FINALIZE_FAILURE_WIRING_MISSING')
+  if (!/\n  failure:[\s\S]*?needs:\s*\[preflight, build, migrate, candidate-smoke, activate-readback\]/u.test(source)) fail('FINALIZE_FAILURE_WIRING_MISSING')
   if (/CAPSULE_PROVIDER_FETCH_REQUIRED|run:\s*echo\s/iu.test(source)) fail('PROVIDER_PLACEHOLDER_ACTIVE', 'Workflow contains a provider placeholder')
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 6 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   const migrationBinding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'

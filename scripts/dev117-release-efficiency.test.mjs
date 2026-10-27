@@ -245,12 +245,12 @@ test('diagnostic refuses arbitrary targets, namespace, source and content hash b
   }
 })
 
-test('stable diagnostic binder routes the closed OpenSWX recovery namespace to the deployer path', () => {
-  const binding = bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/recovery.json#sha256=${'a'.repeat(64)}`)
-  assert.deepEqual(binding, { operation_uri: 'gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/recovery.json', operation_sha256: 'a'.repeat(64), kind: 'openswx-dispatch-recovery' })
+test('stable diagnostic binder rejects the retired OpenSWX recovery namespace', () => {
+  assert.throws(() => bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/recovery.json#sha256=${'a'.repeat(64)}`),
+    /DIAGNOSTIC_REF_INVALID/u)
 })
 
-test('stable workflow keeps readonly diagnostics approval-free and retains production approval for recovery', () => {
+test('stable workflow keeps readonly diagnostics approval-free and contains no retired recovery job', () => {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/read-ai-pdm-rd-permission-state-production.yml'), 'utf8')
   assert.match(workflow, /WIF_PROVIDER: projects\/9536592944\/locations\/global\/workloadIdentityPools\/jenfu-prod-release\/providers\/aipdm-github/u)
   assert.doesNotMatch(workflow, /vars\.AIPDM_PROD_WIF_PROVIDER/u)
@@ -259,10 +259,8 @@ test('stable workflow keeps readonly diagnostics approval-free and retains produ
   assert.match(workflow, /service_account: aipdm-prod-verifier@/u)
   assert.match(workflow, /dev122-rd-permission-state-readback.mjs --stage readback/u)
   assert.match(workflow, /dev117-production-diagnostics.mjs --service-state/u)
-  assert.match(workflow, /dev122-openswx-dispatch-recovery.mjs --stage recovery/u)
-  assert.equal((workflow.match(/environment: production/gu) ?? []).length, 1)
-  assert.match(workflow, /recovery:\s+needs: inspect\s+if: needs\.inspect\.outputs\.kind == 'openswx-dispatch-recovery'[\s\S]*?environment: production/u)
-  assert.doesNotMatch(workflow.match(/inspect:[\s\S]*?\n  recovery:/u)?.[0] ?? '', /environment: production/u)
+  assert.doesNotMatch(workflow, /openswx|\n  recovery:/iu)
+  assert.equal((workflow.match(/environment: production/gu) ?? []).length, 0)
   assert.match(workflow, /permissions: \{ contents: read, checks: read, id-token: write \}/u)
   assert.match(workflow, /Verify exact merged source and required CI results/u)
 })

@@ -36,7 +36,6 @@ const CORE_TESTS = [
 
 const DATABASE_TESTS = [
   'scripts/dev117-production-migration-runner.test.mjs',
-  'scripts/dev122-native-postgres-coverage.test.mjs',
 ]
 
 const RD_PERMISSION_DATABASE_TESTS = [
@@ -54,10 +53,6 @@ const AUTHORIZATION_TESTS = [
 
 const WORKER_TESTS = [
   'scripts/dev125-windows-service-contract.test.mjs',
-  'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
-  'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
-  'scripts/dev122-openswx-owner-release.test.mjs',
-  'scripts/dev122-openswx-bootstrap.test.mjs',
   'scripts/lib/dev121-unlinked-profile-cleanup.test.mjs',
 ]
 

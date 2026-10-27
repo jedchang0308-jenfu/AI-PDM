@@ -126,7 +126,7 @@ test('the runtime slice checker selects application authorization without unrela
 })
 
 test('worker source selects worker evidence without unrelated app build', () => {
-  const plan = createProductionSlicePlan(['scripts/lib/openswx-reader/reader.cc'])
+  const plan = createProductionSlicePlan(['scripts/solidworks-document-manager-credential-probe.cs'])
   assert.equal(plan.gates.worker, true)
   assert.equal(plan.gates.releaseCore, false)
   assert.equal(plan.gates.application, false)
@@ -217,10 +217,6 @@ test('required CI does not couple release control to unrelated product gates', (
   assert.match(source, /steps\.slice\.outputs\.database == 'true'/u)
   assert.match(runner, /const RD_PERMISSION_DATABASE_TESTS = \[[\s\S]*dev122-rd-permission-ledger-readback\.test\.mjs[\s\S]*dev122-applied-migration-continuation\.test\.mjs/u)
   assert.match(runner, /plan\.files\.some\(isRdPermissionDatabasePath\)/u)
-})
-
-test('historical worker fixtures stay in the worker responsibility', () => {
-  assert.deepEqual(classifyProductionPath('scripts/dev122-openswx-worker-artifact-reuse.test.mjs'), ['worker'])
 })
 
 test('runtime-copied management policy is application input, not docs-only', () => {

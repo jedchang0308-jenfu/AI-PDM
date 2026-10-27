@@ -22,7 +22,7 @@ vi.mock("react", async (original) => ({
 vi.mock("@/components/drawing-recognition-pdf-ocr", () => ({useDrawingRecognitionBrowserOcr: () => {}}));
 import { DrawingRecognitionWorkspacePanel } from "./drawing-recognition-workspace-panel";
 const props = {drawingNumber: "drawing-one", sourceContextType: "drawing_revision" as const,
-  sourceContextId: "revision-one", sourceAssetIds: ["asset-one"], auxiliarySourceAssetIds: []};
+  sourceContextId: "revision-one", sourceAssetIds: ["asset-one"]};
 function render(input = props) { hooks.cursor=0; hooks.effects=[]; return DrawingRecognitionWorkspacePanel(input); }
 function text(node: React.ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);

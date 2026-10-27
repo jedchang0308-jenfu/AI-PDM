@@ -1,15 +1,13 @@
-import { assertProgramOnlyPolicy, buildProgramOnlyPolicy, deriveProgramOnlyBundles, readProgramOnlyReleasedBaseline } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { assertUnlinkedProfileCleanupRef, assertUnlinkedProfileCleanupBundleBinding, readUnlinkedProfileCleanupOperation } from './dev121-unlinked-profile-cleanup.mjs'
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
-import { assertPrincipalOnlyRecoveryBinding, assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
+import { assertPrincipalOnlyRecoveryBinding, assertReconciledPrincipalAbortBinding } from './dev121-principal-only-release.mjs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
-import { assertWorkerRuntimeJoin, readWorkerDescriptorForIntent, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
@@ -117,9 +115,9 @@ export function buildSourceFreeze({ profile, releaseId, observedAt, git, sourceI
   }
 }
 
-export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions, observedAt, openswxWorker = null }) {
+export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions, observedAt }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock?.releaseAuthority !== true || !sourceLock.clean || !Number.isFinite(Date.parse(observedAt))) fail('SOURCE_LOCK_NOT_RELEASE_AUTHORITY')
-  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment, secretVersions, openswxWorker })
+  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment, secretVersions })
   assertRuntimeConfig(profile, runtimeConfig)
   return {
     schemaVersion: 'jenfu.dev012.owner-runtime-config-receipt.v1',
@@ -256,8 +254,9 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
   return { authorization, readiness }
 }
 
-export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null, cleanupMigrationBundle = null, programOnlyPolicy = null }) {
+export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, cleanupMigrationBundle = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
+  if (input?.openswxWorkerRef || input?.retainedOpenswxWorker || input?.programOnlyBaseline) fail('RETIRED_WORKER_BINDING_REJECTED')
   if (Object.hasOwn(input ?? {}, 'appliedMigrationContinuation') &&
       (!Object.hasOwn(input, 'postAbortLedgerReadbackRef') || !Object.hasOwn(input, 'principalOnlyFenceRef') || !Object.hasOwn(input, 'principalOnlyRecovery'))) {
     fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
@@ -288,7 +287,6 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     intent.migrationManifestSha256 = cleanupMigrationBundle.manifestSha256
   } else if (cleanupMigrationBundle !== null) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
   if (input.baselineIntentRef) intent.baselineIntentRef = exactRef(input.baselineIntentRef, profile)
-  if (Object.hasOwn(input, 'openswxWorkerRef')) intent.openswxWorkerRef = exactRef(input.openswxWorkerRef, profile)
   if (Object.hasOwn(input, 'principalOnlyFenceRef') || Object.hasOwn(input, 'principalOnlyRecovery')) {
     intent.principalOnlyFenceRef = exactRef(input.principalOnlyFenceRef, profile)
     intent.principalOnlyRecovery = structuredClone(input.principalOnlyRecovery)
@@ -300,23 +298,16 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
       || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery) fail('POST_ABORT_LEDGER_READBACK_INVALID')
   }
   if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
-    if (input.programOnlyBaseline || input.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+    if (input.unlinkedProfileCleanupRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
     intent.appliedMigrationContinuation = structuredClone(assertAppliedMigrationContinuation(input.appliedMigrationContinuation, profile.artifact.releaseBucket))
   }
   const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
   if (Object.hasOwn(input, 'forwardAppliedMigrationContinuation')) {
-    if (!intent.appliedMigrationContinuation || !intent.openswxWorkerRef) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
+    if (!intent.appliedMigrationContinuation) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
     intent.forwardAppliedMigrationContinuation = structuredClone(assertForwardAppliedMigrationContinuation(input.forwardAppliedMigrationContinuation, profile.artifact.releaseBucket))
   }
   if (Object.hasOwn(intent, 'appliedMigrationContinuation') && !reconciledAbort) fail('APPLIED_MIGRATION_CONTINUATION_INVALID')
-  if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR' &&
-    (intent.principalOnlyFenceRef || intent.principalOnlyRecovery) && !reconciledAbort) fail('REPAIR_CAPSULE_INVALID')
-  if (Object.hasOwn(input, 'programOnlyBaseline')) {
-    if (programOnlyPolicy === null) fail('PROGRAM_ONLY_BASELINE_INVALID')
-    intent.programOnlyBaseline = programOnlyPolicy
-    assertProgramOnlyPolicy(programOnlyPolicy, { profile, intent, sourceLock })
-  } else if (programOnlyPolicy !== null) fail('PROGRAM_ONLY_BASELINE_INVALID')
-  if (intent.postAbortLedgerReadbackRef && (intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef)) fail('POST_ABORT_LEDGER_READBACK_INVALID')
+  if (intent.postAbortLedgerReadbackRef && intent.unlinkedProfileCleanupRef) fail('POST_ABORT_LEDGER_READBACK_INVALID')
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
@@ -325,7 +316,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
   assertPreparePrerequisites({ intent, profile, values: prerequisiteValues })
   const runtime = prerequisiteValues.runtimeConfig.runtimeConfig ?? prerequisiteValues.runtimeConfig
   if (Object.hasOwn(intent, 'appliedMigrationContinuation')) assertAppliedContinuationRuntimeBinding(runtime, intent)
-  else assertWorkerRuntimeJoin(runtime, intent, workerDescriptor)
+  else assertRuntimeConfig(profile, runtime)
   validateIntent(intent, profile)
   return intent
 }
@@ -357,7 +348,7 @@ async function readRef(transport, ref, profile) {
   return (await transport.readJson(ref, profile.artifact.releaseBucket, ['receipts'])).value
 }
 
-export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, readWorkerSource, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
+export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
   const uri = (name) => `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${name}.json`
   if (stage === 'source-freeze') {
     const git = gitReader(root, profile)
@@ -367,32 +358,8 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
   }
   if (stage === 'runtime-config') {
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
-    let openswxWorker = null, enabled = '0'
-    if (input.retainedOpenswxWorker) {
-      const retained = input.retainedOpenswxWorker
-      if (!input.openswxWorkerRef || canonicalize(Object.keys(retained).sort()) !== canonicalize(['descriptorRef', 'purpose', 'sourceRevision', 'workerProfileSha256'].sort())
-        || canonicalize(retained.descriptorRef) !== canonicalize(input.openswxWorkerRef) || retained.purpose !== 'full'
-        || !H40.test(retained.sourceRevision ?? '') || !H64.test(retained.workerProfileSha256 ?? '')) fail('OPENSWX_RUNTIME_BINDING_INVALID')
-      openswxWorker = structuredClone(retained)
-      enabled = '1'
-    } else if (input.openswxWorkerRef) {
-      if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
-      const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: sourceLock.sourceRevision })
-      if (descriptor.value.purpose === 'full') {
-        if (input.programOnlyBaseline) {
-          assertProgramOnlyPolicy(input.programOnlyBaseline, { profile, sourceLock })
-          const intent = { releaseId, sourceRevision: sourceLock.sourceRevision, sourceSha256: sourceLock.sourceSha256,
-            sourceLockRef: input.sourceLockRef, migrationManifestSha256: sourceLock.migrationManifestSha256,
-            baselineIntentRef: input.programOnlyBaseline.baselineIntentRef, openswxWorkerRef: input.openswxWorkerRef, programOnlyBaseline: input.programOnlyBaseline }
-          await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource: readWorkerSource, currentReadback: true })
-        } else await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
-        enabled = '1'
-      }
-      openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: descriptor.value.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
-    }
-    if (input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null && input.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED !== enabled) fail('OPENSWX_RUNTIME_BINDING_INVALID')
-    const plainEnvironment = profile.environment.optionalExtensions ? { ...input.plainEnvironment, PDM_OPENSWX_DISPATCH_ENABLED: enabled } : input.plainEnvironment
-    const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions: input.secretVersions, observedAt, openswxWorker })
+    if (input.retainedOpenswxWorker || input.openswxWorkerRef || input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null) fail('RETIRED_WORKER_BINDING_REJECTED')
+    const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment: input.plainEnvironment, secretVersions: input.secretVersions, observedAt })
     return transport.putJson(uri('runtime-config'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   if (stage === 'infra-reuse') {
@@ -482,26 +449,11 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const fields = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const rows = await Promise.all(Object.entries(fields).map(async ([name, field]) => [name, await readRef(transport, input[field], profile)]))
     const prerequisiteValues = Object.fromEntries(rows)
-    let workerDescriptor = null, workerProfile = null, workerEvidence = null
-    if (input.openswxWorkerRef) {
-      if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
-        workerDescriptor = prerequisiteValues.runtimeConfig?.runtimeConfig?.openswxWorker ?? prerequisiteValues.runtimeConfig?.openswxWorker
-        if (!workerDescriptor || canonicalize(workerDescriptor.descriptorRef) !== canonicalize(input.openswxWorkerRef)) fail('OPENSWX_RUNTIME_BINDING_INVALID')
-      } else {
-        if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
-        const descriptor = await readWorkerDescriptorForIntent({ transport, ref: input.openswxWorkerRef, readSource: readWorkerSource, intentSourceRevision: prerequisiteValues.sourceLock.sourceRevision })
-        workerDescriptor = descriptor.value; workerProfile = descriptor.profile
-        if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') workerEvidence = await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource, undefined, descriptor.historicalReadSource)
-      }
-    }
-    if (workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR') {
-      try { assertReconciledRepairContinuation(input, workerEvidence?.artifact?.input, profile.artifact.releaseBucket) }
-      catch { fail('REPAIR_CONTINUATION_MISMATCH') }
-    }
+    if (input.openswxWorkerRef || input.retainedOpenswxWorker || input.programOnlyBaseline) fail('RETIRED_WORKER_BINDING_REJECTED')
     let cleanupMigrationBundle = null
     if (Object.hasOwn(input, 'unlinkedProfileCleanupRef')) {
       assertUnlinkedProfileCleanupRef(input.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
-      if (profile.application.id !== 'ai-pdm' || input.principalOnlyFenceRef || input.principalOnlyRecovery || workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR') fail('CLEANUP_SOURCE_LOCK_MISMATCH')
+      if (profile.application.id !== 'ai-pdm' || input.principalOnlyFenceRef || input.principalOnlyRecovery) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
       const sourceRevision = prerequisiteValues.sourceLock.sourceRevision
       const baseline = await buildMigrationBundle(sourceRevision)
       if (baseline.bundle.manifestSha256 !== prerequisiteValues.sourceLock.migrationManifestSha256) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
@@ -512,23 +464,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
         readObject: ref => transport.readBytes(ref.uri, { prefixes: ['source/migration-bundles/dev121/unlinked-profile-cleanup'], expectedSha256: ref.sha256, expectedGeneration: ref.generation }) })
       cleanupMigrationBundle = bound.bundle
     }
-    let programOnlyPolicy = null
-    if (Object.hasOwn(input, 'programOnlyBaseline')) {
-      const sourceLock = prerequisiteValues.sourceLock
-      const bundles = deriveProgramOnlyBundles({ profile, full: await buildMigrationBundle(sourceLock.sourceRevision) })
-      const intent = { ...input, releaseId, sourceRevision: sourceLock.sourceRevision, sourceSha256: sourceLock.sourceSha256, migrationManifestSha256: sourceLock.migrationManifestSha256 }
-      assertProgramOnlyPolicy(input.programOnlyBaseline, { profile, intent, sourceLock, bundles })
-      const baseline = await readProgramOnlyReleasedBaseline({ transport, profile, baselineIntentRef: input.baselineIntentRef, previousRevision: input.previousRevision, bundles })
-      const retained = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: workerDescriptor, profile: workerProfile, readSource: readWorkerSource, currentReadback: true })
-      if ((canonicalize(retained.prior.capsuleRef) !== canonicalize(baseline.releasedIntentRef) && canonicalize(baseline.graph.intent.programOnlyBaseline?.retainedWorker.priorActivationRef) !== canonicalize(retained.prior.activationRef))
-        || prerequisiteValues.infra.migrationRunnerDigest !== baseline.migrationRunnerDigest) fail('PROGRAM_ONLY_BASELINE_INVALID')
-      programOnlyPolicy = buildProgramOnlyPolicy({ profile, sourceLock, bundles, baselineIntentRef: input.baselineIntentRef,
-        baselineEntries: baseline.baselineEntries, migrationRunnerDigest: baseline.migrationRunnerDigest,
-        retainedWorker: { descriptorRef: input.openswxWorkerRef, priorActivationRef: retained.prior.activationRef,
-          currentAssociationRef: retained.artifact.associationRef, readyResourceReadbackRef: retained.artifact.currentAssociation.resourceAssociation.readbackRef } })
-      if (canonicalize(programOnlyPolicy) !== canonicalize(input.programOnlyBaseline)) fail('PROGRAM_ONLY_BASELINE_INVALID')
-    }
-    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor, cleanupMigrationBundle, programOnlyPolicy })
+    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, cleanupMigrationBundle })
     return transport.putJson(uri('release-intent'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   fail('STAGE_DENIED')

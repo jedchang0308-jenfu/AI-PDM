@@ -6,8 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
-import { createFrozenWorkerSourceReader } from './lib/dev122-openswx-native-source-reader.mjs'
+import { createGitSourceIdentity, createGitSourceReader } from './lib/dev012-owner-stage-executor.mjs'
 import { bindAppliedContinuationTemplateRef, createAppliedContinuationRefreshTransport, refreshAppliedContinuationCapsule } from './lib/dev122-applied-continuation-capsule-refresh.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,12 +49,12 @@ async function main() {
     deployerToken: token('AIPDM_REFRESH_DEPLOYER_TOKEN'),
     githubToken: token('GITHUB_TOKEN'),
   })
-  const readWorkerSource = createFrozenWorkerSourceReader(root)
+  const readSource = createGitSourceReader(root)
   const result = await refreshAppliedContinuationCapsule({
     templateRef, profile, root, transport, environment: process.env,
     validateIntent: assertDev117ReleaseIntent,
     createSourceIdentity: async sourceRevision => createGitSourceIdentity(root, sourceRevision),
-    readWorkerSource,
+    readSource,
     buildMigrationBundle: async (sourceRevision, context) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision, context),
   })
   if (process.env.GITHUB_OUTPUT) {
