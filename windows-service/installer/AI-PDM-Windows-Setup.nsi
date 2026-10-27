@@ -110,8 +110,10 @@ Section "AI-PDM Windows Parsing Service" SEC_MAIN
   CreateShortCut "$SMPROGRAMS\AI-PDM\解析服務設定.lnk" "$INSTDIR\AipdmWindowsConfigurator.exe"
   CreateShortCut "$SMPROGRAMS\AI-PDM\解除安裝.lnk" "$INSTDIR\Uninstall.exe"
   nsExec::ExecToLog '"$INSTDIR\AipdmWindowsParsing.exe" start --no-elevate'
-  IfSilent +2 0
+  IfSilent pairing_done 0
+  IfFileExists "$APPDATA\AI-PDM Windows Service\credential.bin" pairing_done 0
     ExecShell "runas" "$INSTDIR\AipdmWindowsConfigurator.exe"
+  pairing_done:
 SectionEnd
 
 Section "Uninstall"

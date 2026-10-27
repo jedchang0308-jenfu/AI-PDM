@@ -26,6 +26,9 @@ vi.mock("@/lib/repositories/settings-secret-async-repository", () => ({ AsyncSet
 vi.mock("@/lib/google-secret-manager", () => ({ GoogleSecretManagerProvider: class { addVersion = mocks.provider; accessVersion = mocks.readProvider; },
   GoogleSecretManagerError: class extends Error {}, getGoogleSecretManagerConfig: mocks.providerConfig,
   isGoogleSecretManagerReadEnabled: mocks.readEnabled, isGoogleSecretManagerWriteEnabled: mocks.writeEnabled }));
+vi.mock("@/lib/windows-service-owner-authorization", () => ({
+  requireWindowsServiceOwnerAuthorization: vi.fn().mockResolvedValue(undefined)
+}));
 
 import { activateSettingsSecretReference, completeSettingsSecretProbe, createSettingsSecretDraft,
   enqueueSettingsSecretProbe, resolveSettingsSecretProbeCredential, revokeSettingsSecretReference, listSettingsSecretStatuses } from "@/lib/settings-secret-lifecycle";
@@ -36,8 +39,12 @@ const verified = { profile: { pdmUserId: "profile-tester", companyId: "company-o
 const worker: VerifiedWorkloadActor = {
   kind: "windows_service_device", id: "worker-one", deviceId: "device-one", companyId: "company-one",
   instanceId: "instance-one", credentialHash: "a".repeat(64),
+  ownerPrincipalId: "principal-tester",
+  owner: { principalId: "principal-tester", employeeId: "employee", pdmUserId: "profile-tester",
+    companyId: "company-one", identityIssuer: "issuer", identitySubject: "subject" },
   device: { id: "device-one", companyId: "company-one", name: "Worker One", status: "active",
-    instanceId: "instance-one", serviceVersion: "test", protocolVersion: 1, registeredBy: "profile-tester",
+    instanceId: "instance-one", serviceVersion: "test", protocolVersion: 1,
+    ownerPrincipalId: "principal-tester", registeredBy: "profile-tester",
     registeredAt: "2026-10-05T00:00:00.000Z", lastSeenAt: null, revokedAt: null, revokedBy: null, rowVersion: 1 },
   purposes: ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"],
   capabilities: ["solidworks_3d_preview_png", "solidworks_2d_preview_png", "solidworks_document_manager"]

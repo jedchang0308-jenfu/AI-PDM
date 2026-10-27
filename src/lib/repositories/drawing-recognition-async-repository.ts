@@ -927,6 +927,7 @@ export class DrawingRecognitionAsyncRepository {
   async claimJob(input: {
     workerId: string;
     companyId: string;
+    ownerPrincipalId?: string;
     maxAttempts: number;
     allowNativeSources: boolean;
     targetSessionId?: string;
@@ -942,8 +943,13 @@ export class DrawingRecognitionAsyncRepository {
       if (!input.companyId.trim() || (input.targetCompanyId && input.targetCompanyId !== input.companyId)) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_TARGET_INVALID", "辨識工作公司範圍不符。", 400);
       }
+      const browserBaseline = Boolean(input.targetSessionId) && input.workerId.startsWith("browser-baseline-");
+      if (client.kind === "postgres" && !browserBaseline && !input.ownerPrincipalId?.trim()) return null;
       const targetFilter = input.targetSessionId
         ? "AND id = :targetSessionId"
+        : "";
+      const ownerFilter = client.kind === "postgres" && !browserBaseline
+        ? "AND initiator_principal_id=:ownerPrincipalId"
         : "";
       const claimableState = input.targetSessionId
         ? "status = 'queued'"
@@ -954,6 +960,7 @@ export class DrawingRecognitionAsyncRepository {
       const session = await client.queryOne<SessionRow>(
         `SELECT * FROM drawing_recognition_sessions
          WHERE company_id = :companyId AND attempt_count < :maxAttempts AND ${claimableState} ${targetFilter}
+           ${ownerFilter}
            AND (:allowNativeSources=0 OR EXISTS (
              SELECT 1 FROM drawing_recognition_sources native_source
              WHERE native_source.session_id=drawing_recognition_sessions.id
@@ -968,10 +975,15 @@ export class DrawingRecognitionAsyncRepository {
           timestamp,
           staleBefore,
           targetSessionId: input.targetSessionId ?? null,
-          targetCompanyId: input.targetCompanyId ?? null
+          targetCompanyId: input.targetCompanyId ?? null,
+          ownerPrincipalId: input.ownerPrincipalId ?? null
         }
       );
       if (!session) return null;
+      if (client.kind === "postgres") {
+        if (!browserBaseline && session.initiator_principal_id !== input.ownerPrincipalId) return null;
+        await requireRecognitionJobAuthority(client, session, { requireCurrentPolicy: !browserBaseline });
+      }
       await client.execute(
         `UPDATE drawing_recognition_sessions SET status = 'extracting', locked_by = :workerId, locked_at = :timestamp,
            heartbeat_at = :timestamp, attempt_count = attempt_count + 1, row_version = row_version + 1, updated_at = :timestamp,
@@ -1044,25 +1056,43 @@ export class DrawingRecognitionAsyncRepository {
     });
   }
 
-  async heartbeatJob(input: { sessionId: string; workerId: string; leaseBasis: RecognitionLeaseBasis }) {
-    const updated = await this.client.queryOne<{ id: string }>(
-      `UPDATE drawing_recognition_sessions SET heartbeat_at=:timestamp,updated_at=:timestamp
-       WHERE id=:sessionId AND company_id=:companyId AND status='extracting' AND locked_by=:workerId
-         AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt
-       RETURNING id`, { ...input, ...input.leaseBasis, timestamp: now() });
-    if (!updated) throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
+  async heartbeatJob(input: { sessionId: string; workerId: string; ownerPrincipalId?: string; leaseBasis: RecognitionLeaseBasis }) {
+    await this.client.transaction(async (client) => {
+      const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
+      const session = await client.queryOne<SessionRow>(
+        `SELECT * FROM drawing_recognition_sessions
+         WHERE id=:sessionId AND company_id=:companyId AND status='extracting' AND locked_by=:workerId
+           AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt${lock}`,
+        { ...input, ...input.leaseBasis });
+      if (!session || (client.kind === "postgres" && (!input.ownerPrincipalId ||
+          session.initiator_principal_id !== input.ownerPrincipalId))) {
+        throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
+      }
+      if (client.kind === "postgres") await requireRecognitionJobAuthority(client, session,
+        { requireCurrentPolicy: !input.workerId.startsWith("browser-baseline-") });
+      const updated = await client.queryOne<{ id: string }>(
+        `UPDATE drawing_recognition_sessions SET heartbeat_at=:timestamp,updated_at=:timestamp
+         WHERE id=:sessionId AND company_id=:companyId AND status='extracting' AND locked_by=:workerId
+           AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt
+         RETURNING id`, { ...input, ...input.leaseBasis, timestamp: now() });
+      if (!updated) throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
+    });
   }
 
-  async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string; leaseBasis: RecognitionLeaseBasis }) {
+  async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string;
+    ownerPrincipalId?: string; leaseBasis: RecognitionLeaseBasis }) {
     const session = await this.client.queryOne<SessionRow>(
       `SELECT * FROM drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId
         AND source_set_fingerprint=:sourceSetFingerprint AND attempt_count=:attemptCount AND locked_at=:lockedAt`,
       { sessionId: input.sessionId, ...input.leaseBasis }
     );
-    if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
+    if (!session || session.status !== "extracting" || session.locked_by !== input.workerId ||
+        (this.client.kind === "postgres" && (!input.ownerPrincipalId || session.initiator_principal_id !== input.ownerPrincipalId))) {
       throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409, true);
     }
-    if (await requireRecognitionJobAuthority(this.client, session)) await this.assertCurrentSourceSet(session);
+    if (await requireRecognitionJobAuthority(this.client, session, { requireCurrentPolicy: true })) {
+      await this.assertCurrentSourceSet(session);
+    }
     const source = await this.client.queryOne<SourceRow>(
       `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.linked_entity_type,asset.document_category
@@ -1139,7 +1169,8 @@ export class DrawingRecognitionAsyncRepository {
     };
   }
 
-  async completeJob(input: { sessionId: string; workerId: string; leaseBasis: RecognitionLeaseBasis; results: DrawingRecognitionAdapterCompletion[] }) {
+  async completeJob(input: { sessionId: string; workerId: string; ownerPrincipalId?: string;
+    leaseBasis: RecognitionLeaseBasis; results: DrawingRecognitionAdapterCompletion[] }) {
     if (input.results.length > 64) throw new DrawingRecognitionError("RECOGNITION_RESULT_LIMIT", "辨識 adapter 結果數量超過限制。", 400);
     return this.client.transaction(async (client) => {
       const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
@@ -1147,10 +1178,15 @@ export class DrawingRecognitionAsyncRepository {
         `SELECT * FROM drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId${lock}`,
         { sessionId: input.sessionId, companyId: input.leaseBasis.companyId }
       );
-      if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
+      const browserBaseline = input.workerId.startsWith("browser-baseline-");
+      if (!session || session.status !== "extracting" || session.locked_by !== input.workerId ||
+          (client.kind === "postgres" && !browserBaseline &&
+            (!input.ownerPrincipalId || session.initiator_principal_id !== input.ownerPrincipalId))) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
       }
-      if (await requireRecognitionJobAuthority(client, session)) await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
+      if (await requireRecognitionJobAuthority(client, session, { requireCurrentPolicy: !browserBaseline })) {
+        await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
+      }
       const lockedAt = session.locked_at == null ? null : new Date(session.locked_at).toISOString();
       if (session.source_set_fingerprint !== input.leaseBasis.sourceSetFingerprint ||
           Number(session.attempt_count) !== input.leaseBasis.attemptCount || lockedAt !== input.leaseBasis.lockedAt) {

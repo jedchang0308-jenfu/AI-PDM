@@ -21,9 +21,13 @@ const actor: VerifiedWindowsServiceDevice = {
   companyId: "company-one",
   instanceId: "instance-one",
   credentialHash: "a".repeat(64),
+  ownerPrincipalId: "principal-one",
+  owner: { principalId: "principal-one", employeeId: "employee-one", pdmUserId: "profile-one",
+    companyId: "company-one", identityIssuer: "issuer", identitySubject: "subject" },
   device: {
     id: "device-one", companyId: "company-one", name: "Worker One", status: "active",
     instanceId: "instance-one", serviceVersion: "test", protocolVersion: 1,
+    ownerPrincipalId: "principal-one",
     registeredBy: "profile-one", registeredAt: "2026-10-23T00:00:00.000Z",
     lastSeenAt: null, revokedAt: null, revokedBy: null, rowVersion: 1
   },

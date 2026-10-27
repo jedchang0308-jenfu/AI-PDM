@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+vi.mock("@/lib/principal-recognition-capability", () => ({
+  requireRecognitionJobAuthority: vi.fn(async () => true),
+  requireRecognitionImpactCapabilities: vi.fn(async () => undefined)
+}));
 import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
 
 function workerDatabase(initiatorPrincipalId: string | null) {
@@ -19,18 +23,34 @@ function workerDatabase(initiatorPrincipalId: string | null) {
 }
 
 describe("recognition worker Principal provenance", () => {
-  it.each([
-    ["new Principal session", "principal-one"],
-    ["historical unknown initiator", null]
-  ])("returns %s without deriving identity from the PDM profile", async (_name, principalId) => {
-    const client = workerDatabase(principalId);
+  it("returns a Principal-owned session without deriving identity from the PDM profile", async () => {
+    const client = workerDatabase("principal-one");
     const claimed = await new DrawingRecognitionAsyncRepository(client).claimJob({
-      workerId: "worker-one", companyId: "company-one", maxAttempts: 2, allowNativeSources: true
+      workerId: "worker-one", companyId: "company-one", ownerPrincipalId: "principal-one",
+      maxAttempts: 2, allowNativeSources: true
     });
     expect(claimed).toMatchObject({
       sessionId: "session-one", companyId: "company-one",
-      initiatorPrincipalId: principalId, attemptCount: 1
+      initiatorPrincipalId: "principal-one", attemptCount: 1
     });
+  });
+
+  it("does not let a Principal-owned device claim historical ownerless work", async () => {
+    const client = workerDatabase(null);
+    await expect(new DrawingRecognitionAsyncRepository(client).claimJob({
+      workerId: "worker-one", companyId: "company-one", ownerPrincipalId: "principal-one",
+      maxAttempts: 2, allowNativeSources: true
+    })).resolves.toBeNull();
+    expect(client.execute).not.toHaveBeenCalled();
+  });
+
+  it("does not let user A's device claim user B's recognition work", async () => {
+    const client = workerDatabase("principal-two");
+    await expect(new DrawingRecognitionAsyncRepository(client).claimJob({
+      workerId: "worker-one", companyId: "company-one", ownerPrincipalId: "principal-one",
+      maxAttempts: 2, allowNativeSources: true
+    })).resolves.toBeNull();
+    expect(client.execute).not.toHaveBeenCalled();
   });
 
   it("scopes an application-side baseline claim to the exact session and company", async () => {

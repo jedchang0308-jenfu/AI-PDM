@@ -1,7 +1,7 @@
 import { WindowsServiceDeviceRepository } from "@/lib/windows-service-devices";
 import {
   assertWindowsServiceKeys,
-  windowsServiceAdminWriteRoute,
+  windowsServiceUserWriteRoute,
   WindowsServiceHttpError
 } from "@/lib/windows-service-admin-route";
 
@@ -10,7 +10,7 @@ const routePath = "src/app/api/settings/windows-service/devices/[deviceId]/revok
 const headers = { "cache-control": "private, no-store" };
 
 export async function POST(request: Request, { params }: { params: Promise<{ deviceId: string }> }) {
-  return windowsServiceAdminWriteRoute(request, routePath, async (client, company, verified, body) => {
+  return windowsServiceUserWriteRoute(request, routePath, async (client, company, verified, body, canManageAll) => {
     assertWindowsServiceKeys(body, ["expectedRowVersion"]);
     const expectedRowVersion = body.expectedRowVersion;
     if (!Number.isSafeInteger(expectedRowVersion) || Number(expectedRowVersion) < 1) {
@@ -21,7 +21,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ dev
       companyId: company.companyId,
       deviceId,
       expectedRowVersion: Number(expectedRowVersion),
-      actorPrincipalId: verified.session.principalId
+      actorPrincipalId: verified.session.principalId,
+      canManageAll
     });
     return Response.json({ id: device.id, status: device.status, rowVersion: device.rowVersion }, { headers });
   });

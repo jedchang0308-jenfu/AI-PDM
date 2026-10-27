@@ -178,10 +178,12 @@ describe("principal preview job provenance", () => {
       [{kind:"thumbnail_png",fileName:"result.png",mimeType:"image/png",
         contentBase64:Buffer.from("<svg><script>active</script></svg>").toString("base64")}]]) {
       const result=await completePreviewJobAsync(client,{jobId:"job-output",workerId:"worker-one",
+        ownerPrincipalId:"principal-one",
         leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:"a".repeat(64),attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"},status:"succeeded",sourceContentHash:"a".repeat(64),derivatives:derivatives as never});
       expect(result).toEqual({accepted:false,derivativeIds:[]});
     }
-    expect(transaction).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledTimes(3);
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function),{isolationLevel:"repeatable_read",readOnly:true});
     expect(execute).not.toHaveBeenCalled();
   });
 });

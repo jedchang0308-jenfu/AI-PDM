@@ -1,11 +1,11 @@
 import { readWindowsServiceInstaller, WindowsServiceInstallerError } from "@/lib/windows-service-installer";
-import { windowsServiceAdminReadRoute } from "@/lib/windows-service-admin-route";
+import { windowsServiceUserReadRoute } from "@/lib/windows-service-admin-route";
 
 export const runtime = "nodejs";
 const routePath = "src/app/api/settings/windows-service/installer/route.ts";
 
 export async function GET(request: Request) {
-  return windowsServiceAdminReadRoute(request, routePath, async () => {
+  return windowsServiceUserReadRoute(request, routePath, async () => {
     try {
       const { manifest, bytes } = await readWindowsServiceInstaller();
       return new Response(bytes, { headers: {

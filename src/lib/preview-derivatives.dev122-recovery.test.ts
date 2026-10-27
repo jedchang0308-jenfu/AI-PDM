@@ -5,7 +5,8 @@ import { recoverStalePreviewJobsAsync } from "@/lib/preview-derivatives";
 const now = Date.parse("2026-10-04T05:00:00.000Z");
 const scope = { companyId: "company-one", sourceFileAssetIds: ["asset-one"] };
 function fixture(rows: unknown[], changed: boolean = true) {
-  const query = vi.fn(async (_sql: string, _params?: unknown) => rows.map(value => {
+  const query = vi.fn(async (sql: string, _params?: unknown) => rows.filter(value =>
+    !sql.includes("job.status = 'running'") || (value as { status?: string }).status === "running").map(value => {
     const row = value as { updated_at: string | Date; previous_updated_at?: string };
     return { locked_by:"worker-one",previous_locked_at:"2026-10-04T00:00:00.000Z",source_valid:1, company_id:"company-one",source_file_asset_id:"asset-one",source_content_hash:"a".repeat(64), ...row, previous_updated_at: row.previous_updated_at ?? String(row.updated_at) };
   }));
@@ -31,19 +32,18 @@ describe("DEV122 bounded preview recovery (focused contract; native evidence is 
     expect(await recoverStalePreviewJobsAsync(client, scope)).toEqual({ recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 });
     expect(queryOne).not.toHaveBeenCalled();
   });
-  it("requeues attempt 2, terminates attempt 3 and expired unclaimed work", async () => {
+  it("requeues attempt 2, terminates attempt 3 and leaves offline queued work untouched", async () => {
     vi.spyOn(Date, "now").mockReturnValue(now);
     const { client, query, queryOne } = fixture([
       { id: "retry", status: "running", attempt_count: 2, updated_at: new Date(now - 30_001) },
       { id: "exhausted", status: "running", attempt_count: 3, updated_at: new Date(now - 30_001) },
       { id: "unclaimed", status: "queued", attempt_count: 2, updated_at: new Date(now - 120_001) }
     ]);
-    expect(await recoverStalePreviewJobsAsync(client, scope)).toEqual({ recovered: 3, queuedUnclaimed: 1, invalidSourceTerminated: 0 });
-    expect(query.mock.calls[0]?.[0]).toContain("job.status IN ('running','queued')");
+    expect(await recoverStalePreviewJobsAsync(client, scope)).toEqual({ recovered: 2, queuedUnclaimed: 0, invalidSourceTerminated: 0 });
+    expect(query.mock.calls[0]?.[0]).toContain("job.status = 'running'");
     expect(queryOne.mock.calls.map(call => call[1])).toEqual([
       expect.objectContaining({ jobId: "retry", nextStatus: "queued", previousAttempts: 2, completedAt: null }),
-      expect.objectContaining({ jobId: "exhausted", nextStatus: "failed", previousAttempts: 3 }),
-      expect.objectContaining({ jobId: "unclaimed", nextStatus: "failed", errorCode: "preview_worker_unavailable" })
+      expect.objectContaining({ jobId: "exhausted", nextStatus: "failed", previousAttempts: 3 })
     ]);
   });
   it("counts a fresh-heartbeat CAS miss as zero, retaining exact timestamp/status/attempt comparison", async () => {
@@ -88,10 +88,10 @@ describe("DEV122 bounded preview recovery (focused contract; native evidence is 
     expect(await recoverStalePreviewJobsAsync(client,scope)).toEqual({recovered:0,queuedUnclaimed:0,invalidSourceTerminated:0});
   });
 
-  it.each([["running",30000],["queued",120000]] as const)("expires the exact %s threshold at %i ms",async(status,age)=>{
+  it.each([["running",30000],["queued",120000]] as const)("handles the exact %s threshold at %i ms without expiring queued work",async(status,age)=>{
     vi.spyOn(Date,"now").mockReturnValue(now);const {client,queryOne}=fixture([{id:"boundary",status,attempt_count:3,updated_at:new Date(now-age)}]);
-    expect(await recoverStalePreviewJobsAsync(client,scope)).toEqual({recovered:1,queuedUnclaimed:status==="queued"?1:0,invalidSourceTerminated:0});
-    expect(queryOne).toHaveBeenCalledOnce();
+    expect(await recoverStalePreviewJobsAsync(client,scope)).toEqual({recovered:status==="running"?1:0,queuedUnclaimed:0,invalidSourceTerminated:0});
+    expect(queryOne).toHaveBeenCalledTimes(status==="running"?1:0);
   });
 
 });

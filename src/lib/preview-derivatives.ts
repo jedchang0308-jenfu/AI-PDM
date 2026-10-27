@@ -101,6 +101,7 @@ type PreviewJobRow = {
   created_at: string;
   updated_at: string | Date;
   completed_at: string | null;
+  metadata_json?: unknown;
 };
 
 type FileDerivativeRow = {
@@ -151,9 +152,10 @@ export type PreviewWorkerClaim = {
 };
 
 export type PreviewWorkerCompletionInput =
-  | { workerId: string; jobId: string; leaseBasis: PreviewLeaseBasis; status: "cancelled"; cancelReason: "operator_shutdown" }
+  | { workerId: string; ownerPrincipalId?: string; jobId: string; leaseBasis: PreviewLeaseBasis; status: "cancelled"; cancelReason: "operator_shutdown" }
   | {
       workerId: string;
+      ownerPrincipalId?: string;
       jobId: string;
       leaseBasis: PreviewLeaseBasis;
       status: "failed" | "skipped";
@@ -162,6 +164,7 @@ export type PreviewWorkerCompletionInput =
     }
   | {
       workerId: string;
+      ownerPrincipalId?: string;
       jobId: string;
       leaseBasis: PreviewLeaseBasis;
       status: "succeeded";
@@ -519,10 +522,12 @@ async function previewClock(client: AsyncDatabaseClient) {
 
 export async function claimPreviewJobAsync(
   client: AsyncDatabaseClient,
-  input: { leaseProtocolVersion: 2; workerId: string; companyId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
+  input: { leaseProtocolVersion: 2; workerId: string; companyId: string; ownerPrincipalId?: string;
+    supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
 ): Promise<PreviewWorkerClaim | null> {
   if (input.leaseProtocolVersion !== previewLeaseProtocolVersion) throw new Error("WORKLOAD_LEASE_PROTOCOL_REQUIRED");
-  if (!input.companyId.trim() || !input.supportedKinds.length || !input.supportedExtensions.length) return null;
+  if (!input.companyId.trim() || !input.supportedKinds.length || !input.supportedExtensions.length ||
+      (client.kind === "postgres" && !input.ownerPrincipalId?.trim())) return null;
   await recoverStalePreviewJobsAsync(client, { companyId: input.companyId, supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
   const kindClause = buildNamedInClause("kind", input.supportedKinds);
   const extensionClause = buildNamedInClause("extension", input.supportedExtensions.map(normalizeExtension));
@@ -536,16 +541,27 @@ export async function claimPreviewJobAsync(
           AND attempt_count < :maxAttempts
           AND requested_kind IN (${kindClause.sql})
           AND source_extension IN (${extensionClause.sql})
+          AND ${previewOwnerPredicate(transactionClient)}
           AND ${recoverablePreviewSourcePredicate()}
         ORDER BY priority ASC, created_at ASC
         LIMIT 1
         ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
       `,
-      { ...kindClause.params, ...extensionClause.params, companyId: input.companyId, maxAttempts: previewMaxAttempts }
+      { ...kindClause.params, ...extensionClause.params, companyId: input.companyId,
+        ownerPrincipalId: input.ownerPrincipalId ?? null, maxAttempts: previewMaxAttempts }
     );
     if (!selected) return null;
     const source = await readPreviewSource(transactionClient, selected.source_file_asset_id, selected.company_id, true);
     if (!source || source.content_hash !== selected.source_content_hash) return null;
+    if (transactionClient.kind === "postgres") {
+      const initiator = previewJobInitiatorFromMetadata(selected.metadata_json);
+      if (!initiator || initiator.principalId !== input.ownerPrincipalId) return null;
+      await requireCurrentPrincipalJobAuthority(transactionClient, initiator, {
+        linkedEntityType: source.linked_entity_type,
+        documentCategory: source.document_category,
+        capabilityRole: source.capability_role
+      });
+    }
     const now = (await previewClock(transactionClient)).iso;
     if (!parsePreviewLeaseBasis({ companyId: selected.company_id, sourceFileAssetId: selected.source_file_asset_id,
       sourceContentHash: selected.source_content_hash, attemptCount: Number(selected.attempt_count) + 1, lockedAt: now })) return null;
@@ -584,7 +600,13 @@ export async function claimPreviewJobAsync(
   };
 }
 
-type PreviewLeaseInput = { jobId: string; workerId: string; leaseBasis: PreviewLeaseBasis };
+type PreviewLeaseInput = { jobId: string; workerId: string; ownerPrincipalId?: string; leaseBasis: PreviewLeaseBasis };
+
+function previewOwnerPredicate(client: AsyncDatabaseClient) {
+  return client.kind === "postgres"
+    ? "job.metadata_json::jsonb #>> '{initiator,principalId}' = :ownerPrincipalId"
+    : "(:ownerPrincipalId IS NULL OR json_extract(job.metadata_json,'$.initiator.principalId')=:ownerPrincipalId)";
+}
 
 function previewLeasePredicate() {
   return `job.id=:jobId AND job.status='running' AND job.locked_by=:workerId
@@ -641,6 +663,7 @@ export async function heartbeatPreviewJobAsync(client: AsyncDatabaseClient, inpu
   return client.transaction(async transaction => {
     const owned = await readPreviewLease(transaction, input, true);
     if (!owned) return false;
+    if (transaction.kind === "postgres" && !await readClaimedPreviewSourceInSnapshot(transaction, input)) return false;
     const updated = await transaction.queryOne<{ id: string }>(`UPDATE preview_jobs AS job SET updated_at=:now
       WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt
         ${previewWriteFreshnessPredicate(transaction, true)} RETURNING id`,
@@ -686,14 +709,14 @@ export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, 
     `SELECT job.id,job.status,job.attempt_count,job.company_id,job.source_file_asset_id,job.source_content_hash,
         job.locked_by,CAST(job.locked_at AS TEXT) AS previous_locked_at,job.updated_at,CAST(job.updated_at AS TEXT) AS previous_updated_at,
         CASE WHEN ${sourceSql} THEN 1 ELSE 0 END AS source_valid FROM preview_jobs job
-      WHERE job.status IN ('running','queued') AND ${scopeSql}
+      WHERE job.status = 'running' AND ${scopeSql}
         AND job.generator_profile <> 'fake_preview_worker' AND job.requested_kind='native_thumbnail_png'
         AND LOWER(REPLACE(job.source_extension,'.','')) IN ('sldprt','sldasm','slddrw')`, scopeParams);
   const { epoch: now, iso: nowIso } = await previewClock(client);
   let recovered = 0, queuedUnclaimed = 0, invalidSourceTerminated = 0;
   for (const row of rows) {
     const updatedAt = row.updated_at instanceof Date ? row.updated_at.getTime() : Date.parse(row.updated_at);
-    const timeout = row.status === "running" ? previewHeartbeatStaleAfterMs : previewQueuedUnclaimedAfterMs;
+    const timeout = previewHeartbeatStaleAfterMs;
     if (!Number.isFinite(updatedAt) || now - updatedAt < timeout) continue;
     const attemptCount = Number(row.attempt_count ?? 0);
     const sourceValid = Number(row.source_valid) === 1;
@@ -714,8 +737,8 @@ export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, 
       previousCompanyId: row.company_id, previousSourceId: row.source_file_asset_id, previousSourceHash: row.source_content_hash,
       previousLockedBy: row.locked_by, previousLockedAt: row.previous_locked_at, previousSourceValid: sourceValid ? 1 : 0, previousAttempts: attemptCount, nextStatus: retry ? "queued" : "failed", now: nowIso,
       completedAt: retry ? null : nowIso,
-      errorCode: !sourceValid ? "preview_source_unavailable" : row.status === "queued" ? "preview_worker_unavailable" : "preview_worker_heartbeat_timeout",
-      errorSummary: !sourceValid ? "來源或公司關聯已失效，預覽工作已停止；請重新確認來源。" : row.status === "queued" ? "預覽服務未接手，已停止等待，請確認服務後重試。"
+      errorCode: !sourceValid ? "preview_source_unavailable" : "preview_worker_heartbeat_timeout",
+      errorSummary: !sourceValid ? "來源或公司關聯已失效，預覽工作已停止；請重新確認來源。"
         : retry ? "系統已自動重新排程。" : "預覽服務未回應，請稍後再試。"
     });
     if (!changed) continue;
@@ -730,6 +753,11 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
   const refused = { accepted: false, derivativeIds: [] as string[] };
   if (!parsePreviewLeaseBasis(input.leaseBasis) || !["succeeded", "failed", "skipped", "cancelled"].includes(input.status)) return refused;
   if (input.status === "cancelled" && input.cancelReason !== "operator_shutdown") return refused;
+  if (client.kind === "postgres") {
+    const authorized = await client.transaction(snapshot => readClaimedPreviewSourceInSnapshot(snapshot, input),
+      { isolationLevel: "repeatable_read", readOnly: true });
+    if (!authorized) return refused;
+  }
   if (input.status !== "succeeded") {
     return { accepted: await finishPreviewJob(client, input), derivativeIds: [] };
   }
@@ -1280,7 +1308,8 @@ async function readClaimedPreviewSourceInSnapshot(snapshot: AsyncDatabaseClient,
   if (!owned) return null;
   const { job } = owned;
   const initiator = previewJobInitiatorFromMetadata(job.metadata_json);
-  if (!initiator || initiator.companyId !== job.company_id) return null;
+  if (!input.ownerPrincipalId || !initiator || initiator.companyId !== job.company_id ||
+      initiator.principalId !== input.ownerPrincipalId) return null;
   const source = await snapshot.queryOne<PreviewSourceRow>(
     `SELECT fa.*,job.company_id AS company_id,
         COALESCE(

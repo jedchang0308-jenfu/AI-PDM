@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { PdmCompanyContext } from "@/lib/company-context";
-import { requestedPdmCompanyCodeFromRequest } from "@/lib/company-context";
+import { requestedPdmCompanyCodeFromRequest, resolvePrincipalCompanyContextInSnapshot } from "@/lib/company-context";
+import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
-import { withPrincipalCompanyRead, withPrincipalCompanyWrite } from "@/lib/principal-company-read";
-import { revalidateRolePolicyManager } from "@/lib/role-policy-apply-authorization";
+import { withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { hashJenfuPrincipalSessionId } from "@/lib/jenfu-principal-session-registry";
 import { WindowsServiceDeviceError } from "@/lib/windows-service-devices";
 
@@ -56,34 +59,46 @@ export function assertWindowsServiceKeys(body: Record<string, unknown>, required
 }
 
 type ReadHandler = (client: AsyncDatabaseClient, company: PdmCompanyContext,
-  verified: VerifiedPrincipalRequest) => Promise<Response>;
+  verified: VerifiedPrincipalRequest, canManageAll: boolean) => Promise<Response>;
 
-export async function windowsServiceAdminReadRoute(request: Request, routePath: string, handler: ReadHandler) {
-  const policy = resolveJenfuRoutePolicy(routePath, "GET", { expectedPermissionCode: permission });
-  if (request.method !== "GET" || policy?.authorizationMode !== "permission" || policy.scopeResolver !== "workspace") {
+async function authorizeSelfService(request: Request, routePath: string, method: "GET" | "POST",
+  handler: ReadHandler, readOnly: boolean) {
+  const policy = resolveJenfuRoutePolicy(routePath, method, {});
+  if (request.method !== method || policy?.authorizationMode !== "authenticated_domain" ||
+      policy.permissionCode !== null || policy.scopeResolver !== "workspace") {
     return Response.json({ error: "principal_route_policy_unavailable" }, { status: 503, headers });
   }
-  const response = await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
-    [{ permissionKind: "action", permissionCode: permission }], async (client, company, verified) => {
-      try {
-        await revalidateRolePolicyManager(client, verified);
-        return await handler(client, company, verified);
-      } catch (error) { return errorResponse(error); }
-    });
-  return response ?? Response.json({ error: "auth_session_invalid" }, { status: 401, headers });
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) return Response.json({ error: "auth_session_invalid" }, { status: 401, headers });
+  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
+      getJenfuEntitlementMode() !== "enforce") {
+    return Response.json({ error: "principal_authorization_unavailable" }, { status: 503, headers });
+  }
+  try {
+    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (client, verified) => {
+      const result = await resolvePrincipalCompanyContextInSnapshot(client, verified,
+        requestedPdmCompanyCodeFromRequest(request));
+      if (result.response) return result.response;
+      const [manager] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified,
+        [{ permissionKind: "action", permissionCode: permission }]);
+      const canManageAll = manager?.principalId === verified.session.principalId && manager.allowed === true;
+      try { return await handler(client, result.company, verified, canManageAll); }
+      catch (error) { return errorResponse(error); }
+    }, { readOnly, isolationLevel: readOnly ? "repeatable_read" : "serializable" });
+  } catch (error) { return principalRequestFailure(error); }
 }
 
-export async function windowsServiceAdminWriteRoute(request: Request, routePath: string,
+export async function windowsServiceUserReadRoute(request: Request, routePath: string, handler: ReadHandler) {
+  return authorizeSelfService(request, routePath, "GET", handler, true);
+}
+
+export async function windowsServiceUserWriteRoute(request: Request, routePath: string,
   handler: (client: AsyncDatabaseClient, company: PdmCompanyContext,
-    verified: VerifiedPrincipalRequest, body: Record<string, unknown>) => Promise<Response>) {
+    verified: VerifiedPrincipalRequest, body: Record<string, unknown>, canManageAll: boolean) => Promise<Response>) {
   let body: Record<string, unknown>;
   try { body = await readJson(request); } catch (error) { return errorResponse(error); }
-  return withPrincipalCompanyWrite(request, routePath, permission, async (client, company, verified) => {
-    try {
-      await revalidateRolePolicyManager(client, verified);
-      return await handler(client, company, verified, body);
-    } catch (error) { return errorResponse(error); }
-  }, { isolationLevel: "read_committed" });
+  return authorizeSelfService(request, routePath, "POST",
+    (client, company, verified, canManageAll) => handler(client, company, verified, body, canManageAll), false);
 }
 
 export function windowsServiceEnrollmentCreator(verified: VerifiedPrincipalRequest) {

@@ -31,6 +31,7 @@ import {
   WindowsDpapiSecretError,
   writeWindowsDpapiSecret
 } from "@/lib/windows-dpapi-secret-provider";
+import { requireWindowsServiceOwnerAuthorization } from "@/lib/windows-service-owner-authorization";
 
 export type SettingsSecretKind = "solidworks_document_manager";
 
@@ -876,6 +877,9 @@ function requireProbeWorker(actor: VerifiedWorkloadActor) {
 
 function requireProbeLease(job: SettingsSecretProbeJob, actor: VerifiedWorkloadActor, leaseAttempt?: number) {
   probeProvenance(job);
+  if (job.initiatorPrincipalId !== actor.ownerPrincipalId) {
+    throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "此裝置不屬於 probe 發起者。", 403);
+  }
   if (leaseAttempt !== undefined && (!Number.isSafeInteger(leaseAttempt) || leaseAttempt < 1 || leaseAttempt !== job.attemptCount)) {
     throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe attempt 已被接手。", 409);
   }
@@ -913,6 +917,7 @@ export async function completeSettingsSecretProbe(input: {
     const job = await repository.getProbeJobById(input.probeJobId, true);
     if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
     if (job.companyId !== input.worker.companyId) throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "Worker 公司範圍不符。", 403);
+    await requireWindowsServiceOwnerAuthorization(snapshot, input.worker.owner, "settings.secret.manage");
     const digest = crypto.createHash("sha256").update(JSON.stringify({ workerId: input.worker.id,
       referenceId: job.secretReferenceId, attempt: input.leaseAttempt ?? null, ...result })).digest("hex");
     if (["passed","failed","blocked"].includes(job.status)) {
@@ -939,7 +944,8 @@ export async function completeSettingsSecretProbe(input: {
     const workerCompletionJson = JSON.stringify({ workerId: input.worker.id,
       leaseBasis: { companyId: job.companyId, attemptCount: job.attemptCount, lockedAt: job.lockedAt ?? null },
       resultDigest: digest, terminalStatus: result.status, committedAt: completedAt });
-    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id, companyId: input.worker.companyId,
+    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id,
+      companyId: input.worker.companyId, owner: input.worker.owner,
       status: result.status, resultCode: result.resultCode, readerVersion: result.readerVersion, completedAt,
       leaseAttempt: input.leaseAttempt, workerCompletionJson })) {
       throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 狀態已變更。", 409);
@@ -976,6 +982,7 @@ export async function resolveSettingsSecretProbeCredential(probeJobId: string, w
   const job = await repository.getProbeJobById(probeJobId);
   if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
   if (job.companyId !== worker.companyId) throw new SettingsSecretLifecycleError("WORKLOAD_FORBIDDEN", "Worker 公司範圍不符。", 403);
+  await requireWindowsServiceOwnerAuthorization(client, worker.owner, "settings.secret.manage");
   requireProbeLease(job, worker, leaseAttempt);
   if (leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) {
     throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要新版 worker。", 409);
@@ -993,6 +1000,7 @@ export async function resolveSettingsSecretProbeCredential(probeJobId: string, w
   const currentJob = await repository.getProbeJobById(probeJobId);
   if (!currentJob) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
   requireProbeLease(currentJob, worker, leaseAttempt);
+  await requireWindowsServiceOwnerAuthorization(client, worker.owner, "settings.secret.manage");
   if (leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) {
     throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要新版 worker。", 409);
   }

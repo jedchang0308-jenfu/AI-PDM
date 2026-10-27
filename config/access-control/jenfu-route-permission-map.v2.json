@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "da91e7d0762c70929d0077b9c87b2e929b55b74c5509b34f9fe5b67e6ba1cbf7",
+  "sourceSha256": "4bf4930ebc47dde5e68cf814692db62bf9c3c60f6d7d30d90ab825990c6feb17",
   "denominator": {
     "uniqueFiles": 153,
     "uniqueMethods": 174,
@@ -1053,41 +1053,41 @@
       "path": "src/app/api/settings/windows-service/devices/[deviceId]/revoke/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.secret.manage",
-      "authorizationTarget": "settings.secret.manage",
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "current Principal device or settings.secret.manage emergency revocation",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋same company＋device row-version CAS"
+      "preservedGuards": "verified active AI-PDM Principal＋Origin＋same company＋owner-only self revoke or PDM manager emergency revoke＋device row-version CAS"
     },
     {
       "path": "src/app/api/settings/windows-service/devices/route.ts",
       "method": "GET",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.secret.manage",
-      "authorizationTarget": "settings.secret.manage",
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "current Principal devices; settings.secret.manage may view company devices",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal＋direct global system_admin＋same-company device projection"
+      "preservedGuards": "verified active AI-PDM Principal＋owner-scoped projection; PDM manager emergency company projection"
     },
     {
       "path": "src/app/api/settings/windows-service/enrollments/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.secret.manage",
-      "authorizationTarget": "settings.secret.manage",
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "current verified active AI-PDM Principal self-service pairing",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋one-time hashed enrollment"
+      "preservedGuards": "verified active AI-PDM Principal＋Origin＋current session/grant recheck＋one-time hashed enrollment"
     },
     {
       "path": "src/app/api/settings/windows-service/installer/route.ts",
       "method": "GET",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.secret.manage",
-      "authorizationTarget": "settings.secret.manage",
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "current verified active AI-PDM Principal installer download",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal＋direct global system_admin＋fixed same-source installer manifest"
+      "preservedGuards": "verified active AI-PDM Principal＋fixed same-source installer manifest"
     },
     {
       "path": "src/app/api/storage/evidence/route.ts",

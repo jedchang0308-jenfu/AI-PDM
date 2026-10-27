@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     leaseProtocolVersion: previewLeaseProtocolVersion,
     workerId,
     companyId: actor.companyId,
+    ownerPrincipalId: actor.ownerPrincipalId,
     supportedKinds: supportedPreviewKinds,
     supportedExtensions: extensions
   });

@@ -1,6 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項；整體尚未結案的原因是 Windows 首次安裝缺陷修正後的實機重驗、SolidWorks 三格式、A0001 預覽與管理員辨識驗收未完成。
+狀態：`IMPLEMENTATION_IN_PROGRESS / 2026-10-28 USER-OWNED WINDOWS DEVICE ARCHITECTURE FINAL / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§10～11 的較早紀錄只供追溯。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項。
+
+> **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -8,7 +10,7 @@
 
 ## 1. 要交付的結果
 
-AI-PDM 網頁與資料管理維持雲端；指定公司 Windows 電腦安裝同一套「AI-PDM Windows 解析服務」，向 AI-PDM 領取工作，使用官方 SolidWorks Document Manager 讀取原生屬性及可取得的已儲存預覽，再回傳與原檔版本綁定的結果。一般使用者直接在網頁查看結果。
+AI-PDM 網頁與資料管理維持雲端；每位有效 AI-PDM 使用者可在自己的 Windows 電腦安裝同一套「AI-PDM Windows 解析服務」。每台電腦以公司 Google SSO 自助連結到當下使用者的 company、Principal 與 active account，再只領取該使用者目前可查閱／下載來源的工作，使用官方 SolidWorks Document Manager 讀取原生屬性及可取得的已儲存預覽，回傳與原檔版本綁定的結果。不設公司共用或要求不關機的解析主機。
 
 產品只維持這一條原生 CAD 解析路徑。OpenSWX 輔助屬性功能、worker、派送及日常發布依賴全部退役；不保留 provider 選單、雙讀比對或自動回退至 OpenSWX。Windows 尚未上線時顯示等待／未設定，不用 OpenSWX 暫代成功。
 
@@ -39,9 +41,9 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 固定為 `AI-PDM 網頁／API／既有佇列 → HTTPS 輪詢 → Windows 服務 → Document Manager → 原佇列 complete`。雲端不載入 COM，電腦不開 inbound port；只有一套原生 CAD 引擎。沒有 OpenSWX、Shell thumbnail handler、eDrawings 或完整 SolidWorks 自動回退。舊 Shell 實測只保留歷史證據，不是第一版交付路徑。
 
-網頁入口固定 `/settings/windows-service`（系統設定 → Windows 解析服務）。頁面只有「下載安裝程式」「註冊電腦」及清單；欄位為電腦名稱、版本、連線狀態、可處理項目、最後連線、停用。連線與能力分開；不蒐集登入人員、活動、硬體清單或遠端桌面。停用是永久撤銷該筆身分，恢復使用須重新註冊，不還原舊 token。
+網頁入口固定 `/settings/windows-service`（系統設定 → Windows 解析服務）。頁面只有「下載安裝程式」「連結這台電腦」及清單；不得出現「註冊 ID」「單次註冊碼」或貼碼欄位。一般有效使用者只看自己的裝置，PDM 管理員可看全公司並於異常時撤銷；欄位為電腦名稱、版本、連線狀態、可處理項目、最後連線、解除連結。連線與能力分開；不蒐集活動、硬體清單或遠端桌面。解除連結永久撤銷該筆憑證，恢復使用須重新連結，不復活舊 token。
 
-管理員下載安裝包並在 Windows 執行一次 UAC 安裝，再從網頁取得十分鐘有效的單次註冊碼，貼入安裝後的「AI-PDM 解析服務設定」小工具。註冊成功後背景服務開機啟動；一般使用者不須逐次登入或保持網頁開啟。網頁不能靜默安裝 Windows 程式，也不承諾一個點擊就免除 UAC。無解析電腦時顯示「等待解析電腦上線」；有 current-hash 結果仍可閱讀，原檔下載維持原權限。
+固定操作為：`AI-PDM 下載安裝程式 → 執行安裝／UAC → 安裝工具自動開啟系統瀏覽器 → 公司 Google SSO → 使用者按一次「連結這台電腦」→ 瀏覽器以 loopback callback 將短效交換資料交回本機工具 → 系統自動完成`。RD、採購／生管、生產人員及其他有效 AI-PDM 使用者均可自助連結自己的電腦，不需 PDM 管理員逐台核准；管理員只處理異常撤銷。網頁不能靜默繞過 UAC。連結後背景服務開機啟動，日常不需保持網頁開啟。沒有任何使用者裝置在線時，工作維持 `queued`，不增加業務 attempt；裝置重新上線後自動接續。
 
 | 決策 | 第一版固定實作 |
 |---|---|
@@ -55,22 +57,22 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 ## 4. 資料與身分契約
 
-新增一份 `db/postgres/<next>_dev125_windows_service_devices.sql` forward-only migration；編號依實作當下 ledger 分配，不修改 082／088 或其他已套用 SQL。只新增 `ai_pdm_core` 以下兩表，並在三個既有 job owner 加完成讀回欄位，不建通用 fleet／第二套 queue／新的跨應用 contract。正式裝置註冊限定現有 `company-jenfu`；隔離測試可用對應 fixture，公司由驗證過的管理員 profile 決定，不能接受 request 自選公司。
+已發布的 migration 089 保持 immutable；它建立裝置、短效 enrollment 與 completion readback。新增 forward-only migration 090，在 `windows_service_devices` 加入不可變、不可為空的 `owner_principal_id`，以 089 的 `registered_by` 回填既有列，建立 `(company_id, owner_principal_id)` 外鍵、owner/status 索引與禁止改綁 trigger。短效 enrollment 仍是系統內部交換資料，不是人類輸入的註冊碼產品流程。不建通用 fleet、第二套 queue 或新的跨應用 contract；company 永遠由已驗證登入／裝置身分決定，不能接受 request 自選。
 
 | 表 | 必要欄位與限制 |
 |---|---|
-| `windows_service_devices` | `id text PK`（UUID）、`company_id text FK companies`、`name text`（1～100 字）、`credential_hash text UNIQUE`（SHA-256 hex，無明文）、`status text`（active／revoked）、`instance_id text NULL`（UUID）、`service_version text`（1～40 字）、`protocol_version integer=1`、`registered_by text`（verified Principal ID）、`registered_at/last_seen_at/revoked_at timestamptz`、`revoked_by text NULL`、`row_version integer >=1`。索引 `(company_id,status)`；revoked 必須有操作者與時間。 |
-| `windows_service_enrollments` | `id text PK`（UUID）、`company_id`、`request_id text`、`request_hash text`、`code_hash text UNIQUE`、`created_by text`、`creator_session_hash text`、`creator_auth_epoch bigint`、`created_at/expires_at timestamptz`、`consumed_at timestamptz NULL`、`device_id text NULL FK devices`。`UNIQUE(company_id,request_id)`；expires=DB 時鐘+10 分鐘；consumed 與 device 同時存在。註冊碼只存 hash，不建立 Secret Manager version。 |
+| `windows_service_devices` | 保留 089 欄位；090 新增 `owner_principal_id text NOT NULL`，以 `(company_id,owner_principal_id)` 參照 active-account authority 所在的 app-owned Principal account，並禁止 UPDATE 改綁。`credential_hash` 只存 SHA-256；每台電腦一個獨立 token，可單獨撤銷。`registered_by` 保留建立歷史，不代替永久 owner。 |
+| `windows_service_enrollments` | 保留 089 的短效、單次、hash-only 交換欄位；由已登入頁面與 loopback callback 自動使用。原碼不得呈現在人工輸入欄位、localStorage、server log 或 evidence；不建立 Secret Manager version。 |
 
 `preview_jobs`、`drawing_recognition_sessions`、`settings_secret_probe_jobs` 各加 nullable `worker_completion_json jsonb`，只存最後一次已接受完成的 `{workerId,leaseBasis,resultDigest,terminalStatus,committedAt}`；與原結果在同一 owner transaction 寫入，原有歷史 NULL 不回填。resultDigest 是 canonical complete payload 的 SHA-256；retry 新 attempt 時清除舊 completion，原事件歷史仍保留。這是 ACK 遺失的唯讀確認依據，不是第二份業務結果或新 receipt 服務。
 
 新增表不回填假裝置，不修改既有人員／角色／圖料。註冊、撤銷沿既有 audit 記錄 actor、device ID、前後狀態及結果；不稽核每次 heartbeat，不記 code、token、key 或檔案內容。Enrollment／device 保留供稽核，第一版不另建自動清理工作。沿既有 runtime role 只授予必要 SELECT／INSERT／UPDATE，無 DELETE／DDL；所有存取經 company-scoped repository，無匿名 SQL 或新跨應用 view。SQLite 隔離模式需同義 schema／transaction，正式授權並行測試以 PostgreSQL 為準。
 
-**憑證生命週期：**網頁用 Web Crypto 產生 32 bytes 隨機註冊碼，送 hash 建立 enrollment，畫面只在這次顯示原碼。本機小工具先產生 UUID device ID 與 32 bytes 隨機 bearer token，以 DPAPI LocalMachine 加上上述 ACL 保存後才送註冊；服務端只收 token hash。消耗註冊碼與新增 device 在同一 transaction，驗碼時重新查 creator session／auth epoch、active account 與管理員資格。相同 enrollment＋device ID＋credential hash 的重送回原結果；換內容 409，未消耗已過期 410，已撤銷裝置不可藉重送復活。機器名稱只是顯示資訊，不是授權依據。
+**憑證生命週期：**安裝工具先建立 loopback listener、不可猜 state、UUID device ID 與 32 bytes 隨機 bearer token，開啟 AI-PDM 連結頁。Google SSO 後由頁面建立十分鐘、單次、hash-only enrollment，使用者只按一次「連結這台電腦」，頁面將短效交換資料送到 `127.0.0.1`；本機工具完成交換後才以 DPAPI LocalMachine 與 service SID ACL 保存裝置 token，服務端只存 hash。消耗 enrollment 與新增 device 在同一 transaction，並把當下 company／Principal 永久寫入 owner。相同 enrollment＋device ID＋credential hash 的未知結果重送只回原結果；換內容 409，過期 410，已撤銷裝置不可復活。電腦名稱只是顯示資訊，不是授權依據。
 
-**管理權限：**清單、下載、註冊碼與停用 API 均沿用 Principal／company／CSRF 邊界、`settings.secret.manage`，另重用 `revalidateRolePolicyManager()` 的現行直接全域管理員、active account／session／epoch 檢查（抽成共用 guard，原矩陣語意不變）。不新增 MFA、角色 action 或 OrgMaster writer；既有公司 Google 管理員登入政策不變。
+**人員權限：**下載、建立自己的短效連結、查看／解除自己的裝置，對所有具現行 AI-PDM 有效 grant 的 active Principal 開放，不要求 PDM 管理員資格。具 `settings.secret.manage` 的直接全域 PDM 管理員另可列出並緊急撤銷全公司裝置，但不參與日常安裝核准。不新增 MFA、角色 action 或 OrgMaster writer；OrgMaster 仍只負責人員角色指派。
 
-**服務權限：**以非人員的 `deviceId + instanceId + companyId` actor 取代 native worker 的靜態環境 credentials。每次從 DB 檢查 hash／active／current instance，不能靠 heartbeat 或 token cache 授權。服務只允許現有 preview／recognition／probe／broker 用途，沒有業務編輯、送審、核准或正式化權限；不授予 Windows 機器 GCP IAM。Document Manager key 仍從既有 exact-active-version broker 在需要時取得，最多沿現行 60 秒記憶體 refresh；不落地、不放安裝包，停用／無效憑證後立即清除本機使用中的 key 並停止新工作。
+**服務權限：**裝置 actor 固定為 `companyId + ownerPrincipalId + deviceId + instanceId`。每次 `claim`、source download、heartbeat、key/probe access、complete 及 completion readback 都從 DB 重新驗證：裝置 active、永久 owner 相符、Principal account active、OrgMaster current active mapping 唯一、至少一項現行已發布 AI-PDM grant，並對該工作來源重新判斷 owner 的查閱／下載或必要 action。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key、環境 token fallback，亦禁止把「可連線」當成 CAD／key／工作權限。Document Manager key 只在通過上述檢查且持有當前 probe／工作租約的受控程序記憶體內短暫使用；不回 UI、不寫磁碟、不進 payload／log／evidence。帳號停用、角色撤銷、Principal mapping 失效或裝置解除連結後，下一次請求立即拒絕。
 
 ## 5. API、狀態與失敗處理
 
@@ -78,17 +80,17 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 | Method／path | 請求與結果／權限 |
 |---|---|
-| `GET /api/settings/windows-service/devices` | 管理員；回 `{devices:[{id,name,serviceVersion,status,connection,capabilities,lastSeenAt,rowVersion}]}`，只列該公司。connection 依 DB 時鐘、30 秒內 heartbeat 判 online；capabilities 必須同時符合 active 裝置、現行 instance、成功 probe、key version／fingerprint 與近期 capability heartbeat。 |
-| `GET /api/settings/windows-service/installer` | 管理員；回受控安裝 bytes，固定檔名／版本／SHA-256，缺產物 503 `INSTALLER_UNAVAILABLE`；不接受 filename／URL／object key 參數。 |
-| `POST /api/settings/windows-service/enrollments` | 管理員；`{requestId,codeHash}` → 201 `{id,expiresAt}`，相同 request/body 重送 200，body 不同 409。UI 不將註冊碼放 URL、localStorage 或日誌；失去原碼則重建新的 enrollment，舊碼十分鐘失效。 |
-| `POST /api/settings/windows-service/devices/{id}/revoke` | 管理員；`{expectedRowVersion}` → `{id,status:revoked,rowVersion}`。已 revoked 重送 200；版本不符 409，未知／其他公司 404。row lock 下重驗管理員並提交，無 DELETE 裝置 API。 |
-| `POST /api/windows-service/enroll` | 唯一不靠既有 session／device bearer 的交換；`{enrollmentId,code,deviceId,credentialHash,name,serviceVersion,protocolVersion:1}` → 201 `{deviceId,rowVersion}`，依 §4 原子驗證。無效碼 403，不暴露是否存在；expired 410。使用既有 rate-limit 機制限制每來源 10 次／分鐘，429 與 Retry-After；不是可匿名領取工作的入口。 |
+| `GET /api/settings/windows-service/devices` | 任一 active AI-PDM Principal 可讀自己的裝置；PDM 管理員可讀全公司。回 `{devices:[{id,name,serviceVersion,status,connection,capabilities,lastSeenAt,rowVersion,ownedByCurrentUser}],canManageAll}`。connection 依 DB 時鐘與近期 heartbeat；清單不授予工作或來源存取。 |
+| `GET /api/settings/windows-service/installer` | 任一 active AI-PDM Principal；回 same-source 受控安裝 bytes，固定檔名／版本／SHA-256，缺產物 503 `INSTALLER_UNAVAILABLE`；不接受 filename／URL／object key 參數。 |
+| `POST /api/settings/windows-service/enrollments` | 任一 active AI-PDM Principal；由連結頁自動送 `{requestId,codeHash}`，相同 request/body 重送 200，body 不同 409。原 code 不呈現在 UI；此 route 不是管理員核准。 |
+| `POST /api/settings/windows-service/devices/{id}/revoke` | owner 可解除自己的裝置；PDM 管理員可緊急撤銷同公司的任一裝置。row lock 下重驗 current account／grant／owner 或管理權限；已 revoked 重送 200、版本不符 409、非 owner 且非管理員 403，無 DELETE API。 |
+| `POST /api/windows-service/enroll` | 只交換瀏覽器已建立的短效 enrollment 與本機產生的裝置 public hash；無效／過期／已消耗拒絕且有 rate limit。成功列永久綁定 `company_id + owner_principal_id`。它不授予工作權限；後續每個 workload request 仍須完整重驗。 |
 | `GET /api/windows-service/self`、`POST /api/windows-service/start` | 這兩個 bootstrap API 只驗 active device bearer，不要求已啟動 instance；self 回自己的狀態／rowVersion，及該裝置的 `activeJob:{kind,id,leaseBasis}\|null` 供 claim ACK 遺失讀回，不 enqueue／recover。start `{instanceId,expectedRowVersion,serviceVersion,protocolVersion:1}` 原子設定啟動實例，回 rowVersion。同 instance 重送 200；版本衝突或另一 instance 30 秒內仍在線則 409，重啟者等離線後讀新版本再啟動，不盲目覆蓋。程序用本機 singleton mutex；每次真正啟動產生新 instanceId，跨重啟舊租約失效。其餘 API 全部要求 current instance。 |
 | `POST /api/windows-service/heartbeat` | current-instance bearer 與 `x-pdm-worker-id=<deviceId>:<instanceId>`，每 10 秒更新裝置 lastSeenAt；沿用既有 capability heartbeat 的 code／version／fingerprint 欄位，不由 client 自訂授權用途。 |
 | `GET /api/windows-service/jobs/{kind}/{id}/status` | current-instance bearer；kind 固定 preview／recognition／probe。只回同公司、目前租約或 completion.workerId 屬該 instance 的 `{status,leaseBasis,completion:{resultDigest,terminalStatus,committedAt}|null}`；其他身分／工作 404，無來源內容，不 enqueue／recover／更新 attempt。供 complete ACK 遺失讀回，最多三次；digest 與本次不同則衝突，不自動補送。 |
-| 既有 worker API | 保留 `/api/preview-jobs/**`、`/api/preview-workers/**`、`/api/recognition-jobs/**`、`/api/recognition-workers/heartbeat`、`/api/settings-secret-probe-jobs/**`，統一 await 新 device auth；不得留下 native 靜態 token fallback。broker 僅允許公司相符的 active 裝置與既有 key 用途，probe credential 另須當前 probe 租約。 |
+| 既有 worker API | 保留 `/api/preview-jobs/**`、`/api/preview-workers/**`、`/api/recognition-jobs/**`、`/api/recognition-workers/heartbeat`、`/api/settings-secret-probe-jobs/**`；每個 claim／source／heartbeat／complete 均取得 owner-bound device actor 並重驗 current account／Principal mapping／grant／resource permission。不得留下 native 靜態 token、匿名、固定身分或共享 key fallback。 |
 
-新服務 protocol 不支援、缺必要 fence → 426 `WORKER_PROTOCOL_UNSUPPORTED`；無效／已撤銷 bearer → 403 `WORKER_DEVICE_UNAUTHORIZED`；DB 不可用 → 503，不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；單次 poll 無工作沿各既有 claim 的 200-null／204 契約。省略／不匹配租約 → 409 `WORKER_LEASE_STALE`，來源變更沿現有 stale-source 錯誤。不可重試的 corrupt／missing-preview／key-invalid 送明確終態，不假裝排隊中。
+新服務 protocol 不支援、缺必要 fence → 426 `WORKER_PROTOCOL_UNSUPPORTED`；無效／已撤銷 bearer，或 owner account／Principal／grant／resource permission 已失效 → 403 `WORKER_DEVICE_UNAUTHORIZED`；DB 不可用 → 503，不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；`queued` 工作不因等待逾時而失敗或遞增 attempt，只有已被領取的 `running/extracting` 租約逾期才依既有上限回收。單次 poll 無工作沿各既有 claim 的 200-null／204 契約。省略／不匹配租約 → 409 `WORKER_LEASE_STALE`，來源變更沿現有 stale-source 錯誤。
 
 安裝後未註冊只顯示「未註冊」且不輪詢工作；註冊後 online／offline 與 ready／blocked 分開。服務遇 403 停止工作並清除自有暫存；網路／503 使用 2、5、15、30 秒上限退避。一次請求最多重送三次，之後回等待狀態而非快速空轉；只有 heartbeat、具同一 idempotency 身分的 enroll/start 才可直接重送。claim 回應遺失先 self 讀回 activeJob 接續該租約，確認無有效租約才再 claim；complete 回應遺失先讀該工作的 owner／終態與 digest，確認已成功才回報成功；無法確認標為 unconfirmed，不能重新上傳或重寫業務結果。
 
@@ -98,9 +100,9 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 | 既有 owner | 必須保留與補齊 |
 |---|---|
-| Preview | 沿 `preview-worker-lease.ts` 的 protocol 2 與 `{companyId,sourceFileAssetId,sourceContentHash,attemptCount,lockedAt}`；claim 原子鎖定且只取 actor.companyId，`locked_by` 綁 device＋instance。content／heartbeat／complete 都驗當次 lease；使用現有 derivative owner／原子完成，不能另建 preview 表。PRT／ASM／DRW 的 capability 由真實 Document Manager self-test 分開回報。 |
-| Recognition | `drawing_recognition_sessions` 已有 company／attempt／locked_at／source_set_fingerprint，直接加嚴 fence，不新建 queue。claim 回傳 `{companyId,sessionId,sourceSetFingerprint,attemptCount,lockedAt}`，後續 source／heartbeat／complete 必須原樣帶回並在同一 owner transaction 驗證。原子篩選 actor 公司與有原生來源的 session；同 session PDF 等來源交回既有 adapter，不以檔名 adapter 冒充原生解析。保留 088 的 initiator_authority、parent work lock／狀態及人員撤權重驗；worker 只產生 observations，不自行 formalize。 |
-| Settings probe | 沿已存在的 company／initiator／protocol 2、probe ID＋lease attempt 與 exact secret version；claim 新增 actor.companyId 篩選。舊無 initiator／company 工作仍拒絕，不偽造補值。probe 通過不是 PNG／屬性各格式成功證據。 |
+| Preview | claim 同時限定 actor.companyId 與 job metadata 的 initiator Principal；content／heartbeat／complete 每次重驗 owner 的 current resource view/download、lease 與 source hash。A 的裝置不能取得 B-only source。只有 running stale lease可回收，未領取 queued 工作保留至可處理裝置上線或業務端取消。 |
+| Recognition | claim 同時限定 `drawing_recognition_sessions.initiator_principal_id = ownerPrincipalId`，source／heartbeat／complete 重驗 current authority 與 fingerprint；ownerless 歷史 native 工作不交給使用者裝置。瀏覽器 exact-session non-native baseline 保留獨立內部路徑，不是匿名 Windows worker。worker 只產生 observations，不自行 formalize。 |
+| Settings probe | claim 限定 company 與 initiator Principal；claim／heartbeat／credential／complete 每次重驗 owner current `settings.secret.manage` 與 exact probe lease。key 只送進授權裝置的受控程序記憶體，不出現在 UI、API readback、DB completion 或 log。 |
 | PDF／附件 | 先在固定唯讀來源查明 MIME／extension／source binding／current hash；只修被證明錯誤的 resolver／viewer。PDF 原檔走既有受保護 preview API，不送 Document Manager，不把可閱讀 PDF 改成 PNG。若需修正式 metadata，另用正常 writer 與具名資料範圍，不能在 viewer GET 偷做回填。 |
 
 撤銷競爭固定鎖序為「device row → 既有 job／source／parent locks」。每次寫入及來源／key 讀取的授權決策，在同一 DB transaction 持有 device row share lock 並重新檢查 active／instance；claim／start／revoke 一開始即取該列排他鎖。跨三個 owner 的 claim 先查該 instance 是否已有有效租約，有則不領第二件；不靠 client 自律避免重複占用。撤銷 commit 之後不得接受新授權決策；已在撤銷之前取得授權的串流 bytes 無法回收，不宣稱中途抹除。原 parent-lock、initiator 撤權及 source-hash fence 只加嚴不取代。工作 heartbeat 沿現有 5 秒節奏／失聯回收與 attempt 上限；失聯後重領產生新 fence，舊結果零寫入。
@@ -157,6 +159,8 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 App 及 release adapter 使用現有 affected-slice planner、required CI、owner workflow；修改 SQL 執行 `npm run check:db-boundary`，修改 app 執行既定 typecheck／isolated build；修改 release adapter 依既有 DEV-117 continuous／QC／abort 驗證。installer build 在 Windows runner 產出獨立 immutable artifact 與 hash，成功只代表可安裝，不代替真實 COM 驗收。AI-PDM owner build receipt 增加 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}` 並與 image 內 manifest 比對；固定 same-source artifact 輸入，拒絕 actor 提供 URL 或 mutable latest。這項相容擴充與 OpenSWX workerRef 移除在同一發布契約修訂，不另建 owner workflow。不得為此新增 GCP Windows VM、公司 IAM 管理平台或跨專案 reader/writer。OrgMaster／Jenfu-Platform／JF-FMS：無程式／schema／部署修改範圍。
 
+本次發布必須從最新 protected `main` 的正常 PR 合併來源建立，保留 PR #535 的官方 Document Manager interop 修復；migration manifest 在既有 39 筆後只追加 090，089 bytes／checksum 不變。PR #533 不得 merge；新 PR 合併並通過 required CI 後關閉 #533 為 superseded。正式 owner workflow只使用本次 exact merged source、same-source installer 與 40-entry migration bundle；不新增 IAM、Secret、credential、OrgMaster 或其他專案責任。
+
 發布包必須綁定實際 app SHA、migration ledger、安裝 hash／protocol 與 provider retirement plan；這些由 exact-source builder 生成，不填假值。缺合法 key、COM 不相容、未證明新的 recovery 或 provider UNKNOWN 時，阻擋各自相關的打包／原生驗收／刪除，其他隔離工作繼續；不以新增備援引擎解決。
 
 ## 9. 精簡驗證計畫與完成定義
@@ -165,18 +169,18 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 
 | ID | 必須看到的結果 | 驗證層級／原責任 |
 |---|---|---|
-| V125-01 | 正常管理員可進頁面；一般人、撤權 session、錯公司不可清單／下載／註冊／停用；OrgMaster 未新增 writer。 | API／隔離 PostgreSQL，正式正常 SSO smoke；DEV-123 邊界相容。 |
-| V125-02 | 註冊碼一次／十分鐘、過期／錯碼／跨公司拒絕；consume 競爭只一筆，回應遺失相同重送不多註冊；日誌／DB 無明文 key/token。 | 自動化 DB／API；不需正式雙人操作。 |
-| V125-03 | 全新 Windows 安裝、原有 COM 相容／不相容、重啟、覆蓋更新及卸載；服務以低權限 session 0 真正解析，非只在互動桌面測通。 | Windows 11 x64 實機；記套件 hash／COM 版本。 |
-| V125-04 | 啟動 instance 競爭、停止／撤銷後各 worker caller、key broker、source 與 complete 拒絕；auth DB 失效不退 env；公司範圍無外洩。 | 全 caller route contract＋隔離 DB 競爭；一台正式裝置撤銷 smoke。 |
-| V125-05 | preview／recognition／probe 領取用途分離；同工作兩 instance 只一有效 owner；失聯重領、舊 attempt、重啟、取消／parent-lock／initiator 撤權均零錯寫。 | 既有 lease／source／PostgreSQL regression；D122-05 F-01B～F。 |
+| V125-01 | RD、採購／生管、生產人員等 active AI-PDM Principal 均可下載並以公司 Google SSO 自助連結自己的電腦；非 PDM 管理員不被擋，PDM 管理員只多全公司清單與緊急撤銷；OrgMaster 未新增 writer。 | 角色化 API／UI、隔離 PostgreSQL及正式正常 SSO smoke。 |
+| V125-02 | 畫面與安裝工具都沒有人工「註冊 ID／單次註冊碼」欄位；loopback state、短效交換與 unknown-result readback 正常，日誌／DB／UI 無明文 Document Manager key、device token 或 CAD bytes。 | source contract＋API／瀏覽器／Windows 安裝流程。 |
+| V125-03 | 全新 Windows 安裝、Google 自助連結、關機／上線、重啟、覆蓋更新、重裝、多電腦及卸載；每台裝置有獨立可撤銷身分，服務以低權限 session 0 真正解析。 | Windows 11 x64 實機；記套件 hash／COM 版本，不要求共用常開主機。 |
+| V125-04 | A 的裝置不能 claim、下載、heartbeat 或 complete 只有 B 有權的工作；帳號停用、角色撤銷、Principal mapping 失效、owner 不符或裝置解除連結後下一次 caller／key broker／source／complete 立即拒絕。 | 全 caller route contract＋隔離 PostgreSQL＋正式撤銷 smoke。 |
+| V125-05 | preview／recognition／probe 領取用途分離；同工作兩 instance 只一有效 owner；失聯重領、舊 attempt、重啟、取消／parent-lock／initiator 撤權均零錯寫。無裝置在線時 queued 工作保留且 attempt 不增加，上線後自動接續。 | 既有 lease／source／PostgreSQL regression；D122-05 F-01B～F。 |
 | V125-06 | known-preview `.SLDPRT`／`.SLDASM`／`.SLDDRW` 各至少一個真實來源，原始 hash→讀取證據→正確 PNG；document／configuration 屬性與預期一致。缺圖、壞檔、較新格式、錯 key 明確失敗。 | 真實 Document Manager／相同產物；沿用有效單樣本證據但不跨格式冒用。 |
 | V125-07 | 原檔 bytes／hash 一致；新版來源不取舊結果；亂序／重複 complete 及 ACK 遺失不重寫；timeout／crash 清理自己暫存，原 CAD 零修改。 | 隔離 fault 測試＋真實 reader；D122-05 F-01A～E。 |
 | V125-08 | A0001-M01 對應受控來源的原生預覽與 PDF：正常頁面 current-hash、完整圖框可讀、同頁等待轉成功；缺 Windows 顯示等待，ready 不重排。 | 實際正常 UI／受控資料；正式 smoke 與隔離回歸分列，不用本機代正式。 |
-| V125-09 | 附件上傳／重載／下載、管理員原生辨識正常允許與拒絕；PDF 不依賴 Windows；D122-01～04、06 未受影響證據重用，未驗保留。 | §2 原責任對照；D122-07 保持 DISABLED_DEFERRED。 |
+| V125-09 | 附件上傳／重載／下載、各有效角色依自己權限執行原生辨識；PDF 不依賴 Windows；Document Manager key、裝置 token、CAD bytes 在 UI／回應／log／evidence 零洩漏。 | §2 原責任對照＋redaction sweep；D122-07 保持 DISABLED_DEFERRED。 |
 | V125-10 | 不含 OpenSWX 模組／profile 的 app build、owner prepare／recovery 可用；其 UI／API／imports／package command／環境變數／active IaC 零執行入口，無 Shell 替代雙軌。 | source dependency 搜尋＋affected release suite＋required CI。歷史例外逐類確認，不能把活程式列歷史。 |
 | V125-11 | exact 舊工作全終態、無 active／unknown execution；專用 Job／Scheduler／SA／binding／token 已退出，shared 資源與 immutable receipts 保留。 | fresh DB／provider readback；UNKNOWN 不計 PASS，僅 PAUSED 不通過。 |
-| V125-12 | migration→candidate→單台 Windows→正式 UI→新架構 recovery 的版本／hash 對得上；失敗停解析仍可下載，不重啟 OpenSWX。 | 既有 owner release＋正式受控 smoke；2026-10-27 首次正式 attempt 在啟用前被 Platform session smoke 阻擋並安全回滾，維持 `PARTIAL / NOT_ACCEPTED`。 |
+| V125-12 | immutable 089＋forward-only 090→candidate→使用者自有 Windows→正式 UI→新架構 recovery 的版本／hash 對得上；失敗停解析仍可下載，不重啟 OpenSWX。 | 既有 owner release＋正式受控 smoke；以本次 exact merged source 更新結果。 |
 
 結案需 V125-01～12 的適用結果完整且 Windows 功能可用、OpenSWX 確實退出。保留 DEV-122 的原始七項／29 組完整對照與未驗，不將 deferred supplier 或尚未做的正式旅程計 PASS；DEV-125 完成也不能自動改寫 DEV-122 原七項整體通過。紀錄只需沿既有 QA 入口存受測 source／artifact、環境、樣本 hash、實際結果及失敗，無須新增簽核層、逐案真人操作或任務登錄平台。
 

@@ -1,7 +1,7 @@
 import { WindowsServiceDeviceRepository, windowsServiceRequestHash } from "@/lib/windows-service-devices";
 import {
   assertWindowsServiceKeys,
-  windowsServiceAdminWriteRoute,
+  windowsServiceUserWriteRoute,
   windowsServiceEnrollmentCreator,
   WindowsServiceHttpError
 } from "@/lib/windows-service-admin-route";
@@ -11,7 +11,7 @@ const routePath = "src/app/api/settings/windows-service/enrollments/route.ts";
 const headers = { "cache-control": "private, no-store" };
 
 export async function POST(request: Request) {
-  return windowsServiceAdminWriteRoute(request, routePath, async (client, company, verified, body) => {
+  return windowsServiceUserWriteRoute(request, routePath, async (client, company, verified, body) => {
     assertWindowsServiceKeys(body, ["requestId", "codeHash"]);
     const requestId = typeof body.requestId === "string" ? body.requestId : "";
     const codeHash = typeof body.codeHash === "string" ? body.codeHash.toLowerCase() : "";

@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const job = await claimDrawingRecognitionJob({
       workerId: actor.id,
       companyId: actor.companyId,
+      ownerPrincipalId: actor.ownerPrincipalId,
       maxAttempts: Number(body.maxAttempts ?? 2),
       allowNativeSources: body.allowNativeSources !== false
     });

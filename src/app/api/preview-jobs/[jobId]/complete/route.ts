@@ -26,10 +26,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
   try {
     const completion =
       status === "cancelled"
-        ? ({ workerId, jobId, status, leaseBasis, cancelReason: "operator_shutdown" } satisfies PreviewWorkerCompletionInput)
+        ? ({ workerId, ownerPrincipalId: actor.ownerPrincipalId, jobId, status, leaseBasis,
+            cancelReason: "operator_shutdown" } satisfies PreviewWorkerCompletionInput)
         : status === "succeeded"
         ? ({
             workerId,
+            ownerPrincipalId: actor.ownerPrincipalId,
             jobId,
             leaseBasis,
             status,
@@ -38,6 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
           } satisfies PreviewWorkerCompletionInput)
         : ({
             workerId,
+            ownerPrincipalId: actor.ownerPrincipalId,
             jobId,
             leaseBasis,
             status,
