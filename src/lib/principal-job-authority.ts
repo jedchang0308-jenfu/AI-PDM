@@ -148,7 +148,11 @@ export async function requireCurrentPrincipalJobAuthority(
       identityIssuer: typed.identityIssuer,
       identitySubject: typed.identitySubject
     });
-    if (await isDynamicRolePolicyInSnapshot(snapshot)) {
+    const dynamicPolicy = await isDynamicRolePolicyInSnapshot(snapshot);
+    if (action === "view_and_download" && !dynamicPolicy) {
+      throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", 503);
+    }
+    if (dynamicPolicy) {
       const actions = action === "view_and_download" ? ["view", "download"] as const : [action];
       const permissions = groups.flatMap(group => actions.map(requiredAction => ({
         permissionKind: "action" as const, permissionCode: `pdm.${group}.${requiredAction}`

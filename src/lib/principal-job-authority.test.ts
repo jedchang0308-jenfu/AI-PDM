@@ -151,6 +151,14 @@ describe("durable Principal job authority", () => {
     expect(mocks.publishedGrants).toHaveBeenCalledOnce();
   });
 
+  it("never falls back to legacy authority for original delivery to a user-owned parser", async () => {
+    mocks.dynamic = false;
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, {
+      linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download"
+    })).rejects.toMatchObject({ code: "PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", status: 503 });
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["account type mismatch", () => { mocks.typed = { ...mocks.typed, accountType: "human_privileged" }; }],
     ["profile version change", () => { mocks.account = { ...mocks.account, profileVersion: 4 }; }],

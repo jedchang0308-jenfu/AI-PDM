@@ -30,7 +30,7 @@
   "localVerification": {
     "typecheckApp": "PASS",
     "dev125Contract": "PASS_52_13_NODE_39_VITEST",
-    "correctiveFocused": "PASS_170_VITEST_AND_7_WORKER_RUNTIME_CASES",
+    "correctiveFocused": "PASS_171_VITEST_AND_7_WORKER_RUNTIME_CASES",
     "postgresDeviceOwner": "PASS_11",
     "postgresDeviceOwnerScope": "TASK_OWNED_POSTGRES_NOT_PRODUCTION: three non-manager roles each enroll two independent devices and self-revoke; removed, changed or ambiguous Principal mapping denies next authentication; existing account, grant, device and instance cases retained",
     "postgresCleanup": "PASS_TEMP_ROOT_REMOVED_PORT_53223_RELEASED",
@@ -95,7 +95,7 @@
     "googleSelfLink": "NOT_RUN",
     "overlayIdempotency": "NOT_RUN_FORMAL",
     "nativeThreeFormatUnderService": "NOT_RUN",
-    "knownAssemblySample": {"fileName":"A0053.SLDASM","size":174437,"sha256":"a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694","status":"LOCATED_NOT_FORMAL_PARSE_PROOF"}
+    "knownAssemblySample": {"fileName":"A0053.SLDASM","size":174437,"sha256":"a742e01991a82f08171e82fb137819bb0b1b4ebad8096fe035f841c383385694","status":"LOCATED_NOT_FORMAL_PARSE_PROOF"}
   },
   "previewHeartbeatCorrective": {
     "pullRequest": 539,
@@ -104,10 +104,10 @@
     "negativeSmoke": {"observedAt":"2026-10-27T19:42:48.428Z","requests":21,"allDenied":true,"deviceAuthDenials":20,"sliceDenial":1,"proofScope":"ANONYMOUS_DENIAL_ONLY_NOT_VALID_WORKER_SUCCESS","rawResultSha256":"eb955652b576df4ea4e854bdc17d4b697d4669b94eec77f02026a20c80405880","rawBodiesRecorded":false},
     "relatedSourceFindings": ["non-manager device probe claim failed before business work", "native key was fetched before job claim and cached across jobs"],
     "changes": ["exact POST preview capability heartbeat admission with existing device guards", "non-manager probe claim returns empty queue before reconciliation", "native key requires owned current preview or recognition lease and source", "device and source authority rechecked after provider I/O", "worker checks metadata readiness then claims and holds key only within current job", "provider outages wait on the same job lease without failed completion or reclaim", "successful leased probe reports its version/fingerprint heartbeat"],
-    "focusedVerification": {"vitest":170,"workerRuntime":7,"postgres":11,"nativeComExecutedByTheseTests":false},
+    "focusedVerification": {"vitest":171,"workerRuntime":7,"postgres":11,"nativeComExecutedByTheseTests":false},
     "initialRequiredCiFailure": {"run":40575253108,"check":"Production Slice QC","step":"Verify preview and recognition slice","test":"production-slice.settings.test.ts","cause":"Historical deny-list still blocked exact preview heartbeat, contradicting current guarded admission","correction":"Move exact POST heartbeat into admitted cases; keep suffix and non-POST paths blocked; rerun both settings and actual device-handler tests"},
     "correctedPreviewSliceLocal": {"vitest":327,"settingsAndActualDeviceHandler":73,"dev079SourceContract":"PASS","dev079IsolatedOwnerInvariant":"PASS","requiredCi":"PENDING_NEW_HEAD"},
-    "viewDownloadCorrective": {"finding":"server preview view-only guard and recognition download-only guard were insufficient for per-user Windows delivery of original CAD","correction":"require both actions on actual resource groups before claim, source, heartbeat, complete and job key; include native part/assembly model scope before attempt increment","focusedBehaviorTests":43,"typecheck":"PASS","changedLint":"PASS","priorHeadCiRun":40576800557,"priorHeadCiConclusion":"success","currentHeadRequiredCi":"PENDING_NEW_HEAD","productionProof":false},
+    "viewDownloadCorrective": {"finding":"server preview view-only guard and recognition download-only guard were insufficient for per-user Windows delivery of original CAD","correction":"require both actions on actual resource groups before claim, source, heartbeat, complete and job key; include native part/assembly model scope before attempt increment","focusedBehaviorTests":44,"typecheck":"PASS","changedLint":"PASS","priorHeadCiRun":40576800557,"priorHeadCiConclusion":"success","currentHeadRequiredCi":"PENDING_NEW_HEAD","productionProof":false},
     "firstLoginCorrective": {"finding":"installer pairing URL without an existing app session showed forbidden instead of automatically starting company SSO","correction":"401 starts existing SSO with exact pairing returnTo; authenticated session skips redundant login; 403 and 503 never trigger login loops","capturedHookBehaviorTests":4,"formalBrowserProof":false},
     "attemptLossReview": "P1_FOUND_AND_CORRECTED_BEFORE_RELEASE_METADATA_PREFLIGHT_AND_SAME_LEASE_PROVIDER_WAIT_WITH_SERIAL_PROBE_RECOVERY",
     "localIsolatedBuild": "NOT_RUN_CAPACITY_RESERVATION_BLOCKED_REQUIRED_CI_ISOLATED_BUILD_REQUIRED",
