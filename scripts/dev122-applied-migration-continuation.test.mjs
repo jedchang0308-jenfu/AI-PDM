@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
+import { assertAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
 import { assertNoForwardMigrationSubmission, readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
@@ -29,6 +29,22 @@ test('applied continuation accepts the current runtime and rejects every retired
     { runtime: { ...runtime, openswxWorker: {} }, intent: {} },
     { runtime, intent: { openswxWorkerRef: ref(`gs://${bucket}/receipts/dev-122/openswx-worker/retired.json`) } },
   ]) assert.throws(() => assertAppliedContinuationRuntimeBinding(changed.runtime, changed.intent), /APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID/u)
+})
+
+test('historical applied continuation admits only the exact sealed retired worker binding', () => {
+  const descriptorRef = ref(`gs://${bucket}/receipts/dev-122/openswx-worker/historical.json`)
+  const runtime = {
+    plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '1' },
+    secretVersions: { SESSION_SECRET: '9', PDM_WORKLOAD_AUTH_CREDENTIALS: '3' },
+    openswxWorker: { descriptorRef, purpose: 'full', sourceRevision: appliedSource, workerProfileSha256: 'f'.repeat(64) },
+  }
+  assert.deepEqual(assertHistoricalAppliedContinuationRuntimeBinding(runtime, { openswxWorkerRef: descriptorRef }), { retainedHistoricalBinding: true })
+  for (const [changedRuntime, changedIntent] of [
+    [{ ...runtime, plainEnvironment: { ...runtime.plainEnvironment, PDM_OPENSWX_DISPATCH_ENABLED: '0' } }, { openswxWorkerRef: descriptorRef }],
+    [{ ...runtime, openswxWorker: { ...runtime.openswxWorker, purpose: 'repair' } }, { openswxWorkerRef: descriptorRef }],
+    [runtime, { openswxWorkerRef: { ...descriptorRef, uri: `gs://${bucket}/receipts/releases/arbitrary.json` } }],
+  ]) assert.throws(() => assertHistoricalAppliedContinuationRuntimeBinding(changedRuntime, changedIntent), /APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID/u)
+  assert.doesNotThrow(() => assertHistoricalAppliedContinuationRuntimeBinding({ plainEnvironment: {}, secretVersions: {} }, {}))
 })
 
 function providerJob() {
