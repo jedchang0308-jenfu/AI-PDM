@@ -44,6 +44,19 @@ internal sealed class PairingCallback
     public string code { get; set; }
 }
 
+internal sealed class DeviceSelfContract
+{
+    public string deviceId { get; set; }
+    public string status { get; set; }
+}
+
+internal enum ExistingCredentialStatus
+{
+    MissingOrRejected,
+    Active,
+    TemporarilyUnavailable
+}
+
 internal sealed class ConfiguratorForm : Form
 {
     private readonly Button retry = new Button();
@@ -74,10 +87,10 @@ internal sealed class ConfiguratorForm : Form
         title.SetBounds(28, 28, 500, 28);
         Controls.Add(title);
         Label help = new Label();
-        help.Text = "瀏覽器將自動開啟。請使用公司 Google 帳號登入，並在頁面按一次「連結這台電腦」。";
+        help.Text = "既有連結有效時會直接保留；否則瀏覽器將自動開啟，請使用公司 Google 帳號按一次「連結這台電腦」。";
         help.SetBounds(28, 64, 500, 48);
         Controls.Add(help);
-        retry.Text = "重新開啟登入頁";
+        retry.Text = "重新檢查／連結";
         retry.SetBounds(28, 120, 170, 38);
         retry.Click += async (sender, args) => await BeginPairingAsync();
         Controls.Add(retry);
@@ -92,11 +105,22 @@ internal sealed class ConfiguratorForm : Form
         if (pairing) return;
         pairing = true;
         retry.Enabled = false;
-        SetStatus("正在開啟公司登入頁…", false);
+        SetStatus("正在檢查這台電腦的既有連結…", false);
         TcpListener listener = null;
         byte[] stateBytes = null;
         try
         {
+            ExistingCredentialStatus existing = await CheckExistingCredentialAsync();
+            if (existing == ExistingCredentialStatus.Active)
+            {
+                SetStatus("這台電腦已連結；覆蓋安裝已保留原裝置身分，不需重新登入。", false);
+                return;
+            }
+            if (existing == ExistingCredentialStatus.TemporarilyUnavailable)
+            {
+                throw new InvalidOperationException("EXISTING_DEVICE_CHECK_UNAVAILABLE");
+            }
+
             listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start(1);
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -149,6 +173,89 @@ internal sealed class ConfiguratorForm : Form
             if (stateBytes != null) Array.Clear(stateBytes, 0, stateBytes.Length);
             pairing = false;
             retry.Enabled = true;
+        }
+    }
+
+    private async Task<ExistingCredentialStatus> CheckExistingCredentialAsync()
+    {
+        string credentialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "AI-PDM Windows Service", "credential.bin");
+        if (!File.Exists(credentialPath)) return ExistingCredentialStatus.MissingOrRejected;
+
+        CredentialContract credential;
+        byte[] protectedBytes = null;
+        byte[] clearBytes = null;
+        try
+        {
+            protectedBytes = File.ReadAllBytes(credentialPath);
+            clearBytes = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.LocalMachine);
+            credential = json.Deserialize<CredentialContract>(Encoding.UTF8.GetString(clearBytes));
+            Uri credentialBaseUri;
+            Guid deviceGuid;
+            if (credential == null || credential.protocolVersion != product.protocolVersion ||
+                credential.baseUrl != product.baseUrl.TrimEnd('/') ||
+                !Uri.TryCreate(credential.baseUrl, UriKind.Absolute, out credentialBaseUri) ||
+                credentialBaseUri.Scheme != Uri.UriSchemeHttps ||
+                !Guid.TryParseExact(credential.deviceId, "D", out deviceGuid) ||
+                !System.Text.RegularExpressions.Regex.IsMatch(credential.token ?? "", "^[A-Za-z0-9_-]{43}$"))
+            {
+                return ExistingCredentialStatus.MissingOrRejected;
+            }
+        }
+        catch (CryptographicException)
+        {
+            return ExistingCredentialStatus.MissingOrRejected;
+        }
+        catch (IOException)
+        {
+            return ExistingCredentialStatus.MissingOrRejected;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return ExistingCredentialStatus.MissingOrRejected;
+        }
+        catch (InvalidOperationException)
+        {
+            return ExistingCredentialStatus.MissingOrRejected;
+        }
+        finally
+        {
+            if (clearBytes != null) Array.Clear(clearBytes, 0, clearBytes.Length);
+            if (protectedBytes != null) Array.Clear(protectedBytes, 0, protectedBytes.Length);
+        }
+
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+        try
+        {
+            using (HttpClient client = new HttpClient())
+            using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get,
+                product.baseUrl.TrimEnd('/') + "/api/windows-service/self"))
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential.token);
+                using (HttpResponseMessage response = await client.SendAsync(request))
+                {
+                    if (response.StatusCode == HttpStatusCode.Unauthorized ||
+                        response.StatusCode == HttpStatusCode.Forbidden ||
+                        (int)response.StatusCode == 426)
+                    {
+                        return ExistingCredentialStatus.MissingOrRejected;
+                    }
+                    if (!response.IsSuccessStatusCode) return ExistingCredentialStatus.TemporarilyUnavailable;
+                    DeviceSelfContract current = json.Deserialize<DeviceSelfContract>(await response.Content.ReadAsStringAsync());
+                    return current != null && current.deviceId == credential.deviceId && current.status == "active"
+                        ? ExistingCredentialStatus.Active
+                        : ExistingCredentialStatus.MissingOrRejected;
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            return ExistingCredentialStatus.TemporarilyUnavailable;
+        }
+        catch (TaskCanceledException)
+        {
+            return ExistingCredentialStatus.TemporarilyUnavailable;
         }
     }
 
