@@ -1,8 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_RD_COMPLETE_PENDING_CI`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
+狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_B_SOURCE_MERGED / 125-C_PROVIDER_RETIREMENT_PENDING`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496 與文件收斂 PR #497 已合併。125-A 從 main `9bb468f313af2d45fd986bf8ccb2d41d8f24343b` 建立獨立工作樹實作；後續結果須以各切片 exact source／CI／發布讀回為準。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496／#497 完成架構與文件收斂，PR #498 合併 125-A，PR #499 合併 125-B 單一路徑 worker 整合及 125-C source／release dependency 退役。現行 main 為 `9d4881755bae7f6b77d77487e32e9d9bec9f50dd`；後續結果須以各切片 exact source／CI／發布讀回為準。
 
 ## 1. 要交付的結果
 
@@ -107,7 +107,7 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 ## 7. Repository 施工對照與 OpenSWX 完整拆除
 
-下列是實作定位，不是本次已新增／刪除的檔案；新檔命名可作局部調整，但 owner、API 與契約不能改成雙軌。
+下列是原始施工定位與完成邊界；實際進度以 §11 為準。PR #498／#499 已依此完成主要 source 變更，新檔命名可作局部調整，但 owner、API 與契約不能改回雙軌。
 
 | 範圍 | 現有定位／預定修改 |
 |---|---|
@@ -188,10 +188,14 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 | OpenSWX 進入 UI、API、build、owner proof、applied continuation 與專用 IaC；刪 worker 不足。 | §7 全面退出清單與 replacement recovery 在前、provider 刪除在後；共享權限按 consumer 處置，歷史 SQL／收據保留。 |
 | 舊文件將安裝工具／資料/API 留待實作再選，PDF 與 CAD scope 易混。 | §3～9 完成 installer、data／API／auth／failure／release／QA 決策；PDF 獨立修復；無 OrgMaster 相容程式任務。 |
 
-結論：`RD Implementation Ready / Architecture Finalized`；本次檢視範圍沒有尚待選架構的 P0／P1 設計缺口。RD 可依 125-A 起工，但使用者本輪只授權文件。合法 key／指定版本 COM、三格式實機、正式 worker／provider 與原缺口驗收仍是待取得的執行證據，不標 PASS；技術實作細節、版本 patch 與實際 migration 編號由 RD 在此契約內固定，不需再開一輪架構規劃。
+當時結論為 `RD Implementation Ready / Architecture Finalized`，且沒有尚待選架構的 P0／P1 設計缺口；其後 125-A／B 及 125-C source 退役已依此契約實作，現況以 §11 為準。合法 key／指定版本 COM、三格式實機、正式 worker／provider、A0001 預覽與原缺口驗收仍是待取得的執行證據，不標 PASS；這些是執行與驗收缺口，不需要重開 DEV-122 或另一輪架構規劃。
 
 ## 11. Implementation Progress（2026-10-27）
 
-125-A 已完成 RD source：migration 089、管理員電腦清單／下載／註冊／停用 API、device enroll／self／start／heartbeat、設定頁、DB 即時裝置身分、NSIS 3.11＋WinSW 2.12.0＋Node 24 套件、LocalService/service SID、DPAPI LocalMachine credential、Document Manager x64 runtime 版本／SHA-256 probe，以及 same-source installer manifest／CI artifact。OpenSWX 尚未在此切片移除；它會在 125-C 於 replacement 可用後一次退出，不形成產品雙軌。
+125-A 已由 PR #498 合併：migration 089、管理員電腦清單／下載／註冊／停用 API、device enroll／self／start／heartbeat、設定頁、DB 即時裝置身分、NSIS 3.11＋WinSW 2.12.0＋Node 24 套件、LocalService/service SID、DPAPI LocalMachine credential、Document Manager x64 runtime 版本／SHA-256 probe，以及 same-source installer manifest／CI artifact。
 
-125-A RD 證據：隔離 PostgreSQL 6 組通過（單次碼／重送／錯碼限流／過期／session 撤權／instance 競爭／heartbeat／撤銷）；installer 實際編譯及 manifest digest readback 通過；本機既有 Document Manager x64 major 33 COM runtime 啟動及 runtime digest probe 通過，extractor 改採不需散布專有 DLL 的 late-bound COM；DEV-125 contract 6 tests、既有 release 52 tests、slice planner 21 tests、typecheck 與 DB boundary 通過。全 repository lint 為 0 error／既有 9 warnings。尚待 PR required CI、管理員正常 SSO、安裝／重啟／覆蓋／卸載實機操作，因此 V125-01／03／04 仍為 `PARTIAL`；V125-02 自動化範圍為 `PASS`。125-B／125-C 與 V125-05～12 尚未完成。
+125-A RD 證據：隔離 PostgreSQL 6 組通過（單次碼／重送／錯碼限流／過期／session 撤權／instance 競爭／heartbeat／撤銷）；installer 實際編譯及 manifest digest readback 通過；本機既有 Document Manager x64 major 33 COM runtime 啟動及 runtime digest probe 通過，extractor 改採不需散布專有 DLL 的 late-bound COM；DEV-125 contract、既有 release、slice planner、typecheck 與 DB boundary 通過。管理員正常 SSO、安裝／重啟／覆蓋／卸載實機操作仍未完整驗證，因此 V125-01／03／04 維持 `PARTIAL`；V125-02 自動化範圍為 `PASS`。
+
+125-B 與 125-C 的 source 層已由 PR #499 合併至 `9d4881755bae7f6b77d77487e32e9d9bec9f50dd`，required CI run `40460654463` 的 `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 均通過：Windows service 增加統一工作排程器及 completion-status 入口，preview／recognition／probe caller 收斂至 DB device auth 與 lease fence；OpenSWX active UI／API／repository／reader／worker、release profile、建置與 owner proof 依賴已移除。這只證明 source 與 required CI 收斂，不等於真實三格式 Document Manager、A0001 3D／PDF、管理員辨識、正式 SSO／裝置、candidate／traffic／recovery 或雲端資源退出通過。V125-05～09、V125-12 仍依實際 evidence 標 `NOT_RUN`／`PARTIAL`；V125-10 只有 source／CI 部分成立；V125-11 尚未通過。
+
+125-C 退出前唯讀基線新增 fixed `preview-openswx-runtime-state` operation：固定 `company-jenfu`／`A0001-M01`／兩個指定檔案，DB 以 `REPEATABLE READ READ ONLY` 讀 current binding、current-hash preview job／derivative、舊 worker identity heartbeat 與 OpenSWX grouped／active state；provider 只投影唯一 100% serving revision 的非敏感 dispatch flag。operation、migration-runner digest、source revision、child output path 與 final receipt均綁 operation hash，不接受任意 target／SQL／command；不新增 IAM／Secret／schema，也不寫 business row／service configuration。heartbeat 明示不等於 OS process。此讀回尚未涵蓋 OpenSWX Job／Scheduler／execution及所有 caller inventory，因此 receipt 只能回 `DRAIN_OR_ENTRY_SHUTDOWN_REQUIRED` 或 `DB_AND_APP_ENTRY_CLEAR_PROVIDER_INVENTORY_REQUIRED`，`providerInventoryComplete=false`；兩者都不是 V125-11 PASS、no-current-need 或刪除授權。程式需先經 protected PR／required CI 及正式 migration-runner rollout，再建立 fresh immutable operation；目前只完成本機 source／測試，正式 readback 未執行。

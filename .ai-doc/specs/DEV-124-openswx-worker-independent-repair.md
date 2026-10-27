@@ -6,7 +6,7 @@
 
 **下文完整保留為歷史修復計畫及證據，原 124-A／B／C 不再排程執行。** 只在 DEV-125 安全退出需要時重用既有唯讀能力與收據，不為拆除先把整套 OpenSWX 修好。
 
-來源基準：`origin/main` `c11b31c4229abad04f722d8c79306e6fa2a48b23`（2026-10-27）
+來源基準：`origin/main` `9d4881755bae7f6b77d77487e32e9d9bec9f50dd`（2026-10-27）；PR #499 已合併 OpenSWX active source／release dependency 退役，required CI run `40460654463` 通過。本輪安全退出 fixed readback 仍待其本身的 PR／required CI／merge、runner rollout 與正式 fresh operation。
 
 ## 1. 目的與責任邊界
 
@@ -33,7 +33,23 @@ DEV-124 只負責 OpenSWX metadata 工作的有限派送與 worker 鏈：worker 
 
 1. 讀取該 exact migration-runner execution 的 terminal condition 與去敏錯誤分類，並確認有無 immutable state／submission receipt。
 2. 若失敗屬既有 RD actor／catalog 前置，而不是 OpenSWX query 本身，將 OpenSWX entry readback 拆成 actor-independent 的固定唯讀診斷；不得為此擴張 IAM、Secret 或 business grant。
-3. 只有取得 current DB row count／active row 與 current consumer 判定，才能將 124-A 標為 `NEED_EXISTS` 或 `DEFERRED_NO_CURRENT_NEED`。在此之前維持 `UNKNOWN`、Scheduler `PAUSED`、124-B 不開始。
+3. DEV-124 其後已取消；current DB row／active row 與 consumer 判定改作 DEV-125 安全退出輸入，不再產生 `NEED_EXISTS`／`DEFERRED_NO_CURRENT_NEED` 或啟動 124-B。
+
+### 2.2 R1 根因與 DEV-125 安全退出讀回（2026-10-27）
+
+exact execution `ai-pdm-prod-migration-runner-v7t2n` 的 terminal condition 為 `Completed=False / NonZeroExitCode`，去敏 log code 為 `RD_PERMISSION_STATE_CATALOG_MISMATCH`；create-only `submission.json` 存在，對應 `state.json` 不存在。source execution order 證明 catalog guard 發生在 OpenSWX query 前，因此 R1 沒有讀到 `openswx_metadata_jobs`，不得由該失敗推論 active row 或 consumer 狀態。
+
+DEV-124 取消後，本輪為 DEV-125 安全退出盤點本機實作 actor-independent fixed operation `preview-openswx-runtime-state`；它不是 124-A 復工，也不授權修復或恢復 OpenSWX：
+
+- 與 RD actor、role catalog、grant 完全解耦；只重用既有 migration-runner Job、deployer WIF 與 receipt bucket，不新增 IAM、Secret、schema、任意 SQL、任意 target 或任意 command。
+- DB 端在一個 `REPEATABLE READ READ ONLY` transaction 讀 OpenSWX status／dispatch counts、bounded active rows 與 pending count；app provider 端只讀唯一 100% serving revision 的 exact `PDM_OPENSWX_DISPATCH_ENABLED` 非敏感值，不輸出其他 env／Secret ref。
+- final status 只指出 DB pending／serving app入口是否要求排空或停用；即使兩者皆無，也固定標示仍缺 Job／Scheduler／execution provider inventory，不得由此恢復 Scheduler、宣稱 no current need 或判定可刪除。
+- 同一 operation 同步承載已移交 DEV-125 的 D122-05 指定圖檔唯讀 preview state，避免再新增一條相同權限的 production workflow；它只建立修復／退出基線，不是功能驗收。
+- 整體流程不是零副作用：會建立一個 Cloud Run Job execution，並 create-only 寫 submission／database／final GCS evidence；但不得修改 business DB row、service configuration、Scheduler、Job template、IAM 或 Secret。
+
+新程式需先經 protected PR／required CI 合併，再由既有 app-owned release 將含新 branch 的 exact migration-runner image 安裝到正式 Job，之後才能建立 fresh immutable operation並執行 DEV-125 退出前讀回。舊 runner image 不支援新參數；不得把本機測試或舊 R1 operation 當正式 readback。
+
+PR #499 的 source retirement 與雲端 resource retirement 是兩個證據層：前者已刪除 active UI／API、OpenSWX reader／worker、release profile 與相依測試；後者仍須對 exact Job、Scheduler、executions、service accounts、bindings 與 Secret references 做 fresh provider inventory，並依 DEV-125 的退出順序處理。沒有後者不得把 DEV-125 V125-11 標為 PASS。
 
 ## 3. 現行架構契約
 

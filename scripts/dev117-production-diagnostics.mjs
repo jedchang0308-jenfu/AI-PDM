@@ -16,9 +16,9 @@ function fail(code) { throw new Error(`PRODUCTION_DIAGNOSTIC_${code}`) }
 // Stable workflow, closed operations. A namespace selects the least-privileged
 // existing identity before authentication; it never selects an arbitrary target.
 export function bindDiagnosticRef(ref) {
-  const match = /^gs:\/\/jenfu-platform-prod-aipdm-release\/source\/(rd-permission-readback|production-diagnostics)\/([A-Za-z0-9][A-Za-z0-9._/-]*\.json)#sha256=([a-f0-9]{64})$/u.exec(ref ?? '')
+  const match = /^gs:\/\/jenfu-platform-prod-aipdm-release\/source\/(rd-permission-readback|production-diagnostics|preview-openswx-runtime-readback)\/([A-Za-z0-9][A-Za-z0-9._/-]*\.json)#sha256=([a-f0-9]{64})$/u.exec(ref ?? '')
   if (!match || match[2].split('/').some(segment => ['', '.', '..'].includes(segment))) fail('REF_INVALID')
-  const kinds = { 'rd-permission-readback': 'rd-permission-state', 'production-diagnostics': 'service-state' }
+  const kinds = { 'rd-permission-readback': 'rd-permission-state', 'production-diagnostics': 'service-state', 'preview-openswx-runtime-readback': 'preview-openswx-runtime-state' }
   return { operation_uri: ref.split('#')[0], operation_sha256: match[3], kind: kinds[match[1]] }
 }
 

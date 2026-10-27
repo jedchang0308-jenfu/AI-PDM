@@ -8,7 +8,7 @@
 
 既有七項矩陣證明 D122-01～04、06 為 `LOCAL_OUTCOME_VERIFIED`，其成果及失敗歷史保留；本次沒有重新執行或改判正式驗收。D122-05 的附件、PDF、原生預覽與完整 CAD，連同管理員辨識的未完責任，具名移交 [DEV-125 承接表](DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)。D122-07 仍為 `DISABLED_DEFERRED`，不列功能通過。若要宣稱原七項整體通過，DEV-125 仍須保留並補足適用層級的驗收，不能因轉移縮減分母。
 
-DEV-125 是唯一後續實作／驗收入口；DEV-124 取消 OpenSWX 修復並由 125 承接拆除。原 D122-05A／05B 與 29 個診斷 ID 保留來源對照，不另開平行施工。現行任務處置亦記於 [既有機器可讀契約](DEV-122-self-use-acceptance.v1.json)；私有七項矩陣是既有受測快照，不再被當作本輪 active 工作清單。
+DEV-125 是唯一後續實作／驗收入口；DEV-124 取消 OpenSWX 修復並由 125 承接拆除。PR #499 已合併 Windows worker 單一路徑及 OpenSWX active source／release dependency 退役；尚未完成的是正式 Windows 裝置與 A0001 預覽驗收，以及 OpenSWX provider 資源退出，不是重新開發 DEV-122 預覽 UI。原 D122-05A／05B 與 29 個診斷 ID 保留來源對照，不另開平行施工。現行任務處置亦記於 [既有機器可讀契約](DEV-122-self-use-acceptance.v1.json)；私有七項矩陣是既有受測快照，不再被當作本輪 active 工作清單。
 
 **以下為移交前契約與證據。** 下文的 CURRENT、ACTIVE、下一步及發布指示均保留當時語境，不是重新啟動 DEV-122 的命令；仍適用的資料、授權、來源完整性與失敗恢復契約由 DEV-125 重用。歷史已驗與未驗的結果不回寫。
 
@@ -77,7 +77,7 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 | Issue／切片 | 目前可證明狀態 | 下一個可驗收交付 |
 |---|---|---|
 | D122-01～04 | 既有本機交易／UI／API結果可重用；沒有新證據支持正式環境整組通過。 | 只有來源或行為受本輪修正影響才重驗；不重播無關完整套件。 |
-| D122-05／3D F-01B | lease v2 source 已合併且目前正式 serving source 已包含該修正；`A0001-M01` 仍回 `preview_worker_unavailable`。 | 先以固定唯讀診斷讀回 current file binding／hash、latest preview job 與兩個 v2 worker process；再依證據修正 runtime／資料責任，完成真實 `claim → heartbeat → complete`、current-hash 非 fake PNG、mounted UI 及 parent-lock mounted／refusal。 |
+| D122-05／3D F-01B | lease v2 source 已合併且目前正式 serving source 已包含該修正；`A0001-M01` 仍回 `preview_worker_unavailable`。歷史 D122-05A actor-independent 固定診斷已完成本機實作，後續責任已移交 DEV-125；正式 runner rollout／readback 尚未執行。 | DEV-125 先以固定唯讀診斷讀回 current file binding／hash、current-hash latest preview job 與兩個 stable worker identity heartbeat；heartbeat 不能冒充 OS process，process 維持 `unknown`。再依證據修正 runtime／資料責任，完成真實 `claim → heartbeat → complete`、current-hash 非 fake PNG、mounted UI 及 parent-lock mounted／refusal。 |
 | D122-05／PDF | viewer 與 render liveness source 已合併且目前正式 serving source 已包含該修正；正式檔仍回 `unsupported_preview_source`。 | 先以固定唯讀診斷讀回 media type、current binding、source hash、job／derivative；只修實際 metadata／binding／derivative 責任，透過既有 writer 或必要 forward-only migration，不手改正式資料。以 canonical API、受保護 `%PDF-` bytes 或 current-hash derivative及 mounted viewer 可讀關閉。 |
 | 管理員 recognition／worker | worker route放行與PDF browser-baseline source已合併；`ADMIN_RECOGNITION_PENDING`，尚不能證明CAD consumer或正常結果。 | 先讀回實際actor／grant、session／queue及consumer runtime；若確認CAD consumer缺位，建立獨立recognition runtime，禁止共用OpenSWX或preview credential。以管理員allow／deny零副作用及正常worker/result readback驗收。 |
 | Part attachment | 正常入口與本機storage/UI證據已合併；正式受權上傳／重載／下載未完成。 | 確認serving source後，以專用受權actor驗正常上傳、清單重載、受保護下載bytes／hash、audit及一個拒絕零副作用案例。正式business mutation只能在明確執行該驗收時產生。 |
@@ -95,21 +95,23 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 後續 provider readback 已確認目前正式 service revision `ai-pdm-prod-3092d00b3653`、image digest `sha256:d9c3f8b2267475969cd00dc6e68b0e24504d41f18ba830024c0b1033ff43b068` 與 source `ad74f179747cdd807c6bf8a4958dba81434b5074`，且該來源包含 Part attachment、preview lease v2、recognition worker middleware、採購、PDF browser baseline 與 PDF render liveness 的已合併修正。因此目前缺口不是「修正尚未部署」，而是正式 file asset／preview job／derivative／worker process 的實際狀態與資料綁定尚未讀回，或其後仍有 runtime 缺陷。
 
-現行 canonical file-preview GET 不是安全的診斷入口：它可能執行 stale recovery／enqueue，並寫入 storage access audit。repository 目前也沒有可同時讀取 current file binding、latest preview job、derivative 與 worker process 的固定唯讀 API。因此正式修復拆成兩個可驗收切片，避免在根因未知時直接重送預覽或修表：
+現行 canonical file-preview GET 不是安全的診斷入口：它可能執行 stale recovery／enqueue，並寫入 storage access audit。repository 目前也沒有可同時讀取 current file binding、latest preview job、derivative 與 worker process 的固定唯讀 API。因此移交前契約把正式修復拆成兩個可驗收切片；下列 D122-05A／05B 只保留來源 ID，現行施工、驗收與狀態更新一律歸 DEV-125，避免在根因未知時直接重送預覽或修表：
 
-- `D122-05A 固定唯讀診斷`：以 task-owned operation 綁定 exact project／service／revision／drawing／file，透過 read-only transaction 與 bounded provider readback 輸出 current asset metadata、source hash、binding、latest job／derivative及兩個 worker process 狀態；不得讀檔案內容、enqueue、recover、寫 audit 或更新 job。
-- `D122-05B 最小修復與驗收`：只依 05A 證明的責任修改 source／runtime／受控資料契約；正式資料修正只能走既有 writer 或 forward-only migration。3D 與 PDF 可分別關閉，但 DEV-122 整體仍須符合七個 issue 的結案條件。
+- `D122-05A 固定唯讀診斷`：以 task-owned operation 綁定 exact project／service／drawing／file 與 migration runner digest，透過 `REPEATABLE READ READ ONLY` transaction 輸出 current asset metadata、source hash、binding、current-hash latest job／derivative、兩個固定 worker identity 的精確 capability heartbeat，以及 bounded provider readback 所證明的唯一 100% serving revision／image／OpenSWX dispatch flag。heartbeat 只證明 stable identity 最近回報，明示 `processStatus=unknown`，不得冒充 OS process 或 revision。不得讀檔案內容／storage key、enqueue、recover、寫 audit 或更新 job。診斷本身會建立一個 Cloud Run Job execution，並 create-only 寫入 submission／database／final GCS receipts；這些 evidence side effects 與 business data／service configuration mutation 分開記錄。
+- `D122-05B 最小修復與驗收`：由 DEV-125 只依 05A 證明的責任修改 source／runtime／受控資料契約；正式資料修正只能走既有 writer 或 forward-only migration。3D 與 PDF 可分別關閉，但 DEV-122 整體仍須符合七個 issue 的結案條件。
 
-原始 authenticated browser／同 session API body 與當時證據限制保留於 [A0001 正式預覽缺口](../qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。不得把 3D 結果歸入 `DEV-124`；`DEV-124` 只負責 OpenSWX worker descriptor／reader／artifact-reuse 鏈。
+移交 DEV-125 後的 fixed readback 實作入口為 `scripts/lib/dev122-preview-openswx-runtime-readback.mjs`、`scripts/dev122-preview-openswx-runtime-readback.mjs`、`scripts/dev117-production-migration-runner.mjs` 及既有 stable diagnostics workflow；檔名保留歷史 D122 來源，不表示 DEV-122 重新啟動。固定 selector 只允許 `company-jenfu`、`A0001-M01`、`D-0007-MA1.SLDPRT`、`D-0007-MA1.pdf`、`windows-shell-thumbnail-worker／solidworks_3d_preview_png` 與 `solidworks-document-manager-preview-worker／solidworks_2d_preview_png`。兩檔 current binding 缺失／重複時仍保存唯讀結果，但 final status 必須是 `READBACK_COMPLETE_WITH_FINDINGS`，不得寫成 PASS；child runner 的 `database.json` 路徑必須由 operation hash 唯一決定。OpenSWX 部分只讀 DB active state 與 serving app dispatch flag，沒有完整 Job／Scheduler／execution inventory，故不得輸出 no-current-need 或 retirement PASS。正式執行前必須先以受保護 release 將含此 branch 的 exact migration-runner image 安裝到既有 Job；舊 image 不得接受新 operation。
+
+原始 authenticated browser／同 session API body 與當時證據限制保留於 [A0001 正式預覽缺口](../qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。不得把 3D 結果歸入 `DEV-124`；DEV-124 已取消，後續預覽與 OpenSWX 退出均依 DEV-125 的單一路徑處理。
 
 關閉 D122-05 本缺口只需補受影響責任：
 
-1. 以 `D122-05A` 核對兩個 file asset 的 media type／binding／source hash、latest preview job／derivative與兩個 preview worker v2 process；不呼叫有副作用的 canonical GET、不直接修表或把歷史 job 改為成功。
+1. 以 `D122-05A` 核對兩個 file asset 的 media type／binding／source hash、current-hash latest preview job／derivative與兩個 preview worker stable identity heartbeat；正式 OS process／worker revision 若無獨立證據即保持 `unknown`。不呼叫有副作用的 canonical GET、不直接修表或把歷史 job 改為成功。
 2. 3D 在服務已就緒後，以新工作或明確核准的 retry 證明真實 worker `claim → heartbeat → complete`，產出綁定 current source hash、非 fake generator 的 `image/png` derivative，canonical API 與 mounted UI 可讀；同時完成既有 parent-lock mounted／refusal 驗收。
 3. PDF 證明 current binding 指向受保護的 `application/pdf` bytes（含 `%PDF-` header），或指向 current-hash 的有效 `drawing_pdf`／`sheet_png` derivative；canonical API 不再回 unsupported，mounted viewer 能顯示完整圖框、尺寸與註記。若根因只是 metadata／binding，仍須透過既有受控 writer 或 forward-only migration 修正，不手動修改正式資料。
 4. 保留兩個原檔下載與 terminal safe error；不得以 fake PNG、舊版本 PDF、無來源 hash derivative、重複重新整理或擴張 IAM／Secret 取代正式修復。
 
-本段只更新 DEV-122 狀態與驗收契約；未修改產品程式、worker、schema／migration、IAM／Secret、正式資料或服務。DEV-122 整體維持 `NOT_ACCEPTED`，但 PR #278／#486 的既有 PDF 實作與通過證據不回退。
+本輪新增 D122-05A 固定唯讀診斷程式、接線與相鄰測試；沒有修改產品 route／worker、schema／migration、IAM／Secret、正式資料或服務。正式 runner rollout 與 readback 尚未執行，DEV-122 整體維持 `NOT_ACCEPTED`；PR #278／#486 的既有 PDF 實作與通過證據不回退。
 
 ### R-01A 辨識讀取錯誤回應（2026-10-23）
 
