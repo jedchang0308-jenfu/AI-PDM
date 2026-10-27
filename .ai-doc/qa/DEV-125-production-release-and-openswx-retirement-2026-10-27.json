@@ -1,21 +1,24 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v1",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T14:00:33.906Z",
+  "recordedAt": "2026-10-27T15:20:04.497Z",
   "status": "PASS_WITH_WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS",
   "source": {
-    "revision": "3720c7cea8f294f086e34a175fdf911283971007",
-    "pullRequest": 526,
-    "requiredCiRun": 40505306777,
+    "revision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
+    "pullRequest": 531,
+    "relatedPullRequests": [529, 530, 531],
+    "requiredCiRun": 40523534853,
     "requiredCiConclusion": "success"
   },
   "release": {
-    "releaseId": "DEV125-FINAL-20261027-R18",
-    "githubRun": 40507513920,
+    "releaseId": "DEV125-WINDOWS-20261027-R20",
+    "githubRun": 40524682058,
     "githubRunConclusion": "success",
-    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-FINAL-20261027-R18/bab2df91361a7626a28497a98b368d65eee298340956f55ad8cc8d4120aa9e13",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-WINDOWS-20261027-R20/4b6d471a92d252dabf8bbe34ee69efb5f7ceaa3ff02bffc865d8885e6d234a82",
+    "terminalReceiptSha256": "0d811c12bda0f2bc4d89e4a4325329bd53eafa0247f79212eb382cefe52b0cb0",
     "stages": {
       "prepare": "PASS",
+      "windowsInstallerBind": "PASS",
       "build": "PASS",
       "migrationAdmission": "PASS",
       "migrate": "PASS",
@@ -38,8 +41,8 @@
     },
     "service": {
       "name": "ai-pdm-prod",
-      "revision": "ai-pdm-prod-66f9b3ca5852",
-      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:00080078bfa210441f3e2538184bee437793e64d3fb9ae8622e898eeca380497",
+      "revision": "ai-pdm-prod-39846fac3736",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:b1634e283dc0edaceb942b9f80af42abf14abaf3370ce03ea7b86841a431dae4",
       "trafficPercent": 100,
       "trafficTargets": 1,
       "tags": 0,
@@ -49,6 +52,10 @@
     "smoke": {
       "candidate": "PASS",
       "canonical": "PASS",
+      "authModeProbe": 200,
+      "platformSessionProbe": 200,
+      "ssoStartAuthorizeCallback": 303,
+      "targetSessionProbe": 200,
       "authenticatedProbe": 200,
       "unauthenticatedProbe": 401,
       "revokedSessionProbe": 401
@@ -94,19 +101,17 @@
     },
     "rootCause": "WinSW 2.12.0 requires serviceaccount/domain plus serviceaccount/user; the username element was ignored. The NSIS package did not write the standard Windows uninstall registry key.",
     "correctedArtifact": {
-      "version": "0.1.0-ci.1361",
-      "sourceRevision": "9f8bf4995234a88fc562741c78fccda76018e322",
-      "prHeadRevision": "ebeceaebc42603f6294ac05e2f6b6f02653b4d98",
-      "contentTree": "490028618f513d46fce45dbf9aac1a8ee69fba6c",
+      "version": "0.1.0-ci.1370",
+      "sourceRevision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
       "protocolVersion": 1,
-      "sha256": "8936eb286d0c1c3b570ef11230651c4c0ddcc57ce450f181b0519865b657cfba",
-      "size": 29257184,
-      "artifactId": 12739205967,
-      "ciRunId": 40514708934,
+      "sha256": "906807b7df3e1bb80304418f3c75380c7661795db11b5ebde0f353b77451be73",
+      "size": 29257933,
+      "ciRunId": 40523534853,
       "requiredChecks": "PASS_2_OF_2",
-      "contractTests": "PASS_11",
       "installerBuild": "PASS",
       "manifestReadback": "PASS",
+      "ownerReleaseBinding": "PASS",
+      "productionDownloadReadback": "PASS_EXACT_BYTES_AND_SHA256",
       "realMachineInstall": "NOT_RUN"
     },
     "uninstall": {
@@ -122,27 +127,51 @@
       "programsAndFeaturesRegistryAbsent": true
     },
     "productionImageBinding": {
-      "status": "SOURCE_IMPLEMENTED_AWAITING_CI_MERGE_RELEASE",
-      "finding": "PR 530 supplied the missing same-source archive, image and receipt path; the follow-up branch isolates GitHub artifact read authority from production and GCP identities.",
-      "requiredRemediation": "Pass required CI, merge PR 529, obtain the exact main installer artifact, run the owner release and verify the serving image download readback.",
+      "status": "RELEASED_VERIFIED",
+      "finding": "R20 binds the exact main CI installer into the immutable source archive, serving image, build provenance and deployment capsule; authenticated production download bytes and SHA-256 match the receipt.",
+      "requiredRemediation": "NONE",
       "minimumAdditionalWorkflowPermission": "actions:read exists only on an isolated same-repository artifact-binding job with no production environment or GCP id-token; production jobs receive a reverified current-run artifact without actions:read"
+    },
+    "productionUi": {
+      "authenticatedSettingsPage": "PASS",
+      "installerEntry": "PASS",
+      "enrollmentEntry": "PASS",
+      "emptyDeviceList": "PASS",
+      "unauthenticatedInstallerGet": "401_PRIVATE_NO_STORE",
+      "settingsOverview": "FAIL_WINDOWS_SERVICE_SHOWN_AS_UNAVAILABLE",
+      "corrective": "IMPLEMENTED_LOCALLY_AWAITING_PR_CI_RELEASE"
+    },
+    "documentManagerPrecondition": {
+      "status": "PASS_PRECONDITION_ONLY",
+      "productVersion": "33.3.0.0092",
+      "runtimeMajor": 33,
+      "architecture": "x64",
+      "progIdActivation": "PASS",
+      "nativeThreeFormatAcceptance": "NOT_RUN"
     }
   },
   "validationDisposition": {
-    "V125-11": "PASS",
     "V125-01": "PARTIAL",
+    "V125-02": "PASS_AUTOMATED_SCOPE",
     "V125-03": "FAIL_REMEDIATION_IN_PROGRESS",
-    "V125-04_to_10": "PARTIAL_OR_NOT_RUN",
+    "V125-04": "PARTIAL_FORMAL_DEVICE_NOT_RUN",
+    "V125-05": "PARTIAL_FORMAL_DEVICE_NOT_RUN",
+    "V125-06": "NOT_RUN",
+    "V125-07": "PARTIAL_REAL_READER_NOT_RUN",
+    "V125-08": "NOT_RUN",
+    "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
+    "V125-10": "PASS",
+    "V125-11": "PASS",
     "V125-12": "PARTIAL",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Bind the exact successful same-source Windows installer artifact into the owner release archive, image and receipt, then verify image readback",
+    "Merge, pass required CI and release the settings overview corrective so the open Windows service is no longer shown as unavailable",
     "Install and enroll the same-source Windows service on an authorized Windows 11 x64 device",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify A0001-M01 native preview, PDF, administrator recognition and normal UI outcomes",
-    "Remove the final historical predecessor compatibility branches after the Windows recovery baseline is proven"
+    "Bind the device, native-file and UI evidence to one source, installer and production release chain"
   ],
   "safety": {
     "secretsRecorded": false,
