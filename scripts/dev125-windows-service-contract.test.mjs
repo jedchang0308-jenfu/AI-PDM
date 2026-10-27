@@ -92,7 +92,10 @@ test("DEV-125B removes OpenSWX provider declarations while retaining shared preb
   const sharedPrebuildReadback = read("infra/google-cloud/dev-122-openswx-release-readback/prebuild-list-readback.tf");
 
   for (const retiredPath of [
+    "infra/google-cloud/dev-122-openswx-worker/backend.tf",
     "infra/google-cloud/dev-122-openswx-worker/main.tf",
+    "infra/google-cloud/dev-122-openswx-worker/README.md",
+    "infra/google-cloud/dev-122-openswx-worker/versions.tf",
     "infra/google-cloud/dev-122-openswx-release-readback/main.tf",
     "infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf"
   ]) assert.equal(fs.existsSync(path.join(root, retiredPath)), false, retiredPath);
