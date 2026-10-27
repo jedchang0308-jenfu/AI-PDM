@@ -37,6 +37,9 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.match(installer, /WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service" "UninstallString"/u);
   assert.match(installer, /DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service"/u);
   assert.match(installer, /Section "Uninstall"[\s\S]+SetShellVarContext all[\s\S]+SetRegView 64/u);
+  assert.match(installer, /sc\.exe" query AipdmWindowsParsing[\s\S]+\$ServiceResult == 0[\s\S]+Abort[\s\S]+\$ServiceResult != 1060[\s\S]+Abort/u);
+  assert.doesNotMatch(installer, /MUI_PAGE_DIRECTORY|InstallDirRegKey/u);
+  assert.doesNotMatch(installer, /RMDir \/r "\$SMPROGRAMS\\AI-PDM"/u);
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(probe, /SwDocumentMgr\.SwDMClassFactory/u);
