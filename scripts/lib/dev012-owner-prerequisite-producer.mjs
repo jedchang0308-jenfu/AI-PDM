@@ -9,6 +9,7 @@ import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from '.
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
 import { assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
+import { assertMigrationRunnerSourceCompatibility } from './dev117-migration-runner-source.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -363,7 +364,7 @@ async function readRef(transport, ref, profile) {
   return (await transport.readJson(ref, profile.artifact.releaseBucket, ['receipts'])).value
 }
 
-export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
+export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority, migrationRunnerCompatibilityVerifier = assertMigrationRunnerSourceCompatibility }) {
   const uri = (name) => `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${name}.json`
   if (stage === 'source-freeze') {
     const git = gitReader(root, profile)
@@ -384,6 +385,13 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       transport.readJson(exactRef(input.foundationReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.existingInfraReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
+    if (profile.application.id === 'ai-pdm') {
+      migrationRunnerCompatibilityVerifier({
+        root,
+        currentSourceRevision: sourceLockResult.value.sourceRevision,
+        runnerSourceRevision: existingInfraResult.value.reusedSourceRevision,
+      })
+    }
     const providerJob = await transport.request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`)
     const value = buildInfraReuseReceipt({ profile, releaseId, sourceLock: sourceLockResult.value, foundation: foundationResult.value, existingInfra: existingInfraResult.value, existingInfraRef: input.existingInfraReceiptRef, providerJob, observedAt })
     return transport.putJson(uri('app-infra-reuse'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })

@@ -29,6 +29,7 @@ import {
   rdReadbackSha256,
 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 import { assertDev122GitSourceAuthority } from './lib/dev122-source-authority.mjs'
+import { MIGRATION_RUNNER_EXECUTABLE_INPUTS } from './lib/dev117-migration-runner-source.mjs'
 
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
 const profile = read('config/release/dev117-ai-pdm-independent-production-v3.json')
@@ -280,7 +281,13 @@ test('RD09 permits only production-slice evidence residue after the gate', () =>
 test('RD10 production-shaped source binding keeps exact workflow source separate from the installed runner source', () => {
   const value = intent()
   const paths = rdReadbackCompatibilityPaths(historicalProfile)
-  assert.equal(paths.length, 41)
+  assert.equal(paths.length, new Set([
+    'config/release/dev117-ai-pdm-independent-production-v3.json',
+    'config/release/dev117-ai-pdm-independent-production.json',
+    'config/platform/dev-010-n1c-ai-pdm.json',
+    ...MIGRATION_RUNNER_EXECUTABLE_INPUTS,
+    ...historicalProfile.migrations.entries.map((entry) => entry.path),
+  ]).size)
   assert.ok(paths.includes('db/postgres/085_dev121_principal_role_catalog_v7.sql'))
   assert.ok(paths.includes('infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile'))
 

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 
 import { canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertDev122GitSourceAuthority } from './dev122-source-authority.mjs'
+import { MIGRATION_RUNNER_EXECUTABLE_INPUTS } from './dev117-migration-runner-source.mjs'
 
 export const RD_LEDGER_READBACK_SCHEMA = 'aipdm.dev122.rd-permission-ledger-readback-intent.v2'
 export const RD_LEDGER_READBACK_RESULT_SCHEMA = 'aipdm.dev122.rd-permission-ledger-readback-result.v2'
@@ -45,9 +46,7 @@ export function rdReadbackCompatibilityPaths(profile) {
     'config/release/dev117-ai-pdm-independent-production-v3.json',
     'config/release/dev117-ai-pdm-independent-production.json',
     'config/platform/dev-010-n1c-ai-pdm.json',
-    'infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile',
-    'scripts/dev117-production-migration-runner.mjs',
-    'scripts/lib/dev012-production-migration-runner.mjs',
+    ...MIGRATION_RUNNER_EXECUTABLE_INPUTS,
     ...migrationPaths,
   ])].sort()
 }

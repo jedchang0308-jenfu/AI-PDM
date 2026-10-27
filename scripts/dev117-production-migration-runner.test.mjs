@@ -15,6 +15,7 @@ import {
 } from './lib/dev012-production-migration-runner.mjs'
 import { TARGET, runMain } from './dev117-production-migration-runner.mjs'
 import { UNLINKED_PROFILE_CLEANUP_PREFIX, UNLINKED_PROFILE_CLEANUP_PATH } from './lib/dev121-unlinked-profile-cleanup.mjs'
+import { MIGRATION_RUNNER_EXECUTABLE_INPUTS, assertMigrationRunnerSourceCompatibility } from './lib/dev117-migration-runner-source.mjs'
 
 const H40 = 'a'.repeat(40)
 const environment = {
@@ -61,6 +62,32 @@ test('S1B-20 migration runner image carries the exact source revision into runti
   assert.match(fs.readFileSync(path.join('infra', 'google-cloud', 'dev-117-production-release', 'migration.tf'), 'utf8'), /name\s*=\s*"PDM_SOURCE_REVISION"[\s\S]*?value\s*=\s*var\.source_revision/u)
   assert.match(dockerfile, /org\.opencontainers\.image\.revision="\$\{SOURCE_REVISION\}"/u)
   assert.match(cloudBuild, /SOURCE_REVISION=\$\{_SOURCE_REVISION\}/u)
+  for (const pathname of MIGRATION_RUNNER_EXECUTABLE_INPUTS.filter((value) => !value.endsWith('migration-runner.Dockerfile'))) {
+    assert.equal(dockerfile.includes(pathname), true, pathname)
+  }
+})
+
+test('S1B-20 infra reuse rejects a stale migration runner when any executable input changed', () => {
+  const currentSourceRevision = 'a'.repeat(40)
+  const runnerSourceRevision = 'b'.repeat(40)
+  let observedPaths = null
+  const result = assertMigrationRunnerSourceCompatibility({
+    root: '.', currentSourceRevision, runnerSourceRevision,
+    ancestorRunner: () => true,
+    compatibilityRunner: (_runner, _current, paths) => { observedPaths = paths; return true },
+  })
+  assert.deepEqual(result.compatibilityPaths, MIGRATION_RUNNER_EXECUTABLE_INPUTS)
+  assert.deepEqual(observedPaths, MIGRATION_RUNNER_EXECUTABLE_INPUTS)
+  assert.throws(() => assertMigrationRunnerSourceCompatibility({
+    root: '.', currentSourceRevision, runnerSourceRevision,
+    ancestorRunner: () => true,
+    compatibilityRunner: () => false,
+  }), /MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED/u)
+  assert.throws(() => assertMigrationRunnerSourceCompatibility({
+    root: '.', currentSourceRevision, runnerSourceRevision,
+    ancestorRunner: () => false,
+    compatibilityRunner: () => true,
+  }), /MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED/u)
 })
 
 test('S1B-20 AI-PDM runner validates bundle, baseline and one forward migration', async () => {
