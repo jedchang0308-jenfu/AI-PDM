@@ -136,6 +136,23 @@ async function optionalJson(transport, uri) {
   }
 }
 
+export async function listCleanupExecutions(transport, { maxPages = 10 } = {}) {
+  const executions = []
+  const seenTokens = new Set()
+  let pageToken = null
+  for (let pageNumber = 0; pageNumber < maxPages; pageNumber += 1) {
+    const suffix = pageToken === null ? '' : `&pageToken=${encodeURIComponent(pageToken)}`
+    const page = await transport.request(`https://run.googleapis.com/v2/${JOB_NAME}/executions?pageSize=100${suffix}`)
+    if (!Array.isArray(page?.executions)) fail('DEV125_CLEANUP_EXECUTIONS_INVALID')
+    executions.push(...page.executions)
+    if (page.nextPageToken === undefined || page.nextPageToken === null || page.nextPageToken === '') return executions
+    if (typeof page.nextPageToken !== 'string' || seenTokens.has(page.nextPageToken)) fail('DEV125_CLEANUP_EXECUTIONS_TRUNCATED')
+    seenTokens.add(page.nextPageToken)
+    pageToken = page.nextPageToken
+  }
+  fail('DEV125_CLEANUP_EXECUTIONS_TRUNCATED')
+}
+
 export async function submitCleanupOnce({ transport, submissionRef, submission, job, providerStateBase64 }) {
   const prior = await optionalJson(transport, submissionRef)
   if (prior) {
@@ -203,9 +220,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   let match = null
   const deadline = Date.now() + 20 * 60 * 1000
   while (!match && Date.now() < deadline) {
-    const page = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}/executions?pageSize=100`)
-    if (page?.nextPageToken) fail('DEV125_CLEANUP_EXECUTIONS_TRUNCATED')
-    const found = (page?.executions ?? []).filter(row => executionMatches(row, expectedArgs, providerStateBase64, operation))
+    const found = (await listCleanupExecutions(ownerTransport)).filter(row => executionMatches(row, expectedArgs, providerStateBase64, operation))
     if (found.length > 1) fail('DEV125_CLEANUP_EXECUTION_CARDINALITY_INVALID')
     if (found.length === 1) match = found[0]
     else await sleep(1000)

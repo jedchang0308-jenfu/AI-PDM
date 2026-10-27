@@ -7,6 +7,7 @@ import { bindDiagnosticRef } from './dev117-production-diagnostics.mjs'
 import { runMain as runMigrationRunner } from './dev117-production-migration-runner.mjs'
 import {
   assertRuntimeReadback,
+  listCleanupExecutions,
   submitCleanupOnce,
   summarizeProviderState,
 } from './dev125-openswx-retirement-cleanup.mjs'
@@ -159,6 +160,22 @@ test('cleanup replay preserves the sealed workflow source while rejecting immuta
   const transport = { async readBytes() { return { bytes: Buffer.from(JSON.stringify(prior)), metadata: { generation: '7' } } } }
   assert.deepEqual(await submitCleanupOnce({ transport, submissionRef: 'gs://bucket/submission.json', submission, job: {}, providerStateBase64: 'fixed' }), { resumed: true })
   await assert.rejects(submitCleanupOnce({ transport, submissionRef: 'gs://bucket/submission.json', submission: { ...submission, args: ['drift'] }, job: {}, providerStateBase64: 'fixed' }), /DEV125_CLEANUP_SUBMISSION_INVALID/u)
+})
+
+test('cleanup execution discovery follows bounded unique provider pages', async () => {
+  const requests = []
+  const transport = { async request(url) {
+    requests.push(url)
+    if (requests.length === 1) return { executions: [{ name: 'old' }], nextPageToken: 'next page' }
+    return { executions: [{ name: 'match' }] }
+  } }
+  assert.deepEqual(await listCleanupExecutions(transport), [{ name: 'old' }, { name: 'match' }])
+  assert.match(requests[1], /pageToken=next%20page$/u)
+
+  let calls = 0
+  const repeated = { async request() { calls += 1; return { executions: [], nextPageToken: 'same' } } }
+  await assert.rejects(listCleanupExecutions(repeated), /DEV125_CLEANUP_EXECUTIONS_TRUNCATED/u)
+  assert.equal(calls, 2)
 })
 
 test('migration runner executes only the fixed hash-bound cleanup branch and publishes its receipt', async () => {
