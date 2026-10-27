@@ -54,6 +54,10 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.doesNotMatch(installer, /RMDir \/r "\$SMPROGRAMS\\AI-PDM"/u);
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
+  assert.match(configurator, /CheckExistingCredentialAsync\(\)[\s\S]+\/api\/windows-service\/self/u);
+  assert.match(configurator, /ExistingCredentialStatus\.Active[\s\S]+覆蓋安裝已保留原裝置身分/u);
+  assert.match(configurator, /Unauthorized[\s\S]+Forbidden[\s\S]+426[\s\S]+MissingOrRejected/u);
+  assert.ok(configurator.indexOf("CheckExistingCredentialAsync()") < configurator.indexOf("new TcpListener(IPAddress.Loopback, 0)"));
   assert.match(configurator, /TcpListener\(IPAddress\.Loopback, 0\)/u);
   assert.match(configurator, /\/settings\/windows-service\?pair=1&port=/u);
   assert.match(configurator, /連結這台電腦/u);
