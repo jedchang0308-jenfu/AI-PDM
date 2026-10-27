@@ -88,6 +88,22 @@ test("DEV-125B exposes only the installed Windows service and retires legacy wor
   assert.match(localLauncher, /DEV-125 Windows service is installed and managed separately/u);
 });
 
+test("DEV-125B stages exact OpenSWX provider retirement without unprotecting shared prebuild readback", () => {
+  const workerInfra = read("infra/google-cloud/dev-122-openswx-worker/main.tf");
+  const openswxReadback = read("infra/google-cloud/dev-122-openswx-release-readback/main.tf");
+  const openswxSecretReadback = read("infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf");
+  const sharedPrebuildReadback = read("infra/google-cloud/dev-122-openswx-release-readback/prebuild-list-readback.tf");
+
+  assert.match(workerInfra, /resource "google_cloud_run_v2_job" "reader"/u);
+  assert.match(workerInfra, /resource "google_cloud_scheduler_job" "dispatch"/u);
+  assert.match(workerInfra, /deletion_protection\s*=\s*false/u);
+  assert.doesNotMatch(workerInfra, /prevent_destroy\s*=\s*true/u);
+  assert.doesNotMatch(openswxReadback, /prevent_destroy\s*=\s*true/u);
+  assert.doesNotMatch(openswxSecretReadback, /prevent_destroy\s*=\s*true/u);
+  assert.equal((sharedPrebuildReadback.match(/prevent_destroy\s*=\s*true/gu) ?? []).length, 2);
+  assert.match(sharedPrebuildReadback, /role_id\s*=\s*"aipdmDev122PrebuildList"/u);
+});
+
 test("DEV-125A manager routes stay behind the existing secret-management permission", () => {
   const routeMap = JSON.parse(read("config/access-control/jenfu-route-permission-map.v2.json"));
   const expected = new Set([
