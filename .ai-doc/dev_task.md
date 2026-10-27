@@ -6,11 +6,11 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED` | 取消修復及恢復排程；原 UNKNOWN 保留。退出盤點與實際拆除統一交 125，未宣稱已移除。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `PLANNED / RD Contract Ready / IMPLEMENTATION_NOT_STARTED` | 唯一後續開發入口；Windows 安裝、電腦清單、解析整合、舊缺口驗收與 OpenSWX 程式／專用資源退出。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED` | 唯一後續開發入口；已定案 Windows 安裝、裝置資料／API／撤銷、單一 Document Manager 引擎、發布切換、12 組驗證與 OpenSWX 全面退出。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；只補當前切片的詳細工程契約，不新增平行框架。既有 reader／preview／broker 重用 DEV-035／056／058。正常 PDF 與附件修復可獨立先做，不要求所有工作等待 Windows 安裝。完成須有實際解析、使用者可見結果及 OpenSWX 退出證據，不能只以 PAUSED 結案。
+DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496 已合併，依最新 main 完成 repository assessment 與架構定案。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；資料／API／身分／失敗／發布／驗證契約已齊備，不新增平行框架。既有 reader／preview／broker 重用 DEV-035／056／058。正常 PDF 與附件修復可獨立先做；OpenSWX 的產品、發布依賴與專用資源全退役，不保留雙軌。完成須有實際解析、使用者可見結果及退出證據，不能只以 PAUSED 結案。本輪只升級文件，產品驗證 V125-01～12 皆 NOT_RUN，尚未開始實作；OrgMaster 無相容程式修改範圍。
 
 以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。本次只交付任務文件，沒有刪除程式或雲端服務。
 
@@ -50,7 +50,7 @@ PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通�
 
 ## DEV-124 — 已取消修復，拆除移交 DEV-125
 
-狀態 `CLOSED_CANCELLED_REPLACED`；[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)保留 124-A readback 失敗及 active row UNKNOWN，不能當成 no work。2026-10-27 的 Job Ready／execution 失敗／Scheduler PAUSED 是歷史 provider baseline，不代表已拆除。後續只由 [DEV-125 §4](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#4-openswx-拆除契約)做安全退出盤點與移除，不恢復 124-B 修復或 124-C 排程驗收。
+狀態 `CLOSED_CANCELLED_REPLACED`；[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)保留 124-A readback 失敗及 active row UNKNOWN，不能當成 no work。2026-10-27 的 Job Ready／execution 失敗／Scheduler PAUSED 是歷史 provider baseline，不代表已拆除。後續只由 [DEV-125 §7](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#openswx-retirement)做安全退出盤點與移除，不恢復 124-B 修復或 124-C 排程驗收。
 
 ## DEV-121#rd-capabilities — 2026-10-22 RD readback relevance 與關卡解耦（本地驗證中，正式服務未變更）
 

@@ -1,14 +1,24 @@
 # ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows Worker Derivative Boundary
 
-## 2026-10-27 決策修訂：Windows 單一路徑與 OpenSWX 退役
+## 2026-10-27 架構定案：Windows 單一路徑與 OpenSWX 退役
+
+現行狀態：`Accepted / Architecture Finalized / RD Implementation Ready / IMPLEMENTATION_NOT_STARTED`。已對照 PR #496 合併後 main `e8d8d4fa917f92743dacd2186ef2cfca45518187` 完成實作定位與自查；不是獨立 QC 或正式能力通過。資料、API、發布與 12 組驗證只在 DEV-125 維護，不新增平行 ADR／QA 文件。
 
 使用者確認以可安裝的 Windows 解析服務及電腦清單管理原生 CAD 處理，拒絕 OpenSWX／Document Manager 長期雙軌。[DEV-125](../specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) 是唯一後續開發入口；DEV-122 以部分成果移交結案，DEV-124 取消修復。
 
 沿用雲端 auth／queue／source-hash 與 Windows native execution 邊界，重用現有 Document Manager reader／preview／broker。多台電腦屬同一 Windows 解析產品，各自可撤銷、原子領取工作；不新增第二套佇列或 parser provider 選擇器。新入口、裝置清單及 OpenSWX 完整拆除的唯一產品契約在 DEV-125，這裡只記架構取捨。
 
+| 已定案 | 取捨 |
+|---|---|
+| NSIS EXE＋WinSW／Node 24＋預編譯 x64 Document Manager extractor | 重用既有 worker；不另做 MSI、自動更新、常駐使用者瀏覽器或完整 fleet。LocalService／service SID，在非互動 session 真實驗證。 |
+| DB 裝置身分＋十分鐘單次註冊碼＋DPAPI | 兩個小表取代 native 靜態 env credentials；所有 caller 即時檢查 company／active instance，沿既有管理員登入與 key broker，無新 MFA、OrgMaster writer 或電腦 GCP IAM。 |
+| Document Manager 唯一引擎 | 讀屬性及檔內儲存 PNG；PRT／ASM configuration、DRW sheet 能力分別驗證。取消下文歷史 Shell／eDrawings 作為可選現行實作的解讀；缺圖明確失敗，不保留替代引擎。 |
+| 舊佇列 owner＋既有 generation fence | 加嚴公司與實例／租約驗證，結果與完成 digest 同 transaction；不另做 queue／receipt 平台。撤銷不能回收已傳輸 bytes，不能承諾遠端抹除。 |
+| OpenSWX 程式、發布、專用雲端全部退出 | 先排空、建立無 worker 依賴的 recovery，再刪專用資源；共享權限依 consumer 保留，歷史 migration／資料／收據不刪，不留下可執行 compatibility reader。 |
+
 Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 的可執行入口、日常發布依賴與專用部署資源必須退役；保留不可變歷史收據與已套用 migration 不代表保留第二套系統。拆除尚未執行，不能以本 ADR 宣告完成。
 
-下列狀態及原生能力證據保留原時點；後續工作歸屬以本修訂與 DEV-125 為準。
+下列狀態、選項與原生能力證據保留原時點；與本節衝突的 Shell／eDrawings 選項及產品排程均為歷史，不是新的實作授權。現行工程契約與 Architecture Closure Review 以 DEV-125 為準。
 
 Status: Accepted / DEV-056 Phase 1E local implementation verified / Production Release Gated
 Date: 2026-08-19

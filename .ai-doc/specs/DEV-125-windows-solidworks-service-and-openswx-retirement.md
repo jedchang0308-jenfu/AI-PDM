@@ -1,8 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`PLANNED / RD Contract Ready / IMPLEMENTATION_NOT_STARTED`。本文件是 DEV-122／124 移交後唯一後續開發入口。
+狀態：`RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄本次架構收斂審查。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單，要求系統精簡、OpenSWX 不用就拆除、不雙系統並行，舊任務盡量結案、新架構集中新任務。來源基準：`583425d948a9381305ffa4747c30ecb6c2469fd5`。本次交付是任務與契約整理；程式、安裝包及正式資源尚未變更。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行，並要求合併 PR #496 後升級實作契約。該 PR 已合併；本次 repository assessment 基準為 main `e8d8d4fa917f92743dacd2186ef2cfca45518187`。這是文件成熟度，不是產品 PASS；程式、安裝包、資料與正式資源尚未變更。
 
 ## 1. 要交付的結果
 
@@ -33,52 +33,159 @@ AI-PDM 網頁與資料管理維持雲端；指定公司 Windows 電腦安裝同�
 
 D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 DEV-125 更新；不再維護第二份 active 排程。DEV-123 與 OrgMaster 的人員角色責任不在本任務。
 
-## 3. 第一版產品與技術邊界
+## 3. 架構定案與使用流程
 
-- 網頁入口：系統設定 → Windows 解析服務；沿用既有 PDM 管理員授權。頁面提供下載安裝程式、註冊電腦、電腦清單與停用／重新綁定。
-- 清單只顯示電腦名稱、服務版本、連線／可處理狀態、最後連線及操作。連線與可解析分開判定，避免只有 heartbeat 就顯示可用；不蒐集員工活動或遠端桌面資料。
-- 安裝：Windows x64 安裝包，處理必要元件、服務啟停與解除安裝；管理員從已登入頁面完成一次性裝置綁定。下載安裝檔本身不取得圖檔存取權，也不在安裝包內附帶公司 license key、服務 token 或 Google 憑證。
-- 裝置：每台有獨立可撤銷的身分與版本；只主動向 AI-PDM 發出 HTTPS 請求，不要求開放公司電腦 inbound port。服務權限限定領取合法工作、讀取該工作來源及提交衍生結果，不取得人員管理或業務核准權限。
-- 佇列：重用既有 preview／recognition owner，保留用途隔離；同一套安裝可包含不同處理能力，不新增 OpenSWX 佇列的替代副本。每台第一版限制同時處理一件重型 CAD 工作；工作由伺服器原子領取，重複完成不得重複寫入。
-- 中斷：關機／斷線後租約到期可由另一台領取；舊實例的結果不可覆蓋新租約或新版來源。停用裝置後禁止新 claim、來源下載、金鑰取得及有效提交；已下載的暫存無法遠端保證抹除，服務恢復時清理自有暫存。
-- 原檔：受控暫存只供本次工作，以唯讀方式解析；完成或失敗後清理自有副本，不回寫使用者 CAD 檔、不更動正式圖料。雲端結果綁定 source hash／版本及處理能力，不能把舊預覽當新版。
-- 金鑰：沿用既有 settings／broker 的 exact active version 與去敏機制；Document Manager key 不進網頁、MSI 或明文設定。裝置 credential 與 CAD license 分開；沿用 broker 的有界記憶體取得，不因安裝方便另建永久 key 副本。
-- 撤退／故障：Windows 不可用時保留原檔下載及明確等待／錯誤；已有效產生的預覽仍可讀，不重新啟用 OpenSWX。
+固定為 `AI-PDM 網頁／API／既有佇列 → HTTPS 輪詢 → Windows 服務 → Document Manager → 原佇列 complete`。雲端不載入 COM，電腦不開 inbound port；只有一套原生 CAD 引擎。沒有 OpenSWX、Shell thumbnail handler、eDrawings 或完整 SolidWorks 自動回退。舊 Shell 實測只保留歷史證據，不是第一版交付路徑。
 
-原生能力必須分清：Document Manager 屬性讀取及檔內已有 PNG 預覽可重用；它不等於完整 SolidWorks 重建、任意高解析出圖或 `.SLDDRW → PDF` 轉檔器。互動式 3D、完整 CAD 轉 PDF、自動更新、遠端控制與付費簽章採購不列第一版。若要用既有 Shell handler 補足原生縮圖，先驗證執行帳號／桌面 session 相容性，仍包在同一 Windows 解析產品內；不能宣稱所有 COM／Shell 能力都能在 Windows Service 的非互動 session 執行。
+網頁入口固定 `/settings/windows-service`（系統設定 → Windows 解析服務）。頁面只有「下載安裝程式」「註冊電腦」及清單；欄位為電腦名稱、版本、連線狀態、可處理項目、最後連線、停用。連線與能力分開；不蒐集登入人員、活動、硬體清單或遠端桌面。停用是永久撤銷該筆身分，恢復使用須重新註冊，不還原舊 token。
 
-## 4. OpenSWX 拆除契約
+管理員下載安裝包並在 Windows 執行一次 UAC 安裝，再從網頁取得十分鐘有效的單次註冊碼，貼入安裝後的「AI-PDM 解析服務設定」小工具。註冊成功後背景服務開機啟動；一般使用者不須逐次登入或保持網頁開啟。網頁不能靜默安裝 Windows 程式，也不承諾一個點擊就免除 UAC。無解析電腦時顯示「等待解析電腦上線」；有 current-hash 結果仍可閱讀，原檔下載維持原權限。
 
-取消修復立即作為任務決策；實體拆除是本任務交付內容，必須有讀回證據，不能僅以 Scheduler 暫停宣稱完成。
+| 決策 | 第一版固定實作 |
+|---|---|
+| 安裝形式 | NSIS 3 Unicode 的 `AI-PDM-Windows-Setup-<version>.exe`；不另做 MSI。打包既有 Node 24 LTS 執行碼、WinSW 2.12.0 與預編譯 x64 C# extractor，使用 .NET Framework 4.8；第一版在 Windows 11 x64 驗證。使用者端不安裝 Node、編譯器或完整 SolidWorks。 |
+| 服務帳號／檔案 | WinSW 服務 `AipdmWindowsParsing` 使用 LocalService，啟用 service SID；程式在 `%ProgramFiles%\AI-PDM Windows Service`，credential／暫存在 `%ProgramData%\AI-PDM Windows Service`，ACL 僅該 service SID、SYSTEM、Administrators。安裝／解除安裝才需管理員；解析不以 LocalSystem 或人員帳號執行。 |
+| 原生元件 | 官方 Document Manager x64 COM runtime／interop；相容 major、來源及 SHA-256 寫入安裝 manifest。使用公司合法取得、與 key／目標檔版本相容的元件。先檢查既有 COM 註冊；相容者重用，不覆蓋他人路徑。不相容則安裝失敗並說明，不自動破壞 SolidWorks。解除安裝只解除仍指向本產品且由本產品建立的註冊。 |
+| 引擎能力 | 屬性讀取沿 DEV-035 document／configuration scope；PRT／ASM 取 active configuration 的已儲存 PNG，SLDDRW 取第一張 sheet 的已儲存 PNG，無 sheet 圖才查文件內已儲存預覽。全部經同一 Document Manager extractor，不合成假圖。不提供模型重建、互動 3D、任意解析度或 CAD 轉 PDF。 |
+| 套件／更新 | 每次產物固定 app source SHA、版本、protocolVersion=1、檔案 hashes、依賴版本與 notices。Windows CI 產出安裝包，既有 app build 依同 source 與 hash 收入 image 的 `worker-downloads/`，下載 API 只讀該唯讀目錄的 manifest；不新增 runtime 儲存桶讀權、GitHub token 或任意 URL 下載。第一版人工下載新版覆蓋安裝、保留本機身分；無自動更新平台。預設不採購簽章、不宣稱 SmartScreen 信任。 |
 
-1. 盤點產品 caller、當前 queue／active／unknown 工作與 provider execution；先停新入口及派送。保留原 124-A 的失敗，不以 UNKNOWN 當零工作。該盤點只為安全退出，不再啟動 OpenSWX 修復支線。
-2. 對已存在工作使用正常取消／終止契約，unknown provider 寫入先讀回；保存原輸出及終態，不手改成功、不無條件刪資料。
-3. 移除 OpenSWX UI 操作、API writer、consumer、reader/build dependency、dispatch/recovery、profile 與專用測試。共用 worker 授權、preview／recognition、安全儲存及發布控制按仍有的用途保留；不得因名稱有 dev122 或 worker 就整批刪除。
-4. 退出專用 Cloud Run Job `ai-pdm-prod-openswx-metadata`、Scheduler `aipdm-prod-openswx-dispatch` 與其專用部署設定；核實專用身分／binding／token 後列精確撤銷範圍。共享 `aipdm-prod-workload-auth-credentials`、發布儲存桶及其他服務不可整體刪除。
-5. 移除新版本建置、日常發布、recovery 對 OpenSWX descriptor／profile／receipt 的執行依賴。仍被既定 recovery 引用的最小歷史 reader，須在 replacement recovery 可用後一起移除；不能留下永久雙路徑。
-6. 已套用 migration、CAD 原檔、業務結果、稽核及不可變發布收據保留；OpenSWX 歷史資料可唯讀封存，這不構成第二套執行系統。不為退出直接 DROP 舊表或清掉歷史 bucket。安全退出後要求 active source 無 OpenSWX caller；Git 歷史／歷史證據中的字樣不需刪光。
+工具依據：[NSIS 官方介紹](https://nsis.sourceforge.io/Docs/Chapter1.html)、[WinSW 官方版本](https://github.com/winsw/winsw/releases/tag/v2.12.0)、[Document Manager 官方 Getting Started](https://help.solidworks.com/2026/english/api/swdocmgrapi/GettingStarted-swdocmgrapi.html)、[configuration PNG API](https://help.solidworks.com/2026/English/api/swdocmgrapi/SolidWorks.Interop.swdocumentmgr~SolidWorks.Interop.swdocumentmgr.ISwDMConfiguration9_members.html)。公司 key 的合法使用與元件相容是打包／原生驗收的前置條件；本文件不宣稱已取得多裝置授權或新版本 key。
 
-正式資源刪除與 IAM／Secret 撤銷須在執行前列出查證後的精確專用目標與共享依賴，依既有正式操作邊界交付。本次 PM 文件整理不執行這些操作。
+## 4. 資料與身分契約
 
-## 5. 開發順序與重用
+新增一份 `db/postgres/<next>_dev125_windows_service_devices.sql` forward-only migration；編號依實作當下 ledger 分配，不修改 082／088 或其他已套用 SQL。只新增 `ai_pdm_core` 以下兩表，並在三個既有 job owner 加完成讀回欄位，不建通用 fleet／第二套 queue／新的跨應用 contract。正式裝置註冊限定現有 `company-jenfu`；隔離測試可用對應 fixture，公司由驗證過的管理員 profile 決定，不能接受 request 自選公司。
 
-同一任務依序交付三個切片，每個可獨立發布切片維持一個 active PR：
+| 表 | 必要欄位與限制 |
+|---|---|
+| `windows_service_devices` | `id text PK`（UUID）、`company_id text FK companies`、`name text`（1～100 字）、`credential_hash text UNIQUE`（SHA-256 hex，無明文）、`status text`（active／revoked）、`instance_id text NULL`（UUID）、`service_version text`（1～40 字）、`protocol_version integer=1`、`registered_by text`（verified Principal ID）、`registered_at/last_seen_at/revoked_at timestamptz`、`revoked_by text NULL`、`row_version integer >=1`。索引 `(company_id,status)`；revoked 必須有操作者與時間。 |
+| `windows_service_enrollments` | `id text PK`（UUID）、`company_id`、`request_id text`、`request_hash text`、`code_hash text UNIQUE`、`created_by text`、`creator_session_hash text`、`creator_auth_epoch bigint`、`created_at/expires_at timestamptz`、`consumed_at timestamptz NULL`、`device_id text NULL FK devices`。`UNIQUE(company_id,request_id)`；expires=DB 時鐘+10 分鐘；consumed 與 device 同時存在。註冊碼只存 hash，不建立 Secret Manager version。 |
 
-1. **125-A 安裝與電腦清單**：裝置綁定／撤銷、狀態與安裝卸載；同時把 OpenSWX 退出盤點收斂為精確可執行清單，停止新增雙軌設計。
-2. **125-B 單一路徑解析與整合**：重用 Document Manager reader、preview worker、settings／broker，接入既有佇列；補上表的 CAD／PDF／附件與辨識缺口。PDF metadata 修復可先完成，不等待原生 renderer。
-3. **125-C 拆除與結案**：依 §4 移除 OpenSWX 程式、日常發布依賴及專用部署資源，以 Windows 結果驗收並讀回無第二套執行路徑。A／B 不得開啟 OpenSWX 作備援，尚未完成 C 不能宣告本任務完成。
+`preview_jobs`、`drawing_recognition_sessions`、`settings_secret_probe_jobs` 各加 nullable `worker_completion_json jsonb`，只存最後一次已接受完成的 `{workerId,leaseBasis,resultDigest,terminalStatus,committedAt}`；與原結果在同一 owner transaction 寫入，原有歷史 NULL 不回填。resultDigest 是 canonical complete payload 的 SHA-256；retry 新 attempt 時清除舊 completion，原事件歷史仍保留。這是 ACK 遺失的唯讀確認依據，不是第二份業務結果或新 receipt 服務。
 
-重用入口：DEV-035 metadata reader、DEV-056 preview worker、DEV-058 broker 及 [既有 Windows 預覽 SPEC](SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)／[ADR](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。不重新實作一套通用佇列或金鑰系統。
+新增表不回填假裝置，不修改既有人員／角色／圖料。註冊、撤銷沿既有 audit 記錄 actor、device ID、前後狀態及結果；不稽核每次 heartbeat，不記 code、token、key 或檔案內容。Enrollment／device 保留供稽核，第一版不另建自動清理工作。沿既有 runtime role 只授予必要 SELECT／INSERT／UPDATE，無 DELETE／DDL；所有存取經 company-scoped repository，無匿名 SQL 或新跨應用 view。SQLite 隔離模式需同義 schema／transaction，正式授權並行測試以 PostgreSQL 為準。
 
-進入實作時只補目前切片需要的裝置 schema／API、憑證生命週期、MSI 工具與來源、版本相容、worker fence 及測試。命名與程式細節由 RD 決定；第一版不預建完整未來 fleet 平台。安裝包可免費製作，公開可信簽章不預設採購；Document Manager 公司內多裝置的 key 使用條件須依合法持有的授權確認，不能把可重散布 DLL 當無限制 key 授權。
+**憑證生命週期：**網頁用 Web Crypto 產生 32 bytes 隨機註冊碼，送 hash 建立 enrollment，畫面只在這次顯示原碼。本機小工具先產生 UUID device ID 與 32 bytes 隨機 bearer token，以 DPAPI LocalMachine 加上上述 ACL 保存後才送註冊；服務端只收 token hash。消耗註冊碼與新增 device 在同一 transaction，驗碼時重新查 creator session／auth epoch、active account 與管理員資格。相同 enrollment＋device ID＋credential hash 的重送回原結果；換內容 409，未消耗已過期 410，已撤銷裝置不可藉重送復活。機器名稱只是顯示資訊，不是授權依據。
 
-## 6. 最低充分驗收與發布影響
+**管理權限：**清單、下載、註冊碼與停用 API 均沿用 Principal／company／CSRF 邊界、`settings.secret.manage`，另重用 `revalidateRolePolicyManager()` 的現行直接全域管理員、active account／session／epoch 檢查（抽成共用 guard，原矩陣語意不變）。不新增 MFA、角色 action 或 OrgMaster writer；既有公司 Google 管理員登入政策不變。
 
-- 新 Windows 電腦從網頁下載、安裝及綁定後出現在清單；正常開機啟動、版本／狀態可辨識，解除安裝清除自有服務與暫存。
-- 兩台受控電腦不重複完成同一工作；其中一台離線／停用後的領取、來源讀取、舊提交與另一台接手有正反證據。沒有電腦可處理時 UI 有可理解狀態。
-- 真實 `.SLDPRT`／`.SLDASM`／`.SLDDRW` 分別記錄支援能力及實測結果；缺內嵌預覽或缺相依元件時明確失敗，不以假圖／檔名辨識充當成功。屬性與預覽各自驗證，不互相代替。
-- 承接表的 PDF／附件／管理員辨識與原七項結果在其實際層級記錄；原始 FAIL／UNKNOWN／NOT_RUN 可追溯，必要未驗項仍未通過。
-- OpenSWX 拆除有 source dependency／provider resource／active work 讀回；新版本建置發布及既定 recovery 不再需其 worker。只暫停排程不算拆除完成。
-- 沿用 affected-slice planner、required CI 及發布流程；裝置資料若需新增 SQL，採 `ai_pdm_core`／`ai_pdm_contract` forward-only migration，執行 DB boundary 檢查。新安裝產物、裝置 credential、app API 與雲端退出各自核實相容性。
+**服務權限：**以非人員的 `deviceId + instanceId + companyId` actor 取代 native worker 的靜態環境 credentials。每次從 DB 檢查 hash／active／current instance，不能靠 heartbeat 或 token cache 授權。服務只允許現有 preview／recognition／probe／broker 用途，沒有業務編輯、送審、核准或正式化權限；不授予 Windows 機器 GCP IAM。Document Manager key 仍從既有 exact-active-version broker 在需要時取得，最多沿現行 60 秒記憶體 refresh；不落地、不放安裝包，停用／無效憑證後立即清除本機使用中的 key 並停止新工作。
 
-完成定義：Windows 正常安裝與解析、電腦清單可管理、承接的必要結果通過、OpenSWX 退出完成。文件建好、安裝包能啟動或舊任務關閉均不等於 DEV-125 完成。
+## 5. API、狀態與失敗處理
+
+新增 route 均登錄現行 Principal route map／workload disposition；不能用 middleware 全域放行。人員 API 沿用既有回應／錯誤 wrapper，以下 body 是新增欄位；服務回應一律 `private, no-store`，最大註冊 JSON 2 KiB。API 不回傳磁碟絕對路徑、服務 token 或資料庫細節。
+
+| Method／path | 請求與結果／權限 |
+|---|---|
+| `GET /api/settings/windows-service/devices` | 管理員；回 `{devices:[{id,name,serviceVersion,status,connection,capabilities,lastSeenAt,rowVersion}]}`，只列該公司。connection 依 DB 時鐘、30 秒內 heartbeat 判 online；capabilities 必須同時符合 active 裝置、現行 instance、成功 probe、key version／fingerprint 與近期 capability heartbeat。 |
+| `GET /api/settings/windows-service/installer` | 管理員；回受控安裝 bytes，固定檔名／版本／SHA-256，缺產物 503 `INSTALLER_UNAVAILABLE`；不接受 filename／URL／object key 參數。 |
+| `POST /api/settings/windows-service/enrollments` | 管理員；`{requestId,codeHash}` → 201 `{id,expiresAt}`，相同 request/body 重送 200，body 不同 409。UI 不將註冊碼放 URL、localStorage 或日誌；失去原碼則重建新的 enrollment，舊碼十分鐘失效。 |
+| `POST /api/settings/windows-service/devices/{id}/revoke` | 管理員；`{expectedRowVersion}` → `{id,status:revoked,rowVersion}`。已 revoked 重送 200；版本不符 409，未知／其他公司 404。row lock 下重驗管理員並提交，無 DELETE 裝置 API。 |
+| `POST /api/windows-service/enroll` | 唯一不靠既有 session／device bearer 的交換；`{enrollmentId,code,deviceId,credentialHash,name,serviceVersion,protocolVersion:1}` → 201 `{deviceId,rowVersion}`，依 §4 原子驗證。無效碼 403，不暴露是否存在；expired 410。使用既有 rate-limit 機制限制每來源 10 次／分鐘，429 與 Retry-After；不是可匿名領取工作的入口。 |
+| `GET /api/windows-service/self`、`POST /api/windows-service/start` | 這兩個 bootstrap API 只驗 active device bearer，不要求已啟動 instance；self 回自己的狀態／rowVersion，及該裝置的 `activeJob:{kind,id,leaseBasis}\|null` 供 claim ACK 遺失讀回，不 enqueue／recover。start `{instanceId,expectedRowVersion,serviceVersion,protocolVersion:1}` 原子設定啟動實例，回 rowVersion。同 instance 重送 200；版本衝突或另一 instance 30 秒內仍在線則 409，重啟者等離線後讀新版本再啟動，不盲目覆蓋。程序用本機 singleton mutex；每次真正啟動產生新 instanceId，跨重啟舊租約失效。其餘 API 全部要求 current instance。 |
+| `POST /api/windows-service/heartbeat` | current-instance bearer 與 `x-pdm-worker-id=<deviceId>:<instanceId>`，每 10 秒更新裝置 lastSeenAt；沿用既有 capability heartbeat 的 code／version／fingerprint 欄位，不由 client 自訂授權用途。 |
+| `GET /api/windows-service/jobs/{kind}/{id}/status` | current-instance bearer；kind 固定 preview／recognition／probe。只回同公司、目前租約或 completion.workerId 屬該 instance 的 `{status,leaseBasis,completion:{resultDigest,terminalStatus,committedAt}|null}`；其他身分／工作 404，無來源內容，不 enqueue／recover／更新 attempt。供 complete ACK 遺失讀回，最多三次；digest 與本次不同則衝突，不自動補送。 |
+| 既有 worker API | 保留 `/api/preview-jobs/**`、`/api/preview-workers/**`、`/api/recognition-jobs/**`、`/api/recognition-workers/heartbeat`、`/api/settings-secret-probe-jobs/**`，統一 await 新 device auth；不得留下 native 靜態 token fallback。broker 僅允許公司相符的 active 裝置與既有 key 用途，probe credential 另須當前 probe 租約。 |
+
+新服務 protocol 不支援、缺必要 fence → 426 `WORKER_PROTOCOL_UNSUPPORTED`；無效／已撤銷 bearer → 403 `WORKER_DEVICE_UNAUTHORIZED`；DB 不可用 → 503，不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；單次 poll 無工作沿各既有 claim 的 200-null／204 契約。省略／不匹配租約 → 409 `WORKER_LEASE_STALE`，來源變更沿現有 stale-source 錯誤。不可重試的 corrupt／missing-preview／key-invalid 送明確終態，不假裝排隊中。
+
+安裝後未註冊只顯示「未註冊」且不輪詢工作；註冊後 online／offline 與 ready／blocked 分開。服務遇 403 停止工作並清除自有暫存；網路／503 使用 2、5、15、30 秒上限退避。一次請求最多重送三次，之後回等待狀態而非快速空轉；只有 heartbeat、具同一 idempotency 身分的 enroll/start 才可直接重送。claim 回應遺失先 self 讀回 activeJob 接續該租約，確認無有效租約才再 claim；complete 回應遺失先讀該工作的 owner／終態與 digest，確認已成功才回報成功；無法確認標為 unconfirmed，不能重新上傳或重寫業務結果。
+
+## 6. 既有工作整合與來源安全
+
+每台服務只有一個排程器、同時一個 CAD 子程序；有 pending key probe 時優先一次，preview／recognition 輪替，無工作時每 5 秒 poll。每個子程序唯讀開啟原檔，使用工作專用暫存路徑，禁止任意 shell command／外部路徑／URL；來源上限沿現有 256 MiB、原生處理 timeout 最長 120 秒，timeout 終止自己建立的子程序並清理。正常結束／失敗／下次啟動都清理本服務的過期暫存；卸載清除自己的 credential／暫存，不碰使用者 CAD。已下載資料無法保證由雲端遠端抹除。
+
+| 既有 owner | 必須保留與補齊 |
+|---|---|
+| Preview | 沿 `preview-worker-lease.ts` 的 protocol 2 與 `{companyId,sourceFileAssetId,sourceContentHash,attemptCount,lockedAt}`；claim 原子鎖定且只取 actor.companyId，`locked_by` 綁 device＋instance。content／heartbeat／complete 都驗當次 lease；使用現有 derivative owner／原子完成，不能另建 preview 表。PRT／ASM／DRW 的 capability 由真實 Document Manager self-test 分開回報。 |
+| Recognition | `drawing_recognition_sessions` 已有 company／attempt／locked_at／source_set_fingerprint，直接加嚴 fence，不新建 queue。claim 回傳 `{companyId,sessionId,sourceSetFingerprint,attemptCount,lockedAt}`，後續 source／heartbeat／complete 必須原樣帶回並在同一 owner transaction 驗證。原子篩選 actor 公司與有原生來源的 session；同 session PDF 等來源交回既有 adapter，不以檔名 adapter 冒充原生解析。保留 088 的 initiator_authority、parent work lock／狀態及人員撤權重驗；worker 只產生 observations，不自行 formalize。 |
+| Settings probe | 沿已存在的 company／initiator／protocol 2、probe ID＋lease attempt 與 exact secret version；claim 新增 actor.companyId 篩選。舊無 initiator／company 工作仍拒絕，不偽造補值。probe 通過不是 PNG／屬性各格式成功證據。 |
+| PDF／附件 | 先在固定唯讀來源查明 MIME／extension／source binding／current hash；只修被證明錯誤的 resolver／viewer。PDF 原檔走既有受保護 preview API，不送 Document Manager，不把可閱讀 PDF 改成 PNG。若需修正式 metadata，另用正常 writer 與具名資料範圍，不能在 viewer GET 偷做回填。 |
+
+撤銷競爭固定鎖序為「device row → 既有 job／source／parent locks」。每次寫入及來源／key 讀取的授權決策，在同一 DB transaction 持有 device row share lock 並重新檢查 active／instance；claim／start／revoke 一開始即取該列排他鎖。跨三個 owner 的 claim 先查該 instance 是否已有有效租約，有則不領第二件；不靠 client 自律避免重複占用。撤銷 commit 之後不得接受新授權決策；已在撤銷之前取得授權的串流 bytes 無法回收，不宣稱中途抹除。原 parent-lock、initiator 撤權及 source-hash fence 只加嚴不取代。工作 heartbeat 沿現有 5 秒節奏／失聯回收與 attempt 上限；失聯後重領產生新 fence，舊結果零寫入。
+
+<a id="openswx-retirement"></a>
+
+## 7. Repository 施工對照與 OpenSWX 完整拆除
+
+下列是實作定位，不是本次已新增／刪除的檔案；新檔命名可作局部調整，但 owner、API 與契約不能改成雙軌。
+
+| 範圍 | 現有定位／預定修改 |
+|---|---|
+| 頁面／API／DB | 新 `src/app/settings/windows-service/page.tsx`、`src/components/windows-service-settings.tsx`、§5 route families、`src/lib/windows-service-devices.ts` 與 repository；新增 migration 及隔離 schema，更新 `config/access-control/jenfu-route-permission-map.v2.json`／既有生成器與 workload disposition。 |
+| 共用授權 | `src/lib/worker-service-auth.ts` 改 async DB device auth，全部 preview／recognition／probe caller await；`settings-secret-lifecycle.ts` 的 readiness 從 env 是否存在改為有效裝置／probe 能力；管理員 guard 從 `role-policy-apply-authorization.ts` 共用，不修改 OrgMaster。 |
+| Worker／安裝 | 重用 `scripts/run-drawing-recognition-worker.mjs`、`run-solidworks-document-manager-metadata-extractor.mjs`、`run-solidworks-document-manager-preview-worker.mjs`、`solidworks-document-manager-preview-exporter.cs`、`scripts/lib/preview-worker-lease.mjs`；抽出同一排程器可呼叫的處理函式，新增 `windows-service/` 的 WinSW／NSIS／啟動及設定工具與固定依賴 manifest。舊 standalone native／Shell 產品啟動入口退出，不另維護一套安裝。 |
+| 結果／UI | `src/lib/repositories/drawing-recognition-async-repository.ts`、`src/lib/repositories/settings-secret-async-repository.ts` 與既有 preview repository 補公司與 lease 檢查；沿 `master-attachment-panel.tsx`／既有 canonical preview resolver 修 PDF、狀態與同頁更新。 |
+| OpenSWX 產品刪除 | `drawing-recognition-workspace-panel.tsx` 的 OpenSWX panel／CTA、`src/app/api/numbering/openswx-metadata/**`、`src/app/api/openswx-metadata-jobs/**`、`src/app/api/openswx-metadata-dispatch/**`、`src/lib/openswx-metadata*.ts`、`src/lib/repositories/openswx-metadata-async-repository.ts` 與專用測試；共用檔只刪相關分支。 |
+| OpenSWX 建置／發布刪除 | `scripts/run-openswx-metadata-job.mjs`、`scripts/lib/openswx-reader/**`、`scripts/lib/dev122-openswx-*.mjs` 專用執行器、`config/release/dev122-openswx-worker.json`；共用 `dev012-owner-*`、`dev117-ai-pdm-continuous-release`、`dev121-owner-release-proof`、applied-continuation、planner、production Dockerfile／package scripts 移除 imports／descriptor／worker receipt 硬依賴。`read-ai-pdm-rd-permission-state-production.yml` 只退役 OpenSWX operation，其他固定診斷保留。 |
+| 共用發布契約 | `config/release/dev117-ai-pdm-independent-production-v3.json` 移除 openswxDispatch／workerRef 要求，082 ledger entry 保留；`dev117-production-release-infra-plan.json` 及 `infra/google-cloud/dev-117-production-release` 僅移除 OpenSWX 專用 binding／讀回。同步 release SPEC 與 affected tests，不讓 required executor 仍要求已刪 profile。 |
+
+### 7.1 專用雲端退出範圍
+
+來源為現有 `config/release/dev122-openswx-worker.json` 與 `infra/google-cloud/dev-122-openswx-worker`／`dev-122-openswx-release-readback`；它們是規劃清單，執行前仍需 fresh provider readback。目標僅 `jenfu-platform-prod`／`asia-east1` 的 AI-PDM 資源。
+
+| 退出目標 | 範圍與保留限制 |
+|---|---|
+| 計算／排程 | Cloud Run Job `ai-pdm-prod-openswx-metadata`、Scheduler `aipdm-prod-openswx-dispatch` 及尚在執行的該 Job executions；先排空／取消，再刪除。不可只保留 PAUSED 或空殼 Job。 |
+| 專用身分／權限 | `aipdm-prod-openswx-reader`、`aipdm-prod-openswx-dispatch` service accounts；其專用 token accessor、actAs、Job invoker／readback／lifecycle bindings；`aipdmOpenswxJobReadback`、`aipdmOpenswxJobLifecycle`、`aipdmOpenswxVerifierJobReadback`、`aipdmOpenswxSchedulerReadback`、`aipdmOpenswxSecretVersionReadback` 僅在全數引用退出後刪除。保留 app／deployer／verifier 本身與其他權限。 |
+| 憑證／產物 | 撤銷專用 `aipdm-prod-openswx-reader-token`；共享 `aipdm-prod-workload-auth-credentials` 只退出 OpenSWX entry，Windows 靜態項在新版 device auth 切換後退出。所有 caller 零引用前不得刪整個共享 Secret。只處理 `aipdm-release/ai-pdm-openswx-worker` 的可執行 image／部署引用，不整桶、整個 Artifact Registry repository 刪除。 |
+| IaC／歷史 | 兩個專用 Terraform root 先經 exact-resource retirement plan 移除 prevent_destroy／deletion protection 的必要項再執行退役，不能先刪 IaC 遺留孤兒。state 與不可變 receipts 留歷史；`aipdmDev122PrebuildList` 等同檔的共用能力須依現存 consumer 保留／移回共用 owner，不因路徑 dev122 全刪。082 舊表／原 CAD／業務結果與歷史 migration 永久不在本次 DROP 範圍。 |
+
+### 7.2 切換順序與 recovery
+
+1. 取得固定唯讀 DB／provider 盤點，列出 queued／running／dispatch_unknown 的 exact job、execution 與 source；DEV-124 的 UNKNOWN 不能當零工作。先停新入口及派送，維持 Scheduler 停止，不再修復或喚醒 OpenSWX。
+2. 用現有 owner 取消／失效租約並讀回 execution。若缺少取消入口，在 125-C 實作一次性、固定範圍的 owner retirement command：輸入預覽過的 job IDs／expected row basis，DB transaction 比對並只轉 `cancelled`／`dispatch_state=terminal`，留下原因／audit，不能改 completed 或刪行。unknown provider 操作先確認終態；無法確認只停止受影響退出動作。
+3. 新裝置 schema/API 與 Windows 套件先在隔離環境聯測；正式啟用 Windows 前，上述 OpenSWX 新工作入口與執行都必須為零。新 app 切到 device auth 時，停止舊 standalone native worker；過渡只為部署切換，不提供使用者 provider 選單或永久雙授權。
+4. 發布無 OpenSWX 執行依賴的 app／owner source，建立該版本的可用 recovery baseline；沿既有 source-bound applied-migration receipts 重用已套用 082，不重新驗 OpenSWX 的執行能力。對歷史收據只驗現行安全復原需要的 immutable provenance，不能將歷史 workerJob 存活當 prerequisite。必須通過「OpenSWX profile／模組不存在」的 prepare／build／recovery 測試才刪專用資源；尚未通過不能宣告 C 完成。
+5. 執行精確資源退出、讀回不存在，從現行 source 移除所有 OpenSWX 執行 reader／builder／dispatch／fallback。歷史資料、applied SQL、證據引用不是 active dependency；檢查例外只限這些歷史資料，不豁免 executable compatibility reader。
+6. 最終 recovery 只回到已驗證的 Windows 架構 revision／相容套件；若服務不可用，停解析並保留原檔／有效結果，不重新建立 OpenSWX、不回滾新 schema、不恢復靜態 token。尚在過渡的既有 owner recovery 不能被提前刪掉；需先證明 replacement，再移除舊路徑。
+
+正式資源刪除、IAM／Secret 撤銷是後續執行責任，須提供上述清單的 fresh exact-resource plan 及既有授權核對。本輪文件成熟度不授權或執行任何正式刪除。
+
+## 8. 實作切片、相容發布與失敗退出
+
+| 切片 | 可開始施工的內容／完成出口 |
+|---|---|
+| 125-A 安裝與裝置 | §3～5 的 migration、API／guard、設定頁、NSIS／WinSW 與自有暫存；用可撤銷測試裝置完成註冊／重啟／卸載。公司合法 key 與相容 runtime 在這階段核實，不能拖到發布才發現。 |
+| 125-B 單一解析與舊缺口 | §6 的 auth 全 caller、租約與原生 extractor；PDF／附件先按實際原因修復；完成真實三格式、管理員辨識與 UI 可見結果。沒有符合來源的預覽就保留原失敗，不能降格成只驗 worker 啟動。 |
+| 125-C 完整退出與交付 | §7 的 source／release／provider 去依賴和退出；通過無 OpenSWX 的正常發布與復原、重跑受影響結果，維護原 7／29 對照。A、B、C 都完成才關 DEV-125。 |
+
+每個可獨立發布切片一個 active PR，不新增三個 DEV／CAPA／第二套 QA 系統。先 migration（只加表）→ app candidate／新 protocol 與安裝產物 → 單台受控裝置 normal claim smoke → canonical 啟用；API 與安裝 manifest 固定 protocol=1，舊 binary 收 426 且停止領取。正式版本升級用同一安裝包人工更新，不做靜默自動升級。Windows COM／原生樣本可在一台設備完成主要驗證；兩台租約競爭用隔離服務 instance，不強制安排兩位真人在正式資料上操作。
+
+App 及 release adapter 使用現有 affected-slice planner、required CI、owner workflow；修改 SQL 執行 `npm run check:db-boundary`，修改 app 執行既定 typecheck／isolated build；修改 release adapter 依既有 DEV-117 continuous／QC／abort 驗證。installer build 在 Windows runner 產出獨立 immutable artifact 與 hash，成功只代表可安裝，不代替真實 COM 驗收。AI-PDM owner build receipt 增加 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}` 並與 image 內 manifest 比對；固定 same-source artifact 輸入，拒絕 actor 提供 URL 或 mutable latest。這項相容擴充與 OpenSWX workerRef 移除在同一發布契約修訂，不另建 owner workflow。不得為此新增 GCP Windows VM、公司 IAM 管理平台或跨專案 reader/writer。OrgMaster／Jenfu-Platform／JF-FMS：無程式／schema／部署修改範圍。
+
+實作後的發布包必須綁定實際 app SHA、migration ledger、安裝 hash／protocol 與 provider retirement plan；這些在產物存在時生成，不在文件階段填假值。缺合法 key、COM 不相容、未證明新的 recovery 或 provider UNKNOWN 時，阻擋各自相關的打包／原生驗收／刪除，其他隔離工作繼續；不以新增備援引擎解決。文件本輪不開始程式實作、migration、部署或正式資料寫入。
+
+## 9. 精簡驗證計畫與完成定義
+
+以下是 12 組必要結果，每組涵蓋所列正反情境；不是把舊 7 issues／29 診斷 ID 改成新的 PASS 分母。自動化優先、相同未變證據重用；所有本任務產品案例目前均 `NOT_RUN`，只完成契約審查。
+
+| ID | 必須看到的結果 | 驗證層級／原責任 |
+|---|---|---|
+| V125-01 | 正常管理員可進頁面；一般人、撤權 session、錯公司不可清單／下載／註冊／停用；OrgMaster 未新增 writer。 | API／隔離 PostgreSQL，正式正常 SSO smoke；DEV-123 邊界相容。 |
+| V125-02 | 註冊碼一次／十分鐘、過期／錯碼／跨公司拒絕；consume 競爭只一筆，回應遺失相同重送不多註冊；日誌／DB 無明文 key/token。 | 自動化 DB／API；不需正式雙人操作。 |
+| V125-03 | 全新 Windows 安裝、原有 COM 相容／不相容、重啟、覆蓋更新及卸載；服務以低權限 session 0 真正解析，非只在互動桌面測通。 | Windows 11 x64 實機；記套件 hash／COM 版本。 |
+| V125-04 | 啟動 instance 競爭、停止／撤銷後各 worker caller、key broker、source 與 complete 拒絕；auth DB 失效不退 env；公司範圍無外洩。 | 全 caller route contract＋隔離 DB 競爭；一台正式裝置撤銷 smoke。 |
+| V125-05 | preview／recognition／probe 領取用途分離；同工作兩 instance 只一有效 owner；失聯重領、舊 attempt、重啟、取消／parent-lock／initiator 撤權均零錯寫。 | 既有 lease／source／PostgreSQL regression；D122-05 F-01B～F。 |
+| V125-06 | known-preview `.SLDPRT`／`.SLDASM`／`.SLDDRW` 各至少一個真實來源，原始 hash→讀取證據→正確 PNG；document／configuration 屬性與預期一致。缺圖、壞檔、較新格式、錯 key 明確失敗。 | 真實 Document Manager／相同產物；沿用有效單樣本證據但不跨格式冒用。 |
+| V125-07 | 原檔 bytes／hash 一致；新版來源不取舊結果；亂序／重複 complete 及 ACK 遺失不重寫；timeout／crash 清理自己暫存，原 CAD 零修改。 | 隔離 fault 測試＋真實 reader；D122-05 F-01A～E。 |
+| V125-08 | A0001-M01 對應受控來源的原生預覽與 PDF：正常頁面 current-hash、完整圖框可讀、同頁等待轉成功；缺 Windows 顯示等待，ready 不重排。 | 實際正常 UI／受控資料；正式 smoke 與隔離回歸分列，不用本機代正式。 |
+| V125-09 | 附件上傳／重載／下載、管理員原生辨識正常允許與拒絕；PDF 不依賴 Windows；D122-01～04、06 未受影響證據重用，未驗保留。 | §2 原責任對照；D122-07 保持 DISABLED_DEFERRED。 |
+| V125-10 | 不含 OpenSWX 模組／profile 的 app build、owner prepare／recovery 可用；其 UI／API／imports／package command／環境變數／active IaC 零執行入口，無 Shell 替代雙軌。 | source dependency 搜尋＋affected release suite＋required CI。歷史例外逐類確認，不能把活程式列歷史。 |
+| V125-11 | exact 舊工作全終態、無 active／unknown execution；專用 Job／Scheduler／SA／binding／token 已退出，shared 資源與 immutable receipts 保留。 | fresh DB／provider readback；UNKNOWN 不計 PASS，僅 PAUSED 不通過。 |
+| V125-12 | migration→candidate→單台 Windows→正式 UI→新架構 recovery 的版本／hash 對得上；失敗停解析仍可下載，不重啟 OpenSWX。 | 既有 owner release＋正式受控 smoke；需後續發布授權，本輪 NOT_RUN。 |
+
+結案需 V125-01～12 的適用結果完整且 Windows 功能可用、OpenSWX 確實退出。保留 DEV-122 的原始七項／29 組完整對照與未驗，不將 deferred supplier 或尚未做的正式旅程計 PASS；DEV-125 完成也不能自動改寫 DEV-122 原七項整體通過。紀錄只需沿既有 QA 入口存受測 source／artifact、環境、樣本 hash、實際結果及失敗，無須新增簽核層、逐案真人操作或任務登錄平台。
+
+## 10. Architecture Closure Review（2026-10-27）
+
+本次由 PM／技術主管對照合併後 main 做文件自查，不宣稱獨立 QC 或執行驗收。
+
+| 實際 source 發現 | 已封口的架構決策／實作定位 |
+|---|---|
+| `worker-service-auth.ts` 現為同步 env credential，沒有 device company；不能直接宣稱每台可撤銷。 | §4～6 固定兩表、async 全 caller、DB 即時撤銷、company filter 與 instance fence；舊 env auth 一起退出。 |
+| preview 已有 v2，recognition 有 attempt／locked_at／fingerprint，probe 已有 company／initiator／v2。 | 重用 owner 與現有欄位加嚴，不創第二套 queue 或 lease 服務；parent／人員權限保護保留。 |
+| 現有 C# PNG exporter 主要是 SLDDRW，另有 Shell 路徑；不能宣稱三格式已完成。 | §3 定案 Document Manager 單引擎，PRT／ASM 擴充已儲存 configuration PNG；V125-03／06 真實驗收，無圖明確失敗。 |
+| OpenSWX 進入 UI、API、build、owner proof、applied continuation 與專用 IaC；刪 worker 不足。 | §7 全面退出清單與 replacement recovery 在前、provider 刪除在後；共享權限按 consumer 處置，歷史 SQL／收據保留。 |
+| 舊文件將安裝工具／資料/API 留待實作再選，PDF 與 CAD scope 易混。 | §3～9 完成 installer、data／API／auth／failure／release／QA 決策；PDF 獨立修復；無 OrgMaster 相容程式任務。 |
+
+結論：`RD Implementation Ready / Architecture Finalized`；本次檢視範圍沒有尚待選架構的 P0／P1 設計缺口。RD 可依 125-A 起工，但使用者本輪只授權文件。合法 key／指定版本 COM、三格式實機、正式 worker／provider 與原缺口驗收仍是待取得的執行證據，不標 PASS；技術實作細節、版本 patch 與實際 migration 編號由 RD 在此契約內固定，不需再開一輪架構規劃。
