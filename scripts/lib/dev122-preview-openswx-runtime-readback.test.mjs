@@ -23,7 +23,7 @@ import {
   readRuntimeDatabaseState,
 } from './dev122-preview-openswx-runtime-readback.mjs'
 import { runMain as runMigrationRunner } from '../dev117-production-migration-runner.mjs'
-import { crc32cBase64 } from './dev012-production-migration-runner.mjs'
+import { canonicalize, crc32cBase64, sha256 } from './dev012-production-migration-runner.mjs'
 
 const sourceRevision = 'a'.repeat(40)
 const runner = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'b'.repeat(64)}`
@@ -232,4 +232,11 @@ test('runtime-state wrapper binds one exact migration job execution and create-o
   assert.equal(puts[0].options.ifGenerationMatch, '0')
   assert.equal(calls.length, 1)
   assert.match(calls[0].url, /ai-pdm-prod-migration-runner:run$/u)
+
+  const priorCore = { ...submission, workflowSourceRevision: 'a'.repeat(40) }
+  const prior = { ...priorCore, receiptSha256: sha256(Buffer.from(canonicalize(priorCore))) }
+  const resumedTransport = { async readBytes() { return { bytes: Buffer.from(JSON.stringify(prior)), metadata: { generation: '7' } } } }
+  const advanced = { ...submission, workflowSourceRevision: 'b'.repeat(40) }
+  assert.deepEqual(await submitRuntimeReadbackOnce({ transport: resumedTransport, submissionRef: 'gs://bucket/submission.json', submission: advanced, job }), { resumed: true })
+  await assert.rejects(submitRuntimeReadbackOnce({ transport: resumedTransport, submissionRef: 'gs://bucket/submission.json', submission: { ...advanced, args: [...args, 'drift'] }, job }), /RUNTIME_STATE_SUBMISSION_INVALID/u)
 })
