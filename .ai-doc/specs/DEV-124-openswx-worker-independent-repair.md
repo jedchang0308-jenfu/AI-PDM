@@ -1,8 +1,8 @@
 # DEV-124：OpenSWX metadata worker 獨立修復
 
-狀態：`CLOSED_CANCELLED_REPLACED`（2026-10-27）；OpenSWX 修復取消，功能驗收未通過，實體拆除尚未執行。
+狀態：`CLOSED_CANCELLED_REPLACED`（2026-10-27）；OpenSWX 修復取消、功能驗收未通過。實體退出已由 DEV-125 完成，不重開本任務或改判功能通過。
 
-依使用者要求，後續只採 Windows SolidWorks 解析路徑。DEV-124 不再修復、重建或恢復 OpenSWX Scheduler；其安全退出盤點、程式及專用雲端資源移除由 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md) §4 承接。不得把本次取消寫成 `COMPLETED`、`DEFERRED_NO_CURRENT_NEED` 或資源已刪除：active DB row／consumer 尚屬 UNKNOWN，退出前須讀回並處理，不以無證據宣稱無人使用。
+依使用者要求，後續只採 Windows SolidWorks 解析路徑。DEV-124 不再修復、重建或恢復 OpenSWX Scheduler；其安全退出盤點、程式及專用雲端資源移除由 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md) 承接。2026-10-27 DEV-125 cleanup 已把 2 筆 active rows 轉終態，provider readback 確認 active execution 0 且專用 Job／Scheduler／SA／Secret 均不存在；此結果只關閉退出責任，不將 DEV-124 改成 `COMPLETED` 或功能 PASS。
 
 **下文完整保留為歷史修復計畫及證據，原 124-A／B／C 不再排程執行。** 只在 DEV-125 安全退出需要時重用既有唯讀能力與收據，不為拆除先把整套 OpenSWX 修好。
 

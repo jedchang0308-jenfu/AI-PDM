@@ -8,7 +8,7 @@
 
 既有七項矩陣證明 D122-01～04、06 為 `LOCAL_OUTCOME_VERIFIED`，其成果及失敗歷史保留；本次沒有重新執行或改判正式驗收。D122-05 的附件、PDF、原生預覽與完整 CAD，連同管理員辨識的未完責任，具名移交 [DEV-125 承接表](DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)。D122-07 仍為 `DISABLED_DEFERRED`，不列功能通過。若要宣稱原七項整體通過，DEV-125 仍須保留並補足適用層級的驗收，不能因轉移縮減分母。
 
-DEV-125 是唯一後續實作／驗收入口；DEV-124 取消 OpenSWX 修復並由 125 承接拆除。PR #499 已合併 Windows worker 單一路徑及 OpenSWX active source／release dependency 退役；尚未完成的是正式 Windows 裝置與 A0001 預覽驗收，以及 OpenSWX provider 資源退出，不是重新開發 DEV-122 預覽 UI。原 D122-05A／05B 與 29 個診斷 ID 保留來源對照，不另開平行施工。現行任務處置亦記於 [既有機器可讀契約](DEV-122-self-use-acceptance.v1.json)；私有七項矩陣是既有受測快照，不再被當作本輪 active 工作清單。
+DEV-125 是唯一後續實作／驗收入口；DEV-124 取消 OpenSWX 修復並由 125 承接拆除。PR #499 已合併 Windows worker 單一路徑及 OpenSWX active source／release dependency 退役，PR #526 與正式 cleanup／provider readback 已完成 OpenSWX 專用資源退出；尚未完成的是正式 Windows 裝置、Document Manager 三格式與 A0001 預覽／辨識驗收，不是重新開發 DEV-122 預覽 UI。原 D122-05A／05B 與 29 個診斷 ID 保留來源對照，不另開平行施工。現行任務處置亦記於 [既有機器可讀契約](DEV-122-self-use-acceptance.v1.json)；私有七項矩陣是既有受測快照，不再被當作本輪 active 工作清單。
 
 **以下為移交前契約與證據。** 下文的 CURRENT、ACTIVE、下一步及發布指示均保留當時語境，不是重新啟動 DEV-122 的命令；仍適用的資料、授權、來源完整性與失敗恢復契約由 DEV-125 重用。歷史已驗與未驗的結果不回寫。
 

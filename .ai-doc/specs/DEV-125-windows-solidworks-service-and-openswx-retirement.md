@@ -1,8 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_B_SOURCE_MERGED / 125-C_RELEASE_CONTINUATION_CORRECTIVE_LOCAL_PASS / PROVIDER_RETIREMENT_PENDING`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
+狀態：`IMPLEMENTATION_IN_PROGRESS / PRODUCTION_RELEASED / OPENSWX_RETIRED / WINDOWS_ACCEPTANCE_IN_PROGRESS`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496／#497 完成架構與文件收斂，PR #498 合併 125-A，PR #499 合併 125-B 單一路徑 worker 整合及 125-C source／release dependency 退役，PR #501 補齊退役 OpenSWX release baseline 相容，PR #500 合併 fixed runtime readback，PR #502 同步任務文件，PR #504 修正 migration-admission 續接鏈，PR #503 加入 bounded provider retirement cleanup；PR #505～#508 再把歷史 OpenSWX ref 自現行 capsule 投影移除，補上歷史 runtime evidence 的封閉驗證，並在驗證前精確正規化退役欄位。現行 main 為 `66f645153235067a470dd4bed8f69c6051eefcf9`，main CI run `40471058686` 通過；後續結果須以各切片 exact source／CI／發布讀回為準。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#508 完成架構、125-A／B、active source 退役與發布續接，PR #526 再移除完成退出後的正式診斷／cleanup 執行器、專用 IaC root 及 legacy recreation addresses。現行正式來源為 exact main `3720c7cea8f294f086e34a175fdf911283971007`；required CI run `40505306777` 與正式 owner release run `40507513920` 均通過。後續 Windows 實機與業務結果仍須以同一 installer／revision 的實際證據判定。
 
 ## 1. 要交付的結果
 
@@ -207,3 +207,21 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 R4 之後的 prerequisite 續接另揭露三個 release-adapter 缺口。第一，ordinary abort reader 原本由 deployment 直接跳 candidate，漏讀已封存的 migration-admission；PR #504 已改為 `deployment → migration-admission → candidate` 並通過 required CI。第二，released predecessor `DEV122-RD-WIF-40231212962-1` 合法保留歷史 `openswxWorkerRef`、runtime extension 與當時的兩項 RD smoke，但 current validator 把它們誤當現行發布輸入。PR #505～#508 已把歷史 ref 限定為只供 observation、從現行 capsule 投影移除，封閉驗證 worker／flag／numeric Secret version，並在套用現行 runtime validator 前精確正規化退役欄位；本 corrective 只再補齊當時 exact RD smoke。不讀或執行舊 descriptor，也不把任何 worker 欄位帶入新 runtime。該 predecessor 的 smoke 只接受封存的 `rd-candidate-ready=200` 與 `rd-permission-unauthenticated-denied=401` exact shape；現行普通發布仍須完整 SSO smoke。第三，optional forward-submission object 的 provider 404 原先比對錯誤字串，本 corrective 只將 `MIGRATION_GCS_METADATA_FAILED:*:404` 的既定終態轉成 `MISSING`，403／media failure 等維持拒絕。
 
 上述 local corrective 已以 focused 18／18、owner／runtime／stage／prerequisite aggregate 145／145 通過；另以正式 R4 immutable refs 執行唯讀 continuation，已讀回 `PRINCIPAL_ORDINARY_ABORT`，未寫正式資料、未切流、未建立 capsule。此結果只證明 fresh release 的 prerequisite 可安全解析歷史證據；在 corrective PR、required CI、fresh exact-main capsule、完整 owner release、正式 smoke、Windows／A0001 驗收及 provider retirement 全部完成前，V125-10／11／12 仍不可改為 PASS。
+
+### 11.1 正式發布與 OpenSWX 退出完成（2026-10-27）
+
+PR #526 合併 exact main `3720c7cea8f294f086e34a175fdf911283971007`，required CI run `40505306777` 兩項必要檢查通過；同來源 Windows installer artifact 為 `0.1.0-ci.1356`／protocol 1，SHA-256 `f9b2d6f84b79b14b4a108fff18295cec18dcef47bb7e90a871103a85b27ea740`。PR #526 已移除完成退出後的正式 OpenSWX readback／cleanup operation、專用 IaC root、legacy Secret／IAM recreation addresses 與對應 package／test 入口；migration 082、歷史資料及 immutable receipts 依 forward-only 規則保留。
+
+正式 OpenSWX cleanup receipt `DEV125-OPENSWX-RETIREMENT/1d4748cd0f43be828ec314eebdd2d43ec11336873309c9c8426659ff14324d10/cleanup.json` 為 `RETIREMENT_COMPLETE`：2 筆 active rows 轉終態、remaining active rows 0，46 個歷史 executions 中 active 0。fresh provider readback 確認專用 Cloud Run Job、Scheduler、reader／dispatch service accounts、`aipdm-prod-openswx-reader-token` 及舊 `aipdm-prod-workload-auth-credentials` 全部不存在；共用 release bucket、immutable receipts、migration ledger 與非 OpenSWX owner 身分保留。V125-11 因此為 `PASS`，不回寫 DEV-124 功能通過。
+
+正式 owner release `DEV125-FINAL-20261027-R18`／run `40507513920` 已由同一 source 完成 preflight、build、migrate、candidate、verify、decision、activate、canonical 與 finalize。terminal 為 `PASS / RELEASED / remainingHumanAction=0`，migration 為 applied 0／replayed 39／ledger 39；`ai-pdm-prod-66f9b3ca5852` 以 image digest `sha256:00080078bfa210441f3e2538184bee437793e64d3fb9ae8622e898eeca380497` 承接唯一 100% traffic、零 tag。candidate 與 canonical 的 Platform session、SSO callback、authenticated probe 皆 200／303，未登入與撤銷 session 皆 401。Cloud Run revision metadata 沒有自訂 source label；source 綁定依 GitHub exact HEAD 與每階段 immutable receipt，不誤稱 provider label 已提供 source revision。結構化結果見 [正式發布與退役證據](../qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。
+
+上述結果關閉 provider retirement 與正常 release／recovery 缺口，但不替代 Windows 實機、Document Manager 三格式、A0001 3D／PDF、管理員辨識及 UI 結果。V125-01／03～10／12 仍依實際證據維持 `PARTIAL` 或 `NOT_RUN`；歷史 predecessor 相容 reader 只在 Windows 新基線完成前供 recovery，後續仍須移除接受 retired binding 的分支並保留 current input 拒絕規則。
+
+### 11.2 Windows 首次實機安裝缺陷與修正（2026-10-27）
+
+同來源 `0.1.0-ci.1356` 安裝包已在 Windows 11 x64 實機完成安裝，但使用者取消註冊，因此未產生 `credential.bin`、device identity 或正式裝置資料。安裝後 provider readback 顯示 `AipdmWindowsParsing` 為 `Running / Auto`，實際登入身分卻是 `LocalSystem`，而且 Windows「程式和功能」沒有解除安裝項目；這兩項使 V125-03 維持 `FAIL / REMEDIATION_IN_PROGRESS`，不可用原 contract 測試或服務啟動取代。
+
+根因是 WinSW 2.12.0 的服務帳號 schema 應使用 `<domain>NT AUTHORITY</domain>` 與 `<user>LocalService</user>`，現有 XML 誤用 WinSW 3.x 的 `<username>` 而被 2.12.0 忽略；NSIS 也只寫自有版本 key，未寫 Windows 標準 uninstall key。commit `6758bb6088e11970949c2ca499680964c8247524` 已修正兩者並補防回歸測試；focused contract 11 項通過。修正版 installer `0.1.0-ci.1357` 綁定相同 commit，protocol 1，SHA-256 `fa0ed20fb9317b703021b0c0ccb1ed0eb42c569c119901cb3ee17d849f489b9f`，實際 NSIS build／manifest／stage XML readback 通過。
+
+缺陷版已取得使用者明確解除安裝授權；目前 UAC 尚待人類按「是」，所以服務、程式／資料目錄及自有登錄仍存在。解除安裝完成後須精確讀回五項不存在，再以修正版重新取得安裝 action-time confirmation，驗證 LocalService、service SID、ACL、程式和功能項目、重啟／覆蓋／卸載及不註冊時零 credential／device side effect。V125-03 只有在這些實機結果成立後才可改為 PASS。
