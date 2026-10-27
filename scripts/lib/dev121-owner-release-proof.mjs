@@ -587,29 +587,38 @@ function assertAiReleaseRef(ref) {
     || !ref.uri.startsWith(`gs://${AI_BUCKET}/receipts/`)) fail('REPAIR_REF_INVALID')
   return ref
 }
-function assertObservedCapsule(value, ref, sourceRevision) {
+export function assertObservedCapsule(value, ref, sourceRevision) {
+  let observed = value
+  if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) {
+    const retired = value.openswxWorkerRef
+    if (!exactKeys(retired, ['uri', 'sha256']) || !H64.test(retired.sha256 ?? '') ||
+        !new RegExp(`^gs://${AI_BUCKET}/receipts/dev-122/openswx-worker/[A-Za-z0-9][A-Za-z0-9._/-]*\\.json$`, 'u').test(retired.uri ?? '') ||
+        retired.uri.includes('..')) fail('OBSERVED_CAPSULE_INVALID')
+    observed = { ...value }
+    delete observed.openswxWorkerRef
+  }
   const keys = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt']
-  for (const optional of ['baselineIntentRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'appliedMigrationContinuation', 'forwardAppliedMigrationContinuation']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
-  if (!exactKeys(value, keys) || value.schemaVersion !== 'jenfu.dev117.ai-pdm-release-intent.v2' || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') ||
-      value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') ||
-      !/^ai-pdm-prod-[a-f0-9]{12}$/u.test(value.previousRevision ?? '') || !Number.isFinite(Date.parse(value.deadlineAt)) ||
-      ref.uri !== `gs://${AI_BUCKET}/receipts/releases/${value.releaseId}/release-intent.json`) fail('OBSERVED_CAPSULE_INVALID')
-  for (const key of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) assertAiReleaseRef(value[key])
-  if (Object.hasOwn(value, 'appliedMigrationContinuation')) {
-    assertAppliedMigrationContinuation(value.appliedMigrationContinuation, AI_BUCKET)
-    if (!value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery || value.unlinkedProfileCleanupRef) fail('OBSERVED_CAPSULE_INVALID')
+  for (const optional of ['baselineIntentRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'appliedMigrationContinuation', 'forwardAppliedMigrationContinuation']) if (Object.hasOwn(observed ?? {}, optional)) keys.push(optional)
+  if (!exactKeys(observed, keys) || observed.schemaVersion !== 'jenfu.dev117.ai-pdm-release-intent.v2' || observed.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(observed.releaseId ?? '') ||
+      observed.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') || !H64.test(observed.sourceSha256 ?? '') || !H64.test(observed.migrationManifestSha256 ?? '') ||
+      !/^ai-pdm-prod-[a-f0-9]{12}$/u.test(observed.previousRevision ?? '') || !Number.isFinite(Date.parse(observed.deadlineAt)) ||
+      ref.uri !== `gs://${AI_BUCKET}/receipts/releases/${observed.releaseId}/release-intent.json`) fail('OBSERVED_CAPSULE_INVALID')
+  for (const key of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) assertAiReleaseRef(observed[key])
+  if (Object.hasOwn(observed, 'appliedMigrationContinuation')) {
+    assertAppliedMigrationContinuation(observed.appliedMigrationContinuation, AI_BUCKET)
+    if (!observed.postAbortLedgerReadbackRef || !observed.principalOnlyFenceRef || !observed.principalOnlyRecovery || observed.unlinkedProfileCleanupRef) fail('OBSERVED_CAPSULE_INVALID')
   }
-  const reconciledAbort = assertReconciledPrincipalAbortBinding(value, AI_BUCKET)
-  if (Object.hasOwn(value, 'forwardAppliedMigrationContinuation')) {
-    assertForwardAppliedMigrationContinuation(value.forwardAppliedMigrationContinuation, AI_BUCKET)
-    if (!value.appliedMigrationContinuation) fail('OBSERVED_CAPSULE_INVALID')
+  const reconciledAbort = assertReconciledPrincipalAbortBinding(observed, AI_BUCKET)
+  if (Object.hasOwn(observed, 'forwardAppliedMigrationContinuation')) {
+    assertForwardAppliedMigrationContinuation(observed.forwardAppliedMigrationContinuation, AI_BUCKET)
+    if (!observed.appliedMigrationContinuation) fail('OBSERVED_CAPSULE_INVALID')
   }
-  if ((value.principalOnlyFenceRef || value.principalOnlyRecovery) && value.baselineIntentRef && !reconciledAbort) fail('OBSERVED_CAPSULE_INVALID')
-  if (Object.hasOwn(value, 'unlinkedProfileCleanupRef')) {
-    assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef)
-    if (value.principalOnlyFenceRef || value.principalOnlyRecovery) fail('OBSERVED_CAPSULE_INVALID')
+  if ((observed.principalOnlyFenceRef || observed.principalOnlyRecovery) && observed.baselineIntentRef && !reconciledAbort) fail('OBSERVED_CAPSULE_INVALID')
+  if (Object.hasOwn(observed, 'unlinkedProfileCleanupRef')) {
+    assertUnlinkedProfileCleanupRef(observed.unlinkedProfileCleanupRef)
+    if (observed.principalOnlyFenceRef || observed.principalOnlyRecovery) fail('OBSERVED_CAPSULE_INVALID')
   }
-  return value
+  return observed
 }
 async function readObservationBundle({ ref, revision, token, fetchImpl }) {
   if (!exactKeys(ref, ['uri', 'sha256']) || !H64.test(ref.sha256 ?? '') || !new RegExp(`^gs://${AI_BUCKET}/source/migration-bundles/${revision}/[a-f0-9]{64}\\.json$`, 'u').test(ref.uri ?? '')) fail('MIGRATION_BUNDLE_REF_INVALID')

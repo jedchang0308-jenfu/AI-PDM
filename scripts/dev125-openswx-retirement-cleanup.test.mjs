@@ -16,6 +16,7 @@ import {
 } from './lib/dev125-openswx-retirement-cleanup.mjs'
 import { RUNTIME_STATE_RECEIPT_SCHEMA } from './lib/dev122-preview-openswx-runtime-readback.mjs'
 import { canonicalize, crc32cBase64, sha256 } from './lib/dev012-production-migration-runner.mjs'
+import { assertObservedCapsule } from './lib/dev121-owner-release-proof.mjs'
 
 const sourceRevision = 'a'.repeat(40)
 const migrationRunnerDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'b'.repeat(64)}`
@@ -196,4 +197,23 @@ test('migration runner executes only the fixed hash-bound cleanup branch and pub
   assert.equal(receipt.status, 'RETIREMENT_COMPLETE')
   assert.equal(receipt.databaseState.mutatedRowCount, 0)
   assert.ok(objects.has(outputRef))
+})
+
+test('aborted-release observation validates then scrubs the retired OpenSWX baseline binding', () => {
+  const releaseId = 'DEV125-HISTORICAL-BASELINE'
+  const ref = { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/${releaseId}/release-intent.json`, sha256: 'f'.repeat(64) }
+  const receipt = name => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/HISTORICAL/${name}.json`, sha256: 'e'.repeat(64) })
+  const intent = {
+    schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision,
+    sourceSha256: 'd'.repeat(64), sourceLockRef: receipt('source-lock'), authorizationPolicyRef: receipt('authorization'),
+    readinessReceiptRef: receipt('readiness'), foundationReceiptRef: receipt('foundation'), infraReceiptRef: receipt('infra'),
+    runtimeConfigRef: receipt('runtime'), migrationManifestSha256: 'c'.repeat(64), previousRevision: `ai-pdm-prod-${'b'.repeat(12)}`,
+    deadlineAt: '2026-10-27T10:00:00.000Z',
+    openswxWorkerRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/historical.json', sha256: 'a'.repeat(64) },
+  }
+  const normalized = assertObservedCapsule(intent, ref, sourceRevision)
+  assert.equal(Object.hasOwn(normalized, 'openswxWorkerRef'), false)
+  assert.equal(Object.hasOwn(intent, 'openswxWorkerRef'), true)
+  assert.throws(() => assertObservedCapsule({ ...intent, openswxWorkerRef: { ...intent.openswxWorkerRef,
+    uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/arbitrary.json' } }, ref, sourceRevision), /OBSERVED_CAPSULE_INVALID/u)
 })
