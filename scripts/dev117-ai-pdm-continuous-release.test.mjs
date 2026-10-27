@@ -57,7 +57,9 @@ test('DEV-121 operator provider proof retains app-owned reads and removes retire
     assert.equal(infraPlan.stageBAdditional.filter((item) => item === address).length, 1)
     assert.ok(!infraPlan.stageA.includes(address))
   }
-  assert.ok(!infraPlan.stageBAdditional.some((address) => /openswx/iu.test(address)))
+  assert.deepEqual(infraPlan.stageBAdditional.filter((address) => /openswx/iu.test(address)), [
+    'google_storage_bucket_iam_member.migrator_openswx_dispatch_recovery_viewer[0]',
+  ])
 })
 
 function controlledPrerequisites(ownerProfile, runtimeConfig) {
@@ -536,7 +538,7 @@ test('DEV-121 workbench authority binding survives newer source and rejects prof
   }
 })
 
-test('DEV-125 production runtime has no retired shared worker credential binding', () => {
+test('DEV-125 runtime no longer consumes the shared worker credential while its provider objects remain in bounded retirement staging', () => {
   assertDev117V3Profile(profile, v1, n1c)
   const versions = Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1']))
   const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
@@ -548,7 +550,16 @@ test('DEV-125 production runtime has no retired shared worker credential binding
   assert.equal(profile.environment.requiredSecretNames.includes('PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
   assert.equal(Object.hasOwn(profile.environment.allowedSecretIds, 'PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
   const infra = read('config/release/dev117-production-release-infra-plan.json')
-  assert.equal([...infra.stageA, ...infra.stageBAdditional].some(item => /workload_auth_credentials/u.test(item)), false)
+  assert.deepEqual(infra.stageBAdditional.filter(item => /workload_auth_credentials|runtime_workload_credentials_accessor|migrator_openswx_dispatch_recovery_viewer/u.test(item)).sort(), [
+    'google_secret_manager_secret.workload_auth_credentials[0]',
+    'google_secret_manager_secret_iam_member.runtime_workload_credentials_accessor[0]',
+    'google_storage_bucket_iam_member.migrator_openswx_dispatch_recovery_viewer[0]',
+  ])
+  const retirement = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/dev125-legacy-retirement.tf', import.meta.url), 'utf8')
+  assert.match(retirement, /default\s*=\s*"RETAIN"/u)
+  assert.match(retirement, /contains\(\["RETAIN", "UNPROTECT", "ABSENT"\]/u)
+  assert.match(retirement, /deletion_protection\s*=\s*var\.dev125_legacy_workload_auth_mode == "RETAIN"/u)
+  assert.doesNotMatch(retirement, /secret_manager_secret_version|secret_data|:access\b/u)
 })
 
 test('S1B-20 build-only mode retains protected owner path and cannot reach mutations', () => {
