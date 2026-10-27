@@ -4,6 +4,7 @@ import { completePreviewJobAsync, type PreviewWorkerCompletionInput } from "@/li
 import { parsePreviewLeaseEnvelope, previewLeaseProtocolVersion } from "@/lib/preview-worker-lease";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-service-auth";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 
 export const runtime = "nodejs";
 
@@ -50,6 +51,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
     const result = await completePreviewJobAsync(getAsyncDatabaseClient(), completion);
     return NextResponse.json({ ...result, leaseProtocolVersion: previewLeaseProtocolVersion }, { status: result.accepted ? 200 : 409 });
   } catch (error) {
+    if (error instanceof PrincipalJobAuthorityError) return NextResponse.json({ error: error.code }, {
+      status: error.status, headers: { "cache-control": "private, no-store" }
+    });
     const message = error instanceof Error ? error.message : "PREVIEW_JOB_COMPLETE_FAILED";
     return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
   }

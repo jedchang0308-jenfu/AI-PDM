@@ -6,9 +6,10 @@ vi.mock("@/lib/worker-service-auth", async importOriginal => ({
   ...await importOriginal<typeof import("@/lib/worker-service-auth")>(), authenticateWorkerService: mocks.auth
 }));
 import { POST } from "./route";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 
 const actor = { kind: "windows_service_device", id: "device-one:instance-one", deviceId: "device-one",
-  companyId: "company-one", instanceId: "instance-one", credentialHash: "a".repeat(64), device: {},
+  companyId: "company-one", ownerPrincipalId: "principal-one", instanceId: "instance-one", credentialHash: "a".repeat(64), device: {},
   purposes: ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"],
   capabilities: ["solidworks_2d_preview_png", "solidworks_3d_preview_png", "solidworks_document_manager"] };
 function request(body: Record<string, unknown>) {
@@ -33,7 +34,7 @@ it("allows the official 2D and 3D extensions within the authenticated company", 
     supportedExtensions: ["slddrw", "sldprt", "sldasm", "step"] }));
   expect(response.status).toBe(200);
   expect(mocks.claim).toHaveBeenCalledWith({}, { leaseProtocolVersion: 2, workerId: actor.id,
-    companyId: "company-one", supportedKinds: ["native_thumbnail_png"],
+    companyId: "company-one", ownerPrincipalId: "principal-one", supportedKinds: ["native_thumbnail_png"],
     supportedExtensions: ["slddrw", "sldprt", "sldasm"] });
 });
 
@@ -51,4 +52,16 @@ it.each([undefined, 1, "2", null])("rejects missing or illegal protocol before s
 it("echoes version even when idle", async () => {
   mocks.claim.mockResolvedValue(null); const response = await POST(request({ workerId: actor.id }));
   expect(await response.json()).toEqual({ leaseProtocolVersion: 2, job: null });
+});
+
+it.each([
+  ["PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403],
+  ["PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE",503]
+] as const)("returns a safe typed claim refusal for %s",async(code,status)=>{
+  const error=new PrincipalJobAuthorityError(code,status);error.message="private-provider-detail";
+  mocks.claim.mockRejectedValueOnce(error);
+  const response=await POST(request({workerId:actor.id}));
+  expect(response.status).toBe(status);expect(await response.json()).toEqual({error:code});
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(mocks.claim).toHaveBeenCalledOnce();
 });

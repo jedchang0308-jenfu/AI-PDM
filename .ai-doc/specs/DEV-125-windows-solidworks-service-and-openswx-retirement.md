@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R25 / PREVIEW_HEARTBEAT_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.6 是發布證據，§11.7 是該版本正式驗收發現的 corrective，較早紀錄只供追溯。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R26 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.8 為最新 R26 發布與驗收邊界，§11.6～11.7 保留 R25 及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
@@ -94,9 +94,9 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 | Native key broker | `GET /api/preview-workers/solidworks-document-manager-key?kind=preview&jobId=…` 必須攜帶既有 `x-pdm-preview-lease`；`kind=recognition` 另帶 `sourceId` 與 `x-pdm-recognition-lease`。沿原 owner／company／generation／current source permission 驗證，不讀 CAD bytes；provider I/O 後再重驗裝置與工作才回 credential。無工作租約的 idle 裝置回 403，無跨工作 key cache。管理 probe 仍使用自己 job 的 credential API。 |
 | Native readiness | 同一裝置驗證入口的 `GET …/solidworks-document-manager-key?readiness=1` 只回 `{available:boolean}`，只讀 active reference／支援的 provider metadata，不讀或回傳 key。無 active credential 時 worker 不 claim 業務工作；claim 後 provider 暫時故障在同一 lease 下等待、heartbeat 持續，不 failed complete 或重新 claim；真正 device／job authority 拒絕仍立即停止。 |
 
-新服務 protocol 不支援、缺必要 fence → 426 `WORKER_PROTOCOL_UNSUPPORTED`；無效／已撤銷 bearer，或 owner account／Principal／grant／resource permission 已失效 → 403 `WORKER_DEVICE_UNAUTHORIZED`；DB 不可用 → 503，不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；`queued` 工作不因等待逾時而失敗或遞增 attempt，只有已被領取的 `running/extracting` 租約逾期才依既有上限回收。單次 poll 無工作沿各既有 claim 的 200-null／204 契約。省略／不匹配租約 → 409 `WORKER_LEASE_STALE`，來源變更沿現有 stale-source 錯誤。
+裝置 protocol 不支援 → 426 `WORKER_PROTOCOL_UNSUPPORTED`；preview lease envelope 缺漏／不合法沿既有 400。無效／已撤銷 bearer 或 owner account／Principal／grant 失效 → 403 `WORKER_DEVICE_UNAUTHORIZED`；typed 工作資源拒絕回 403 `PRINCIPAL_JOB_RESOURCE_VIEW_DENIED`、typed authority 不可用回 503 `PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE`，只回 enum code 且 private/no-store，不將授權拒絕誤轉 500。已失效的 preview source／lease 仍可由既有 409 `PREVIEW_JOB_CLAIM_LOST` 拒絕；key 無工作租約回 403 `WORKER_JOB_LEASE_REQUIRED`。這些都是拒絕，不回 source／key 或接受結果；不 fallback 至 env。未有 ready 電腦不消耗業務 attempt；queued 等待不逾時失敗或增 attempt，只有 running/extracting 租約逾期才依既有上限回收。無工作沿既有 200-null／204 契約。
 
-安裝後未註冊只顯示「未註冊」且不輪詢工作；註冊後 online／offline 與 ready／blocked 分開。服務遇 403 停止工作並清除自有暫存；網路／503 使用 2、5、15、30 秒上限退避。一次請求最多重送三次，之後回等待狀態而非快速空轉；只有 heartbeat、具同一 idempotency 身分的 enroll/start 才可直接重送。claim 回應遺失先 self 讀回 activeJob 接續該租約，確認無有效租約才再 claim；complete 回應遺失先讀該工作的 owner／終態與 digest，確認已成功才回報成功；無法確認標為 unconfirmed，不能重新上傳或重寫業務結果。
+安裝後尚未連結只顯示等待連結且不輪詢工作；連結後 online／offline 與 ready／blocked 分開。服務遇 403 停止工作並清除自有暫存；網路／503 使用 2、5、15、30 秒上限退避。一次請求最多重送三次，之後回等待狀態而非快速空轉；只有 heartbeat、具同一 idempotency 身分的 enroll/start 才可直接重送。claim 回應遺失先 self 讀回 activeJob 接續該租約，確認無有效租約才再 claim；complete 回應遺失先讀該工作的 owner／終態與 digest，確認已成功才回報成功；無法確認標為 unconfirmed，不能重新上傳或重寫業務結果。
 
 ## 6. 既有工作整合與來源安全
 
@@ -294,3 +294,23 @@ R25 安裝的提升權限呼叫已由 Windows 回覆「操作被使用者取消�
 後續 source review 發現 claim-first 若直接將 key 404／503 當業務失敗會損失 attempt，已在同 PR 修正：先做不含明文的 active-reference readiness；無 active credential 不 claim，claim 後暫時錯誤則在同 lease 及 heartbeat 下等待，provider 403／404／409 也只映射安全依賴 503，不冒充 device／job 撤權。只有真正授權拒絕退出；尚未取得 key 時不送 failed completion。新增 7 個 worker runtime 情境已全通過，涵蓋未 ready、不跨工作 cache／先 claim、Preview key 404／503 和 Recognition key 503 保留同一租約，以及 lease denial 不 failed complete；這些仍是 mock HTTP 排程證據，不是正式 COM 或 DB attempt readback。metadata-only helper 與 provider／source 錯誤映射亦有 focused 測試。
 
 同一 review 也補上管理 probe 恢復回合：key 暫時不可讀時，尚未開始原生處理的業務租約保持 pulse，序列化輪詢自己目前有權的 probe，再重試原 key；測試確認此回合位於兩次 key 讀取之間，且不重新 claim 業務工作。§6 同步以實際 per-request 授權與單一原生執行界線取代未實作的跨 queue device mutex 敘述；立即拒絕撤銷後新請求的要求不變。
+
+<a id="dev125-r26-release"></a>
+
+### 11.8 R26 正式發布、原檔權限與實機待驗（2026-10-28）
+
+PR #539 已合併至 `c7ede379f011250e51da65dcba509ed67b5c1a0b`；PR required CI `40579710850`、exact-main CI `40581270745` 與 R26 owner run `40582723848` 全部成功。PR #535 的兩個 official interop C# 執行來源自其 merge `c9cbeed9…` 後無變更。#533 保持關閉未合併，PR 描述與標題已明確撤回並取代匿名風險說法；舊 worktree 的未知 merge 修改保留，沒有 reset／覆寫。
+
+R26 同步補齊兩個實作邊界：原始 CAD 會送至使用者電腦，故 preview／recognition 的 claim、source、heartbeat、complete 與工作 key guard 同時要求目前 `view` 和 `download`，SLDPRT／SLDASM 包含 model 權限；缺現行角色政策回 503，不沿用 legacy 授權。第一次安裝尚無 app session 時，連結頁遇 401 自動進既有公司 SSO，保留原 pairing returnTo；403／503 不形成登入迴圈。171 個 focused Vitest、7 個 mock-HTTP worker runtime 情境及 11 組隔離 PostgreSQL 驗證通過；正式原生 COM 不在這些測試的證明範圍。本機因容量未執行 corrective isolated build，由 exact-main CI 的隔離建置通過提供當次證據。
+
+正式 revision 為 `ai-pdm-prod-e1c3d515850c`，image digest 為 `sha256:8e016521852c0efba2427ae0aef10e5c2ed6624c0601ca14dc157919d03e353e`。固定唯讀 diagnostics run `40585061298` 在 `2026-10-27T21:15:23.679Z` 讀回 generation 291、reconciling=false、latest Ready／Created 均為該 revision，且唯一 traffic target=100%；finalize 的 temporary candidate tags=0。migration applied=0／replayed=40／ledger=40／boundary PASS，execution=`ai-pdm-prod-migration-runner-d9vzc`；089 immutable，090 先前套用後本輪重播驗證，未新增 migration／IAM／Secret／OrgMaster 責任。
+
+canonical SSO／session smoke 通過。另 23 條正式匿名、偽造與舊固定 worker 請求全部為 `403 / WORKER_DEVICE_UNAUTHORIZED / private,no-store`，包含先前被 middleware 提前攔下的 preview heartbeat；結果不記錄原始 body、key、token 或 CAD bytes，SHA-256=`296254be1d3c842cc664d3f2291cd31e3b1ed158bdc1799ba01d40f813f2a64e`。這是正式負向授權證據，不是合法裝置的正向解析 PASS。
+
+same-source installer=`0.1.0-ci.1391`、29,267,659 bytes、SHA-256=`8079fb62ab1df48c8c50f88373f999f78c999739dc00be4a63b86410db674b95`，CI artifact、build evidence 與 deployment capsule 一致。正式登入頁的下載入口與電腦清單正常、沒有人工註冊碼欄位；瀏覽器下載的完整暫存 bytes／hash 亦相同，但 Chrome 尚未標示完成。工具安全審查禁止 `chrome://downloads`，沒有改走其他介面繞過。R26 提升權限啟動回 `InvalidOperationException`，未推定原因；無 installer process、本機仍 `.1370 / Running / LocalService`，因此沒有完成安裝。後續由使用者處理實際下載提示／UAC，再接續驗收，不能把本輪記為已安裝。
+
+仍待實機自助連結、RD／採購生管／生產三個既有公司 Google 帳號、實體 Windows lifecycle／多電腦、正式正向工作與撤權／離線接續、低權限三格式解析，以及 A0001 原生預覽／PDF／辨識；已請使用者指定角色帳號，不以管理員模擬。發布工作流 `remainingHumanAction=0` 只描述發布完成，DEV-125 整體尚未結案。完整 URI／外部 bytes hash、舊 R25 收據及驗收項目均保留在 QA JSON。
+
+### 11.9 R26 後續 HTTP 拒絕分類補齊（2026-10-28）
+
+API 契約核對發現 preview claim／heartbeat 沒有把 `PrincipalJobAuthorityError` 轉為 HTTP，complete 又僅依一般字串 mapper 分類，會將 typed 403／503 交給框架或誤回 500。原有 domain guard 仍拒絕原檔與結果、claim 亦不消耗 attempt；缺口是 worker 無法據正確 status 區別撤權與相依服務失效。本輪僅補這三個入口的 typed enum response／private,no-store，保留原 400／409 與未知錯誤路徑；不改授權決策、資料、installer／worker、migration、IAM 或 Secret。三個實際 route 的 40 案通過，其中 6 案覆蓋 typed 403／503、不回 private error.message，並補明確 owner Principal 傳遞；required CI 與後續發布完成前不改判為正式修正。

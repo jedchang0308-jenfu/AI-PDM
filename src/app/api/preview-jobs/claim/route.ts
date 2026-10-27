@@ -3,6 +3,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { claimPreviewJobAsync } from "@/lib/preview-derivatives";
 import { previewLeaseProtocolVersion } from "@/lib/preview-worker-lease";
 import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-service-auth";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 
 export const runtime = "nodejs";
 
@@ -34,13 +35,20 @@ export async function POST(request: Request) {
   }
   const supportedPreviewKinds = [...new Set(supportedKinds)] as "native_thumbnail_png"[];
 
-  const claim = await claimPreviewJobAsync(getAsyncDatabaseClient(), {
-    leaseProtocolVersion: previewLeaseProtocolVersion,
-    workerId,
-    companyId: actor.companyId,
-    ownerPrincipalId: actor.ownerPrincipalId,
-    supportedKinds: supportedPreviewKinds,
-    supportedExtensions: extensions
-  });
-  return NextResponse.json({ leaseProtocolVersion: previewLeaseProtocolVersion, job: claim });
+  try {
+    const claim = await claimPreviewJobAsync(getAsyncDatabaseClient(), {
+      leaseProtocolVersion: previewLeaseProtocolVersion,
+      workerId,
+      companyId: actor.companyId,
+      ownerPrincipalId: actor.ownerPrincipalId,
+      supportedKinds: supportedPreviewKinds,
+      supportedExtensions: extensions
+    });
+    return NextResponse.json({ leaseProtocolVersion: previewLeaseProtocolVersion, job: claim });
+  } catch (error) {
+    if (error instanceof PrincipalJobAuthorityError) return NextResponse.json({ error: error.code }, {
+      status: error.status, headers: { "cache-control": "private, no-store" }
+    });
+    throw error;
+  }
 }

@@ -7,10 +7,11 @@ vi.mock("@/lib/worker-service-auth", async importOriginal => ({
   ...await importOriginal<typeof import("@/lib/worker-service-auth")>(), authenticateWorkerService: mocks.auth
 }));
 import { POST } from "./route";
+import { PrincipalJobAuthorityError } from "@/lib/principal-job-authority";
 
 const workerId = "device-one:instance-one";
 const actor = { kind: "windows_service_device", id: workerId, deviceId: "device-one", companyId: "company-one",
-  instanceId: "instance-one", credentialHash: "a".repeat(64), device: {},
+  ownerPrincipalId: "principal-one", instanceId: "instance-one", credentialHash: "a".repeat(64), device: {},
   purposes: [], capabilities: [] };
 const basis = { companyId: "company-one", sourceFileAssetId: "asset-one", sourceContentHash: "a".repeat(64), attemptCount: 1, lockedAt: "2026-10-23T00:00:00.000Z" };
 const params = { params: Promise.resolve({ jobId: "job-one" }) };
@@ -30,7 +31,7 @@ it("echoes the negotiated version after the authenticated heartbeat is accepted"
   const response = await POST(request(), params);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ ok: true, leaseProtocolVersion: 2 });
-  expect(mocks.heartbeat).toHaveBeenCalledWith({}, { jobId: "job-one", workerId, leaseBasis: basis });
+  expect(mocks.heartbeat).toHaveBeenCalledWith({}, { jobId: "job-one", workerId, ownerPrincipalId: "principal-one", leaseBasis: basis });
 });
 it.each([undefined, 1, "2", null])("rejects an invalid protocol before database access: %j", async leaseProtocolVersion => {
   expect((await POST(request({ leaseProtocolVersion }), params)).status).toBe(400);
@@ -44,4 +45,15 @@ it("keeps workload and lost-lease refusals intact", async () => {
   mocks.heartbeat.mockResolvedValueOnce(false);
   const response = await POST(request(), params);
   expect(response.status).toBe(409); expect(await response.json()).toEqual({ code: "PREVIEW_JOB_CLAIM_LOST" });
+});
+
+it.each([
+  ["PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403],
+  ["PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE",503]
+] as const)("returns a safe typed heartbeat refusal for %s",async(code,status)=>{
+  const error=new PrincipalJobAuthorityError(code,status);error.message="private-provider-detail";
+  mocks.heartbeat.mockRejectedValueOnce(error);
+  const response=await POST(request(),params);
+  expect(response.status).toBe(status);expect(await response.json()).toEqual({error:code});
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
 });
