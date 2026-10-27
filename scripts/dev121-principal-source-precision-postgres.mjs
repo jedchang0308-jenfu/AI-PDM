@@ -574,6 +574,17 @@ try {
   const source080=fs.readFileSync(path.join(root,path080),'utf8').replaceAll('\r\n','\n');
   await database.query(source080);
   sourceProof.push({path:path080,sourceSha256:sha(source080),scope:'complete unchanged080; legacy test-only commands, no auto-activation consent fabricated'});
+  // This focused fixture does not create preview/recognition owners, so execute
+  // the exact DEV-125 probe-column statement instead of the complete 089
+  // migration. The full migration remains covered by the migration manifest and
+  // isolated database suites.
+  const path089='db/postgres/089_dev125_windows_service_devices.sql';
+  const source089=fs.readFileSync(path.join(root,path089),'utf8').replaceAll('\r\n','\n');
+  const probeCompletionDdl=source089.match(/ALTER TABLE ai_pdm_core\.settings_secret_probe_jobs ADD COLUMN IF NOT EXISTS worker_completion_json jsonb\n  CHECK \(worker_completion_json IS NULL OR jsonb_typeof\(worker_completion_json\)='object'\);/u)?.[0];
+  assert.ok(probeCompletionDdl,'DEV125_PROBE_COMPLETION_DDL_MISSING');
+  await database.query(probeCompletionDdl);
+  sourceProof.push({path:path089,sourceSha256:sha(source089),executedFunctionSha256:sha(probeCompletionDdl),
+    scope:'exact settings probe completion column projection in focused disposable fixture; complete 089 covered by migration suites'});
   await database.query(`GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs,
     ai_pdm_core.setting_activation_events,ai_pdm_core.audit_logs,ai_pdm_core.platform_command_receipts,
     ai_pdm_core.platform_outbox_events,ai_pdm_core.settings_secret_probe_jobs TO jenfu_ai_pdm_runtime;
@@ -712,7 +723,8 @@ try {
     (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
     VALUES ('typed-duplicate',$1,'solidworks_document_manager','pending',$2,'company-jenfu',$3,1,'settings_secret_probe')`,
   ['secret-legacy',actorProfile,actor.principalId]),error => error.code==='23505');
-  const replacementWorker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
+  const replacementWorker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',
+    instanceId:'00000000-0000-4000-8000-000000000125',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
   assert.equal((await repository.claimProbeJob(replacementWorker.id,replacementWorker.companyId,new Date().toISOString())).id,replacement.id);
   await completeSettingsSecretProbe({probeJobId:replacement.id,worker:replacementWorker,status:'failed',resultCode:'synthetic_legacy_replacement',readerVersion:'synthetic'});
   assert.deepEqual((await database.query("SELECT to_jsonb(job) AS value FROM ai_pdm_core.settings_secret_probe_jobs job WHERE id='probe-legacy'")).rows[0].value,legacyBefore);
@@ -745,7 +757,8 @@ try {
       VALUES ($1,$2,'solidworks_document_manager','failed',$3,'company-jenfu',$4,$5,$6)`,
     ['untyped-'+crypto.randomUUID(),draft.id,actorProfile,principalId,version,purpose]),error => error.code==='23514');
   }
-  const worker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
+  const worker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',
+    instanceId:'00000000-0000-4000-8000-000000000125',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
   const claimed = await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString());
   assert.equal(claimed.id,queued.id);assert.equal(claimed.initiatorPrincipalId,actor.principalId);
   assert.equal(await repository.heartbeatProbeJob(queued.id,'another-worker',worker.companyId,new Date().toISOString()),false);
@@ -793,8 +806,8 @@ try {
   assert.equal(await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString()),null);
   assert.equal((await repository.getProbeJobById('probe-legacy')).status,'running');
   assert.equal(await repository.heartbeatProbeJob('probe-legacy',worker.id,worker.companyId,new Date().toISOString()),false);
-  await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:'probe-legacy'}),error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
-  await assert.rejects(resolveSettingsSecretProbeCredential('probe-legacy',worker),error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:'probe-legacy'}),error => error.code==='WORKLOAD_FORBIDDEN');
+  await assert.rejects(resolveSettingsSecretProbeCredential('probe-legacy',worker),error => error.code==='WORKLOAD_FORBIDDEN');
   assert.deepEqual(await effects(),deniedBefore);
   checks.push('actual command rejects forged Principal/profile/company and out-of-company published grant with zero effects; pre078 NULL job cannot claim/heartbeat/complete/credential/activate or be repaired from creator');
   const staleProbe = await enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-stale-probe'));
