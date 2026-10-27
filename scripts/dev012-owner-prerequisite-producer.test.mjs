@@ -77,7 +77,7 @@ test('release intent consumes source-bound infra reuse and rejects a tampered re
     reusedInfraReceiptRef: ref('infra-original'), reusedSourceRevision: 'f'.repeat(40),
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
-    providerJobReadback: assertInfraReuseProviderJob({ profile, existingInfra: { migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision: H40, reusedSourceRevision: 'f'.repeat(40) }, job: providerJob() }),
+    providerJobReadback: assertInfraReuseProviderJob({ profile, existingInfra: { schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision: H40, reusedSourceRevision: 'f'.repeat(40) }, job: providerJob() }),
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt: NOW,
   }
@@ -91,7 +91,7 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -102,9 +102,12 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   assert.equal(receipt.sourceRevision, sourceLock.sourceRevision)
   assert.equal(receipt.reusedSourceRevision, core.sourceRevision)
   assert.equal(receipt.receiptSha256, sha256(canonicalize(Object.fromEntries(Object.entries(receipt).filter(([key]) => key !== 'receiptSha256')))))
-  const currentReceipt = { ...original, schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', evidenceScope: 'PRODUCTION_PROVIDER_REUSE' }
+  const currentReceipt = { ...original, schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', evidenceScope: 'PRODUCTION_PROVIDER_REUSE', reusedSourceRevision: core.sourceRevision }
   currentReceipt.receiptSha256 = sha256(canonicalize(Object.fromEntries(Object.entries(currentReceipt).filter(([key]) => key !== 'receiptSha256'))))
   assert.equal(buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: currentReceipt, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }).reusedSourceRevision, core.sourceRevision)
+  const missingV2RunnerSource = { ...currentReceipt }; delete missingV2RunnerSource.reusedSourceRevision
+  missingV2RunnerSource.receiptSha256 = sha256(canonicalize(Object.fromEntries(Object.entries(missingV2RunnerSource).filter(([key]) => key !== 'receiptSha256'))))
+  assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: missingV2RunnerSource, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ digest: profile.artifact.migrationRunnerUri + '@sha256:' + 'e'.repeat(64) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'e'.repeat(40) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
@@ -124,7 +127,7 @@ test('infra reuse producer reads the live migration job before publishing provid
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -146,6 +149,22 @@ test('infra reuse producer reads the live migration job before publishing provid
   writes.length = 0
   await assert.rejects(run(providerJob({ sourceRevision: 'e'.repeat(40) })), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
   assert.equal(writes.length, 0)
+
+  const missingV2RunnerSource = { ...original, schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', evidenceScope: 'PRODUCTION_PROVIDER_REUSE' }
+  delete missingV2RunnerSource.reusedSourceRevision
+  delete missingV2RunnerSource.receiptSha256
+  missingV2RunnerSource.receiptSha256 = sha256(canonicalize(missingV2RunnerSource))
+  const unknownSchema = { ...original, schemaVersion: 'jenfu.dev012.app-infra-receipt.unknown' }
+  delete unknownSchema.receiptSha256
+  unknownSchema.receiptSha256 = sha256(canonicalize(unknownSchema))
+  for (const invalidReceipt of [missingV2RunnerSource, unknownSchema]) {
+    values.set(input.existingInfraReceiptRef.uri, invalidReceipt)
+    requests.length = 0
+    writes.length = 0
+    await assert.rejects(run(providerJob()), /INFRA_REUSE_INPUT_INVALID/u)
+    assert.equal(requests.length, 0)
+    assert.equal(writes.length, 0)
+  }
 })
 
 test('AI-PDM infra reuse checks runner executable inputs before reading or publishing provider state', async () => {
@@ -154,7 +173,7 @@ test('AI-PDM infra reuse checks runner executable inputs before reading or publi
   const foundation = { foundationManifestSha256: 'e'.repeat(64) }
   const core = {
     schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: 'project', region: 'region',
-    sourceRevision: 'f'.repeat(40), reusedSourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
@@ -163,21 +182,37 @@ test('AI-PDM infra reuse checks runner executable inputs before reading or publi
   const input = { schemaVersion: 'jenfu.dev012.app-infra-reuse-input.v1', sourceLockRef: ref('source-lock'), foundationReceiptRef: ref('foundation'), existingInfraReceiptRef: ref('original-infra') }
   const values = new Map([[input.sourceLockRef.uri, aiSourceLock], [input.foundationReceiptRef.uri, foundation], [input.existingInfraReceiptRef.uri, existingInfra]])
   let providerReads = 0
+  let providerWrites = 0
   const base = {
     stage: 'infra-reuse', releaseId: 'REL-001', input, profile: aiProfile, root: '.', observedAt: NOW,
     transport: {
       readJson: async row => ({ value: values.get(row.uri) }),
       request: async () => { providerReads++; return providerJob() },
-      putJson: async (uri, value) => ({ ref: { uri, sha256: sha256(canonicalize(value)) }, value }),
+      putJson: async (uri, value) => { providerWrites++; return { ref: { uri, sha256: sha256(canonicalize(value)) }, value } },
     },
   }
   await assert.rejects(executePrerequisiteProducer({ ...base,
     migrationRunnerCompatibilityVerifier: () => { throw Object.assign(new Error('MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED'), { code: 'MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED' }) },
   }), /MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED/u)
   assert.equal(providerReads, 0)
-  const result = await executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: () => true })
+  const result = await executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: ({ runnerSourceRevision }) => {
+    assert.equal(runnerSourceRevision, existingInfra.sourceRevision)
+    return true
+  } })
   assert.equal(result.value.providerJobReadback.sourceRevision, 'f'.repeat(40))
   assert.equal(providerReads, 1)
+  assert.equal(providerWrites, 1)
+
+  const missingV2RunnerSource = { ...existingInfra, schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', evidenceScope: 'PRODUCTION_PROVIDER_REUSE' }
+  delete missingV2RunnerSource.reusedSourceRevision
+  delete missingV2RunnerSource.receiptSha256
+  missingV2RunnerSource.receiptSha256 = sha256(canonicalize(missingV2RunnerSource))
+  values.set(input.existingInfraReceiptRef.uri, missingV2RunnerSource)
+  providerReads = 0
+  providerWrites = 0
+  await assert.rejects(executePrerequisiteProducer({ ...base, migrationRunnerCompatibilityVerifier: () => true }), /INFRA_REUSE_INPUT_INVALID/u)
+  assert.equal(providerReads, 0)
+  assert.equal(providerWrites, 0)
 })
 
 test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () => {
