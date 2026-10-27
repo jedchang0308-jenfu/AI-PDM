@@ -1,5 +1,11 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
+## 現行後續入口（2026-10-27）
+
+Windows 安裝、裝置清單／撤銷、原生解析整合及 OpenSWX 拆除統一交付 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md)。本 SPEC 保留既有 queue／derivative／source hash／quality／預覽生命週期契約供重用，不另維護一套裝置資料或產品排程；DEV-122／124 的舊下一步已由該任務承接。
+
+新架構只有 Windows 原生解析路徑；OpenSWX 不作備援或平行 reader。Document Manager 擷取已儲存預覽的能力與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer，不因 Windows 安裝而延後修正來源綁定。詳見 [ADR 修訂](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。此處更新文件不表示安裝服務或拆除已實作。
+
 Status: DEV-105 RD Implemented / Revision B QA-QC Complete / Effectiveness Reclosed / Historical QA-105 18 of 18 Retained as Baseline / Primary Backfill Human-Gated / Production Release Gated
 Date: 2026-08-31
 Owner: Dev PM

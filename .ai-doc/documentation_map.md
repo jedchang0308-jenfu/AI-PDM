@@ -1,14 +1,16 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
-## DEV-122 CURRENT：七個 issue outcome（2026-10-23）
+## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-27）
 
-現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
+現行規劃從 [DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)開始。Windows 安裝／電腦清單、單一路徑解析、原缺口驗收及 OpenSWX 拆除只在 125 維護。
 
-2026-10-27 的實作順序與責任分流見[現行交付切片](specs/DEV-122-ai-pdm-internal-function-issues.md#current-delivery-handoff-20261027)。F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
+[DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`，本機成果保留，剩餘責任具名移交；原七項整體仍未驗收。[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED`，取消 OpenSWX 修復，實體退出尚待 125。兩者關閉都不增加功能 PASS。DEV-125 為 `PLANNED / RD Contract Ready / IMPLEMENTATION_NOT_STARTED`。
 
-## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
+以下 DEV-122／124 入口保留移交前證據用途，不是平行待辦。既有 [Windows ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)與[SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)只維護原生處理邊界與可重用契約，不複製 DEV-125 裝置／安裝規格。
 
-正式 3D 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，正式 PDF 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。目前正式 source `ad74f179…` 已包含 preview lease v2 與 PDF viewer／liveness 修正，故不再把缺口描述為 source 未部署；先做 `D122-05A` 固定唯讀 asset／job／derivative／worker readback，再由 `D122-05B` 修正被證明的 runtime 或資料綁定責任。canonical GET 可能 recovery／enqueue 並寫 audit，不作診斷入口。見 [現行契約與關閉條件](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。DEV-124 仍只負責 OpenSWX worker 鏈。
+## DEV-122 D122-05 — 已移交的 A0001-M01 預覽缺口（2026-10-27）
+
+當時正式 3D 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，PDF 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`，serving source `ad74f179…` 已含 lease v2 與 PDF viewer／liveness 修正。失敗與原診斷邊界保留於 [DEV-122 證據段落](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。後續 fixed readback、Windows runtime／資料綁定修復及使用者驗收統一移交 DEV-125；有副作用的 canonical GET 仍不能當純唯讀診斷。
 
 ## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
 
@@ -18,9 +20,9 @@
 
 PR #444 exact main的正式續跑在prepare因完整owner proof遞迴進入無關OpenSWX歷史而停止；corrective以migration-only source／receipt／runner／ledger／recovery reader取代該依賴，existing worker binding只被動帶過，workerless continuation亦可成立。planner僅選documentation＋database＋release-control；fresh 17／17、214／214、27／27與DB boundary PASS。OpenSWX自身修復改由DEV-124獨立追蹤，不阻擋RD，也不被RD結果改判PASS。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-22-applied-migration-證據隔離本地-affected-slice-pass待受保護交付)。
 
-## DEV-124 — OpenSWX worker 獨立修復（ACTIVE 124-A／ENTRY READBACK FAILED／ROOT CAUSE PENDING／124-B NOT STARTED）
+## DEV-124 — 已取消修復，拆除移交 DEV-125
 
-worker descriptor、reader、profile／deadline、Secret IAM continuation、artifact reuse、Job／Scheduler、dispatch recovery及OpenSWX API／DB終態由本任務獨立驗收。[2026-10-27 01:35Z 唯讀 provider baseline](qa/DEV-124-openswx-provider-baseline-2026-10-27.json)為Job Ready、最近execution `NonZeroExitCode`、Scheduler暫停。fresh 124-A readback 已啟動 fixed read-only runner，但 run `40434430269` 以 `RD_PERMISSION_STATE_EXECUTION_FAILED` 終止；尚未判定 active DB dispatch／current consumer，故維持 `UNKNOWN`、Scheduler `PAUSED`、124-B 不開始。不得成為 RD catalog→085→grant→API→UI 的前置條件，也不得承接 SolidWorks preview 或 recognition consumer。[開發契約](specs/DEV-124-openswx-worker-independent-repair.md)／[任務](dev_task.md)。
+取消狀態與歷史失敗見[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)；active DB dispatch／consumer UNKNOWN 原樣保留。後續安全退出讀回、程式／專用資源拆除見 [DEV-125 §4](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#4-openswx-拆除契約)，不再修復／恢復 OpenSWX 或以暫停冒充拆除完成。
 
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
@@ -229,7 +231,9 @@ DEV-109 evidence correction (2026-09-01)：historical aggregate=`output/qa/dev-1
 
 | Need | Read |
 |---|---|
-| DEV-122／AI-PDM 內部自用核心能力 | [任務入口](dev_task.md#dev-122-current) → [CURRENT 契約](specs/DEV-122-ai-pdm-internal-function-issues.md) → [machine-readable acceptance](specs/DEV-122-self-use-acceptance.v1.json)。四項能力／11 個優先核心案例用於施工與選測，原始 7／29 仍是總驗收分母；R9／R10／B37 與 FAIL／UNKNOWN 保存在[歷史原文](specs/DEV-122-ai-pdm-internal-function-issues.history-through-2026-10-19.md)。supplier 維持 `DISABLED_DEFERRED / NOT_PASS`，完整原生 CAD 維持 `USER_OWNED_PENDING_NOT_PASS`，本次不恢復施工。 |
+| DEV-125／Windows 解析服務、電腦清單與 OpenSWX 拆除 | [唯一開發契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)。PLANNED／RD Contract Ready，承接舊缺口，實作與拆除尚未開始。 |
+| DEV-122／舊階段結案與成果 | [結案入口](dev_task.md#dev-122-current) → [處置與證據](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) → [機器可讀分母](specs/DEV-122-self-use-acceptance.v1.json)。CLOSED_PARTIAL_HANDOFF；本機成果保留，原七項結果未整體驗收，剩餘移交 125，供應商維持停用延期。 |
+| DEV-124／取消 OpenSWX 修復 | [取消紀錄與歷史證據](specs/DEV-124-openswx-worker-independent-repair.md)。CLOSED_CANCELLED_REPLACED；安全退出與拆除由 125 主責，不恢復舊修復計畫。 |
 | DEV-120／Platform DEV-013 P_BOTH target session expiry修正 | [任務板](dev_task.md) → [DEV-120 QC receipt](qc/qc-dev-120-dev013-target-session-expiry-2026-09-21.md)；程式 `src/lib/jenfu-sso-handoff.ts`、回歸測試 `src/lib/jenfu-sso-handoff.test.ts`。根因為callback誤把短效`handoff.expiresAt`用作target session上限；current修正固定`min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只驗callback freshness。Local=`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build PASS；Production已安全回切`employee-shijie / ai-pdm`至`legacy_authority:5`，新revision deploy／re-switch／完整L4／global logout=`NOT_RUN`。 |
 | DEV-119／DEV-013 `013-S4-L3-AIPDM-ENV` shared-staging owner release | [任務板](dev_task.md) → [DEV-013 AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)；[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)；profile `config/release/dev013-ai-pdm-managed-staging.json`；owner-native adapter／CLI／focused tests `scripts/lib/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.test.mjs`；app-owned Infra A `infra/google-cloud/dev-013-l3-ai-pdm`。Status=`READY_FOR_NONPROD_APPLY`；manifest=`jenfu.dev013.l3-managed-staging.v2`／SHA `eefcfbd8…`，target固定`jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`。Infra A只建立repository／evidence bucket／exact IAM並有8-address exact-after plan gate；existing service不納Terraform。Fresh owner-native read-only plan先把現有`latest=100%`固定至ready revision並啟用deletion protection，update mask只可為`traffic`或`traffic,deletionProtection`，template／labels／siblings=0；hard join完成後才可進入Secret numeric-pinning candidate與traffic-only activation並產生bootstrap receipt v2。final owner receipt v2另要求source／digest／etag／SA uniqueId／origin／callback／三組numeric refs／mode=on／100% traffic與rollback-floor exact join。所有雲端mutation／DB migration／L3 browser=`NOT_RUN`。 |
 | DEV-118 平台登入入口與 Google／工號契約 | [任務板](dev_task.md) → [PDM SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)；[118-A QC](qc/qc-dev-118-local-implementation-2026-09-17.md)；[118-B 交接審查與歷史](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)；[Production L4 checkpoint](qc/qc-dev-118-production-l4-2026-09-22.md)；[DEV-014 Production runbook](../../Jenfu-Platform/ai-doc/runbooks/DEV-014-production-protected-release.md)。118-C current owner run `35669545522`已把main `6e21bb4c2f39d4b4777320d202a2037bde609b00`發布至`ai-pdm-prod-f5ee2af2d7ec`並承接100% traffic。`PDM-W-G`、`PDM-W-E`、global invalidation及target-only local logout continuity具current evidence；完成仍以production canonical LOGIN六案與PDM C01／C02四格為準。 |

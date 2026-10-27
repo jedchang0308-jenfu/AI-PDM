@@ -1,5 +1,15 @@
 # ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows Worker Derivative Boundary
 
+## 2026-10-27 決策修訂：Windows 單一路徑與 OpenSWX 退役
+
+使用者確認以可安裝的 Windows 解析服務及電腦清單管理原生 CAD 處理，拒絕 OpenSWX／Document Manager 長期雙軌。[DEV-125](../specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) 是唯一後續開發入口；DEV-122 以部分成果移交結案，DEV-124 取消修復。
+
+沿用雲端 auth／queue／source-hash 與 Windows native execution 邊界，重用現有 Document Manager reader／preview／broker。多台電腦屬同一 Windows 解析產品，各自可撤銷、原子領取工作；不新增第二套佇列或 parser provider 選擇器。新入口、裝置清單及 OpenSWX 完整拆除的唯一產品契約在 DEV-125，這裡只記架構取捨。
+
+Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 的可執行入口、日常發布依賴與專用部署資源必須退役；保留不可變歷史收據與已套用 migration 不代表保留第二套系統。拆除尚未執行，不能以本 ADR 宣告完成。
+
+下列狀態及原生能力證據保留原時點；後續工作歸屬以本修訂與 DEV-125 為準。
+
 Status: Accepted / DEV-056 Phase 1E local implementation verified / Production Release Gated
 Date: 2026-08-19
 Owner: Dev PM
