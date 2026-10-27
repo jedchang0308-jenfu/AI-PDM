@@ -2,9 +2,11 @@
 
 現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
 
+2026-10-27 收斂結果：D122-01～04、D122-06 已有本機結果，並不等於正式驗收；D122-05 仍是目前需完成的使用者可見缺口；D122-07 維持 `DISABLED_DEFERRED`。實作順序與責任分流見[現行交付切片](specs/DEV-122-ai-pdm-internal-function-issues.md#current-delivery-handoff-20261027)。
+
 ## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
 
-正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，確認 F-01B 仍缺正式 server／兩個 worker v2 process rollout 與 runtime 驗收；2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。PDF 完整 viewer 已由 PR #278 合併、PR #486 修正 liveness 並通過 required CI，因此本案列為正式 file metadata／來源分類／current binding／derivative 或 serving-source 適用性待讀回，不重開 viewer 架構。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
+正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，確認 F-01B 正式 rollout／runtime 狀態仍待讀回且驗收未完成；2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。PDF 完整 viewer 已由 PR #278 合併、PR #486 修正 liveness 並通過 required CI，因此本案列為正式 file metadata／來源分類／current binding／derivative 或 serving-source 適用性待讀回，不重開 viewer 架構。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
 
 本次只更新文件，沒有修改產品、worker、schema／migration、IAM／Secret、正式資料或服務；不得將這個 SolidWorks preview gap 轉列只負責 OpenSWX 鏈的 DEV-124。D122-05／`drawing_preview` 正式驗收為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
 
@@ -36,9 +38,9 @@ PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通�
 
 實際 planner=`AFFECTED_SLICES(documentation, database, release-control)`；worker／app／authorization／preview／recognition／infrastructure／abort／lint／isolated build均未選。fresh planner 17／17、release-core 214／214、database 27／27與 `DEV010_DB_RULESET_V1` PASS；evidence SHA `c89e25edcd3d8534eceabc3f91e5f786591981b086a850d524df22c3672ddb37`。本地唯讀 production-shaped C95 replay亦以 ledger35／terminal `ai-pdm-085` PASS，且 OpenSWX 讀取數為0。正式重試、candidate／activate及專用測試 RD actor UI／API 正負驗收須待 protected PR／required CI 後執行；DEV-122原7 issues／29 groups維持`NOT_ACCEPTED`。
 
-## DEV-124 — OpenSWX worker 獨立修復（DEFERRED／NOT_STARTED／不阻擋 RD）
+## DEV-124 — OpenSWX worker 獨立修復（ACTIVE 124-A／ENTRY READBACK PENDING／124-B NOT STARTED）
 
-責任只涵蓋 worker descriptor、historical/current reader、profile／deadline、Secret IAM continuation、artifact reuse與worker recovery。它使用 planner 的 `worker` slice及自身 producer／provider evidence驗收；不得重新成為 catalog→migration085→grant→API→UI 的前置條件。RD切片只保留既有runtime binding，不聲稱worker功能通過；開始DEV-124前另核對當時實際worker需求與正式狀態，避免重播已無用途的歷史相容鏈。
+責任只涵蓋 worker descriptor、historical/current reader、profile／deadline、Secret IAM continuation、artifact reuse、Cloud Run Job／Scheduler、dispatch recovery 與 OpenSWX `claim → heartbeat → complete`。2026-10-27 01:35Z 的[唯讀 provider baseline](qa/DEV-124-openswx-provider-baseline-2026-10-27.json)為 Job Ready 但最近 execution `NonZeroExitCode`，Scheduler `PAUSED`；這不是 SolidWorks preview 或 recognition consumer。現在可直接執行的是 124-A readback／triage；124-B 程式修復只有在 active DB dispatch／current consumer 證明 `NEED_EXISTS` 後開始，無 active row／consumer 時維持暫緩，不重播歷史相容鏈。完整責任、實作順序、驗證與 stop conditions 見[DEV-124 開發契約](specs/DEV-124-openswx-worker-independent-repair.md)。它使用 planner 的 `worker` slice及自身 producer／provider evidence驗收；不得重新成為 catalog→migration085→grant→API→UI 的前置條件，也不得用歷史成功 execution 或 app Ready 冒稱完成。
 
 ## DEV-121#rd-capabilities — 2026-10-22 RD readback relevance 與關卡解耦（本地驗證中，正式服務未變更）
 
