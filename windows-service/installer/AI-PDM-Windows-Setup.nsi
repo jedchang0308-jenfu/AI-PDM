@@ -118,6 +118,7 @@ SectionEnd
 
 Section "Uninstall"
   SetShellVarContext all
+  SetRegView 64
   IfFileExists "$INSTDIR\AipdmWindowsParsing.exe" 0 +3
     nsExec::ExecToLog '"$INSTDIR\AipdmWindowsParsing.exe" stop --no-elevate'
     nsExec::ExecToLog '"$INSTDIR\AipdmWindowsParsing.exe" uninstall --no-elevate'
