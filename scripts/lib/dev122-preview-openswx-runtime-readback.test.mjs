@@ -28,7 +28,7 @@ import { crc32cBase64 } from './dev012-production-migration-runner.mjs'
 const sourceRevision = 'a'.repeat(40)
 const runner = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'b'.repeat(64)}`
 const built = buildRuntimeStateOperation({ operationId: 'DEV122-RUNTIME-READBACK', sourceRevision, migrationRunnerDigest: runner })
-const operationRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/source/preview-openswx-runtime-readback/state.json', sha256: built.sha256, generation: '17' }
+const operationRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-preview-runtime-readback/state.json', sha256: built.sha256, generation: '17' }
 const databaseOutputRef = `gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/DEV122-PREVIEW-OPENSWX-RUNTIME/${built.sha256}/database.json`
 const finalOutputRef = `gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/DEV122-PREVIEW-OPENSWX-RUNTIME/${built.sha256}/state.json`
 
