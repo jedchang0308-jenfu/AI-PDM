@@ -426,30 +426,43 @@ async function readProgramOnlyAbort({ profile, transport, baselineIntentRef, int
   }
   const preExecution = terminalFacts.databaseDisposition === 'NOT_APPLIED' && terminalFacts.currentDatabaseReadPerformed === false
   if (!preExecution && (terminalFacts.databaseDisposition !== PROGRAM_ONLY_DISPOSITION || terminalFacts.currentDatabaseReadPerformed !== true)) fail()
-  const [prepare, migration, deployment, rollback, candidate, entry] = await Promise.all([
-    read(paths.prepare), preExecution ? optionalOrdinaryStage(read, paths.migrate) : read(paths.migrate), read(paths.deployment), read(paths.rollback),
+  const [prepare, migration, migrationAdmission, deployment, rollback, candidate, entry] = await Promise.all([
+    read(paths.prepare), preExecution ? optionalOrdinaryStage(read, paths.migrate) : read(paths.migrate),
+    optionalOrdinaryStage(read, paths.migrationAdmission), read(paths.deployment), read(paths.rollback),
     optionalOrdinaryStage(read, paths.candidate), optionalOrdinaryStage(read, paths.entrypoint),
   ])
   const prepareFacts = seal(prepare, 'prepare'), rollbackFacts = seal(rollback, 'rollback')
+  const migrationAdmissionFacts = migrationAdmission ? seal(migrationAdmission, 'migrate') : null
   const candidateFacts = candidate ? seal(candidate, 'candidate') : null
   if ((preExecution && prepareFacts.preActivationAbortBasis) || prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
     || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED' || rollbackFacts.databaseDisposition !== (preExecution ? 'NOT_APPLIED' : PROGRAM_ONLY_DISPOSITION)
     || rollbackFacts.currentDatabaseReadPerformed !== !preExecution || rollbackFacts.previousRevision !== intent.previousRevision
     || (!preExecution && (!same(terminalFacts.migrationEvidenceRef, migration.ref) || !same(rollbackFacts.migrationEvidenceRef, migration.ref)))
-    || !same(terminal.value.previousReceiptRef, rollback.ref) || !same(rollback.value.previousReceiptRef, preExecution ? null : entry?.ref ?? candidate?.ref ?? migration.ref)
+    || (!preExecution && migrationAdmission && (!same(terminalFacts.migrationAdmissionRef, migrationAdmission.ref)
+      || !same(rollbackFacts.migrationAdmissionRef, migrationAdmission.ref)))
+    || (!preExecution && !migrationAdmission && (Object.hasOwn(terminalFacts, 'migrationAdmissionRef') || Object.hasOwn(rollbackFacts, 'migrationAdmissionRef')))
+    || !same(terminal.value.previousReceiptRef, rollback.ref)
+    || !same(rollback.value.previousReceiptRef, preExecution ? null : entry?.ref ?? candidate?.ref ?? migrationAdmission?.ref ?? migration.ref)
     || !same(rollbackFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])
     || !same(terminalFacts.entrypointRecovery, rollbackFacts.entrypointRecovery)) fail()
   const prerequisiteRefs = Object.fromEntries(Object.entries({ sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }).map(([name, key]) => [name, intent[key]]))
   if (!same(prepareFacts.prerequisiteRefs, prerequisiteRefs)) fail()
   if (preExecution) {
-    if (migration || candidate || entry || Object.hasOwn(terminalFacts, 'migrationEvidenceRef') || Object.hasOwn(rollbackFacts, 'migrationEvidenceRef')
+    if (migration || migrationAdmission || candidate || entry || Object.hasOwn(terminalFacts, 'migrationEvidenceRef') || Object.hasOwn(rollbackFacts, 'migrationEvidenceRef')
+      || Object.hasOwn(terminalFacts, 'migrationAdmissionRef') || Object.hasOwn(rollbackFacts, 'migrationAdmissionRef')
       || !same(rollbackFacts.entrypointRecovery, { result: 'NOT_REQUIRED', changed: false })) fail()
     await assertAbsentStages(read, paths, ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize'])
     const nativeUri = programOnlyNativeUri(paths.migrate)
     for (const uri of [nativeUri, migrationSubmissionIntentUri(profile, nativeUri), nativeUri.replace(/\.json$/u, '-execution-readback.json'), nativeUri.replace(/\.json$/u, '-job-readback.json')]) await assertMissing(read, uri)
   }
+  if (migrationAdmission && (!same(migrationAdmission.value.previousReceiptRef, deployment.ref)
+    || migrationAdmissionFacts.disposition !== PROGRAM_ONLY_DISPOSITION
+    || migrationAdmissionFacts.sourceRevision !== intent.sourceRevision
+    || migrationAdmissionFacts.manifestSha256 !== intent.migrationManifestSha256
+    || !same(migrationAdmissionFacts.migrationReceiptRef, migration.ref))) fail()
   if (candidate) {
-    if (!same(candidate.value.previousReceiptRef, migration.ref) || !same(candidateFacts.migrationReceiptRef, migration.ref)
+    if (!migrationAdmission || !same(candidate.value.previousReceiptRef, migrationAdmission.ref)
+      || !same(candidateFacts.migrationAdmissionRef, migrationAdmission.ref) || !same(candidateFacts.migrationReceiptRef, migration.ref)
       || !same(candidateFacts.deploymentCapsuleRef, deployment.ref) || candidateFacts.previousRevision !== intent.previousRevision
       || !traffic(candidateFacts.beforeTraffic, intent.previousRevision) || candidateFacts.artifactDigest !== deployment.value.artifactDigest) fail()
   }
@@ -473,7 +486,9 @@ async function readProgramOnlyAbort({ profile, transport, baselineIntentRef, int
   const run = await readHistoricalOwnerRun(profile, transport, { ownerRunRef: control.ownerRunRef }, intent)
   const window = preExecution ? await readProgramOnlyReleaseWindow({ transport, profile, deployment: deployment.value, deadlineAt: intent.deadlineAt, intent }) : closedOwnerWindow(run)
   let previous = window.start
-  const stageRefs = { prepare: prepare.ref, ...(migration ? { migration: migration.ref } : {}), deployment: deployment.ref, rollback: rollback.ref, terminal: terminal.ref }
+  const stageRefs = { prepare: prepare.ref, ...(migration ? { migration: migration.ref } : {}),
+    ...(migrationAdmission ? { migrationAdmission: migrationAdmission.ref } : {}), deployment: deployment.ref,
+    rollback: rollback.ref, terminal: terminal.ref }
   if (candidate) stageRefs.candidate = candidate.ref
   if (entry) stageRefs.entrypoint = entry.ref
   for (const row of [prepare, ...(candidate ? [candidate] : []), ...(entry ? [entry] : [])]) {
@@ -880,10 +895,12 @@ async function optionalOrdinaryStage(read, uri) {
 // The same immutable ordinary stages are checked for the current abort and
 // the one allowed historical ordinary predecessor. Control is never an input.
 async function readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, paths, terminal, read }) {
-  const [prepare, migration, candidate, deployment, entry, rollback] = await Promise.all([
-    read(paths.prepare), read(paths.migrate), read(paths.candidate), read(paths.deployment), read(paths.entrypoint), read(paths.rollback),
+  const [prepare, migration, migrationAdmission, candidate, deployment, entry, rollback] = await Promise.all([
+    read(paths.prepare), read(paths.migrate), read(paths.migrationAdmission), read(paths.candidate),
+    read(paths.deployment), read(paths.entrypoint), read(paths.rollback),
   ])
   const prepareFacts = sealOrdinaryStage(prepare, 'prepare', intent, profile)
+  const migrationAdmissionFacts = sealOrdinaryStage(migrationAdmission, 'migrate', intent, profile)
   const candidateFacts = sealOrdinaryStage(candidate, 'candidate', intent, profile)
   const entryFacts = sealOrdinaryStage(entry, 'entrypoint', intent, profile)
   const rollbackFacts = sealOrdinaryStage(rollback, 'rollback', intent, profile)
@@ -898,7 +915,14 @@ async function readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, p
     sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
   if (prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
     || !same(prepareFacts.prerequisiteRefs, Object.fromEntries(Object.entries(refNames).map(([name, field]) => [name, intent[field]])))
-    || !same(candidate.value.previousReceiptRef, migration.ref) || !same(candidateFacts.migrationReceiptRef, migration.ref)
+    || !same(migrationAdmission.value.previousReceiptRef, deployment.ref)
+    || migrationAdmissionFacts.disposition !== databaseDisposition
+    || migrationAdmissionFacts.manifestSha256 !== intent.migrationManifestSha256
+    || migrationAdmissionFacts.sourceRevision !== intent.sourceRevision
+    || !same(migrationAdmissionFacts.migrationReceiptRef, migration.ref)
+    || !same(candidate.value.previousReceiptRef, migrationAdmission.ref)
+    || !same(candidateFacts.migrationAdmissionRef, migrationAdmission.ref)
+    || !same(candidateFacts.migrationReceiptRef, migration.ref)
     || !same(candidateFacts.deploymentCapsuleRef, deployment.ref) || candidateFacts.previousRevision !== intent.previousRevision
     || !traffic(candidateFacts.beforeTraffic, intent.previousRevision)
     || !same(deployment.value.releaseIntentRef, baselineIntentRef) || deployment.value.releaseIntentSha256 !== baselineIntentRef.sha256
@@ -911,6 +935,10 @@ async function readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, p
     || !same(rollback.value.previousReceiptRef, entry.ref) || !same(terminal.value.previousReceiptRef, rollback.ref)
     || terminalFacts.previousRevision !== intent.previousRevision || rollbackFacts.previousRevision !== intent.previousRevision
     || terminalFacts.databaseDisposition !== databaseDisposition || rollbackFacts.databaseDisposition !== databaseDisposition
+    || !same(terminalFacts.migrationAdmissionRef, migrationAdmission.ref)
+    || !same(rollbackFacts.migrationAdmissionRef, migrationAdmission.ref)
+    || !same(terminalFacts.migrationEvidenceRef, migration.ref)
+    || !same(rollbackFacts.migrationEvidenceRef, migration.ref)
     || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
     || !same(terminalFacts.entrypointRecovery, rollbackFacts.entrypointRecovery)
     || !['BASELINE_ALREADY_ACTIVE', 'BASELINE_RESTORED'].includes(rollbackFacts.entrypointRecovery?.result)
@@ -942,7 +970,8 @@ async function readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, p
       || facts.candidateRevision !== candidateFacts.candidateRevision || facts.artifactDigest !== candidateFacts.artifactDigest) fail()
     optionalRefs.decision = decision.ref
   }
-  return { prepare, migration, candidate, deployment, entry, rollback, terminal, prepareFacts, candidateFacts,
+  return { prepare, migration, migrationAdmission, candidate, deployment, entry, rollback, terminal,
+    prepareFacts, migrationAdmissionFacts, candidateFacts,
     terminalFacts, repair, databaseDisposition, fingerprint, verify, decision, optionalRefs }
 }
 function assertOrdinaryOwnerWindow(evidence, run) {

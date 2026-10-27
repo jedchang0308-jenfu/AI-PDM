@@ -758,7 +758,9 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
       if (terminal.value.facts?.result !== 'RELEASED' || terminal.value.facts.databaseDisposition !== migrationMode
         || terminal.value.facts.remainingHumanAction !== 0 || Date.parse(terminal.value.observedAt) > Date.parse(intent.deadlineAt)) fail('TERMINAL_INVALID')
       if (migrationMode === 'HISTORICAL_EVIDENCE_REUSED') sameProof(terminal.value.facts.migrationEvidenceRef, migrate.ref)
-      chain = await readReleasedStageChain({ owner: 'ai-pdm', config: OWNERS['ai-pdm'], revision: sourceRevision, releaseId: intent.releaseId, root, terminal, prepare, migrate, token, fetchImpl })
+      chain = await readReleasedStageChain({ owner: 'ai-pdm', config: OWNERS['ai-pdm'], revision: sourceRevision,
+        releaseId: intent.releaseId, root, terminal, prepare, migrate, migrationAdmission: admission,
+        migrationManifestSha256: intent.migrationManifestSha256, token, fetchImpl })
     }
   } else if (refs.terminal !== null) fail('OWNER_RELEASE_REF_SET_INVALID')
   const times = [prepare.value.observedAt, chain.build.value.observedAt,
@@ -1045,7 +1047,7 @@ async function readBuildEvidence({ owner, config, revision, releaseId, root,
 }
 
 async function readReleasedStageChain({ owner, config, revision, releaseId, root,
-  terminal, prepare, migrate, token, fetchImpl }) {
+  terminal, prepare, migrate, migrationAdmission = null, migrationManifestSha256 = null, token, fetchImpl }) {
   const stages = {}
   let successor = terminal
   const artifactDigest = terminal.value.facts.artifactDigest
@@ -1072,13 +1074,23 @@ async function readReleasedStageChain({ owner, config, revision, releaseId, root
     successor = current
   }
   const candidate = stages.candidate
-  if (canonicalize(candidate.value.previousReceiptRef) !==
-      canonicalize(migrate.ref) ||
-      canonicalize(candidate.value.facts.migrationReceiptRef) !==
-      canonicalize(migrate.ref)) fail('STAGE_CHAIN_INVALID')
   const deploymentRef = assertRef(candidate.value.facts.deploymentCapsuleRef,
     config.bucket, `${root}/deployment-capsule.json`)
   const deployment = await readRef(deploymentRef, config.bucket, token, fetchImpl)
+  if (owner === 'ai-pdm') {
+    const admission = migrationAdmission ?? await readFixedJson(`${root}/migration-admission.json`, config.bucket, token, fetchImpl)
+    assertStage(admission.value, owner, revision, releaseId, 'migrate')
+    if (canonicalize(candidate.value.previousReceiptRef) !== canonicalize(admission.ref)
+      || canonicalize(candidate.value.facts.migrationAdmissionRef) !== canonicalize(admission.ref)
+      || canonicalize(candidate.value.facts.migrationReceiptRef) !== canonicalize(migrate.ref)
+      || canonicalize(admission.value.previousReceiptRef) !== canonicalize(deployment.ref)
+      || canonicalize(admission.value.facts?.migrationReceiptRef) !== canonicalize(migrate.ref)
+      || admission.value.facts?.disposition !== terminal.value.facts.databaseDisposition
+      || admission.value.facts?.sourceRevision !== revision
+      || admission.value.facts?.manifestSha256 !== migrationManifestSha256) fail('STAGE_CHAIN_INVALID')
+    stages.migrationAdmission = admission
+  } else if (canonicalize(candidate.value.previousReceiptRef) !== canonicalize(migrate.ref)
+    || canonicalize(candidate.value.facts.migrationReceiptRef) !== canonicalize(migrate.ref)) fail('STAGE_CHAIN_INVALID')
   return { ...stages, ...await readBuildEvidence({ owner, config, revision,
     releaseId, root, prepare, deployment, artifactDigest, token, fetchImpl }) }
 }
@@ -1126,7 +1138,7 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     }
     releaseChain = await readReleasedStageChain({ owner, config,
       revision: sourceRevision, releaseId, root, terminal, prepare, migrate,
-      token, fetchImpl })
+      migrationManifestSha256: sourceLock.value.migrationManifestSha256, token, fetchImpl })
     buildEvidence = releaseChain
   } else {
     // A build-only or migration-only observation is not a released application. It
