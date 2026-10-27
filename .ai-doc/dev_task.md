@@ -5,20 +5,20 @@
 | 任務 | 處置 | 後續責任 |
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
-| DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED` | 取消修復及恢復排程；原 UNKNOWN 保留。退出盤點與實際拆除統一交 125，未宣稱已移除。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-C_RELEASE_CONTINUATION_CORRECTIVE_LOCAL_PASS / PROVIDER_RETIREMENT_PENDING` | PR #498～#508 已合併裝置管理、單一路徑 Windows worker、OpenSWX active source 退役、fixed readback、migration-admission 續接、bounded provider cleanup及歷史 OpenSWX evidence 封閉驗證／正規化。R4 在 activation 前安全回滾；本分支只補齊其歷史 predecessor 的 exact smoke 與 provider 404 續接，已完成唯讀正式 refs 驗證及本機回歸，待 PR／required CI 後建立 fresh capsule。正式實機、A0001 預覽與 provider 資源退出仍待完成。 |
+| DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_PENDING` | PR #498～#526 已完成裝置管理、單一路徑 Windows worker、正式發布、OpenSWX DB 排空、provider／active source 退役及退役 executor 移除。V125-10／11 已有 exact receipt／provider readback／source 證據；尚待 Windows 11 x64 實機、三格式 Document Manager、正式裝置註冊／撤權、A0001 3D／PDF 與管理員辨識驗收。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496～#508 已完成架構、125-A／B source、OpenSWX active dependency 退役、fixed readback、文件同步、migration-admission 續接、bounded provider cleanup及歷史 evidence 封閉驗證／正規化；main 為 `66f645153…`，最新 main CI run `40471058686` 通過。正式 owner R4 run `40462943166` 在 verify 因 Platform session 失敗而於 activation 前安全回滾；credential 已恢復，舊 capsule 不重用。後續唯讀診斷已確認 R4 continuation 可安全解析 released DEV-122 applied-continuation predecessor：只驗封存 OpenSWX ref/runtime/RD smoke，不執行或傳播 retired worker，optional receipt 只將精確 provider 404 視為不存在。focused 回歸、相關 owner aggregate 145／145 與正式 R4 refs read-only continuation PASS；本 corrective 尚待 PR／required CI，完成後才建立 fresh exact-main capsule並走完整 release。這不代表使用者畫面已可預覽，也不代表 OpenSWX 雲端資源已刪除：Windows 實機三格式、A0001 3D／PDF、管理員辨識、正式 SSO／裝置及 provider Job／Scheduler／execution／IAM／Secret 退出仍需各自實證。fixed readback 不取代完整 provider inventory。OrgMaster 無相容程式修改範圍。
+DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496～#509 已完成架構、Windows 單路徑 source、fixed readback 與發布續接；正式 owner run `40473862392` 以 exact source `606c5aff0af85c88749f571018a5204417d521b8` 完成全流程並切換 `ai-pdm-prod-f48bd0c43f8c` 承接 100% traffic。R14 cleanup 已將 2 筆 OpenSWX active row 轉為終態且 remaining=0；R15 fixed readback 證明 pending／active=0、dispatch disabled，並精確找到 A0001 兩個 current binding 均 `MISSING`。PR #525／#526 已完成 OpenSWX 專用 provider 資源及 active source／executor 退出；現行 main `3720c7cea8f294f086e34a175fdf911283971007`，main CI run `40505306777` 兩項 required checks 均 `SUCCESS`。OpenSWX 退役不再是缺口；仍待 Windows 11 x64 實機三格式、正式 SSO／裝置註冊／撤權、A0001 3D／PDF 與管理員辨識驗收。歷史 receipts／release-compatibility readers 與 shared prebuild controls 保留，不是 active OpenSWX 路徑。OrgMaster 無相容程式修改範圍。
 
-以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #499 已完成 active OpenSWX 程式／發布依賴退役；PR #500 的 fixed readback 尚待含該 source 的正式 runner rollout。上述發布 attempt 只走既有 owner workflow並安全回滾，本次文件更新沒有刪除雲端服務、擴張 IAM、修改 Secret 或寫入正式業務資料。
+以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #500 fixed readback 已於 run `40498277520` 完成 R15；PR #525／#526 其後完成 provider／active source 退出，不需要再次擴張 IAM、重建 OpenSWX 或重放已刪 executor。
 
 ## DEV-122 D122-05 — 移交前 A0001-M01 正式預覽缺口（2026-10-27）
 
-正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。provider readback 已確認目前正式 revision／image 對應 source `ad74f179…`，且該 source 已包含 lease v2 與 PDF viewer／render liveness 修正，所以本案不是「DEV-122 source 尚未部署」。canonical GET 可能 recovery／enqueue 並寫 access audit，不可當唯讀 triage；`D122-05A` fixed readback source 已由 PR #500 合併，但尚未隨 exact main 發布至正式 migration-runner，也尚未執行 fresh immutable operation。完成 readback 後才由 DEV-125 修正被證明的 metadata／binding／derivative／worker runtime 責任。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
+移交時正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。R15 fixed readback 現已完成：兩檔 current binding 均 `MISSING`，asset／preview job／derivative 數量皆 0，兩個歷史 worker heartbeat 缺少或不新鮮。這是有效根因讀回，不是預覽 PASS；DEV-125 下一個實作／驗收點是建立正式 current asset binding，再以 Windows Document Manager 實機產生 current-hash 結果並在 mounted UI 讀回。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
 
-本輪新增的 fixed readback 只修改診斷與發布接線，沒有修改產品、worker、schema／migration、IAM／Secret、正式資料或服務；不得將這個 SolidWorks preview gap 轉回已取消的 DEV-124。D122-05／`drawing_preview` 正式驗收為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
+R15 是唯讀 DB 診斷加 immutable evidence side effects，沒有修改 preview 業務資料；後續 OpenSWX cleanup 只在 exact owner 契約下轉終態 2 筆已退役工作。不得將 SolidWorks preview gap 轉回已取消且已完成安全退出的 DEV-124。D122-05／`drawing_preview` 正式驗收仍為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
 
 ## DEV-122 — 辨識 worker Production dispatch（修正／受保護交付中）
 
@@ -50,7 +50,7 @@ PR #444 合併的 exact main `a563bd1b93be132227da2b884dd6e6ad5a673a1b` 已通�
 
 ## DEV-124 — 已取消修復，拆除移交 DEV-125
 
-狀態 `CLOSED_CANCELLED_REPLACED`；[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)保留 124-A readback 失敗及 active row UNKNOWN，不能當成 no work。2026-10-27 的 Job Ready／execution 失敗／Scheduler PAUSED 是歷史 provider baseline，不代表已拆除。後續只由 [DEV-125 §7](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#openswx-retirement)做安全退出盤點與移除，不恢復 124-B 修復或 124-C 排程驗收。
+狀態 `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125`；[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)保留 124-A readback 失敗及當時 active row UNKNOWN，不把後續退役完成改寫為功能 PASS。[DEV-125 §7](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#openswx-retirement)已完成 exact DB cleanup／readback、Job／Scheduler／service accounts／token／roles 移除及 active source 退出；不恢復 124-B 修復或 124-C 排程驗收。
 
 ## DEV-121#rd-capabilities — 2026-10-22 RD readback relevance 與關卡解耦（本地驗證中，正式服務未變更）
 
