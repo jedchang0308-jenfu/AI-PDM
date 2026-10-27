@@ -6,6 +6,10 @@
 
 F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
 
+## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
+
+正式 3D 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，仍屬 F-01B server／兩個 preview worker v2 process rollout 與 runtime 驗收；正式 PDF 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`，在 PR #278／#486 已交付 viewer 的前提下，需讀回 file metadata／來源分類／current binding／derivative 與 serving source，不能改寫為 viewer 未開發。見 [現行契約與關閉條件](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。本輪文件更新不修改產品或正式狀態；DEV-124 仍只負責 OpenSWX worker 鏈。
+
 ## DEV-122 Part 附件正常入口 — 2026-10-23 邊界同步
 
 正常料號附件頁及 collection POST、item DELETE（soft delete）、item restore POST 的現行精確邊界見 [SPEC matrix](specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md#phase-1-route--api-boundary-matrix)、[ADR amendment](decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md)、[QA amendment](qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md#dev-122-part-附件正常入口2026-10-23) 及 [DEV-122 當前契約](specs/DEV-122-ai-pdm-internal-function-issues.md#part-附件正常入口2026-10-23修正待正式驗收)。較舊 no-file／numbering-only 敘述對這些精確入口已被取代；其餘 default-deny、owner 授權及受保護發布保留。PR #455 修正已合併，正式部署及正常附件操作驗收仍須取得各自證據；本入口不宣告整體 7／29 PASS。
