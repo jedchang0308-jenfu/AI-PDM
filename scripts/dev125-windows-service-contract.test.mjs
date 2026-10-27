@@ -83,6 +83,10 @@ test("DEV-125B exposes only the installed Windows service and retires legacy wor
     "scripts/run-solidworks-document-manager-preview-worker.mjs",
     "scripts/run-windows-shell-preview-worker.mjs",
     "scripts/start-drawing-recognition-worker.ps1",
+    "scripts/dev122-preview-openswx-runtime-readback.mjs",
+    "scripts/lib/dev122-preview-openswx-runtime-readback.mjs",
+    "scripts/dev125-openswx-retirement-cleanup.mjs",
+    "scripts/lib/dev125-openswx-retirement-cleanup.mjs",
     "src/lib/openswx-metadata.ts"
   ]) assert.equal(fs.existsSync(path.join(root, retiredPath)), false, retiredPath);
   assert.match(localLauncher, /DEV-125 Windows service is installed and managed separately/u);
