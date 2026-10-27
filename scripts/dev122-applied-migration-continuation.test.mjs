@@ -4,10 +4,11 @@ import test from 'node:test'
 
 import { assertAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeBinding, assertHistoricalAppliedContinuationRuntimeConfig, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, assertForwardMigrationAssociation, forwardAppliedMigrationProofRefs } from './lib/dev122-applied-migration-continuation.mjs'
 import { assertNoForwardMigrationSubmission, readAppliedMigrationContinuationHistory } from './lib/dev012-owner-stage-executor.mjs'
+import { assertReleasedAnchorSmoke, isHistoricalReleasedEvidence } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
-import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
+import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode, isMissingGcsObject } from './lib/dev121-owner-release-proof.mjs'
 import { buildRdLedgerProbeBundles, buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProfileSha256, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 
 const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -82,6 +83,43 @@ test('historical runtime validation removes only the retired extension before cu
   assert.equal(normalized.profile.environment.requiredSecretNames.includes('PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
   assert.equal(normalized.runtime.serviceTemplateSha256, sha256(canonicalize(normalized.runtime.template)))
   assert.equal(Object.hasOwn(runtime, 'openswxWorker'), true)
+})
+
+test('historical continuation recognizes only the provider 404 shape as an absent optional receipt', () => {
+  assert.equal(isMissingGcsObject(Object.assign(new Error('MIGRATION_GCS_METADATA_FAILED:404'), { code: 'MIGRATION_GCS_METADATA_FAILED' })), true)
+  assert.equal(isMissingGcsObject(Object.assign(new Error('MIGRATION_GCS_METADATA_FAILED:403'), { code: 'MIGRATION_GCS_METADATA_FAILED' })), false)
+  assert.equal(isMissingGcsObject(Object.assign(new Error('404'), { code: 'MIGRATION_GCS_MEDIA_FAILED' })), false)
+})
+
+test('released historical evidence includes exact applied-continuation joins but not a later forward receipt', () => {
+  const prior = ref(`gs://${bucket}/receipts/releases/DEV122-PRIOR/migrate.json`)
+  const later = ref(`gs://${bucket}/receipts/releases/DEV125-LATER/migrate.json`)
+  const intent = { appliedMigrationContinuation: { migrateRef: prior } }
+  assert.equal(isHistoricalReleasedEvidence(intent, { ref: prior, value: { schemaVersion: 'jenfu.dev012.migration-receipt.v1' } }), true)
+  assert.equal(isHistoricalReleasedEvidence(intent, { ref: later, value: { schemaVersion: 'jenfu.dev012.migration-receipt.v1' } }), false)
+  assert.equal(isHistoricalReleasedEvidence({ ...intent, forwardAppliedMigrationContinuation: {} }, { ref: later, value: { schemaVersion: 'jenfu.dev012.stage-receipt.v1' } }), true)
+  assert.equal(isHistoricalReleasedEvidence({}, { ref: later, value: { schemaVersion: 'aipdm.paused-app-repair-migration-association.v1' } }), true)
+})
+
+test('released applied continuation keeps its sealed two-probe RD smoke contract', () => {
+  const artifactDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:${'d'.repeat(64)}`
+  const intent = { previousRevision: 'ai-pdm-prod-123456789abc', appliedMigrationContinuation: { migrateRef: ref(`gs://${bucket}/receipts/releases/DEV122-PRIOR/migrate.json`) } }
+  const smoke = {
+    origin: 'https://candidate.example.test', observedAt: '2026-10-20T00:00:00.000Z', status: 'PASS',
+    observations: [
+      { id: 'rd-candidate-ready', status: 200, revision: null, artifactDigest: null },
+      { id: 'rd-permission-unauthenticated-denied', status: 401, revision: null, artifactDigest: null },
+    ],
+  }
+  const row = { value: { facts: { artifactDigest, candidateRevision: intent.previousRevision,
+    tagUri: smoke.origin, providerTagUri: 'https://provider-candidate.example.test', smoke } } }
+  assert.equal(assertReleasedAnchorSmoke({ row, isCandidate: true, profile, intent, expectedRevision: intent.previousRevision, artifactDigest }), true)
+  const widened = structuredClone(row)
+  widened.value.facts.smoke.observations.push({ id: 'unsealed-extra', status: 200, revision: null, artifactDigest: null })
+  assert.throws(() => assertReleasedAnchorSmoke({ row: widened, isCandidate: true, profile, intent, expectedRevision: intent.previousRevision, artifactDigest }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  const promoted = structuredClone(row)
+  promoted.value.facts.smoke.observations[1].status = 200
+  assert.throws(() => assertReleasedAnchorSmoke({ row: promoted, isCandidate: true, profile, intent, expectedRevision: intent.previousRevision, artifactDigest }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
 })
 
 function providerJob() {

@@ -1,8 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_B_SOURCE_MERGED / 125-C_RELEASE_SMOKE_BLOCKED / PROVIDER_RETIREMENT_PENDING`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
+狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_B_SOURCE_MERGED / 125-C_RELEASE_CONTINUATION_CORRECTIVE_LOCAL_PASS / PROVIDER_RETIREMENT_PENDING`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496／#497 完成架構與文件收斂，PR #498 合併 125-A，PR #499 合併 125-B 單一路徑 worker 整合及 125-C source／release dependency 退役，PR #501 補齊退役 OpenSWX release baseline 相容，PR #500 合併 fixed runtime readback。現行 main 為 `b7b0f4e59165c00f6f39850170707e7ca9d9174b`；後續結果須以各切片 exact source／CI／發布讀回為準。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496／#497 完成架構與文件收斂，PR #498 合併 125-A，PR #499 合併 125-B 單一路徑 worker 整合及 125-C source／release dependency 退役，PR #501 補齊退役 OpenSWX release baseline 相容，PR #500 合併 fixed runtime readback，PR #502 同步任務文件，PR #504 修正 migration-admission 續接鏈，PR #503 加入 bounded provider retirement cleanup。現行 main 為 `63cd8e0d25f4fe06a0e0d03ed0903b0c7b79c2e5`；後續結果須以各切片 exact source／CI／發布讀回為準。
 
 ## 1. 要交付的結果
 
@@ -202,4 +202,8 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 
 2026-10-27 正式 owner release run `40462943166` 使用 source `f635ef426540e810eacc532aa42ef59bfb098ebe` 與其 immutable release capsule。preflight、build、forward-only migrate、candidate 及 entrypoint 均通過；verify 在 Firebase refresh 成功後，Platform `POST /api/auth/firebase/session` 回非 200，終止碼為 `PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED`。decision／activation 未執行，沒有切換正式流量；recovery／rollback terminal 為 PASS。此結果證明失敗路徑安全停止及 recovery 可用，不證明 candidate 功能、正常 SSO、Windows 裝置、A0001 預覽或 V125-12 通過，也不把已成功的 build／migration 誤記為產品驗收。
 
-下一次正式發布不得重用上述舊 capsule。前置條件固定為：使用既有 reauthentication 工具先驗證並在必要時輪替**既有 AI-PDM smoke refresh-token Secret 與對應 GitHub production environment secret**，只更新相鄰版本，不新增 IAM、grant、帳號或重設密碼；確認 Platform session 可建立後，再為 exact main `b7b0f4e…` 產生 fresh capsule並走完整 owner release。若 smoke 仍失敗，只保留該次 provider readback並停止 activation；不得繞過 verify。發布成功後才執行 fixed runtime readback，之後仍須另做 §7.1 的 Job／Scheduler／execution／IAM／Secret fresh provider inventory，兩者不能互相代替。
+下一次正式發布不得重用上述舊 capsule。既有 reauthentication 已完成且不得為同一原因重複輪替；後續須以 corrective 合併後的 exact main 產生 fresh capsule並走完整 owner release。若 smoke 仍失敗，只保留該次 provider readback並停止 activation；不得繞過 verify。發布成功後才執行 fixed runtime readback，之後仍須另做 §7.1 的 Job／Scheduler／execution／IAM／Secret fresh provider inventory，兩者不能互相代替。
+
+R4 之後的 prerequisite 續接另揭露三個 release-adapter 缺口。第一，ordinary abort reader 原本由 deployment 直接跳 candidate，漏讀已封存的 migration-admission；PR #504 已改為 `deployment → migration-admission → candidate` 並通過 required CI。第二，released predecessor `DEV122-RD-WIF-40231212962-1` 合法保留歷史 `openswxWorkerRef`、runtime extension 與當時的兩項 RD smoke，但 current validator 把它們誤當現行發布輸入。corrective 僅允許 exact `receipts/dev-122/openswx-worker/*.json` immutable ref、封存 profile 的固定 optional extension、worker／flag／numeric Secret version 互相一致，並重驗 runtime template hash；不讀或執行舊 descriptor，也不把任何 worker 欄位帶入新 runtime。該 predecessor 的 smoke 只接受封存的 `rd-candidate-ready=200` 與 `rd-permission-unauthenticated-denied=401` exact shape；現行普通發布仍須完整 SSO smoke。第三，optional forward-submission object 的 provider 404 原先比對錯誤字串，現只將 `MIGRATION_GCS_METADATA_FAILED:*:404` 的既定終態轉成 `MISSING`，403／media failure 等維持拒絕。
+
+上述 local corrective 已以 focused 18／18、owner／runtime／stage／prerequisite aggregate 145／145 通過；另以正式 R4 immutable refs 執行唯讀 continuation，已讀回 `PRINCIPAL_ORDINARY_ABORT`，未寫正式資料、未切流、未建立 capsule。此結果只證明 fresh release 的 prerequisite 可安全解析歷史證據；在 corrective PR、required CI、fresh exact-main capsule、完整 owner release、正式 smoke、Windows／A0001 驗收及 provider retirement 全部完成前，V125-10／11／12 仍不可改為 PASS。

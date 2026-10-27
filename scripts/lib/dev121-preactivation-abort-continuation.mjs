@@ -32,6 +32,41 @@ const fail = () => { throw new Error('DEV121_PREACTIVATION_CONTINUATION_INVALID'
 const traffic = (rows, revision) => Array.isArray(rows) && rows.length === 1
   && rows[0].revision === revision && Number(rows[0].percent) === 100 && !rows[0].tag
 
+export function isHistoricalReleasedEvidence(intent, migration) {
+  if (migration?.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1') return true
+  if (!intent?.appliedMigrationContinuation) return false
+  return Boolean(intent.forwardAppliedMigrationContinuation) || same(migration?.ref, intent.appliedMigrationContinuation.migrateRef)
+}
+
+export function assertReleasedAnchorSmoke({ row, isCandidate, profile, intent, expectedRevision, artifactDigest }) {
+  const facts = row?.value?.facts
+  const smoke = facts?.smoke
+  if (facts?.artifactDigest !== artifactDigest || facts?.candidateRevision !== expectedRevision || smoke?.status !== 'PASS') fail()
+  if (intent?.appliedMigrationContinuation) {
+    const expectedOrigin = isCandidate ? facts?.tagUri : profile?.target?.canonicalOrigin
+    const expected = new Map([['rd-candidate-ready', 200], ['rd-permission-unauthenticated-denied', 401]])
+    if (!same(Object.keys(smoke).sort(), ['observations', 'observedAt', 'origin', 'status'])
+      || !Number.isFinite(Date.parse(smoke.observedAt ?? '')) || smoke.origin !== expectedOrigin
+      || (isCandidate && (typeof facts.providerTagUri !== 'string' || !facts.providerTagUri.startsWith('https://')
+        || typeof facts.tagUri !== 'string' || !facts.tagUri.startsWith('https://')))
+      || (!isCandidate && facts.origin !== profile.target.canonicalOrigin)
+      || !Array.isArray(smoke.observations) || smoke.observations.length !== expected.size
+      || new Set(smoke.observations.map(observation => observation.id)).size !== expected.size
+      || smoke.observations.some(observation => !same(Object.keys(observation).sort(), ['artifactDigest', 'id', 'revision', 'status'])
+        || observation.status !== expected.get(observation.id) || observation.revision !== null || observation.artifactDigest !== null)) fail()
+    return true
+  }
+  if ((isCandidate && (smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1'
+      || smoke.ownerApplicationId !== profile.application.id || smoke.artifactDigest !== artifactDigest
+      || smoke.candidateRevision !== expectedRevision))
+    || (!isCandidate && (facts.origin !== profile.target.canonicalOrigin || smoke?.origin !== profile.target.canonicalOrigin))
+    || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 200))
+    || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 303))
+    || new Set(smoke.observations?.map(observation => observation.id)).size !== smoke.observations?.length
+    || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 401))) fail()
+  return true
+}
+
 // A finalized abort is not a successful release or a maintenance rollback.
 // Certify the cleaned, still-stopped original traffic before preparing a retry.
 export async function readPreActivationAbortContinuation({ profile, transport, baselineIntentRef, service = null, control = null, verifyProvider = false, postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null, appliedMigrationContinuation = null }) {
@@ -1056,14 +1091,12 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
       const released = await transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
         refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
       assertOrdinarySourceProof(released.proof, anchorIntent, releasedIntentRef, 'released', profile)
-      const anchorRepair = anchorMigration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
-      for (const [observation, expectedRepair] of [[released, anchorRepair]]) {
-        if ((observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== expectedRepair) fail()
-      }
+      const historicalReleasedEvidence = isHistoricalReleasedEvidence(anchorIntent, anchorMigration)
+      if ((released.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== historicalReleasedEvidence) fail()
       for (const observation of [released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
         if (observation.proof.migrationVerified !== false || observation.proof.databaseLiveState !== 'UNKNOWN' || observation.proof.currentDatabaseReadPerformed !== false || observation.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
         const graph = await readAiPdmObservationInputs(observation.proof)
-        if (!graph.repair) fail()
+        if (!graph.repair && !graph.appliedMigrationOnly) fail()
       }
       if (failed.proof.artifactDigest !== candidateFacts.artifactDigest || released.proof.candidateRevision !== intent.previousRevision
         || (verifyProvider && [failed, released].some(row => row.provider?.status !== 'BUILD_IMAGE_VERIFIED'
@@ -1080,19 +1113,9 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
       const principalModes = { PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_ENTITLEMENT_MODE: 'enforce', PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
       if (Object.entries(principalModes).some(([name, value]) => runtime.plainEnvironment?.[name] !== value)) fail()
       for (const row of [anchorVerify, anchorCanonical]) {
-        const smoke = row.value.facts?.smoke
         const isCandidate = row === anchorVerify
-        if ((isCandidate && (smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1'
-            || smoke.ownerApplicationId !== profile.application.id || smoke.artifactDigest !== released.proof.artifactDigest
-            || smoke.candidateRevision !== intent.previousRevision))
-          || (!isCandidate && (row.value.facts?.origin !== profile.target.canonicalOrigin
-            || smoke?.origin !== profile.target.canonicalOrigin))
-          || row.value.facts?.artifactDigest !== released.proof.artifactDigest || row.value.facts?.candidateRevision !== intent.previousRevision
-          || smoke?.status !== 'PASS'
-          || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 200))
-          || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 303))
-          || new Set(smoke.observations?.map(observation => observation.id)).size !== smoke.observations?.length
-          || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 401))) fail()
+        assertReleasedAnchorSmoke({ row, isCandidate, profile, intent: anchorIntent, expectedRevision: intent.previousRevision,
+          artifactDigest: released.proof.artifactDigest })
       }
       service ??= await transport.getService(profile)
       transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')

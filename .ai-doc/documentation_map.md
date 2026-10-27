@@ -4,7 +4,7 @@
 
 現行規劃從 [DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)開始。Windows 安裝／電腦清單、單一路徑解析、原缺口驗收及 OpenSWX 拆除只在 125 維護。
 
-[DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`，本機成果保留，剩餘責任具名移交；原七項整體仍未驗收。[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED`，取消 OpenSWX 修復，實體退出尚待 125。兩者關閉都不增加功能 PASS。DEV-125 為 `IMPLEMENTATION_IN_PROGRESS / 125-C_RELEASE_SMOKE_BLOCKED`；§3～10 是定案契約，§11 記 125-A／B 與 125-C source／發布／驗證進度。PR #498～#501 的適用 source 與 required CI 已合併；首次正式發布在 activation 前因 Platform session smoke 失敗而安全回滾。Windows 實機、A0001 正式預覽、含 PR #500 的 exact-main runner rollout 及 provider resource retirement 尚未完成。
+[DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`，本機成果保留，剩餘責任具名移交；原七項整體仍未驗收。[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED`，取消 OpenSWX 修復，實體退出尚待 125。兩者關閉都不增加功能 PASS。DEV-125 為 `IMPLEMENTATION_IN_PROGRESS / 125-C_RELEASE_CONTINUATION_CORRECTIVE_LOCAL_PASS`；§3～10 是定案契約，§11 記 125-A／B 與 125-C source／發布／驗證進度。PR #498～#504 已合併，main `63cd8e0d…` CI 通過；R4 首次正式發布在 activation 前安全回滾。其歷史 predecessor 續接 corrective 已完成本機 18／18、145／145 與正式 immutable refs 唯讀 PASS，但仍待 PR／required CI 及 fresh exact-main 發布。Windows 實機、A0001 正式預覽及 provider resource retirement 尚未完成。
 
 以下 DEV-122／124 入口保留移交前證據用途，不是平行待辦。既有 [Windows ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)與[SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)只維護原生處理邊界與可重用契約，不複製 DEV-125 裝置／安裝規格。
 
