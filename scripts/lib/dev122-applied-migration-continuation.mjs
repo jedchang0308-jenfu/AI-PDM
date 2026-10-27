@@ -1,4 +1,4 @@
-import { assertMigrationBundle, assertStageReceipt, canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { assertMigrationBundle, assertStageReceipt, canonicalize, createMigrationBundle, sha256 } from './dev012-production-migration-runner.mjs'
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
@@ -146,6 +146,35 @@ export function assertHistoricalAppliedContinuationRuntimeBinding(runtimeConfig,
       !H64.test(ref.sha256 ?? '') || !new RegExp(`^gs://${bucket}/receipts/dev-122/openswx-worker/[A-Za-z0-9][A-Za-z0-9._/-]*\\.json$`, 'u').test(ref.uri ?? '') ||
       ref.uri.includes('..')) fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
   return { retainedHistoricalBinding: true }
+}
+
+export function assertHistoricalAppliedContinuationRuntimeConfig(profile, runtimeConfig, intent, assertRuntimeConfig) {
+  if (typeof assertRuntimeConfig !== 'function') fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
+  const result = assertHistoricalAppliedContinuationRuntimeBinding(runtimeConfig, intent, profile?.artifact?.releaseBucket ?? DEFAULT_BUCKET)
+  if (!result?.retainedHistoricalBinding) return assertRuntimeConfig(profile, runtimeConfig)
+  const normalizedProfile = structuredClone(profile)
+  const normalizedRuntime = structuredClone(runtimeConfig)
+  const environment = normalizedProfile.environment ?? {}
+  for (const name of ['requiredPlainEnvironmentNames', 'requiredNames', 'requiredSecretNames']) {
+    if (Array.isArray(environment[name])) environment[name] = environment[name].filter(value =>
+      value !== 'PDM_OPENSWX_DISPATCH_ENABLED' && value !== 'PDM_WORKLOAD_AUTH_CREDENTIALS')
+  }
+  for (const name of ['fixedValues', 'controlledValues', 'allowedSecretIds', 'secretIds']) {
+    if (environment[name] && typeof environment[name] === 'object' && !Array.isArray(environment[name])) {
+      delete environment[name].PDM_OPENSWX_DISPATCH_ENABLED
+      delete environment[name].PDM_WORKLOAD_AUTH_CREDENTIALS
+    }
+  }
+  if (environment.optionalExtensions && typeof environment.optionalExtensions === 'object') delete environment.optionalExtensions.openswxDispatch
+  delete normalizedRuntime.openswxWorker
+  delete normalizedRuntime.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED
+  delete normalizedRuntime.secretVersions.PDM_WORKLOAD_AUTH_CREDENTIALS
+  for (const container of normalizedRuntime.template?.containers ?? []) {
+    if (Array.isArray(container.env)) container.env = container.env.filter(row =>
+      row?.name !== 'PDM_OPENSWX_DISPATCH_ENABLED' && row?.name !== 'PDM_WORKLOAD_AUTH_CREDENTIALS')
+  }
+  normalizedRuntime.serviceTemplateSha256 = sha256(canonicalize(normalizedRuntime.template))
+  return assertRuntimeConfig(normalizedProfile, normalizedRuntime)
 }
 
 // Candidate identity and artifact digest are already proven by the provider
