@@ -65,8 +65,8 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 | Issue／切片 | 目前可證明狀態 | 下一個可驗收交付 |
 |---|---|---|
 | D122-01～04 | 既有本機交易／UI／API結果可重用；沒有新證據支持正式環境整組通過。 | 只有來源或行為受本輪修正影響才重驗；不重播無關完整套件。 |
-| D122-05／3D F-01B | lease v2 source 已合併；正式 `A0001-M01` 仍回 `preview_worker_unavailable`。 | 先讀回正式 server source、current file binding／hash、latest preview job與兩個v2 worker process；再完成受控rollout、真實 `claim → heartbeat → complete`、current-hash非fake PNG、mounted UI及parent-lock mounted／refusal。 |
-| D122-05／PDF | viewer與render liveness source已合併；正式檔仍回 `unsupported_preview_source`。 | 先讀回media type、current binding、source hash、job／derivative與serving source；只修實際metadata／binding／derivative責任，透過既有writer或必要forward-only migration，不手改正式資料。以canonical API、受保護 `%PDF-` bytes或current-hash derivative及mounted viewer可讀關閉。 |
+| D122-05／3D F-01B | lease v2 source 已合併且目前正式 serving source 已包含該修正；`A0001-M01` 仍回 `preview_worker_unavailable`。 | 先以固定唯讀診斷讀回 current file binding／hash、latest preview job 與兩個 v2 worker process；再依證據修正 runtime／資料責任，完成真實 `claim → heartbeat → complete`、current-hash 非 fake PNG、mounted UI 及 parent-lock mounted／refusal。 |
+| D122-05／PDF | viewer 與 render liveness source 已合併且目前正式 serving source 已包含該修正；正式檔仍回 `unsupported_preview_source`。 | 先以固定唯讀診斷讀回 media type、current binding、source hash、job／derivative；只修實際 metadata／binding／derivative 責任，透過既有 writer 或必要 forward-only migration，不手改正式資料。以 canonical API、受保護 `%PDF-` bytes 或 current-hash derivative及 mounted viewer 可讀關閉。 |
 | 管理員 recognition／worker | worker route放行與PDF browser-baseline source已合併；`ADMIN_RECOGNITION_PENDING`，尚不能證明CAD consumer或正常結果。 | 先讀回實際actor／grant、session／queue及consumer runtime；若確認CAD consumer缺位，建立獨立recognition runtime，禁止共用OpenSWX或preview credential。以管理員allow／deny零副作用及正常worker/result readback驗收。 |
 | Part attachment | 正常入口與本機storage/UI證據已合併；正式受權上傳／重載／下載未完成。 | 確認serving source後，以專用受權actor驗正常上傳、清單重載、受保護下載bytes／hash、audit及一個拒絕零副作用案例。正式business mutation只能在明確執行該驗收時產生。 |
 | D122-06 | 本機採購API結果已驗；相關修正已合併。 | 無新漂移時不重驗；不能把本機結果寫成正式驗收。 |
@@ -81,11 +81,18 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 以公司 Google SSO 登入正式 `ai-pdm-prod`，在圖號工作台開啟 `A0001-M01` 後，畫面與 canonical file-preview API 讀回兩個不同的終態。3D 原檔 `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED`／`preview_worker_unavailable`、`retryable=false`；這表示目前沒有可用 worker 接手該預覽工作，屬本 DEV 的 F-01B 正式 server／兩個 worker v2 process rollout 與 runtime 驗收缺口。2D 原檔 `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED`／`unsupported_preview_source`、`retryable=false`；它不是 PDF viewer 尚未開發，因完整 PDF viewer 已由 PR #278 合併、PR #486 修正 render liveness 並通過 required CI，而是本筆正式 file asset 的 media type／來源分類／current binding／ready derivative 或 serving-source 適用性尚未讀回確認。
 
-本次只取得 authenticated browser 與同 session API body，沒有 provider-level serving revision、HTTP status、正式 file metadata、preview job row、worker process 或 derivative bytes readback。因此不得把 PDF 結果改判為「PR #486 未發布」，也不得把 3D 結果歸入 `DEV-124`；`DEV-124` 只負責 OpenSWX worker descriptor／reader／artifact-reuse 鏈。結構化紀錄見 [A0001 正式預覽缺口](../qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
+後續 provider readback 已確認目前正式 service revision `ai-pdm-prod-3092d00b3653`、image digest `sha256:d9c3f8b2267475969cd00dc6e68b0e24504d41f18ba830024c0b1033ff43b068` 與 source `ad74f179747cdd807c6bf8a4958dba81434b5074`，且該來源包含 Part attachment、preview lease v2、recognition worker middleware、採購、PDF browser baseline 與 PDF render liveness 的已合併修正。因此目前缺口不是「修正尚未部署」，而是正式 file asset／preview job／derivative／worker process 的實際狀態與資料綁定尚未讀回，或其後仍有 runtime 缺陷。
+
+現行 canonical file-preview GET 不是安全的診斷入口：它可能執行 stale recovery／enqueue，並寫入 storage access audit。repository 目前也沒有可同時讀取 current file binding、latest preview job、derivative 與 worker process 的固定唯讀 API。因此正式修復拆成兩個可驗收切片，避免在根因未知時直接重送預覽或修表：
+
+- `D122-05A 固定唯讀診斷`：以 task-owned operation 綁定 exact project／service／revision／drawing／file，透過 read-only transaction 與 bounded provider readback 輸出 current asset metadata、source hash、binding、latest job／derivative及兩個 worker process 狀態；不得讀檔案內容、enqueue、recover、寫 audit 或更新 job。
+- `D122-05B 最小修復與驗收`：只依 05A 證明的責任修改 source／runtime／受控資料契約；正式資料修正只能走既有 writer 或 forward-only migration。3D 與 PDF 可分別關閉，但 DEV-122 整體仍須符合七個 issue 的結案條件。
+
+原始 authenticated browser／同 session API body 與當時證據限制保留於 [A0001 正式預覽缺口](../qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。不得把 3D 結果歸入 `DEV-124`；`DEV-124` 只負責 OpenSWX worker descriptor／reader／artifact-reuse 鏈。
 
 關閉 D122-05 本缺口只需補受影響責任：
 
-1. 先唯讀核對正式 serving source／revision、兩個 file asset 的 media type／binding／source hash、latest preview job 與兩個 preview worker v2 process；不直接修表或把歷史 job 改為成功。
+1. 以 `D122-05A` 核對兩個 file asset 的 media type／binding／source hash、latest preview job／derivative與兩個 preview worker v2 process；不呼叫有副作用的 canonical GET、不直接修表或把歷史 job 改為成功。
 2. 3D 在服務已就緒後，以新工作或明確核准的 retry 證明真實 worker `claim → heartbeat → complete`，產出綁定 current source hash、非 fake generator 的 `image/png` derivative，canonical API 與 mounted UI 可讀；同時完成既有 parent-lock mounted／refusal 驗收。
 3. PDF 證明 current binding 指向受保護的 `application/pdf` bytes（含 `%PDF-` header），或指向 current-hash 的有效 `drawing_pdf`／`sheet_png` derivative；canonical API 不再回 unsupported，mounted viewer 能顯示完整圖框、尺寸與註記。若根因只是 metadata／binding，仍須透過既有受控 writer 或 forward-only migration 修正，不手動修改正式資料。
 4. 保留兩個原檔下載與 terminal safe error；不得以 fake PNG、舊版本 PDF、無來源 hash derivative、重複重新整理或擴張 IAM／Secret 取代正式修復。
