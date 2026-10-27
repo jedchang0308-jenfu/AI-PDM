@@ -117,16 +117,21 @@ internal sealed class ConfiguratorForm : Form
                 if (remote == null || !IPAddress.IsLoopback(remote.Address)) throw new InvalidOperationException("PAIRING_REMOTE_INVALID");
                 NetworkStream stream = client.GetStream();
                 PairingCallback callback = await ReadCallbackAsync(stream, state);
+                Exception enrollmentError = null;
                 try
                 {
                     await EnrollAsync(callback);
-                    await WriteResponseAsync(stream, 200, "連結完成", "這台電腦已連結 AI-PDM，可以關閉此頁。");
                 }
-                catch
+                catch (Exception error)
+                {
+                    enrollmentError = error;
+                }
+                if (enrollmentError != null)
                 {
                     await WriteResponseAsync(stream, 400, "連結失敗", "連結未完成，請回到安裝視窗重試。");
-                    throw;
+                    throw enrollmentError;
                 }
+                await WriteResponseAsync(stream, 200, "連結完成", "這台電腦已連結 AI-PDM，可以關閉此頁。");
             }
             SetStatus("連結完成。背景服務會自動接續等待中的解析工作。", false);
         }
@@ -195,6 +200,7 @@ internal sealed class ConfiguratorForm : Form
         using (HttpClient client = new HttpClient())
         {
             client.Timeout = TimeSpan.FromSeconds(30);
+            Exception requestError = null;
             try
             {
                 using (StringContent content = new StringContent(json.Serialize(request), Encoding.UTF8, "application/json"))
@@ -204,15 +210,18 @@ internal sealed class ConfiguratorForm : Form
                     if (!accepted) throw new InvalidOperationException("ENROLLMENT_REJECTED");
                 }
             }
-            catch (HttpRequestException)
+            catch (HttpRequestException error)
             {
-                accepted = await EnrollmentReadbackAsync(client, token, deviceId);
-                if (!accepted) throw;
+                requestError = error;
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException error)
+            {
+                requestError = error;
+            }
+            if (requestError != null)
             {
                 accepted = await EnrollmentReadbackAsync(client, token, deviceId);
-                if (!accepted) throw;
+                if (!accepted) throw requestError;
             }
         }
         if (!accepted) throw new InvalidOperationException("ENROLLMENT_REJECTED");

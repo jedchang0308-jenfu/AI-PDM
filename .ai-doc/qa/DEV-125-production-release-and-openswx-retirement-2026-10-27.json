@@ -36,6 +36,8 @@
     "routePolicySource": "PASS",
     "lint": "PASS_0_ERRORS_9_PREEXISTING_WARNINGS",
     "isolatedBuild": "PASS_PRIMARY_UNCHANGED",
+    "initialInstallerCompile": "FAIL_CSHARP5_AWAIT_IN_CATCH_AND_FALSE_PASS_DETECTED",
+    "installerCompileCorrection": "IMPLEMENTED_AWAIT_OUTSIDE_CATCH_AND_NATIVE_EXIT_FAIL_FAST_REBUILD_PENDING",
     "notProductionProof": true
   },
   "acceptanceMatrix": [
