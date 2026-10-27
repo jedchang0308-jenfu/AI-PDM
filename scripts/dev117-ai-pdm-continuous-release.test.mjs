@@ -313,8 +313,8 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-21).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088'])
+  assert.deepEqual(bundle.bundle.entries.slice(-22).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088', 'ai-pdm-089'])
   assert.deepEqual(profile.migrations.entries[29], { order: 30,
     path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
     sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })
@@ -344,6 +344,9 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   assert.deepEqual(profile.migrations.entries[37], { order: 38,
     path: 'db/postgres/088_dev123_recognition_job_authority.sql',
     sha256: '16f1a1b4655afc493ebdcb724e7a1c3bd239d9f34c581845e2de49b419728f83' })
+  assert.deepEqual(profile.migrations.entries[38], { order: 39,
+    path: 'db/postgres/089_dev125_windows_service_devices.sql',
+    sha256: 'f4fa558338b2478c4f03aed0423f984c77f7aebcb4d6ffd12fd48d6c1080c909' })
   const insertedBeforeApplied = structuredClone(profile)
   insertedBeforeApplied.migrations.entries.splice(27, 0, insertedBeforeApplied.migrations.entries.pop())
   assert.throws(() => assertDev117V3Profile(insertedBeforeApplied, v1, n1c), { code: 'MIGRATION_MANIFEST_DRIFT' })

@@ -1,0 +1,10 @@
+AI-PDM Windows Parsing Service bundles these unmodified runtime components:
+
+- Node.js 24 LTS (MIT and other notices): https://github.com/nodejs/node/blob/v24.x/LICENSE
+- WinSW 2.12.0 (MIT): https://github.com/winsw/winsw/blob/v2.12.0/LICENSE.txt
+- NSIS 3.11 is used to build the installer and is not installed as a runtime component:
+  https://nsis.sourceforge.io/License
+
+SOLIDWORKS Document Manager is not redistributed by this installer. The installer reuses an
+already registered, company-licensed x64 Document Manager runtime through its official COM API.
+No SOLIDWORKS runtime or managed interop assembly is bundled.

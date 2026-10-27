@@ -6,11 +6,11 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED` | 取消修復及恢復排程；原 UNKNOWN 保留。退出盤點與實際拆除統一交 125，未宣稱已移除。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED` | 唯一後續開發入口；已定案 Windows 安裝、裝置資料／API／撤銷、單一 Document Manager 引擎、發布切換、12 組驗證與 OpenSWX 全面退出。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-A_RD_COMPLETE_PENDING_CI` | 125-A source、installer build 與隔離 PostgreSQL 已完成；待 PR CI／實機安裝後進入 125-B，最後由 125-C 完整退出 OpenSWX。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496 已合併，依最新 main 完成 repository assessment 與架構定案。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；資料／API／身分／失敗／發布／驗證契約已齊備，不新增平行框架。既有 reader／preview／broker 重用 DEV-035／056／058。正常 PDF 與附件修復可獨立先做；OpenSWX 的產品、發布依賴與專用資源全退役，不保留雙軌。完成須有實際解析、使用者可見結果及退出證據，不能只以 PAUSED 結案。本輪只升級文件，產品驗證 V125-01～12 皆 NOT_RUN，尚未開始實作；OrgMaster 無相容程式修改範圍。
+DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496／#497 已合併並完成架構定案。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；不新增平行框架。125-A 已完成 migration 089、管理員與裝置 API、設定頁、NSIS／WinSW／DPAPI 套件、Document Manager runtime probe、隔離 PostgreSQL與發行契約自查，現為 PR／CI 前狀態；V125-02 自動化範圍 PASS，V125-01／03／04 PARTIAL。125-B／C 尚待執行。OrgMaster 無相容程式修改範圍。
 
 以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。本次只交付任務文件，沒有刪除程式或雲端服務。
 

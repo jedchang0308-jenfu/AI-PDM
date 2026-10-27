@@ -133,6 +133,20 @@ test('worker source selects worker evidence without unrelated app build', () => 
   assert.equal(plan.gates.database, false)
 })
 
+test('DEV-125 Windows package source selects the worker boundary without unknown fallback', () => {
+  for (const file of [
+    'windows-service/service/service.mjs',
+    'windows-service/installer/AI-PDM-Windows-Setup.nsi',
+    'scripts/build-dev125-windows-installer.ps1',
+    'scripts/dev125-windows-service-contract.test.mjs',
+  ]) {
+    const plan = createProductionSlicePlan([file])
+    assert.equal(plan.classification, 'AFFECTED_SLICES', file)
+    assert.equal(plan.gates.worker, true, file)
+    assert.equal(plan.gates.full, false, file)
+  }
+})
+
 test('shared release control selects its own safety boundary without unrelated product gates', () => {
   for (const file of [
     '.github/workflows/ci.yml',

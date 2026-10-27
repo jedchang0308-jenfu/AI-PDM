@@ -172,7 +172,7 @@ test('B24 finalize cannot use forward pending-only mode for an ordinary worker o
   for (const scenario of ['ordinary', 'ordinary-38', 'wrong-mode', 'wrong-count', 'wrong-083', 'ordinary-34', 'ordinary-35']) {
     const descriptor = scenario.startsWith('ordinary') ? workerDescriptor('full') : repair
     const currentProfile = structuredClone(appProfile), descriptorBytes = Buffer.from(canonicalize(descriptor))
-    assert.equal(currentProfile.migrations.entries.length, 38)
+    assert.equal(currentProfile.migrations.entries.length, 39)
     assert.deepEqual(currentProfile.migrations.entries[32], {
       order: 33, path: 'db/postgres/083_dev121_authorized_first_login_account.sql',
       sha256: 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9',

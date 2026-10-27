@@ -110,6 +110,28 @@ jobs:
         if: steps.slice.outputs.docs_only != 'true'
         run: npm ci
 
+      - name: Build and verify DEV-125 Windows installer
+        if: steps.slice.outputs.worker == 'true'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sourceRevision = (git rev-parse HEAD).Trim()
+          $version = "0.1.0-ci.$env:GITHUB_RUN_NUMBER"
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-dev125-windows-installer.ps1 -SourceRevision $sourceRevision -Version $version
+          $env:DEV125_INSTALLER_ROOT = ".tmp/dev125-windows-installer"
+          node --conditions=react-server --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs --input-type=module -e "const m=await import('./src/lib/windows-service-installer.ts'); const r=await m.readWindowsServiceInstaller(process.env.DEV125_INSTALLER_ROOT); if(r.manifest.sourceRevision!==process.env.GITHUB_SHA) process.exit(3); console.log(JSON.stringify({status:'PASS',sha256:r.manifest.sha256,size:r.manifest.size}))"
+
+      - name: Upload DEV-125 Windows installer evidence
+        if: steps.slice.outputs.worker == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dev125-windows-installer-${{ github.sha }}
+          path: |
+            .tmp/dev125-windows-installer/worker-downloads/windows-service/
+            .tmp/dev125-windows-installer/build-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Install Playwright browser
         if: steps.slice.outputs.application == 'true'
         run: npx playwright install chromium

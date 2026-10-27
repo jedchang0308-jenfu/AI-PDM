@@ -736,7 +736,7 @@ export async function readRepairStageBasis({ worker, intent, intentRef, profile,
       const files = new Map([[profilePath, readWorkerSource(profilePath, intent.sourceRevision)], ...current.bundle.entries.map(row => [row.path, readWorkerSource(row.path, intent.sourceRevision)])])
       const content = assertAiPdmMigrationContent({ files, bundle: current.bundle, sourceRevision: intent.sourceRevision, deadlineAt: intent.deadlineAt })
       const migrationMode = assertAiPdmRepairMigrationMode(history, content)
-      if (forwardHistory && (current.bundle.entries.length !== 38 || migrationMode !== 'HISTORICAL_EVIDENCE_REUSED')) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+      if (forwardHistory && (current.bundle.entries.length !== 39 || migrationMode !== 'HISTORICAL_EVIDENCE_REUSED')) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
       const equivalent = migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? assertAiPdmInstalledMigrationEquivalent(history, content) : null
       if (currentDeployment) {
         if (!currentPrepare) fail('REPAIR_PREBUILD_PREPARE_REQUIRED')

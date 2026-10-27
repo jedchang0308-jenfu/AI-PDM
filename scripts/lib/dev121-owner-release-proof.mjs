@@ -759,7 +759,7 @@ function assertContentBundle(bundle, sourceRevision) {
   const core = { ...bundle }; delete core.manifestSha256
   if (!exactKeys(bundle, keys) || bundle.schemaVersion !== 'jenfu.dev012.migration-bundle.v1' || bundle.ownerApplicationId !== 'ai-pdm' || bundle.sourceRevision !== sourceRevision ||
       bundle.projectId !== PROJECT_ID || bundle.region !== 'asia-east1' || bundle.database !== 'jenfu_prod' || bundle.ledger !== 'ai_pdm_core.schema_migrations' || bundle.baselineCount !== 15 ||
-      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
+      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38, 39].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
   const paths = new Set(), versions = new Set()
   for (const [index, entry] of bundle.entries.entries()) {
     if (!exactKeys(entry, ['order', 'version', 'name', 'path', 'sourceSha256', 'appliedSha256', 'sqlBase64']) || entry.order !== index + 1 ||
@@ -782,7 +782,7 @@ function assertContentBundle(bundle, sourceRevision) {
       bundle.entries[34].version !== 'ai-pdm-085' || bundle.entries[34].name !== 'dev121_principal_role_catalog_v7' ||
       bundle.entries[34].sourceSha256 !== '308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba' ||
       bundle.entries[34].appliedSha256 !== '80e7085085a3bf8d220917a4790224b52a54cc2af788a0775d7aaedd629ce65b')) fail('ARCHIVE_BUNDLE_INVALID')
-  if (bundle.entries.length === 38) {
+  if (bundle.entries.length >= 38) {
     const rolePolicySuffix = [
       ['086_dev123_role_policy_editor_v1', '015749244315fb25e362770fc0a18bdab051655434b29a4d2a7cdc684345359f', '9b7f395c96cbd61699eb0deb1479ca9814fe69ad5a11bc07a0a302d9dc213272'],
       ['087_dev123_role_policy_candidate_validation', 'ce9e3dfd8591e106788faf23bbfdcbcdd6cdf00c4c4aa299e6cfe9f99a9406d6', '3923d099c72df031484da755889d0a89d8e279b70ad9f686c6ea35e211a2a0d4'],
@@ -793,6 +793,13 @@ function assertContentBundle(bundle, sourceRevision) {
       if (entry.path !== `db/postgres/${name}.sql` || entry.version !== `ai-pdm-${name.slice(0, 3)}` ||
           entry.name !== name.slice(4) || entry.sourceSha256 !== sourceHash || entry.appliedSha256 !== appliedHash) fail('ARCHIVE_BUNDLE_INVALID')
     }
+  }
+  if (bundle.entries.length === 39) {
+    const entry = bundle.entries[38]
+    if (entry.path !== 'db/postgres/089_dev125_windows_service_devices.sql' || entry.version !== 'ai-pdm-089' ||
+        entry.name !== 'dev125_windows_service_devices' ||
+        entry.sourceSha256 !== 'f4fa558338b2478c4f03aed0423f984c77f7aebcb4d6ffd12fd48d6c1080c909' ||
+        entry.appliedSha256 !== '8a0ce404904cc0c07015d57d28c1895909f57d90ff0466e31478926a7ce00c07') fail('ARCHIVE_BUNDLE_INVALID')
   }
   assertUnlinkedProfileCleanupBundleBinding(bundle)
   return paths
@@ -990,7 +997,7 @@ function assertRepairEvidenceBase(value, keys, intent, intentRef, actor) {
 export function assertPausedMigrationPrerequisite(value, { intent, intentRef, descriptor, descriptorRef }) {
   assertRepairEvidenceBase(value, PREREQUISITE_KEYS, intent, intentRef, 'aipdm-prod-verifier')
   if (value.schemaVersion !== 'aipdm.paused-app-repair-migration-prerequisite.v1' || value.status !== 'KNOWN_HISTORICAL_PREREQUISITE' || value.databaseLiveState !== 'UNKNOWN' ||
-      value.migrationExecutionPolicy !== 'NO_JOB_SUBMISSION' || ![32, 33, 34, 35, 38].includes(value.entryCount) || value.baselineCount !== 15 || value.historicalLedgerCount !== value.entryCount ||
+      value.migrationExecutionPolicy !== 'NO_JOB_SUBMISSION' || ![32, 33, 34, 35, 38, 39].includes(value.entryCount) || value.baselineCount !== 15 || value.historicalLedgerCount !== value.entryCount ||
       !Number.isFinite(Date.parse(value.historicalCompletedAt)) || Date.parse(value.historicalCompletedAt) > Date.parse(value.observedAt) ||
       descriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v3' || descriptor.purpose !== 'full' || descriptor.artifactMode !== 'REUSE_VERIFIED' || descriptor.releaseVariant !== 'PAUSED_APP_REPAIR') fail('REPAIR_PREREQUISITE_INVALID')
   for (const name of ['releaseCapsuleRef', 'sourceLockRef', 'servingCapsuleRef', 'historicalCapsuleRef', 'historicalDeploymentRef', 'historicalCandidateRef', 'historicalMigrationReceiptRef']) assertAiReleaseRef(value[name])
@@ -1666,7 +1673,7 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
     if (intent.forwardAppliedMigrationContinuation) {
       assertOwnerReleaseRefSet('ai-pdm', refs, 'post_migration')
       history = await stage.readForwardAppliedMigrationHistory({ intent, profile, transport, repositoryRoot })
-      if (assertAiPdmRepairMigrationMode(oldHistory, history.source.content) !== 'FORWARD_APPLIED' || bundle.bundle.entries.length !== 38) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
+      if (assertAiPdmRepairMigrationMode(oldHistory, history.source.content) !== 'FORWARD_APPLIED' || bundle.bundle.entries.length !== 39) fail('APPLIED_FORWARD_CONTINUATION_PROOF_INVALID')
       assertAiPdmInstalledMigrationEquivalent(history, archived.content)
       migrate = await readRef(refs.migrate, AI_BUCKET, token, fetchImpl)
       assertForwardMigrationAssociation(migrate.value, { intent, deploymentRef: chain.deployment.ref, history })

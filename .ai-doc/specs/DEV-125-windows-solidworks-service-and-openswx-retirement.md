@@ -1,8 +1,8 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄本次架構收斂審查。
+狀態：`IMPLEMENTATION_IN_PROGRESS / 125-A_RD_COMPLETE_PENDING_CI`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行，並要求合併 PR #496 後升級實作契約。該 PR 已合併；本次 repository assessment 基準為 main `e8d8d4fa917f92743dacd2186ef2cfca45518187`。這是文件成熟度，不是產品 PASS；程式、安裝包、資料與正式資源尚未變更。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496 與文件收斂 PR #497 已合併。125-A 從 main `9bb468f313af2d45fd986bf8ccb2d41d8f24343b` 建立獨立工作樹實作；後續結果須以各切片 exact source／CI／發布讀回為準。
 
 ## 1. 要交付的結果
 
@@ -45,7 +45,7 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 |---|---|
 | 安裝形式 | NSIS 3 Unicode 的 `AI-PDM-Windows-Setup-<version>.exe`；不另做 MSI。打包既有 Node 24 LTS 執行碼、WinSW 2.12.0 與預編譯 x64 C# extractor，使用 .NET Framework 4.8；第一版在 Windows 11 x64 驗證。使用者端不安裝 Node、編譯器或完整 SolidWorks。 |
 | 服務帳號／檔案 | WinSW 服務 `AipdmWindowsParsing` 使用 LocalService，啟用 service SID；程式在 `%ProgramFiles%\AI-PDM Windows Service`，credential／暫存在 `%ProgramData%\AI-PDM Windows Service`，ACL 僅該 service SID、SYSTEM、Administrators。安裝／解除安裝才需管理員；解析不以 LocalSystem 或人員帳號執行。 |
-| 原生元件 | 官方 Document Manager x64 COM runtime／interop；相容 major、來源及 SHA-256 寫入安裝 manifest。使用公司合法取得、與 key／目標檔版本相容的元件。先檢查既有 COM 註冊；相容者重用，不覆蓋他人路徑。不相容則安裝失敗並說明，不自動破壞 SolidWorks。解除安裝只解除仍指向本產品且由本產品建立的註冊。 |
+| 原生元件 | 官方 Document Manager x64 COM runtime；extractor 採 late-bound COM，不把 SolidWorks runtime 或專有 managed interop 放入公開原始碼／安裝包。安裝時啟動 COM 驗證 x64 runtime，並將版本、來源檔名及 SHA-256 寫入本機 runtime receipt。使用公司合法取得、與 key／目標檔版本相容的元件；相容者重用，不覆蓋或解除註冊他人路徑。不相容則安裝失敗並說明。 |
 | 引擎能力 | 屬性讀取沿 DEV-035 document／configuration scope；PRT／ASM 取 active configuration 的已儲存 PNG，SLDDRW 取第一張 sheet 的已儲存 PNG，無 sheet 圖才查文件內已儲存預覽。全部經同一 Document Manager extractor，不合成假圖。不提供模型重建、互動 3D、任意解析度或 CAD 轉 PDF。 |
 | 套件／更新 | 每次產物固定 app source SHA、版本、protocolVersion=1、檔案 hashes、依賴版本與 notices。Windows CI 產出安裝包，既有 app build 依同 source 與 hash 收入 image 的 `worker-downloads/`，下載 API 只讀該唯讀目錄的 manifest；不新增 runtime 儲存桶讀權、GitHub token 或任意 URL 下載。第一版人工下載新版覆蓋安裝、保留本機身分；無自動更新平台。預設不採購簽章、不宣稱 SmartScreen 信任。 |
 
@@ -153,11 +153,11 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 App 及 release adapter 使用現有 affected-slice planner、required CI、owner workflow；修改 SQL 執行 `npm run check:db-boundary`，修改 app 執行既定 typecheck／isolated build；修改 release adapter 依既有 DEV-117 continuous／QC／abort 驗證。installer build 在 Windows runner 產出獨立 immutable artifact 與 hash，成功只代表可安裝，不代替真實 COM 驗收。AI-PDM owner build receipt 增加 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}` 並與 image 內 manifest 比對；固定 same-source artifact 輸入，拒絕 actor 提供 URL 或 mutable latest。這項相容擴充與 OpenSWX workerRef 移除在同一發布契約修訂，不另建 owner workflow。不得為此新增 GCP Windows VM、公司 IAM 管理平台或跨專案 reader/writer。OrgMaster／Jenfu-Platform／JF-FMS：無程式／schema／部署修改範圍。
 
-實作後的發布包必須綁定實際 app SHA、migration ledger、安裝 hash／protocol 與 provider retirement plan；這些在產物存在時生成，不在文件階段填假值。缺合法 key、COM 不相容、未證明新的 recovery 或 provider UNKNOWN 時，阻擋各自相關的打包／原生驗收／刪除，其他隔離工作繼續；不以新增備援引擎解決。文件本輪不開始程式實作、migration、部署或正式資料寫入。
+發布包必須綁定實際 app SHA、migration ledger、安裝 hash／protocol 與 provider retirement plan；這些由 exact-source builder 生成，不填假值。缺合法 key、COM 不相容、未證明新的 recovery 或 provider UNKNOWN 時，阻擋各自相關的打包／原生驗收／刪除，其他隔離工作繼續；不以新增備援引擎解決。
 
 ## 9. 精簡驗證計畫與完成定義
 
-以下是 12 組必要結果，每組涵蓋所列正反情境；不是把舊 7 issues／29 診斷 ID 改成新的 PASS 分母。自動化優先、相同未變證據重用；所有本任務產品案例目前均 `NOT_RUN`，只完成契約審查。
+以下是 12 組必要結果，每組涵蓋所列正反情境；不是把舊 7 issues／29 診斷 ID 改成新的 PASS 分母。自動化優先、相同未變證據重用；實際進度見 §11，未列完成者仍為 `NOT_RUN` 或 `PARTIAL`。
 
 | ID | 必須看到的結果 | 驗證層級／原責任 |
 |---|---|---|
@@ -189,3 +189,9 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 | 舊文件將安裝工具／資料/API 留待實作再選，PDF 與 CAD scope 易混。 | §3～9 完成 installer、data／API／auth／failure／release／QA 決策；PDF 獨立修復；無 OrgMaster 相容程式任務。 |
 
 結論：`RD Implementation Ready / Architecture Finalized`；本次檢視範圍沒有尚待選架構的 P0／P1 設計缺口。RD 可依 125-A 起工，但使用者本輪只授權文件。合法 key／指定版本 COM、三格式實機、正式 worker／provider 與原缺口驗收仍是待取得的執行證據，不標 PASS；技術實作細節、版本 patch 與實際 migration 編號由 RD 在此契約內固定，不需再開一輪架構規劃。
+
+## 11. Implementation Progress（2026-10-27）
+
+125-A 已完成 RD source：migration 089、管理員電腦清單／下載／註冊／停用 API、device enroll／self／start／heartbeat、設定頁、DB 即時裝置身分、NSIS 3.11＋WinSW 2.12.0＋Node 24 套件、LocalService/service SID、DPAPI LocalMachine credential、Document Manager x64 runtime 版本／SHA-256 probe，以及 same-source installer manifest／CI artifact。OpenSWX 尚未在此切片移除；它會在 125-C 於 replacement 可用後一次退出，不形成產品雙軌。
+
+125-A RD 證據：隔離 PostgreSQL 6 組通過（單次碼／重送／錯碼限流／過期／session 撤權／instance 競爭／heartbeat／撤銷）；installer 實際編譯及 manifest digest readback 通過；本機既有 Document Manager x64 major 33 COM runtime 啟動及 runtime digest probe 通過，extractor 改採不需散布專有 DLL 的 late-bound COM；DEV-125 contract 6 tests、既有 release 52 tests、slice planner 21 tests、typecheck 與 DB boundary 通過。全 repository lint 為 0 error／既有 9 warnings。尚待 PR required CI、管理員正常 SSO、安裝／重啟／覆蓋／卸載實機操作，因此 V125-01／03／04 仍為 `PARTIAL`；V125-02 自動化範圍為 `PASS`。125-B／125-C 與 V125-05～12 尚未完成。
