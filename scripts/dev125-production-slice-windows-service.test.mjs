@@ -10,9 +10,12 @@ test('DEV-125 Windows production-slice route tests run in the required worker gr
   const result = spawnSync(process.execPath, [
     'node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.config.ts', '--configLoader', 'runner', '--no-cache',
     'src/lib/production-slice.windows-service.test.ts',
+    'src/components/windows-service-settings.self-link.test.tsx',
     'src/lib/windows-service-caller-revocation.test.ts',
     'src/lib/windows-service-key-lease.test.ts',
     'src/lib/preview-worker-source.principal.test.ts',
+    'src/lib/principal-job-authority.test.ts',
+    'src/lib/principal-recognition-capability.test.ts',
     'src/lib/settings-secret-lifecycle.principal.test.ts',
     'src/app/api/settings-secret-probe-jobs/claim/route.test.ts',
   ], { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 })

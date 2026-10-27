@@ -78,7 +78,12 @@ export function WindowsServiceSettings() {
       const body = await response.json().catch(() => null) as {
         devices?: Device[]; canManageAll?: boolean; error?: string; code?: string;
       } | null;
-      if (response.status === 401 || response.status === 403) { setState("forbidden"); return; }
+      if (response.status === 401) {
+        const returnTo = `/settings/windows-service${window.location.search}`;
+        window.location.replace(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(returnTo)}`);
+        return;
+      }
+      if (response.status === 403) { setState("forbidden"); return; }
       if (!response.ok || !Array.isArray(body?.devices)) throw new Error(errorMessage(body, "解析電腦清單讀取失敗。"));
       setDevices(body.devices);
       setCanManageAll(body.canManageAll === true);

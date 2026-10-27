@@ -29,7 +29,7 @@ export type PrincipalJobCanonicalResource = Readonly<{
   linkedEntityType: string;
   documentCategory?: string | null;
   capabilityRole?: string | null;
-  action?: "view" | "download";
+  action?: "view" | "download" | "view_and_download";
 }>;
 
 export class PrincipalJobAuthorityError extends Error {
@@ -108,7 +108,7 @@ export function parsePrincipalJobInitiator(value: unknown): PrincipalJobInitiato
   };
 }
 
-/** Re-admit the durable actor in this snapshot and require current canonical view for dynamic policy. */
+/** Re-admit the durable actor and require the requested current canonical actions. */
 export async function requireCurrentPrincipalJobAuthority(
   snapshot: AsyncDatabaseClient,
   initiator: PrincipalJobInitiator,
@@ -149,7 +149,10 @@ export async function requireCurrentPrincipalJobAuthority(
       identitySubject: typed.identitySubject
     });
     if (await isDynamicRolePolicyInSnapshot(snapshot)) {
-      const permissions = groups.map(group => ({ permissionKind: "action" as const, permissionCode: `pdm.${group}.${action}` }));
+      const actions = action === "view_and_download" ? ["view", "download"] as const : [action];
+      const permissions = groups.flatMap(group => actions.map(requiredAction => ({
+        permissionKind: "action" as const, permissionCode: `pdm.${group}.${requiredAction}`
+      })));
       const decisions = await evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(snapshot, {
         principalId: initiator.principalId,
         employeeId: initiator.employeeId,

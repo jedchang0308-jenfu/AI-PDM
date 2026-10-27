@@ -45,6 +45,8 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 固定操作為：`AI-PDM 下載安裝程式 → 執行安裝／UAC → 安裝工具自動開啟系統瀏覽器 → 公司 Google SSO → 使用者按一次「連結這台電腦」→ 瀏覽器以 loopback callback 將短效交換資料交回本機工具 → 系統自動完成`。RD、採購／生管、生產人員及其他有效 AI-PDM 使用者均可自助連結自己的電腦，不需 PDM 管理員逐台核准；管理員只處理異常撤銷。網頁不能靜默繞過 UAC。連結後背景服務開機啟動，日常不需保持網頁開啟。沒有任何使用者裝置在線時，工作維持 `queued`，不增加業務 attempt；裝置重新上線後自動接續。
 
+連結頁讀取帳號回 `401` 時，直接導向既有公司 SSO start，將原 `/settings/windows-service` pairing query 完整保留為受控 `returnTo`，登入後回到同一連結請求；已有有效登入則直接顯示連結確認。`403` 保留帳號拒絕、`503` 顯示相依服務失敗，不能當成未登入反覆導向 Google。
+
 | 決策 | 第一版固定實作 |
 |---|---|
 | 安裝形式 | NSIS 3 Unicode 的 `AI-PDM-Windows-Setup-<version>.exe`；不另做 MSI。打包既有 Node 24 LTS 執行碼、WinSW 2.12.0 與預編譯 x64 C# extractor，使用 .NET Framework 4.8；第一版在 Windows 11 x64 驗證。使用者端不安裝 Node、編譯器或完整 SolidWorks。 |
@@ -108,6 +110,8 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 | PDF／附件 | 先在固定唯讀來源查明 MIME／extension／source binding／current hash；只修被證明錯誤的 resolver／viewer。PDF 原檔走既有受保護 preview API，不送 Document Manager，不把可閱讀 PDF 改成 PNG。若需修正式 metadata，另用正常 writer 與具名資料範圍，不能在 viewer GET 偷做回填。 |
 
 每個 request 先從 DB 重驗 active device／instance、owner account、Principal mapping 與 published grant；job／source owner 再於自己的 transaction 重驗現行資源權限及 generation fence。provider I/O 不跨網路持有 DB lock，key 回傳前重新驗證 device 及工作；來源 bytes 沿既有讀取前後 source／resource fence。撤銷 commit 後開始的後續 request 必須拒絕；先前已授權的串流或已啟動 COM 不承諾中途回收。這是本任務的立即撤權契約，不宣稱尚未實作的跨三個 queue device-row 互斥。
+
+使用者電腦會收到原始 CAD，preview／recognition 的 claim、source、heartbeat、complete 與工作 key guard 均須同時通過來源所屬作業的 `view` 及 `download`；只有查看權不能藉 parser 取得原檔。SLDPRT／SLDASM 即使歷史 upload category 為 generic drawing，也必須包含 model 的兩項權限。領取前拒絕不得增加 attempt；領取後撤銷其中任一權限，下一次請求拒絕且不交付 bytes／key 或寫入結果。
 
 Windows 排程器維持單一原生執行。一般逐件處理；若業務工作尚未取得 key、亦未下載／執行 CAD，保留原工作 heartbeat／attempt，允許管理 probe 在同一程序取得序列化的恢復回合，以免唯一使用者電腦等待失效 active key 時無法測試替代版本。probe 與業務工作各用自己的 owner／company／generation，非管理員仍取不到 probe。恢復後重新驗證工作及 key 才繼續；不建立另一個 parser 或常開主機。原 parent-lock、initiator 撤權、source-hash guard、5 秒工作 heartbeat／失聯回收與 attempt 上限保留，重領後舊 fence 的結果零寫入。
 

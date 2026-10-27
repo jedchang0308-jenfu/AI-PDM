@@ -10,6 +10,8 @@ DEV-125 現為 `Architecture Finalized / RELEASED_R25 / FORMAL_ACCEPTANCE_IN_PRO
 
 R25 正式驗收的 heartbeat admission 缺口與 key 取用順序由 PR #539 修正，進度見 DEV-125 §11.7。native key 必須有當前 preview／recognition 工作及來源租約，provider I/O 後重驗裝置及資源；idle 不取 key、不跨工作 cache。非管理員略過管理用 probe，仍可處理自己目前有權的原生工作。
 
+Windows parser 會接收原始 CAD，因此各工作入口與 key guard 需同時重驗來源作業的 `view` 與 `download`，不能沿歷史 server renderer 的 view-only 邊界。原生 part／assembly 必須包含 model 權限；缺少任一權限時不領取、不交付原檔或 key、不接受結果。後續撤銷立即阻擋下一次請求，領取前拒絕不耗 attempt。
+
 Status: DEV-105 RD Implemented / Revision B QA-QC Complete / Effectiveness Reclosed / Historical QA-105 18 of 18 Retained as Baseline / Primary Backfill Human-Gated / Production Release Gated
 Date: 2026-08-31
 Owner: Dev PM

@@ -18,6 +18,7 @@
 | Document Manager 唯一引擎 | 讀屬性及檔內儲存 PNG；PRT／ASM configuration、DRW sheet 能力分別驗證。取消下文歷史 Shell／eDrawings 作為可選現行實作的解讀；缺圖明確失敗，不保留替代引擎。 |
 | Principal owner＋舊佇列 owner＋既有 generation fence | claim／source／heartbeat／complete 重驗 active account、Principal、grant 與資源權限；A 裝置不能取得 B-only 工作。queued 等待不耗 attempt；只回收已領取 stale lease。不另做 queue／receipt 平台。 |
 | Native key 隨已授權工作租約取用 | worker 先 claim 自己有權的工作再讀 key；broker 在 provider I/O 前後核對 device、owner、company、來源與既有 generation。idle 不取 key、不跨工作 cache。管理 probe 沿自己 lease 讀 key；非管理員的 probe poll 回空 queue，不阻擋正常工作。 |
+| 使用者電腦接收原檔要同時有查看與下載權 | preview／recognition 的 claim、source、heartbeat、complete 及 key guard 重驗來源各作業的 `view` 與 `download`；SLDPRT／SLDASM 包含 model 權限。只有 view 不得以 parser 繞過下載限制；claim 拒絕不增加 attempt。 |
 | OpenSWX 程式、發布、專用雲端全部退出 | 先排空、建立無 worker 依賴的 recovery，再刪專用資源；共享權限依 consumer 保留，歷史 migration／資料／收據不刪，不留下可執行 compatibility reader。 |
 
 Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 可執行入口、日常發布依賴與專用部署資源已依 DEV-125 §11／QA JSON 退出，歷史 migration／收據保留。R25 發布通過仍不替代 Windows 自助連結、低權限三格式及正常 UI 的實際驗收。
