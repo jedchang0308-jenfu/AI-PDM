@@ -6,7 +6,7 @@ import { decodePreviewLeaseHeader, previewLeaseHeader, previewLeaseProtocolVersi
 
 export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
-  const authentication = authenticateWorkerService(request, "preview_jobs");
+  const authentication = await authenticateWorkerService(request, "preview_jobs");
   if ("response" in authentication) return authentication.response;
   const leaseBasis = decodePreviewLeaseHeader(request.headers.get(previewLeaseHeader));
   if (!leaseBasis) return Response.json({ error: "INVALID_PREVIEW_LEASE" }, { status: 400, headers: { "cache-control": "private, no-store" } });

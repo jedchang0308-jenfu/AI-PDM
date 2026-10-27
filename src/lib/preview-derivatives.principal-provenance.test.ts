@@ -48,7 +48,8 @@ describe("principal preview job provenance", () => {
           attempt_count INTEGER NOT NULL, idempotency_key TEXT NOT NULL UNIQUE,
           generator_profile TEXT NOT NULL, error_code TEXT, error_summary TEXT,
           created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-          completed_at TEXT, metadata_json TEXT NOT NULL, locked_by TEXT, locked_at TEXT
+          completed_at TEXT, metadata_json TEXT NOT NULL, locked_by TEXT, locked_at TEXT,
+          worker_completion_json TEXT
         );
         INSERT INTO drawing_revisions VALUES ('revision-one', 'company-one');
         INSERT INTO drawing_revision_files VALUES
@@ -73,7 +74,7 @@ describe("principal preview job provenance", () => {
       expect(JSON.parse(String(storedMetadata?.metadata_json))).toEqual({ initiator });
 
       const validClaim = await claimPreviewJobAsync(client, {
-        leaseProtocolVersion: 2, workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
+        leaseProtocolVersion: 2, workerId: "worker-one", companyId: "company-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
       });
       expect(validClaim).toMatchObject({ jobId: queued.jobId, sourceFileAssetId: source.id });
 
@@ -85,7 +86,7 @@ describe("principal preview job provenance", () => {
       const beforeWrongCompanyClaim = database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId);
       expect(beforeWrongCompanyClaim).toMatchObject({ company_id: "company-two", status: "queued" });
       const claim = await claimPreviewJobAsync(client, {
-        leaseProtocolVersion: 2, workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
+        leaseProtocolVersion: 2, workerId: "worker-one", companyId: "company-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
       });
       expect(claim).toBeNull();
       expect(database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId))

@@ -1,77 +1,86 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { authenticateWorkerService, rejectWorkerCapability, rejectWorkerLabel } from "./worker-service-auth";
+import { NextResponse } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const token = Buffer.alloc(32, 11).toString("base64url");
-const otherToken = Buffer.alloc(32, 12).toString("base64url");
-const native = { id: "native-preview", token, purposes: ["preview_jobs", "preview_heartbeat"], capabilities: ["solidworks_3d_preview_png"] };
-const recognition = { id: "drawing-recognition", token: otherToken, purposes: ["recognition_jobs", "recognition_heartbeat"], capabilities: ["solidworks_document_manager"] };
-const previous = process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;
-afterEach(() => { if (previous === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = previous; });
-function configure(workloads: unknown = [native, recognition]) {
-  process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads });
-}
-function request(value = token, extra: Record<string, string> = {}) {
-  return new Request("https://ai-pdm.example/api/preview-jobs/claim", { headers: { authorization: `Bearer ${value}`, ...extra } });
-}
-function status(result: ReturnType<typeof authenticateWorkerService>) { return "response" in result ? result.response.status : 200; }
+const mocks = vi.hoisted(() => ({ authenticateDevice: vi.fn() }));
+vi.mock("@/lib/windows-service-device-auth", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/windows-service-device-auth")>(),
+  authenticateWindowsServiceDevice: mocks.authenticateDevice
+}));
 
-describe("owner-bound technical workload authentication", () => {
-  it("resolves distinct credentials to distinct server-owned actors and purpose scopes", () => {
-    configure();
-    const result = authenticateWorkerService(request(), "preview_jobs");
-    expect(status(result)).toBe(200);
-    if ("response" in result) throw Error("Expected authenticated workload");
-    expect(result.actor).toEqual({ kind: "workload", id: native.id, purposes: native.purposes, capabilities: native.capabilities });
-    expect(Object.isFrozen(result.actor)).toBe(true);
-    expect(rejectWorkerLabel(result.actor, undefined)).toBeNull();
-    expect(rejectWorkerLabel(result.actor, native.id)).toBeNull();
-    expect(rejectWorkerLabel(result.actor, recognition.id)?.status).toBe(403);
-    expect(rejectWorkerCapability(result.actor, "solidworks_2d_preview_png")?.status).toBe(403);
-    expect(status(authenticateWorkerService(request(), "solidworks_credential"))).toBe(403);
-    expect(status(authenticateWorkerService(request(), "recognition_jobs"))).toBe(403);
-    expect(status(authenticateWorkerService(request(otherToken), "recognition_jobs"))).toBe(200);
+import {
+  authenticateWorkerService,
+  rejectWorkerCapability,
+  rejectWorkerLabel
+} from "./worker-service-auth";
+import type { VerifiedWindowsServiceDevice } from "./windows-service-device-auth";
+
+const actor: VerifiedWindowsServiceDevice = {
+  kind: "windows_service_device",
+  id: "device-one:instance-one",
+  deviceId: "device-one",
+  companyId: "company-one",
+  instanceId: "instance-one",
+  credentialHash: "a".repeat(64),
+  device: {
+    id: "device-one", companyId: "company-one", name: "Worker One", status: "active",
+    instanceId: "instance-one", serviceVersion: "test", protocolVersion: 1,
+    registeredBy: "profile-one", registeredAt: "2026-10-23T00:00:00.000Z",
+    lastSeenAt: null, revokedAt: null, revokedBy: null, rowVersion: 1
+  },
+  purposes: ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"],
+  capabilities: ["solidworks_3d_preview_png", "solidworks_2d_preview_png", "solidworks_document_manager"]
+};
+
+function request(extra: Record<string, string> = {}) {
+  return new Request("https://ai-pdm.example/api/preview-jobs/claim", { headers: extra });
+}
+async function status(result: ReturnType<typeof authenticateWorkerService>) {
+  const resolved = await result;
+  return "response" in resolved ? resolved.response.status : 200;
+}
+
+describe("DEV-125 current device authentication", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.authenticateDevice.mockResolvedValue({ actor });
   });
-  it("rejects token, header, instance, and Principal-label spoofing", () => {
-    configure();
-    const spoofedHeaders: Record<string, string>[] = [
-      { "x-pdm-preview-worker-id": recognition.id }, { "x-pdm-recognition-worker-id": recognition.id },
-      { "x-pdm-worker-id": "principal-shijie" }, { "x-pdm-preview-worker-token": otherToken }
-    ];
-    for (const extra of spoofedHeaders) expect(status(authenticateWorkerService(request(token, extra), "preview_jobs"))).toBe(403);
-    expect(status(authenticateWorkerService(request(token, { "x-pdm-preview-worker-token": token }), "preview_jobs"))).toBe(403);
-    expect(status(authenticateWorkerService(request(Buffer.alloc(32, 13).toString("base64url")), "preview_jobs"))).toBe(403);
-    expect(status(authenticateWorkerService(new Request("https://ai-pdm.example", { headers: { authorization: `bEaReR ${token}` } }), "preview_jobs"))).toBe(200);
-    expect(status(authenticateWorkerService(new Request("https://ai-pdm.example", { headers: { "x-pdm-preview-worker-token": token } }), "preview_jobs"))).toBe(403);
+
+  it("delegates every request to the current PostgreSQL-backed device verifier", async () => {
+    const first = await authenticateWorkerService(request(), "preview_jobs");
+    const second = await authenticateWorkerService(request(), "recognition_jobs");
+    expect(mocks.authenticateDevice).toHaveBeenCalledTimes(2);
+    if ("response" in first || "response" in second) throw Error("Expected authenticated device");
+    expect(first.actor).toBe(actor);
+    expect(second.actor.companyId).toBe("company-one");
   });
-  it("fails closed on missing, malformed, ambiguous or human-authority configuration", () => {
-    for (const value of [undefined, "", "{}", "not-json"]) {
-      if (value === undefined) delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS; else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS = value;
-      expect(status(authenticateWorkerService(request(), "preview_jobs"))).toBe(503);
+
+  it("has no legacy environment credential fallback", async () => {
+    vi.stubEnv("PDM_WORKLOAD_AUTH_CREDENTIALS", JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [] }));
+    mocks.authenticateDevice.mockResolvedValueOnce({ response: NextResponse.json({ error: "WORKER_DEVICE_UNAUTHORIZED" }, { status: 403 }) });
+    expect(await status(authenticateWorkerService(request(), "preview_jobs"))).toBe(403);
+  });
+
+  it("rejects route-specific worker-label spoofing after device authentication", async () => {
+    for (const header of ["x-pdm-preview-worker-id", "x-pdm-recognition-worker-id"]) {
+      expect(await status(authenticateWorkerService(request({ [header]: "foreign-instance" }), "preview_jobs"))).toBe(403);
     }
-    for (const workloads of [[], [native, native], [native, { ...recognition, token }],
-      [{ ...native, token: "legacy-shared-worker-token" }], [{ ...native, purposes: ["human_admin"] }],
-      [{ ...native, principalId: "principal-shijie" }], [{ ...native, capabilities: ["system_admin"] }],
-      [{ ...native, capabilities: [] }], [{ ...recognition, capabilities: ["solidworks_3d_preview_png"] }]]) {
-      configure(workloads);
-      expect(status(authenticateWorkerService(request(), "preview_jobs"))).toBe(503);
-    }
+    expect(await status(authenticateWorkerService(request({ "x-pdm-preview-worker-id": actor.id }), "preview_jobs"))).toBe(200);
+    expect(rejectWorkerLabel(actor, undefined)).toBeNull();
+    expect(rejectWorkerLabel(actor, actor.id)).toBeNull();
+    expect(rejectWorkerLabel(actor, "foreign-instance")?.status).toBe(403);
   });
-  it("revoked credential stops authenticating without cached grants or old token fallback", () => {
-    configure();
-    expect(status(authenticateWorkerService(request(), "preview_jobs"))).toBe(200);
-    configure([{ ...native, token: otherToken }]);
-    expect(status(authenticateWorkerService(request(), "preview_jobs"))).toBe(403);
-    expect(status(authenticateWorkerService(request(otherToken), "preview_jobs"))).toBe(200);
+
+  it("enforces server-owned capability and purpose vocabularies", async () => {
+    expect(rejectWorkerCapability(actor, "solidworks_document_manager")).toBeNull();
+    expect(await status(authenticateWorkerService(request(), "settings_secret_probe"))).toBe(200);
+    expect(mocks.authenticateDevice).toHaveBeenCalledTimes(1);
   });
-  it("isolates the exact OpenSWX reader purpose from every DM/preview/key/ACK purpose", () => {
-    const auxiliaryToken = Buffer.alloc(32, 14).toString("base64url");
-    const auxiliary = { id: "openswx-metadata-reader", token: auxiliaryToken, purposes: ["openswx_metadata_jobs"], capabilities: ["openswx_metadata"] };
-    configure([native, recognition, auxiliary]);
-    expect(status(authenticateWorkerService(request(auxiliaryToken), "openswx_metadata_jobs"))).toBe(200);
-    for (const purpose of ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"] as const) expect(status(authenticateWorkerService(request(auxiliaryToken), purpose))).toBe(403);
-    expect(status(authenticateWorkerService(request(otherToken), "openswx_metadata_jobs"))).toBe(403);
-    for (const bad of [{ ...auxiliary, id: "other" }, { ...auxiliary, purposes: ["openswx_metadata_jobs", "solidworks_credential"], capabilities: ["openswx_metadata", "solidworks_document_manager"] }, { ...auxiliary, capabilities: ["solidworks_document_manager"] }]) {
-      configure([bad]); expect(status(authenticateWorkerService(request(auxiliaryToken), "openswx_metadata_jobs"))).toBe(503);
-    }
+
+  it("propagates current revocation and auth dependency failures without caching", async () => {
+    expect(await status(authenticateWorkerService(request(), "preview_jobs"))).toBe(200);
+    mocks.authenticateDevice.mockResolvedValueOnce({ response: NextResponse.json({ error: "WORKER_DEVICE_UNAUTHORIZED" }, { status: 403 }) });
+    expect(await status(authenticateWorkerService(request(), "preview_jobs"))).toBe(403);
+    mocks.authenticateDevice.mockResolvedValueOnce({ response: NextResponse.json({ error: "WORKER_DEVICE_AUTH_UNAVAILABLE" }, { status: 503 }) });
+    expect(await status(authenticateWorkerService(request(), "preview_jobs"))).toBe(503);
   });
 });

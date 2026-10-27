@@ -7,7 +7,7 @@ import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const authentication = authenticateWorkerService(request, "settings_secret_probe");
+  const authentication = await authenticateWorkerService(request, "settings_secret_probe");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   const capabilityDenied = rejectWorkerCapability(actor, "solidworks_document_manager");
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     if (body.protocolVersion === 2) await reconcilePendingSettingsSecretActivation();
     const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
-    const job = await repository.claimProbeJob(workerId,new Date().toISOString(),body.protocolVersion);
+    const job = await repository.claimProbeJob(workerId,actor.companyId,new Date().toISOString(),body.protocolVersion);
     if (!job) return new NextResponse(null,{status:204});
     const reference = await repository.getReferenceById(job.secretReferenceId);
     if (!reference) return NextResponse.json({error:"SECRET_REFERENCE_NOT_FOUND"},{status:409});

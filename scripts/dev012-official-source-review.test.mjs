@@ -20,7 +20,9 @@ test('official source gate accepts the RD permission readback workflow ref', () 
 test('required full QC executes and source-binds the official source regression', () => {
   const source = fs.readFileSync(new URL('./qc-dev-117-continuous-release.mjs', import.meta.url), 'utf8')
   const invocation = source.slice(source.indexOf('const run ='), source.indexOf('const imageTempPrefix'))
-  assert.match(invocation, /'scripts\/dev012-official-source-review\.test\.mjs'/u)
+  assert.match(invocation, /'test:dev-117:continuous'/u)
+  const packageScripts = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts
+  assert.match(packageScripts['test:dev-117:continuous'], /scripts\/dev012-official-source-review\.test\.mjs/u)
   const snapshot = source.slice(source.indexOf('const files ='))
   for (const file of ['scripts/lib/dev012-official-source-review.mjs',
     'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs']) {

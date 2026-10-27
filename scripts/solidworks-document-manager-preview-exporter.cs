@@ -17,7 +17,7 @@ internal static class SolidWorksDocumentManagerPreviewExporter
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("Usage: SolidWorksDocumentManagerPreviewExporter.exe <source.slddrw> <output.png>");
+            Console.Error.WriteLine("Usage: SolidWorksDocumentManagerPreviewExporter.exe <source.sldprt|sldasm|slddrw> <output.png>");
             return 64;
         }
 
@@ -48,8 +48,14 @@ internal static class SolidWorksDocumentManagerPreviewExporter
                 return 70;
             }
 
+            int documentType = DocumentTypeFor(sourcePath);
+            if (documentType == 0)
+            {
+                Console.Error.WriteLine("DOCUMENT_MANAGER_SOURCE_TYPE_UNSUPPORTED");
+                return 64;
+            }
             int openError = 0;
-            doc = ((dynamic)app).GetDocument(sourcePath, 3, true, out openError);
+            doc = ((dynamic)app).GetDocument(sourcePath, documentType, true, out openError);
             if (doc == null || openError != 0)
             {
                 Console.Error.WriteLine("DOCUMENT_MANAGER_OPEN_FAILED:" + openError);
@@ -57,8 +63,10 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             }
 
             string previewSource;
-            byte[] pngBytes = TryReadFirstSheetPreview(doc, out previewSource);
-            if (pngBytes == null || pngBytes.Length == 0)
+            byte[] pngBytes = documentType == 3
+                ? TryReadFirstSheetPreview(doc, out previewSource)
+                : TryReadActiveConfigurationPreview(doc, out previewSource);
+            if ((pngBytes == null || pngBytes.Length == 0) && documentType == 3)
             {
                 pngBytes = TryReadDocumentPreview(doc, out previewSource);
             }
@@ -96,6 +104,15 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             ReleaseCom(doc);
             ReleaseCom(app);
         }
+    }
+
+    private static int DocumentTypeFor(string sourcePath)
+    {
+        string extension = Path.GetExtension(sourcePath).ToLowerInvariant();
+        if (extension == ".sldprt") return 1;
+        if (extension == ".sldasm") return 2;
+        if (extension == ".slddrw") return 3;
+        return 0;
     }
 
     private static string ReadLicenseKey()
@@ -153,6 +170,35 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         }
 
         return null;
+    }
+
+    private static byte[] TryReadActiveConfigurationPreview(object doc, out string previewSource)
+    {
+        previewSource = "configuration";
+        object managerObject = null;
+        object configurationObject = null;
+        try
+        {
+            managerObject = ((dynamic)doc).ConfigurationManager;
+            if (managerObject == null) return null;
+            dynamic manager = managerObject;
+            string activeName = Convert.ToString(manager.GetActiveConfigurationName()) ?? "";
+            if (String.IsNullOrWhiteSpace(activeName)) return null;
+            int configurationError = 0;
+            configurationObject = manager.GetConfigurationByName2(activeName, out configurationError);
+            if (configurationObject == null || configurationError != 0) return null;
+            int previewError = 0;
+            object bytesObject = ((dynamic)configurationObject).GetPreviewPNGBitmapBytes(out previewError);
+            byte[] bytes = ConvertVariantByteArray(bytesObject);
+            if (previewError != 0 || bytes == null || bytes.Length == 0) return null;
+            previewSource = "configuration:" + activeName;
+            return bytes;
+        }
+        finally
+        {
+            ReleaseCom(configurationObject);
+            ReleaseCom(managerObject);
+        }
     }
 
     private static byte[] TryReadDocumentPreview(object doc, out string previewSource)

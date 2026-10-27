@@ -4,7 +4,6 @@ import {
   assertPrincipalOnlyRecoveryBinding,
   assertHistoricalPrincipalOnlyRecoveryReadback,
   assertReconciledPrincipalAbortBinding,
-  assertReconciledRepairContinuation,
   assertPrincipalOnlyRecoveryReadback,
   assertRecoveryProofReadback,
   assertPrincipalOnlyActivationReadback,
@@ -81,45 +80,20 @@ test('applied continuation keeps the recovery proof as history while current tra
     profile, proof, service: currentService, revision }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
-test('reconciled abort evidence is continuation data and joins an exact paused-repair worker input', () => {
+test('reconciled abort evidence remains release continuation data after worker retirement', () => {
   const postAbortLedgerReadbackRef = {
     uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER-LOCAL/${'e'.repeat(64)}/ledger-readback-result.json`,
     sha256: 'f'.repeat(64),
   }
   const reconciledIntent = { ...intent, postAbortLedgerReadbackRef }
-  const workerInput = {
-    schemaVersion: 'aipdm.openswx-worker-reuse-input.v5',
-    postAbortLedgerReadbackRef,
-    principalOnlyFenceRef: intent.principalOnlyFenceRef,
-    principalOnlyRecovery: intent.principalOnlyRecovery,
-  }
   assert.deepEqual(assertReconciledPrincipalAbortBinding(reconciledIntent, bucket), {
     postAbortLedgerReadbackRef,
     principalOnlyFenceRef: intent.principalOnlyFenceRef,
     principalOnlyRecovery: intent.principalOnlyRecovery,
   })
-  assert.deepEqual(assertReconciledRepairContinuation(reconciledIntent, workerInput, bucket),
-    assertReconciledPrincipalAbortBinding(reconciledIntent, bucket))
-  const appliedRoot = `gs://${bucket}/receipts/releases/DEV122-RD-APPLIED/${'1'.repeat(64)}`
-  const appliedMigrationContinuation = {
-    schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: 'a'.repeat(40),
-    prepareRef: { uri: `${appliedRoot}/prepare.json`, sha256: '2'.repeat(64) },
-    migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: '3'.repeat(64) },
-    ledgerReadbackResultRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER35/${'4'.repeat(64)}/ledger-readback-result.json`, sha256: '5'.repeat(64) },
-  }
-  const appliedIntent = { ...reconciledIntent, appliedMigrationContinuation }
-  const appliedWorker = { ...workerInput, appliedMigrationContinuation }
-  assert.doesNotThrow(() => assertReconciledRepairContinuation(appliedIntent, appliedWorker, bucket))
-  assert.throws(() => assertReconciledRepairContinuation(appliedIntent, workerInput, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
-  assert.throws(() => assertReconciledRepairContinuation(reconciledIntent, appliedWorker, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
-  assert.equal(assertReconciledRepairContinuation({ previousRevision: old }, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }, bucket), null)
-
-  for (const [release, worker] of [
-    [intent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
-    [reconciledIntent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
-    [reconciledIntent, { ...workerInput, postAbortLedgerReadbackRef: { ...postAbortLedgerReadbackRef, sha256: '0'.repeat(64) } }],
-    [{ ...reconciledIntent, postAbortLedgerReadbackRef: undefined }, workerInput],
-  ]) assert.throws(() => assertReconciledRepairContinuation(release, worker, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+  assert.equal(assertReconciledPrincipalAbortBinding({ previousRevision: old }, bucket), null)
+  assert.throws(() => assertReconciledPrincipalAbortBinding({ ...reconciledIntent,
+    principalOnlyRecovery: undefined }, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
 test('recovery proof keeps its artifact source while joining a later release source, service and immutable image', () => {

@@ -40,7 +40,6 @@ test('pure selected tests do not acquire Git metadata or localhost authority', a
 test('shared affected consumers select only capabilities used by those tests', async () => {
   for (const [file, capabilities] of [
     ['scripts/dev117-release-efficiency.test.mjs', ['git-fixture']],
-    ['scripts/dev122-openswx-worker-artifact-reuse.test.mjs', ['git-fixture']],
     ['scripts/dev012-owner-stage-executor.test.mjs', ['git-fixture', 'linked-worktree']],
     ['scripts/dev121-principal-only-recovery-server.test.mjs', ['loopback']],
   ]) {

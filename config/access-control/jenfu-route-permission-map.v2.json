@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "f5652d1bac2a9fa0b9c7e4a97fe650b209871a2dce583bf06cfe358ddd66c453",
+  "sourceSha256": "da91e7d0762c70929d0077b9c87b2e929b55b74c5509b34f9fe5b67e6ba1cbf7",
   "denominator": {
-    "uniqueFiles": 155,
-    "uniqueMethods": 177,
-    "policyEntries": 187
+    "uniqueFiles": 153,
+    "uniqueMethods": 174,
+    "policyEntries": 184
   },
   "entries": [
     {
@@ -1848,36 +1848,6 @@
       "authorizationTarget": "numbering.attachments.manage",
       "scopeResolver": "workspace",
       "preservedGuards": "verified Principal/company; exact part; registry-validated category→part/model; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
-    },
-    {
-      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-      "method": "GET",
-      "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "numbering.recognition.review",
-      "authorizationTarget": "numbering.recognition.review",
-      "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-    },
-    {
-      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
-      "method": "POST",
-      "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "numbering.recognition.run",
-      "authorizationTarget": "numbering.recognition.run",
-      "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
-    },
-    {
-      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
-      "method": "POST",
-      "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "numbering.recognition.run",
-      "authorizationTarget": "numbering.recognition.run",
-      "scopeResolver": "workspace",
-      "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
     }
   ]
 }

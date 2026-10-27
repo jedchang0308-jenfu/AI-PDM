@@ -21,7 +21,7 @@ const ref = (name) => ({ uri: `gs://${profile.artifact.releaseBucket}/receipts/$
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex')
 
-test('DEV-121 operator provider proof has additive, app-owned read grants only', () => {
+test('DEV-121 operator provider proof retains app-owned reads and removes retired OpenSWX recovery access', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
   const artifact = readText('infra/google-cloud/dev-117-production-release/artifact.tf')
   const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
@@ -33,7 +33,6 @@ test('DEV-121 operator provider proof has additive, app-owned read grants only',
   const imageGrant = block(artifact, 'google_artifact_registry_repository_iam_member', 'migrator_proof_image_reader')
   const sourceGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_release_source_viewer')
   const rdReadbackGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_rd_permission_readback_viewer')
-  const openswxRecoveryGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_openswx_dispatch_recovery_viewer')
   assert.match(role, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
   assert.match(role, /permissions\s+= \["cloudbuild\.builds\.get", "serviceusage\.services\.use"\]/u)
   assert.doesNotMatch(role, /builds\.(?:create|list|update)|\bdelete\b/u)
@@ -45,21 +44,20 @@ test('DEV-121 operator provider proof has additive, app-owned read grants only',
   assert.doesNotMatch(sourceGrant, /orgmaster-release|platform-release|objectAdmin/u)
   assert.match(rdReadbackGrant, /count\s+= var\.incident_runtime_enabled \? 1 : 0[\s\S]*role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
   assert.match(rdReadbackGrant, /objects\/source\/rd-permission-readback\//u)
-  assert.match(openswxRecoveryGrant, /count\s+= var\.incident_runtime_enabled \? 1 : 0[\s\S]*role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
-  assert.match(openswxRecoveryGrant, /objects\/source\/openswx-dispatch-recovery\//u)
-  for (const grant of [rdReadbackGrant, openswxRecoveryGrant]) assert.doesNotMatch(grant, /orgmaster-release|platform-release|objectAdmin|objectUser/u)
+  assert.doesNotMatch(migration, /openswx-dispatch-recovery|migrator_openswx_dispatch_recovery_viewer/iu)
+  assert.doesNotMatch(rdReadbackGrant, /orgmaster-release|platform-release|objectAdmin|objectUser/u)
   const addresses = [
     'google_project_iam_custom_role.migrator_build_get[0]',
     'google_project_iam_member.migrator_build_get[0]',
     'google_artifact_registry_repository_iam_member.migrator_proof_image_reader[0]',
     'google_storage_bucket_iam_member.migrator_release_source_viewer[0]',
     'google_storage_bucket_iam_member.migrator_rd_permission_readback_viewer[0]',
-    'google_storage_bucket_iam_member.migrator_openswx_dispatch_recovery_viewer[0]',
   ]
   for (const address of addresses) {
     assert.equal(infraPlan.stageBAdditional.filter((item) => item === address).length, 1)
     assert.ok(!infraPlan.stageA.includes(address))
   }
+  assert.ok(!infraPlan.stageBAdditional.some((address) => /openswx/iu.test(address)))
 })
 
 function controlledPrerequisites(ownerProfile, runtimeConfig) {
@@ -538,7 +536,7 @@ test('DEV-121 workbench authority binding survives newer source and rejects prof
   }
 })
 
-test('DEV-121 production worker credential has an exact own numeric Secret binding', () => {
+test('DEV-125 production runtime has no retired shared worker credential binding', () => {
   assertDev117V3Profile(profile, v1, n1c)
   const versions = Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1']))
   const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
@@ -546,33 +544,11 @@ test('DEV-121 production worker credential has an exact own numeric Secret bindi
     .map(name => [name, 'fixture-public-value']))
   const runtime = buildRuntimeConfig(profile, { plainEnvironment: resolvePlainEnvironment(profile, previous), secretVersions: versions })
   const env = runtime.template.containers.find(row => row.name === profile.runtime.containerName).env
-  assert.deepEqual(env.filter(row => row.name === 'PDM_WORKLOAD_AUTH_CREDENTIALS'), [{ name: 'PDM_WORKLOAD_AUTH_CREDENTIALS', valueSource: { secretKeyRef: { secret: 'aipdm-prod-workload-auth-credentials', version: '1' } } }])
-  const missing = structuredClone(profile)
-  missing.environment.requiredSecretNames = missing.environment.requiredSecretNames.filter(name => name !== 'PDM_WORKLOAD_AUTH_CREDENTIALS')
-  assert.throws(() => assertDev117V3Profile(missing, v1, n1c), { code: 'ENVIRONMENT_SET_DRIFT' })
-  for (const replacement of ['aipdm-prod-session-current', 'orgmaster-prod-workload-auth-credentials', undefined]) {
-    const drifted = structuredClone(profile)
-    drifted.environment.allowedSecretIds.PDM_WORKLOAD_AUTH_CREDENTIALS = replacement
-    assert.throws(() => assertDev117V3Profile(drifted, v1, n1c), { code: 'WORKLOAD_SECRET_BINDING_DRIFT' })
-  }
-  for (const version of ['latest', '0', '-1']) {
-    assert.throws(() => buildRuntimeConfig(profile, { plainEnvironment: runtime.plainEnvironment, secretVersions: { ...versions, PDM_WORKLOAD_AUTH_CREDENTIALS: version } }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
-  }
-  const absent = { ...versions }
-  delete absent.PDM_WORKLOAD_AUTH_CREDENTIALS
-  assert.throws(() => buildRuntimeConfig(profile, { plainEnvironment: runtime.plainEnvironment, secretVersions: absent }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  assert.deepEqual(env.filter(row => row.name === 'PDM_WORKLOAD_AUTH_CREDENTIALS'), [])
+  assert.equal(profile.environment.requiredSecretNames.includes('PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
+  assert.equal(Object.hasOwn(profile.environment.allowedSecretIds, 'PDM_WORKLOAD_AUTH_CREDENTIALS'), false)
   const infra = read('config/release/dev117-production-release-infra-plan.json')
-  for (const address of ['google_secret_manager_secret.workload_auth_credentials[0]', 'google_secret_manager_secret_iam_member.runtime_workload_credentials_accessor[0]']) {
-    assert.equal(infra.stageBAdditional.filter(item => item === address).length, 1)
-    assert.equal(infra.stageA.includes(address), false)
-  }
-  const source = readText('infra/google-cloud/dev-117-production-release/workload-auth.tf')
-  assert.match(source, /secret_id\s+= "aipdm-prod-workload-auth-credentials"/u)
-  assert.match(source, /role\s+= "roles\/secretmanager\.secretAccessor"/u)
-  assert.match(source, /data\.google_service_account\.runtime\.email/u)
-  assert.match(source, /deletion_protection\s+= true/u)
-  assert.match(source, /prevent_destroy = true/u)
-  assert.doesNotMatch(source, /resource "google_project_iam|resource "google_secret_manager_secret_version|secret_data/u)
+  assert.equal([...infra.stageA, ...infra.stageBAdditional].some(item => /workload_auth_credentials/u.test(item)), false)
 })
 
 test('S1B-20 build-only mode retains protected owner path and cannot reach mutations', () => {

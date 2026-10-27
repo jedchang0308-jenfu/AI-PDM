@@ -60,6 +60,34 @@ test("DEV-125A service has one fixed device protocol and no legacy worker creden
   assert.doesNotMatch(installerReader, /https?:\/\//u);
 });
 
+test("DEV-125B exposes only the installed Windows service and retires legacy worker entrypoints", () => {
+  const packageJson = JSON.parse(read("package.json"));
+  const packageCommands = Object.values(packageJson.scripts).join("\n");
+  const localLauncher = read("scripts/start-localhost-3000.ps1");
+  for (const retired of [
+    "run-drawing-recognition-worker.mjs",
+    "run-solidworks-document-manager-metadata-extractor.mjs",
+    "run-solidworks-document-manager-preview-worker.mjs",
+    "run-windows-shell-preview-worker.mjs",
+    "start-drawing-recognition-worker.ps1",
+    "qc-pdm-sw-native-preview-worker.mjs"
+  ]) {
+    assert.doesNotMatch(packageCommands, new RegExp(retired.replaceAll(".", "\\."), "u"));
+    assert.doesNotMatch(localLauncher, new RegExp(retired.replaceAll(".", "\\."), "u"));
+  }
+  for (const retiredPath of [
+    "config/release/dev122-openswx-worker.json",
+    "scripts/run-openswx-metadata-job.mjs",
+    "scripts/run-drawing-recognition-worker.mjs",
+    "scripts/run-solidworks-document-manager-metadata-extractor.mjs",
+    "scripts/run-solidworks-document-manager-preview-worker.mjs",
+    "scripts/run-windows-shell-preview-worker.mjs",
+    "scripts/start-drawing-recognition-worker.ps1",
+    "src/lib/openswx-metadata.ts"
+  ]) assert.equal(fs.existsSync(path.join(root, retiredPath)), false, retiredPath);
+  assert.match(localLauncher, /DEV-125 Windows service is installed and managed separately/u);
+});
+
 test("DEV-125A manager routes stay behind the existing secret-management permission", () => {
   const routeMap = JSON.parse(read("config/access-control/jenfu-route-permission-map.v2.json"));
   const expected = new Set([
@@ -72,4 +100,50 @@ test("DEV-125A manager routes stay behind the existing secret-management permiss
   assert.equal(entries.length, 4);
   assert.deepEqual(new Set(entries.map((row) => row.permissionCode)), new Set(["settings.secret.manage"]));
   assert.deepEqual(new Set(entries.map((row) => row.authorizationMode)), new Set(["permission"]));
+});
+
+test("DEV-125B runs probe, preview and recognition in one installed scheduler with bounded native execution", () => {
+  const service = read("windows-service/service/service.mjs");
+  const worker = read("windows-service/service/worker.mjs");
+  const build = read("scripts/build-dev125-windows-installer.ps1");
+  assert.match(service, /runWindowsWorker/u);
+  assert.match(service, /Promise\.all\(\[\s*heartbeatLoop\([\s\S]+runWindowsWorker/u);
+  for (const endpoint of ["/api/settings-secret-probe-jobs/claim", "/api/preview-jobs/claim",
+    "/api/recognition-jobs/claim", "/api/windows-service/jobs/"]) assert.ok(worker.includes(endpoint), endpoint);
+  assert.match(worker, /if \(await processProbe\(credentials, workerId\)\) continue;[\s\S]+documentManagerCredential/u);
+  assert.match(worker, /120_000/u);
+  assert.match(worker, /taskkill\.exe[\s\S]+\/t[\s\S]+\/f/u);
+  assert.match(worker, /maxSourceBytes = 268_435_456/u);
+  assert.match(worker, /completeWithReadback[\s\S]+readbackCompletion/u);
+  assert.match(worker, /worker_completion|resultDigest|canonicalDigest/u);
+  assert.match(build, /windows-service[\\/]service[\\/]\*\.mjs/u);
+  assert.match(build, /solidworks-metadata-field-aliases\.json/u);
+});
+
+test("DEV-125B authenticates non-OpenSWX worker calls from the current device row and fences tenant generations", () => {
+  const auth = read("src/lib/worker-service-auth.ts");
+  const deviceAuth = read("src/lib/windows-service-device-auth.ts");
+  const preview = read("src/lib/preview-derivatives.ts");
+  const recognition = read("src/lib/repositories/drawing-recognition-async-repository.ts");
+  const probe = read("src/lib/repositories/settings-secret-async-repository.ts");
+  assert.match(auth, /await authenticateWindowsServiceDevice\(request\)/u);
+  assert.doesNotMatch(auth.split("authenticateLegacyOpenSwxService")[0], /PDM_WORKLOAD_AUTH_CREDENTIALS/u);
+  assert.match(deviceAuth, /findByCredentialHash[\s\S]+status !== "active"[\s\S]+instanceLabel/u);
+  for (const source of [preview, recognition, probe]) {
+    assert.match(source, /company_id/u);
+    assert.match(source, /worker_completion_json/u);
+  }
+  assert.match(preview, /attemptCount[\s\S]+lockedAt[\s\S]+sourceContentHash/u);
+  assert.match(recognition, /sourceSetFingerprint[\s\S]+attemptCount[\s\S]+lockedAt/u);
+});
+
+test("DEV-125B native exporters use only registered late-bound official COM", () => {
+  for (const file of ["scripts/solidworks-document-manager-metadata-exporter.cs",
+    "scripts/solidworks-document-manager-preview-exporter.cs",
+    "scripts/solidworks-document-manager-credential-probe.cs"]) {
+    const source = read(file);
+    assert.match(source, /SwDocumentMgr\.SwDMClassFactory/u);
+    assert.match(source, /Activator\.CreateInstance/u);
+    assert.doesNotMatch(source, /SolidWorks\.Interop/u);
+  }
 });

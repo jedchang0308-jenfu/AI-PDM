@@ -43,7 +43,6 @@ function appliedTemplate(overrides = {}) {
     foundationReceiptRef: ref('foundation'),
     infraReceiptRef: ref('infra'),
     baselineIntentRef: ref('baseline'),
-    openswxWorkerRef: { uri: `gs://${BUCKET}/receipts/dev-122/openswx-worker/c110-descriptor.json`, sha256: HASH },
     postAbortLedgerReadbackRef: ref('ledger'),
     principalOnlyFenceRef: ref('fence'),
     principalOnlyRecovery: { revision: 'ai-pdm-prod-recovery', serviceUid: 'service-uid', imageDigest: `image@sha256:${HASH}`, receiptRef: ref('recovery') },
@@ -53,11 +52,12 @@ function appliedTemplate(overrides = {}) {
 }
 
 function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHook = null) {
-  const runtimeConfig = { plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: template.openswxWorkerRef ? '1' : '0' },
-    secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' } }
+  const runtimeConfig = { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '7' } }
   if (template.openswxWorkerRef) runtimeConfig.openswxWorker = {
     descriptorRef: template.openswxWorkerRef, purpose: 'full', sourceRevision: OLD, workerProfileSha256: HASH,
   }
+  if (template.openswxWorkerRef) runtimeConfig.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED = '1'
+  if (template.openswxWorkerRef) runtimeConfig.secretVersions.PDM_WORKLOAD_AUTH_CREDENTIALS = '9'
   const runtime = { runtimeConfig }
   const reads = []
   const transport = {
@@ -82,9 +82,9 @@ function fixture(template = appliedTemplate(), capsuleRef = templateRef, stageHo
     stages.push({ stage: value.stage, releaseId: value.releaseId, input: structuredClone(value.input) })
     return stageResult[value.stage]
   }
-  const readWorkerSource = () => Buffer.from('unused')
-  readWorkerSource.isAncestor = (ancestor, descendant) => ancestor === OLD && descendant === CURRENT
-  return { transport, reads, stages, producePrerequisite, readWorkerSource }
+  const readSource = () => Buffer.from('unused')
+  readSource.isAncestor = (ancestor, descendant) => ancestor === OLD && descendant === CURRENT
+  return { transport, reads, stages, producePrerequisite, readSource }
 }
 
 test('template ref and workflow identity are exact and traversal-safe', () => {
@@ -175,14 +175,14 @@ test('production-shaped refresh reads use verifier and exact migration identitie
   ])
 })
 
-test('expired applied continuation retains runtime binding without replaying worker evidence', async () => {
+test('expired applied continuation refreshes without a retired worker binding', async () => {
   const f = fixture()
   const now = new Date('2026-10-22T02:00:00.000Z')
   const result = await refreshAppliedContinuationCapsule({
     templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
     validateIntent: value => value,
     gitReader: () => ({ sourceRevision: CURRENT }),
-    readWorkerSource: f.readWorkerSource,
+    readSource: f.readSource,
     createSourceIdentity: async () => Buffer.from('source'),
     buildMigrationBundle: async () => ({ bundle: { manifestSha256: HASH } }),
     producePrerequisite: f.producePrerequisite,
@@ -193,24 +193,19 @@ test('expired applied continuation retains runtime binding without replaying wor
   assert.equal(result.releaseId, 'DEV122-RD-WIF-123456-2')
   assert.equal(result.releaseDeadlineAt, '2026-10-22T04:00:00.000Z')
   assert.deepEqual(f.stages.map(row => row.stage), ['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'release-intent'])
-  assert.deepEqual(f.stages[1].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
-  assert.deepEqual(f.stages[1].input.retainedOpenswxWorker,
-    { descriptorRef: appliedTemplate().openswxWorkerRef, purpose: 'full', sourceRevision: OLD, workerProfileSha256: HASH })
   assert.deepEqual(f.stages[4].input.appliedMigrationContinuation, appliedTemplate().appliedMigrationContinuation)
-  assert.deepEqual(f.stages[4].input.openswxWorkerRef, appliedTemplate().openswxWorkerRef)
   assert.deepEqual(f.stages[4].input.baselineIntentRef, ref('current-control-baseline'))
   assert.equal(f.stages.some(row => /worker|build/u.test(row.stage)), false)
   assert.equal(f.reads.some(row => row.uri?.includes('/openswx-worker/')), false)
-  assert.deepEqual(result.retainedWorkerDescriptorRef, appliedTemplate().openswxWorkerRef)
+  assert.equal(Object.hasOwn(result, 'retainedWorkerDescriptorRef'), false)
 })
 
-test('workerless applied continuation refresh remains valid and does not invent a worker gate', async () => {
-  const template = appliedTemplate()
-  delete template.openswxWorkerRef
+test('legacy template worker fields are scrubbed instead of becoming a current gate', async () => {
+  const template = appliedTemplate({ openswxWorkerRef: { uri: `gs://${BUCKET}/receipts/dev-122/openswx-worker/c110-descriptor.json`, sha256: HASH } })
   const f = fixture(template)
   const result = await refreshAppliedContinuationCapsule({
     templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
-    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
     createSourceIdentity: async () => Buffer.from('source'), buildMigrationBundle: async () => ({ bundle: { manifestSha256: HASH } }),
     producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z'),
   })
@@ -241,7 +236,7 @@ test('native38 refresh indexes the sealed prior admission and carries the same i
   f.transport.readJson = actual => actual.uri === nativeRef.uri
     ? { value: { ledgerCount: 38 }, ref: nativeRef } : readJson(actual)
   await refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
-    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
     producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') })
   const expected = { schemaVersion: 'aipdm.forward-applied-migration-continuation.v1', priorIntentRef: templateRef,
     priorPrepareRef: prepareRef, priorMigrationAdmissionRef: admissionRef }
@@ -256,7 +251,7 @@ test('unreadable optional native admission stops refresh before receipt publicat
   const f = fixture()
   f.transport.readBytes = async () => { throw Object.assign(new Error('ACCESS_DENIED'), { code: 'ACCESS_DENIED' }) }
   await assert.rejects(() => refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
-    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
     producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') }), /ACCESS_DENIED/u)
   assert.equal(f.stages.length, 0)
 })
@@ -285,7 +280,7 @@ test('C110-shaped refresh routes the exact pre-activation owner run through veri
   const transport = createAppliedContinuationRefreshTransport({ verifier, builder: inert })
   const result = await refreshAppliedContinuationCapsule({
     templateRef, profile, root: 'C:/fixture', transport, environment,
-    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
     createSourceIdentity: async () => Buffer.from('source'), buildMigrationBundle: async () => ({ bundle: { manifestSha256: HASH } }),
     producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z'),
   })
@@ -298,7 +293,7 @@ test('fresh exact-source capsules and non-release diagnostics are reused without
   const fresh = appliedTemplate({ sourceRevision: CURRENT, deadlineAt: '2026-10-22T03:00:00.000Z' })
   const f = fixture(fresh)
   const result = await refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
-    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+    validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
     producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') })
   assert.equal(result.refreshed, false)
   assert.equal(f.stages.length, 0)
@@ -317,9 +312,9 @@ test('divergent source and incomplete applied continuation fail closed before pu
     [appliedTemplate({ appliedMigrationContinuation: undefined }), true, 'APPLIED_CONTINUATION_REFRESH_TEMPLATE_INVALID'],
   ]) {
     const f = fixture(template)
-    f.readWorkerSource.isAncestor = () => ancestor
+    f.readSource.isAncestor = () => ancestor
     await assert.rejects(refreshAppliedContinuationCapsule({ templateRef, profile, root: 'C:/fixture', transport: f.transport, environment,
-      validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readWorkerSource: f.readWorkerSource,
+      validateIntent: value => value, gitReader: () => ({ sourceRevision: CURRENT }), readSource: f.readSource,
       producePrerequisite: f.producePrerequisite, now: () => new Date('2026-10-22T02:00:00.000Z') }), new RegExp(code, 'u'))
     assert.equal(f.stages.length, 0)
   }

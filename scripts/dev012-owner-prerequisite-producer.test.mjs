@@ -275,21 +275,14 @@ test('AI-PDM intent producer preserves the migration fence and maintenance recov
   ]) assert.throws(() => produce(changed))
 })
 
-test('AI-PDM intent producer admits reconciled migration evidence independently of its retained worker binding', () => {
+test('AI-PDM intent producer admits reconciled migration evidence without a retired worker binding', () => {
   const bucket = 'jenfu-platform-prod-aipdm-release'
   const p = { ...profile, application: { ...profile.application, id: 'ai-pdm' },
-    artifact: { ...profile.artifact, releaseBucket: bucket }, schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2' },
-    environment: { ...profile.environment,
-      optionalExtensions: { openswxDispatch: { name: 'PDM_OPENSWX_DISPATCH_ENABLED', off: '0', on: '1', binding: 'openswxWorkerRef' } },
-      requiredSecretNames: ['SESSION_SECRET', 'PDM_WORKLOAD_AUTH_CREDENTIALS'],
-      allowedSecretIds: { ...profile.environment.allowedSecretIds, PDM_WORKLOAD_AUTH_CREDENTIALS: 'aipdm-prod-workload-auth-credentials' } } }
+    artifact: { ...profile.artifact, releaseBucket: bucket }, schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2' } }
   const lock = { ...sourceLock, ownerApplicationId: 'ai-pdm' }
   const ownRef = name => ({ uri: `gs://${bucket}/receipts/releases/REL-001/${name}.json`, sha256: H64 })
-  const openswxWorkerRef = { uri: `gs://${bucket}/receipts/dev-122/openswx-worker/repair.json`, sha256: H64 }
-  const descriptor = { purpose: 'full', releaseVariant: 'PAUSED_APP_REPAIR', sourceRevision: lock.sourceRevision, workerProfileSha256: H64,
-    registrySecretVersion: 'projects/9536592944/secrets/aipdm-prod-workload-auth-credentials/versions/9' }
   const input = { sourceLockRef: ownRef('source-lock'), authorizationPolicyRef: ownRef('authorization'), readinessReceiptRef: ownRef('readiness'),
-    foundationReceiptRef: ownRef('foundation'), infraReceiptRef: ownRef('infra'), runtimeConfigRef: ownRef('runtime'), openswxWorkerRef,
+    foundationReceiptRef: ownRef('foundation'), infraReceiptRef: ownRef('infra'), runtimeConfigRef: ownRef('runtime'),
     previousRevision: 'ai-pdm-prod-old', deadlineAt: '2999-01-01T00:00:00.000Z',
     postAbortLedgerReadbackRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER-LOCAL/${'c'.repeat(64)}/ledger-readback-result.json`, sha256: 'd'.repeat(64) },
     principalOnlyFenceRef: { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${H40}/fence.json`, sha256: 'e'.repeat(64) },
@@ -299,14 +292,12 @@ test('AI-PDM intent producer admits reconciled migration evidence independently 
   const common = { releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', status: 'PASS', projectId: 'project' }
   const authority = { ...common, environment: 'production', remainingHumanAction: 0, expiresAt: input.deadlineAt }
   const runtimeConfig = buildRuntimeConfigReceipt({ profile: p, releaseId: 'REL-001', sourceLock: lock,
-    plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '1' },
-    secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, observedAt: NOW,
-    openswxWorker: { descriptorRef: openswxWorkerRef, sourceRevision: lock.sourceRevision, workerProfileSha256: H64, purpose: 'full' } })
+    plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW })
   const values = { sourceLock: lock, authorization: authority, readiness: authority,
     foundation: { ...common, ownerApplicationId: 'shared-foundation', sourceRevision: 'f'.repeat(40) },
     infra: { ...common, migrationRunnerDigest: p.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64) }, runtimeConfig }
   const produce = changed => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, ...changed },
-    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent, workerDescriptor: descriptor })
+    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent })
   assert.deepEqual(produce({}).postAbortLedgerReadbackRef, input.postAbortLedgerReadbackRef)
   const appliedRoot = `gs://${bucket}/receipts/releases/DEV122-RD-APPLIED/${'2'.repeat(64)}`
   const appliedMigrationContinuation = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: '3'.repeat(40),
@@ -315,32 +306,19 @@ test('AI-PDM intent producer admits reconciled migration evidence independently 
     ledgerReadbackResultRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER35/${'6'.repeat(64)}/ledger-readback-result.json`, sha256: '7'.repeat(64) } }
   assert.deepEqual(produce({ appliedMigrationContinuation }).appliedMigrationContinuation, appliedMigrationContinuation)
   const productionShaped = buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
-    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
-    workerDescriptor: runtimeConfig.runtimeConfig.openswxWorker })
-  assert.deepEqual(productionShaped.openswxWorkerRef, openswxWorkerRef)
+    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent })
+  assert.equal(Object.hasOwn(productionShaped, 'openswxWorkerRef'), false)
   assert.deepEqual(productionShaped.appliedMigrationContinuation, appliedMigrationContinuation)
   const aliased = structuredClone(appliedMigrationContinuation); aliased.migrateRef.uri = aliased.migrateRef.uri.replace('/migrate.json', '/../migrate.json')
   assert.throws(() => produce({ appliedMigrationContinuation: aliased }), /APPLIED_MIGRATION_CONTINUATION_INVALID/u)
-  assert.deepEqual(buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: { ...input, appliedMigrationContinuation },
-    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
-    workerDescriptor: { ...descriptor, releaseVariant: 'ORDINARY' } }).appliedMigrationContinuation, appliedMigrationContinuation)
-  const workerlessInput = { ...input, appliedMigrationContinuation }; delete workerlessInput.openswxWorkerRef
-  const workerlessRuntime = buildRuntimeConfigReceipt({ profile: p, releaseId: 'REL-001', sourceLock: lock,
-    plainEnvironment: { NODE_ENV: 'production', PDM_OPENSWX_DISPATCH_ENABLED: '0' },
-    secretVersions: { SESSION_SECRET: '7', PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, observedAt: NOW })
-  const workerless = buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: workerlessInput,
-    sourceLock: lock, prerequisiteValues: { ...values, runtimeConfig: workerlessRuntime }, validateIntent: assertDev117ReleaseIntent })
-  assert.equal(Object.hasOwn(workerless, 'openswxWorkerRef'), false)
-  assert.deepEqual(workerless.appliedMigrationContinuation, appliedMigrationContinuation)
+  assert.throws(() => produce({ appliedMigrationContinuation,
+    openswxWorkerRef: { uri: `gs://${bucket}/receipts/dev-122/openswx-worker/retired.json`, sha256: H64 } }),
+  /RETIRED_WORKER_BINDING_REJECTED/u)
   for (const missing of ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']) {
     const changed = { ...input, appliedMigrationContinuation }; delete changed[missing]
     assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: changed,
-      sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent,
-      workerDescriptor: descriptor }), /APPLIED_MIGRATION_CONTINUATION_INVALID|RELEASE_INTENT_INVALID/u)
+      sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent }), /APPLIED_MIGRATION_CONTINUATION_INVALID|RELEASE_INTENT_INVALID/u)
   }
-  const incomplete = { ...input }; delete incomplete.postAbortLedgerReadbackRef
-  assert.throws(() => buildReleaseIntent({ profile: p, releaseId: 'REL-001', input: incomplete,
-    sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent, workerDescriptor: descriptor }), /REPAIR_CAPSULE_INVALID/u)
 })
 
 // Synthetic payloads exercise the actual producer seam; operational data stays private.

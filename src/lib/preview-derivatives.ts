@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalJsonStringify } from "@/lib/canonical-json";
 import { parsePreviewLeaseBasis, previewLeaseProtocolVersion, type PreviewLeaseBasis } from "@/lib/preview-worker-lease";
 import {
   assertStoredFileIntegrity,
@@ -518,11 +519,11 @@ async function previewClock(client: AsyncDatabaseClient) {
 
 export async function claimPreviewJobAsync(
   client: AsyncDatabaseClient,
-  input: { leaseProtocolVersion: 2; workerId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
+  input: { leaseProtocolVersion: 2; workerId: string; companyId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
 ): Promise<PreviewWorkerClaim | null> {
   if (input.leaseProtocolVersion !== previewLeaseProtocolVersion) throw new Error("WORKLOAD_LEASE_PROTOCOL_REQUIRED");
-  if (!input.supportedKinds.length || !input.supportedExtensions.length) return null;
-  await recoverStalePreviewJobsAsync(client, { supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
+  if (!input.companyId.trim() || !input.supportedKinds.length || !input.supportedExtensions.length) return null;
+  await recoverStalePreviewJobsAsync(client, { companyId: input.companyId, supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
   const kindClause = buildNamedInClause("kind", input.supportedKinds);
   const extensionClause = buildNamedInClause("extension", input.supportedExtensions.map(normalizeExtension));
   const result = await client.transaction(async (transactionClient) => {
@@ -531,6 +532,7 @@ export async function claimPreviewJobAsync(
         SELECT *
         FROM preview_jobs job
         WHERE status = 'queued'
+          AND company_id = :companyId
           AND attempt_count < :maxAttempts
           AND requested_kind IN (${kindClause.sql})
           AND source_extension IN (${extensionClause.sql})
@@ -539,7 +541,7 @@ export async function claimPreviewJobAsync(
         LIMIT 1
         ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
       `,
-      { ...kindClause.params, ...extensionClause.params, maxAttempts: previewMaxAttempts }
+      { ...kindClause.params, ...extensionClause.params, companyId: input.companyId, maxAttempts: previewMaxAttempts }
     );
     if (!selected) return null;
     const source = await readPreviewSource(transactionClient, selected.source_file_asset_id, selected.company_id, true);
@@ -554,6 +556,7 @@ export async function claimPreviewJobAsync(
             locked_by = :workerId,
             locked_at = :now,
             attempt_count = attempt_count + 1,
+            worker_completion_json = NULL,
             updated_at = :now
         WHERE id = :id AND status = 'queued' AND attempt_count < :maxAttempts
           AND ${recoverablePreviewSourcePredicate()}
@@ -656,7 +659,7 @@ function recoverablePreviewSourcePredicate() {
 }
 
 export type PreviewRecoveryScope = { companyId: string; sourceFileAssetIds: string[] }
-  | { supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] };
+  | { companyId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] };
 
 export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, scope?: PreviewRecoveryScope) {
   // Legacy callers without a verified resource/workload scope may read, but
@@ -664,18 +667,18 @@ export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, 
   if (!scope) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
   let scopeSql: string;
   let scopeParams: Record<string, string>;
-  if ("companyId" in scope) {
+  if ("sourceFileAssetIds" in scope) {
     const ids = [...new Set(scope.sourceFileAssetIds.map(value => value.trim()).filter(Boolean))];
     if (!scope.companyId.trim() || !ids.length) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
     const assets = buildNamedInClause("recoveryAsset", ids);
     scopeSql = `job.company_id=:recoveryCompany AND job.source_file_asset_id IN (${assets.sql})`;
     scopeParams = { recoveryCompany: scope.companyId, ...assets.params };
   } else {
-    if (!scope.supportedKinds.length || !scope.supportedExtensions.length) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
+    if (!scope.companyId.trim() || !scope.supportedKinds.length || !scope.supportedExtensions.length) return { recovered: 0, queuedUnclaimed: 0, invalidSourceTerminated: 0 };
     const kinds = buildNamedInClause("recoveryKind", scope.supportedKinds);
     const extensions = buildNamedInClause("recoveryExtension", scope.supportedExtensions.map(normalizeExtension));
-    scopeSql = `job.requested_kind IN (${kinds.sql}) AND LOWER(REPLACE(job.source_extension,'.','')) IN (${extensions.sql})`;
-    scopeParams = { ...kinds.params, ...extensions.params };
+    scopeSql = `job.company_id=:recoveryCompany AND job.requested_kind IN (${kinds.sql}) AND LOWER(REPLACE(job.source_extension,'.','')) IN (${extensions.sql})`;
+    scopeParams = { recoveryCompany: scope.companyId, ...kinds.params, ...extensions.params };
   }
   const sourceSql = recoverablePreviewSourcePredicate();
   const rows = await client.query<Pick<PreviewJobRow, "id" | "status" | "attempt_count" | "company_id" | "source_file_asset_id" | "source_content_hash" | "locked_by"> & {
@@ -698,6 +701,7 @@ export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, 
     const retry = sourceValid && row.status === "running" && attemptCount < previewMaxAttempts;
     const changed = await client.queryOne<{ id: string }>(`UPDATE preview_jobs AS job SET status=:nextStatus,
       error_code=:errorCode,error_summary=:errorSummary,locked_by=NULL,locked_at=NULL,updated_at=:now,completed_at=:completedAt
+      ,worker_completion_json=CASE WHEN :nextStatus='queued' THEN NULL ELSE worker_completion_json END
       WHERE job.id=:jobId AND job.status=:previousStatus AND job.updated_at=:previousUpdatedAt
         AND job.attempt_count=:previousAttempts AND job.company_id=:previousCompanyId
         AND job.source_file_asset_id=:previousSourceId AND job.source_content_hash=:previousSourceHash
@@ -815,12 +819,14 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
       // heartbeat is blocked by this transaction; still recheck every identity.
       const current = await readPreviewLease(transactionClient, input, false, false);
       if (!current || sourceSnapshot(current.source) !== sourceSnapshot(owned.source)) throw new Error("PREVIEW_JOB_CLAIM_LOST");
+      const completionTime = (await previewClock(transactionClient)).iso;
       const completed = await transactionClient.queryOne<{ id: string }>(`UPDATE preview_jobs AS job
         SET status='succeeded', error_code=NULL, error_summary=NULL, locked_by=NULL, locked_at=NULL,
-            updated_at=:now, completed_at=:now
+            updated_at=:now, completed_at=:now, worker_completion_json=:workerCompletionJson
         WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt RETURNING id`,
         { jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis,
-          previousUpdatedAt: owned.job.heartbeat_token, now: (await previewClock(transactionClient)).iso });
+          previousUpdatedAt: owned.job.heartbeat_token, now: completionTime,
+          workerCompletionJson: previewCompletionReceipt(input, "succeeded", completionTime) });
       if (!completed) throw new Error("PREVIEW_JOB_CLAIM_LOST");
       return ids;
     }, { isolationLevel: "repeatable_read", readOnly: false });
@@ -1018,17 +1024,26 @@ async function finishPreviewJob(client: AsyncDatabaseClient, input: Exclude<Prev
     const owned = await readPreviewLease(transaction, input, true);
     if (!owned) return false;
     const cancelled = input.status === "cancelled";
+    const completionTime = (await previewClock(transaction)).iso;
     const updated = await transaction.queryOne<{ id: string }>(`UPDATE preview_jobs AS job
       SET status=:status, error_code=:errorCode, error_summary=:errorSummary,
-          locked_by=NULL, locked_at=NULL, updated_at=:now, completed_at=:now
+          locked_by=NULL, locked_at=NULL, updated_at=:now, completed_at=:now,
+          worker_completion_json=:workerCompletionJson
       WHERE ${previewLeasePredicate()} AND job.updated_at=:previousUpdatedAt RETURNING id`, {
       jobId: input.jobId, workerId: input.workerId, ...input.leaseBasis, status: input.status,
       errorCode: cancelled ? "preview_worker_cancelled" : sanitizePreviewErrorCode(input.errorCode),
       errorSummary: cancelled ? "預覽已由處理服務取消；可下載原檔。" : sanitizePreviewErrorSummary(input.errorSummary),
-      previousUpdatedAt: owned.job.heartbeat_token, now: (await previewClock(transaction)).iso
+      previousUpdatedAt: owned.job.heartbeat_token, now: completionTime,
+      workerCompletionJson: previewCompletionReceipt(input, input.status, completionTime)
     });
     return Boolean(updated);
   }, { isolationLevel: "repeatable_read", readOnly: false });
+}
+
+function previewCompletionReceipt(input: PreviewWorkerCompletionInput, terminalStatus: string, committedAt: string) {
+  return JSON.stringify({ workerId: input.workerId, leaseBasis: input.leaseBasis,
+    resultDigest: crypto.createHash("sha256").update(canonicalJsonStringify(input)).digest("hex"),
+    terminalStatus, committedAt });
 }
 
 async function storePreviewDerivativeBytes(input: {

@@ -1,4 +1,3 @@
-import { isDeepStrictEqual } from 'node:util'
 import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { requiresPrincipalOnlyRuntimeAuthority } from './dev117-release-control-policy.mjs'
 
@@ -50,24 +49,6 @@ export function assertReconciledPrincipalAbortBinding(intent, bucket) {
     principalOnlyFenceRef: structuredClone(intent.principalOnlyFenceRef),
     principalOnlyRecovery: structuredClone(intent.principalOnlyRecovery),
   }
-}
-
-export function assertReconciledRepairContinuation(intent, workerInput, bucket) {
-  const release = assertReconciledPrincipalAbortBinding(intent, bucket)
-  if ((intent?.principalOnlyFenceRef || intent?.principalOnlyRecovery) && !release) fail()
-  const releaseApplied = Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')
-    ? assertAppliedMigrationContinuation(intent.appliedMigrationContinuation, bucket)
-    : null
-  let worker = null
-  if (workerInput?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5') {
-    worker = assertReconciledPrincipalAbortBinding({ ...workerInput, previousRevision: intent.previousRevision }, bucket)
-  } else if (workerInput?.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v2') fail()
-  if (!isDeepStrictEqual(worker, release)) fail()
-  const workerApplied = Object.hasOwn(workerInput ?? {}, 'appliedMigrationContinuation')
-    ? assertAppliedMigrationContinuation(workerInput.appliedMigrationContinuation, bucket)
-    : null
-  if (!isDeepStrictEqual(workerApplied, releaseApplied)) fail()
-  return release
 }
 
 function assertRecoveryBindingShape(binding, bucket, oldRevision) {

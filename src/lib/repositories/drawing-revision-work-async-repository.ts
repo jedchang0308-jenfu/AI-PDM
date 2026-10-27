@@ -392,15 +392,10 @@ export class DrawingRevisionWorkAsyncRepository {
       { companyId: input.companyId, revisionId: work.revision_id }
     );
     if (!revision || !["preparing", "correction_required"].includes(revision.lifecycle_state)) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "目前版本不可取消", 409);
-    const openSwxJobs = await tx.query<{ id: string; status: string; session_id: string | null }>(
-      `SELECT id, status, session_id FROM openswx_metadata_jobs
-       WHERE company_id = :companyId AND drawing_revision_id = :revisionId
-       ORDER BY id${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
-      { companyId: input.companyId, revisionId: work.revision_id }
-    );
-    if (openSwxJobs.some(job => job.status === "queued" || job.status === "running")) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "輔助辨識工作尚未結束，目前版本不可取消", 409);
-    const retainRevision = openSwxJobs.length > 0;
-    const retainRecognitionSessions = openSwxJobs.some(job => job.session_id !== null);
+    // DEV-125 retired the auxiliary metadata job.  Keep the cancelled revision
+    // as the stable audit anchor instead of consulting or deleting legacy rows.
+    const retainRevision = true;
+    const retainRecognitionSessions = false;
     const recognitionSessions = await tx.query<{ id: string }>(
       `SELECT id FROM drawing_recognition_sessions
        WHERE company_id = :companyId AND drawing_revision_id = :revisionId

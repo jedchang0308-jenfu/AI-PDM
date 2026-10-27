@@ -1,30 +1,35 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ complete: vi.fn(), database: vi.fn() }));
+const mocks = vi.hoisted(() => ({ complete: vi.fn(), database: vi.fn(), auth: vi.fn() }));
 vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: mocks.database }));
 vi.mock("@/lib/preview-derivatives", async importOriginal => ({
   ...await importOriginal<typeof import("@/lib/preview-derivatives")>(),
   completePreviewJobAsync: mocks.complete
 }));
+vi.mock("@/lib/worker-service-auth", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/worker-service-auth")>(), authenticateWorkerService: mocks.auth
+}));
 import { POST } from "./route";
-const token = Buffer.alloc(32, 21).toString("base64url");
+const workerId = "device-one:instance-one";
+const actor = { kind: "windows_service_device", id: workerId, deviceId: "device-one", companyId: "company-one",
+  instanceId: "instance-one", credentialHash: "a".repeat(64), device: {}, purposes: [], capabilities: [] };
 const basis = { companyId: "company-one", sourceFileAssetId: "asset-one", sourceContentHash: "a".repeat(64), attemptCount: 1, lockedAt: "2026-10-23T00:00:00.000Z" };
 const params = { params: Promise.resolve({ jobId: "job-one" }) };
 function request(body: object, authorized = true) {
   return new Request("https://pdm.test/api/preview-jobs/job-one/complete", { method: "POST",
-    headers: { ...(authorized ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json" }, body: JSON.stringify({leaseProtocolVersion:2,leaseBasis:basis,cancelReason:"operator_shutdown",...body}) });
+    headers: { ...(authorized ? { authorization: "Bearer synthetic" } : {}), "content-type": "application/json" }, body: JSON.stringify({leaseProtocolVersion:2,leaseBasis:basis,cancelReason:"operator_shutdown",...body}) });
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("PDM_WORKLOAD_AUTH_CREDENTIALS", JSON.stringify({ schemaVersion: "ai-pdm.workload-credentials.v1", workloads: [{ id: "png-worker", token, purposes: ["preview_jobs"], capabilities: ["solidworks_2d_preview_png"] }] }));
+  mocks.auth.mockResolvedValue({ actor });
   mocks.database.mockReturnValue({});
   mocks.complete.mockResolvedValue({ accepted: true, derivativeIds: [] });
 });
 afterEach(() => vi.unstubAllEnvs());
 it("keeps an authenticated worker cancellation distinct from a failed renderer", async () => {
-  const response = await POST(request({ status: "cancelled", leaseBasis: basis, workerId: "png-worker", derivatives: [{ unsafe: "ignored" }] }), params);
+  const response = await POST(request({ status: "cancelled", leaseBasis: basis, workerId, derivatives: [{ unsafe: "ignored" }] }), params);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ accepted: true, derivativeIds: [], leaseProtocolVersion: 2 });
-  expect(mocks.complete).toHaveBeenCalledWith({}, { workerId: "png-worker", jobId: "job-one", status: "cancelled", leaseBasis: basis, cancelReason:"operator_shutdown" });
+  expect(mocks.complete).toHaveBeenCalledWith({}, { workerId, jobId: "job-one", status: "cancelled", leaseBasis: basis, cancelReason:"operator_shutdown" });
 });
 it.each([undefined, {}, { ...basis, attemptCount: 0 }, { ...basis, sourceContentHash: "wrong" }])("rejects incomplete cancellation basis before database access: %j", async leaseBasis => {
   const response = await POST(request({ status: "cancelled", leaseBasis }), params);
@@ -33,6 +38,7 @@ it.each([undefined, {}, { ...basis, attemptCount: 0 }, { ...basis, sourceContent
   expect(mocks.complete).not.toHaveBeenCalled();
 });
 it("does not accept missing workload proof or another worker label", async () => {
+  mocks.auth.mockResolvedValueOnce({ response: Response.json({ error: "WORKER_DEVICE_UNAUTHORIZED" }, { status: 403 }) });
   expect((await POST(request({ status: "cancelled", leaseBasis: basis }, false), params)).status).toBe(403);
   expect((await POST(request({ status: "cancelled", leaseBasis: basis, workerId: "other-worker" }), params)).status).toBe(403);
   expect(mocks.database).not.toHaveBeenCalled();

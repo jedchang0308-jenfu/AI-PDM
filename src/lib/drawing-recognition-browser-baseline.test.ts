@@ -21,6 +21,7 @@ describe("DEV-122 browser recognition baseline", () => {
       initiatorPrincipalId: "principal-one",
       sourceSetFingerprint: "fingerprint-one",
       attemptCount: 1,
+      lockedAt: "2026-10-23T00:00:00.000Z",
       targetContext: { drawingId: null, drawingNumber: null, drawingRevisionId: null, revision: null, parts: [] },
       sources: [
         {

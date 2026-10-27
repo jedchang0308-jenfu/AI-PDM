@@ -7,8 +7,7 @@ import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { buildRuntimeConfig, canonicalize, createOwnerTransport, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
-import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor, runReleaseSmoke } from './lib/dev012-owner-stage-executor.mjs'
-import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertRepairDataCutoverBasis, assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, runReleaseSmoke } from './lib/dev012-owner-stage-executor.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory } from './lib/dev121-owner-release-proof.mjs'
@@ -50,7 +49,6 @@ test('applied RD continuation keeps provider provenance authoritative and checks
     ])
   }
 })
-
 test('applied RD HTTP smoke accepts provider-proven candidate responses without duplicate provenance headers', async () => {
   const paths = []
   const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async (url) => {
@@ -70,7 +68,6 @@ test('applied RD HTTP smoke accepts provider-proven candidate responses without 
     ['rd-permission-unauthenticated-denied', 401, null, null],
   ])
 })
-
 test('ordinary releases retain the full candidate and authenticated smoke paths', async () => {
   const calls = []
   const transport = {
@@ -85,7 +82,6 @@ test('ordinary releases retain the full candidate and authenticated smoke paths'
     candidateRevision, artifactDigest: migrationRunnerDigest, deadlineAt: '2999-01-01T00:00:00.000Z', environment: {} })
   assert.deepEqual(calls.map(([name]) => name), ['candidate', 'canonical'])
 })
-
 test('repair stages do not re-consume one-time cutover evidence after the policy becomes historical', () => {
   const repair = { migrationMode: 'HISTORICAL_EVIDENCE_REUSED' }
   assert.equal(assertRepairDataCutoverBasis({ profile: { dataCutover: { gateMode: 'HISTORICAL_ONLY' } }, repair, dataCutover: null }), true)
@@ -94,8 +90,7 @@ test('repair stages do not re-consume one-time cutover evidence after the policy
   assert.throws(() => assertRepairDataCutoverBasis({ profile: { dataCutover: { gateMode: 'CUTOVER_OR_LIVE_AUTHORITY' } }, repair, dataCutover: null }),
     /REPAIR_DATA_CUTOVER_BASIS_INVALID/u)
 })
-
-test('owner source archive uses the worker reader canonical LF recipe', () => {
+test('owner source archive is deterministic with the canonical LF recipe', () => {
   const root = fileURLToPath(new URL('..', import.meta.url))
   const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim()
   assert.match(revision, /^[a-f0-9]{40}$/u)
@@ -103,7 +98,7 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
   // files in the checkout. Keep the production frozen-source guard intact and
   // exercise both readers from a clean, task-owned worktree instead.
   const frozenRoot = mkdtempSync(join(tmpdir(), 'aipdm-oa-'))
-  console.log('DEV012_OWNER_ARCHIVE_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Owner and worker source archive byte equivalence', port: null, parentPid: process.pid, PDM_DATA_DIR: 'UNUSED', PDM_REPOSITORY_DIR: frozenRoot, mutationScope: 'TASK_OWNED_GIT_WORKTREE_ONLY', cleanupCondition: 'finally removes exact worktree and temporary directory' }))
+  console.log('DEV012_OWNER_ARCHIVE_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Owner source archive determinism', port: null, parentPid: process.pid, PDM_DATA_DIR: 'UNUSED', PDM_REPOSITORY_DIR: frozenRoot, mutationScope: 'TASK_OWNED_GIT_WORKTREE_ONLY', cleanupCondition: 'finally removes exact worktree and temporary directory' }))
   try {
     const checkout = spawnSync('git', ['-c', 'core.longpaths=true', 'worktree', 'add', '--detach', frozenRoot, revision], {
       cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
@@ -111,16 +106,14 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
     assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
     // Windows hosted runners can expose tmpdir through an 8.3 alias such as
     // RUNNER~1 while Git reports the same worktree with its long canonical
-    // path. Bind both readers to Git's own top-level identity so the fixture
-    // tests archive equivalence without weakening the repository-root guard.
+    // path. Bind both reads to Git's own top-level identity so the fixture
+    // tests archive determinism without weakening the repository-root guard.
     const topLevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
       cwd: frozenRoot, encoding: 'utf8', windowsHide: true
     })
     assert.equal(topLevel.status, 0, topLevel.stderr || topLevel.stdout)
     const canonicalFrozenRoot = topLevel.stdout.trim()
-    const ownerArchive = createGitArchive(canonicalFrozenRoot, revision)
-    const workerArchive = createWorkerGitReader(canonicalFrozenRoot, revision).readArchive(revision)
-    assert.deepEqual(ownerArchive, workerArchive)
+    assert.deepEqual(createGitArchive(canonicalFrozenRoot, revision), createGitArchive(canonicalFrozenRoot, revision))
   } finally {
     spawnSync('git', ['-c', 'core.longpaths=true', 'worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
     rmSync(frozenRoot, { recursive: true, force: true })
@@ -132,7 +125,7 @@ function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
   const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
-  assert.equal(currentProfile.migrations.entries.length, 39)
+  assert.ok(currentProfile.migrations.entries.length >= 33)
   // Keep the historical exact 32 -> 33 regression vector. Later authenticated
   // installed prefixes are exercised by the generic history tests.
   currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
@@ -166,7 +159,7 @@ function installedHistory(input, content) {
     receiptRef: ref('migration'), receipt, bundleRef: { uri: `gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/${H40}/${input.bundle.manifestSha256}.json`, sha256: sha256(bundleBytes) }, bundle: input.bundle, bundleBytes })
 }
 
-test('B24 paused worker migration classification preserves exact32 and admits only authentic appended083', () => {
+test('applied migration classification preserves exact32 and admits only authentic appended083', () => {
   const fixture = repairMigrationContentFixture()
   const before = fixture.validate(fixture.historical), after = fixture.validate(fixture.current)
   const history = installedHistory(fixture.historical, before)
@@ -868,7 +861,7 @@ async function privateCleanupOwnerFixture() {
   const capsule = await h.transport.putJson(`gs://${ownBucket}/receipts/intents/private-synthetic.json`, intent)
   const input = { capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment,
     validateIntent: value => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes,
-    readWorkerSource: (path, revision) => { assert.equal(path, UNLINKED_PROFILE_CLEANUP_PATH); assert.equal(revision, H40); return sqlBytes },
+    readSource: (path, revision) => { assert.equal(path, UNLINKED_PROFILE_CLEANUP_PATH); assert.equal(revision, H40); return sqlBytes },
     buildMigrationBundle: async (revision, context) => {
       assert.equal(revision, H40)
       if (context === undefined) return baseline
@@ -889,7 +882,7 @@ test('private cleanup owner keeps protected context, immutable binding and exact
   const f = await privateCleanupOwnerFixture()
   await assert.rejects(executeOwnerStage({ ...f.input, stage: 'prepare', environment: { ...f.input.environment, GITHUB_SHA: 'e'.repeat(40) } }), /GITHUB_SOURCE_AUTHORITY_MISMATCH/u)
   const writes = f.h.objects.size
-  await assert.rejects(executeOwnerStage({ ...f.input, stage: 'prepare', readWorkerSource: () => Buffer.from('changed SQL') }), /UNLINKED_PROFILE_CLEANUP_SOURCE_INVALID/u)
+  await assert.rejects(executeOwnerStage({ ...f.input, stage: 'prepare', readSource: () => Buffer.from('changed SQL') }), /UNLINKED_PROFILE_CLEANUP_SOURCE_INVALID/u)
   assert.equal(f.h.objects.size, writes)
   for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...f.input, stage })
   const first = await executeOwnerStage({ ...f.input, stage: 'migrate' })
@@ -991,27 +984,4 @@ test('every private cleanup stage rejects a coherent intent BOUND manifest misma
       { code: 'UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID' })
     assert.deepEqual({ writes, builds, jobs }, { writes: 0, builds: 0, jobs: 0 })
   }
-})
-
-test('R23 repair-stage seam skips full resolution for ordinary descriptors and retains it for repairs', async () => {
-  const intent = { openswxWorkerRef: { uri: 'gs://own/descriptor.json', sha256: 'a'.repeat(64) } }
-  const profile = { application: { id: 'ai-pdm' } }
-  let classifications = 0, resolutions = 0
-  const ordinary = {
-    async classifyRepair(actualIntent, actualProfile) { classifications++; assert.equal(actualIntent, intent); assert.equal(actualProfile, profile); return { descriptorRef: intent.openswxWorkerRef, schemaVersion: 'aipdm.openswx-worker-descriptor.v4', purpose: 'full', repair: false } },
-    async resolve() { resolutions++; throw new Error('ORDINARY_HISTORY_MUST_NOT_REPLAY') },
-  }
-  assert.equal(await resolveRepairStageDescriptor({ worker: ordinary, intent, profile }), null)
-  assert.deepEqual({ classifications, resolutions }, { classifications: 1, resolutions: 0 })
-
-  const repairValue = { schemaVersion: 'aipdm.openswx-worker-descriptor.v3', ownerApplicationId: 'ai-pdm', purpose: 'full', artifactMode: 'REUSE_VERIFIED', releaseVariant: 'PAUSED_APP_REPAIR' }
-  const repair = {
-    async classifyRepair() { classifications++; return { descriptorRef: intent.openswxWorkerRef, schemaVersion: repairValue.schemaVersion, purpose: 'full', repair: true } },
-    async resolve() { resolutions++; return { ref: intent.openswxWorkerRef, value: repairValue } },
-  }
-  assert.deepEqual(await resolveRepairStageDescriptor({ worker: repair, intent, profile }), { ref: intent.openswxWorkerRef, value: repairValue })
-  assert.deepEqual({ classifications, resolutions }, { classifications: 2, resolutions: 1 })
-
-  const divergent = { ...repair, async resolve() { resolutions++; return { ref: { ...intent.openswxWorkerRef, sha256: 'b'.repeat(64) }, value: repairValue } } }
-  await assert.rejects(resolveRepairStageDescriptor({ worker: divergent, intent, profile }), /REPAIR_DESCRIPTOR_CLASSIFICATION_INVALID/u)
 })

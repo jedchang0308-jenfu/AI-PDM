@@ -7,7 +7,7 @@ import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-servi
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const authentication = authenticateWorkerService(request, "preview_jobs");
+  const authentication = await authenticateWorkerService(request, "preview_jobs");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
 
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
   const claim = await claimPreviewJobAsync(getAsyncDatabaseClient(), {
     leaseProtocolVersion: previewLeaseProtocolVersion,
     workerId,
+    companyId: actor.companyId,
     supportedKinds: supportedPreviewKinds,
     supportedExtensions: extensions
   });

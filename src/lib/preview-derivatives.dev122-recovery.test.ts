@@ -70,8 +70,8 @@ describe("DEV122 bounded preview recovery (focused contract; native evidence is 
   });
   it("uses only explicitly supported workload kinds/extensions", async () => {
     const { client, query } = fixture([]);
-    await recoverStalePreviewJobsAsync(client, { supportedKinds: ["native_thumbnail_png"], supportedExtensions: [".SLDDRW"] });
-    expect(query.mock.calls[0]?.[1]).toEqual({ recoveryKind0: "native_thumbnail_png", recoveryExtension0: "slddrw" });
+    await recoverStalePreviewJobsAsync(client, { companyId: "company-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: [".SLDDRW"] });
+    expect(query.mock.calls[0]?.[1]).toEqual({ recoveryCompany: "company-one", recoveryKind0: "native_thumbnail_png", recoveryExtension0: "slddrw" });
     expect(query.mock.calls[0]?.[0]).toContain("job.requested_kind IN (:recoveryKind0)");
   });
   it.each(["missing source","hash drift","owner drift"])("counts %s termination separately and fences the full observed generation",async()=>{

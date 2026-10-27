@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { claimDrawingRecognitionJob } from "@/lib/drawing-recognition";
 import { recognitionErrorResponse, recognitionJsonBody } from "@/lib/drawing-recognition-api";
 import { requireSafeRecognitionId } from "@/lib/drawing-recognition-contract";
+import { recognitionLeaseProtocolVersion } from "@/lib/recognition-worker-lease";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
-  const authentication = authenticateWorkerService(request, "recognition_jobs");
+  const authentication = await authenticateWorkerService(request, "recognition_jobs");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   try {
@@ -15,10 +16,14 @@ export async function POST(request: Request) {
     if (labelDenied) return labelDenied;
     const job = await claimDrawingRecognitionJob({
       workerId: actor.id,
+      companyId: actor.companyId,
       maxAttempts: Number(body.maxAttempts ?? 2),
       allowNativeSources: body.allowNativeSources !== false
     });
-    return job ? NextResponse.json(job, { headers: { "cache-control": "private, no-store" } }) : new NextResponse(null, { status: 204 });
+    return job ? NextResponse.json({ ...job, leaseProtocolVersion: recognitionLeaseProtocolVersion,
+      leaseBasis: { companyId: job.companyId, sourceSetFingerprint: job.sourceSetFingerprint,
+        attemptCount: job.attemptCount, lockedAt: job.lockedAt } },
+      { headers: { "cache-control": "private, no-store" } }) : new NextResponse(null, { status: 204 });
   } catch (error) {
     return recognitionErrorResponse(error, "recognition-jobs.claim");
   }

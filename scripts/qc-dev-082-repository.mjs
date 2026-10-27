@@ -79,7 +79,8 @@ db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?"
 db.prepare("UPDATE drawing_recognition_sessions SET status = 'cancelled', updated_at = ? WHERE status IN ('queued', 'extracting') AND id <> ?")
   .run(new Date().toISOString(), session.id);
 
-const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-082-no-native-key", maxAttempts: 2, allowNativeSources: false });
+const job = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-082-no-native-key", companyId: pdfLink.company_id,
+  maxAttempts: 2, allowNativeSources: false });
 assert.equal(job?.sessionId, session.id, "PDF work must be claimable even when native metadata capability is unavailable");
 assert.equal(job.sources.length, 1);
 assert.deepEqual(job.sources[0].adapterPlan, ["filename.v1", adapters.BROWSER_PDF_OCR_ADAPTER_CODE]);
@@ -87,7 +88,8 @@ assert.deepEqual(job.sources[0].adapterPlan, ["filename.v1", adapters.BROWSER_PD
 const baselineProjection = await recognition.completeDrawingRecognitionJob({
   sessionId: session.id,
   workerId: "qc-dev-082-no-native-key",
-  sourceSetFingerprint: job.sourceSetFingerprint,
+  leaseBasis: { companyId: job.companyId, sourceSetFingerprint: job.sourceSetFingerprint,
+    attemptCount: job.attemptCount, lockedAt: job.lockedAt },
   results: [adapters.buildFilenameAdapterResult(job.sources[0])]
 });
 assert.equal(baselineProjection.pendingClientAdapters.length, 1);
@@ -232,8 +234,11 @@ assert.equal(conflictingReplayBlocked, true);
 let wrongHashBlocked = false;
 const rerun = await recognition.rerunDrawingRecognition({ sessionId: session.id, companyId: pdfLink.company_id, actorId: actor.id, roles: [actor.role] });
 db.prepare("UPDATE drawing_recognition_sessions SET not_before = ? WHERE id = ?").run(new Date(0).toISOString(), rerun.id);
-const rerunJob = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-082-hash", maxAttempts: 2, allowNativeSources: false });
-const rerunBaseline = await recognition.completeDrawingRecognitionJob({ sessionId: rerun.id, workerId: "qc-dev-082-hash", sourceSetFingerprint: rerunJob.sourceSetFingerprint, results: [adapters.buildFilenameAdapterResult(rerunJob.sources[0])] });
+const rerunJob = await recognition.claimDrawingRecognitionJob({ workerId: "qc-dev-082-hash", companyId: pdfLink.company_id,
+  maxAttempts: 2, allowNativeSources: false });
+const rerunBaseline = await recognition.completeDrawingRecognitionJob({ sessionId: rerun.id, workerId: "qc-dev-082-hash",
+  leaseBasis: { companyId: rerunJob.companyId, sourceSetFingerprint: rerunJob.sourceSetFingerprint,
+    attemptCount: rerunJob.attemptCount, lockedAt: rerunJob.lockedAt }, results: [adapters.buildFilenameAdapterResult(rerunJob.sources[0])] });
 try {
   await recognition.appendDrawingRecognitionClientAdapterResult({
     sessionId: rerun.id,

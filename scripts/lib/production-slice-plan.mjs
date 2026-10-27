@@ -43,12 +43,8 @@ const WORKER = [
   /^windows-service\//u,
   /^scripts\/(?:build-dev125-windows-installer|qc-dev125-windows-service)/u,
   /^scripts\/dev125-windows-service-contract\.test\.mjs$/u,
-  /^config\/release\/dev122-openswx-worker\.json$/u,
-  /^infra\/google-cloud\/dev-122-openswx-/u,
-  /^scripts\/lib\/openswx-reader\//u,
-  /^scripts\/run-openswx-/u,
-  /^scripts\/(?:lib\/)?dev122-openswx-/u,
-  /^scripts\/lib\/dev122-historical-reader/u,
+  /^scripts\/solidworks-document-manager-(?:credential-probe|metadata-exporter|preview-exporter)\.cs$/u,
+  /^config\/solidworks-metadata-field-aliases\.json$/u,
 ]
 
 const DATABASE = [

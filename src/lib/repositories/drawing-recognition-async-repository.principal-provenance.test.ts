@@ -25,7 +25,7 @@ describe("recognition worker Principal provenance", () => {
   ])("returns %s without deriving identity from the PDM profile", async (_name, principalId) => {
     const client = workerDatabase(principalId);
     const claimed = await new DrawingRecognitionAsyncRepository(client).claimJob({
-      workerId: "worker-one", maxAttempts: 2, allowNativeSources: true
+      workerId: "worker-one", companyId: "company-one", maxAttempts: 2, allowNativeSources: true
     });
     expect(claimed).toMatchObject({
       sessionId: "session-one", companyId: "company-one",
@@ -37,6 +37,7 @@ describe("recognition worker Principal provenance", () => {
     const client = workerDatabase("principal-one");
     await new DrawingRecognitionAsyncRepository(client).claimJob({
       workerId: "browser-baseline-one",
+      companyId: "company-one",
       maxAttempts: 2,
       allowNativeSources: false,
       targetSessionId: "session-one",
@@ -44,8 +45,9 @@ describe("recognition worker Principal provenance", () => {
     });
     const [statement, parameters] = vi.mocked(client.queryOne).mock.calls[0] ?? [];
     expect(statement).toContain("status = 'queued'");
-    expect(statement).toContain("id = :targetSessionId AND company_id = :targetCompanyId");
-    expect(parameters).toMatchObject({ targetSessionId: "session-one", targetCompanyId: "company-one" });
+    expect(statement).toContain("company_id = :companyId");
+    expect(statement).toContain("id = :targetSessionId");
+    expect(parameters).toMatchObject({ companyId: "company-one", targetSessionId: "session-one", targetCompanyId: "company-one" });
   });
 
   it.each([
@@ -55,6 +57,7 @@ describe("recognition worker Principal provenance", () => {
     const client = workerDatabase("principal-one");
     await expect(new DrawingRecognitionAsyncRepository(client).claimJob({
       workerId: "browser-baseline-one",
+      companyId: "company-one",
       maxAttempts: 2,
       allowNativeSources: false,
       ...target

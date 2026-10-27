@@ -1,20 +1,22 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const mocks=vi.hoisted(()=>({read:vi.fn()}));
+const mocks=vi.hoisted(()=>({read:vi.fn(),auth:vi.fn()}));
 vi.mock("@/lib/db-async-provider",()=>({getAsyncDatabaseClient:()=>({})}));
 vi.mock("@/lib/preview-derivatives",()=>({readClaimedPreviewSourceAsync:mocks.read}));
+vi.mock("@/lib/worker-service-auth",()=>({authenticateWorkerService:mocks.auth}));
 import { GET } from "./route";
 const token=Buffer.alloc(32,11).toString("base64url");
 const basis={companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:"a".repeat(64),attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"};
 const lease=Buffer.from(JSON.stringify({leaseProtocolVersion:2,leaseBasis:basis})).toString("base64url");
 const params={params:Promise.resolve({jobId:"job-one"})};
-beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("PDM_WORKLOAD_AUTH_CREDENTIALS",JSON.stringify({schemaVersion:"ai-pdm.workload-credentials.v1",workloads:[{id:"worker-one",token,purposes:["preview_jobs"],capabilities:["solidworks_2d_preview_png"]}]}));mocks.read.mockResolvedValue({bytes:Buffer.from("source"),fileName:"drawing.slddrw",mimeType:"application/octet-stream",contentHash:"a".repeat(64)})});
+const actor={kind:"windows_service_device",id:"worker-one",deviceId:"device-one",companyId:"company-one",instanceId:"instance-one",credentialHash:"a".repeat(64),device:{},purposes:[],capabilities:[]};
+beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockImplementation(async(request:Request)=>!request.headers.has("authorization")||request.headers.get("x-pdm-worker-id")==="other"?{response:Response.json({error:"WORKER_DEVICE_UNAUTHORIZED"},{status:403})}:{actor});mocks.read.mockResolvedValue({bytes:Buffer.from("source"),fileName:"drawing.slddrw",mimeType:"application/octet-stream",contentHash:"a".repeat(64)})});
 afterEach(()=>vi.unstubAllEnvs());
 it("refuses requests without workload credential before any source read",async()=>{
  expect((await GET(new Request("https://owner.example/api/preview-jobs/job-one/content"),params)).status).toBe(403);
  expect(mocks.read).not.toHaveBeenCalled();
 });
 it("fails closed when worker credentials are not configured",async()=>{
- vi.stubEnv("PDM_WORKLOAD_AUTH_CREDENTIALS","");
+ mocks.auth.mockResolvedValueOnce({response:Response.json({error:"WORKER_DEVICE_AUTH_UNAVAILABLE"},{status:503})});
  expect((await GET(new Request("https://owner.example/api/preview-jobs/job-one/content"),params)).status).toBe(503);
  expect(mocks.read).not.toHaveBeenCalled();
 });

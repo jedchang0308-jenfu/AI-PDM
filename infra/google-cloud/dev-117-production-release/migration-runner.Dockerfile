@@ -15,7 +15,6 @@ COPY scripts/lib/dev121-ai-pdm-quiescence.mjs scripts/lib/dev121-ai-pdm-quiescen
 COPY scripts/lib/dev121-migration-fence.mjs scripts/lib/dev121-migration-fence.mjs
 COPY scripts/lib/dev121-unlinked-profile-cleanup.mjs scripts/lib/dev121-unlinked-profile-cleanup.mjs
 COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
-COPY scripts/lib/dev122-openswx-dispatch-recovery.mjs scripts/lib/dev122-openswx-dispatch-recovery.mjs
 COPY scripts/lib/dev012-production-data-cutover.mjs scripts/lib/dev012-production-data-cutover.mjs
 COPY scripts/dev012-production-data-cutover-runtime.mjs scripts/dev012-production-data-cutover-runtime.mjs
 COPY config/release/dev012-ai-pdm-production-data-cutover.json config/release/dev012-ai-pdm-production-data-cutover.json

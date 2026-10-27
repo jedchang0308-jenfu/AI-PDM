@@ -5,7 +5,7 @@ import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
-  const authentication = authenticateWorkerService(request, "settings_secret_probe");
+  const authentication = await authenticateWorkerService(request, "settings_secret_probe");
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   const capabilityDenied = rejectWorkerCapability(actor, "solidworks_document_manager");

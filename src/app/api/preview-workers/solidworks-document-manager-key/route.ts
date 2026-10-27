@@ -5,7 +5,7 @@ import { authenticateWorkerService } from "@/lib/worker-service-auth";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const authentication = authenticateWorkerService(request, "solidworks_credential");
+  const authentication = await authenticateWorkerService(request, "solidworks_credential");
   if ("response" in authentication) return authentication.response;
 
   try {

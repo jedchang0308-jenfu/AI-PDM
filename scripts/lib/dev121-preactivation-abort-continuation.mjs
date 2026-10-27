@@ -1105,10 +1105,6 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
   }
   if (prepareFacts.preActivationAbortBasis) {
     if (repair || terminalFacts.databaseDisposition !== 'FORWARD_APPLIED') fail()
-    if (intent.openswxWorkerRef) {
-      const graph = await readAiPdmObservationInputs(failed.proof)
-      if (graph.migrationMode !== 'FORWARD_APPLIED' || !same(graph.intentRef, baselineIntentRef)) fail()
-    }
     const binding = currentMigrationBinding({ profile, intent, paths, migration, deployment, run, failed })
     if (prepareFacts.preActivationAbortBasis.schemaVersion === 'ai-pdm.principal-ordinary-abort-basis.v1') {
       return readHistoricalOrdinaryPredecessor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, binding, verifyProvider, consume: consumeAnchor })
@@ -1870,11 +1866,6 @@ async function readSealedUnsubmittedBuild({ profile, transport, baselineIntentRe
     || (Object.hasOwn(value, 'migrationRunnerSourceRevision') && value.migrationRunnerSourceRevision !== null
       && !/^[a-f0-9]{40}$/u.test(value.migrationRunnerSourceRevision))) fail()
   assertImmutableRef(value.migrationBundleRef, profile.artifact.releaseBucket, [profile.artifact.migrationBundlePrefix])
-  if (intent.openswxWorkerRef) {
-    if (!same(value.openswxWorker?.descriptorRef, intent.openswxWorkerRef)
-      || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-openswx-worker@sha256:[a-f0-9]{64}$/u.test(value.openswxWorker?.image ?? '')) fail()
-    assertImmutableRef(value.openswxWorker.workerBuildRef, profile.artifact.releaseBucket, ['receipts'])
-  } else if (value.openswxWorker) fail()
   const window = closedOwnerWindow(run), finished = Date.parse(provenance.value.cloudBuild.finishTime)
   if (!Number.isFinite(finished) || finished < window.start || finished > window.end) fail()
   if (verifyMigrationAbsence) await assertNoMigrationExecution(profile, transport, intent, paths, run)
@@ -2058,10 +2049,6 @@ async function readHistoricalOrdinaryPredecessor({ profile, transport, intent, b
     assertOrdinaryOwnerWindow(evidence, run)
     const failed = await readOrdinaryAbortObservation({ profile, transport, baselineIntentRef: ref, intent: prior, evidence, verifyProvider })
     if (!same(failed.proof, basis.failedProof)) fail()
-    if (prior.openswxWorkerRef) {
-      const graph = await readAiPdmObservationInputs(failed.proof)
-      if (graph.migrationMode !== 'FORWARD_APPLIED' || !same(graph.intentRef, ref)) fail()
-    }
     const lock = await transport.readJson(prior.sourceLockRef, bucket, ['receipts'])
     if (lock.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1'
       || lock.value.ownerApplicationId !== profile.application.id || lock.value.releaseId !== prior.releaseId

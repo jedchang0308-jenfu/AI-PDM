@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { runWindowsWorker } from "./worker.mjs";
 
 const baseDir = path.resolve(import.meta.dirname, "..");
 const product = JSON.parse(fs.readFileSync(path.join(baseDir, "product.json"), "utf8"));
@@ -106,8 +107,8 @@ async function startInstance(credentials) {
   return { instanceId, workerId: `${credentials.deviceId}:${instanceId}` };
 }
 
-async function heartbeatLoop(credentials, instance) {
-  while (!stopping) {
+async function heartbeatLoop(credentials, instance, isActive) {
+  while (!stopping && isActive()) {
     const result = await requestJson(credentials, "/api/windows-service/heartbeat", {
       method: "POST",
       workerId: instance.workerId,
@@ -137,7 +138,14 @@ async function main() {
       const instance = await startInstance(credentials);
       log("instance_started", { deviceId: credentials.deviceId, instanceId: instance.instanceId });
       retry = 0;
-      await heartbeatLoop(credentials, instance);
+      let active = true;
+      try {
+        await Promise.all([
+          heartbeatLoop(credentials, instance, () => active),
+          runWindowsWorker({ credentials, workerId: instance.workerId,
+            isStopping: () => stopping || !active, log })
+        ]);
+      } finally { active = false; }
     } catch (error) {
       credentials = null;
       const message = error instanceof Error ? error.message : String(error);

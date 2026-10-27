@@ -83,7 +83,7 @@ export async function refreshAppliedContinuationCapsule({
   environment,
   createSourceIdentity,
   buildMigrationBundle,
-  readWorkerSource,
+  readSource,
   validateIntent = assertDev117ReleaseIntent,
   gitReader = readGitAuthority,
   producePrerequisite = executePrerequisiteProducer,
@@ -94,17 +94,19 @@ export async function refreshAppliedContinuationCapsule({
   if (template?.schemaVersion !== profile.schemas.releaseIntent) {
     return { ref: templateRef, refreshed: false, releaseId: null, sourceRevision: null }
   }
-  validateIntent(template, profile)
+  const currentTemplate = { ...template }
+  delete currentTemplate.openswxWorkerRef
+  validateIntent(currentTemplate, profile)
   const git = gitReader(root, profile)
   const releaseId = assertAppliedContinuationRefreshEnvironment(environment, git.sourceRevision)
   const remaining = Date.parse(template.deadlineAt) - now().getTime()
   if (template.sourceRevision === git.sourceRevision && remaining >= 30 * 60 * 1000) {
     return { ref: templateRef, refreshed: false, releaseId: template.releaseId, sourceRevision: git.sourceRevision }
   }
-  if (!template.appliedMigrationContinuation || !template.postAbortLedgerReadbackRef
-    || !template.principalOnlyFenceRef || !template.principalOnlyRecovery) fail('APPLIED_CONTINUATION_REFRESH_TEMPLATE_INVALID')
-  if (!H40.test(template.sourceRevision ?? '') || !H40.test(git.sourceRevision ?? '') || !readWorkerSource.isAncestor?.(template.sourceRevision, git.sourceRevision)) fail('APPLIED_CONTINUATION_REFRESH_SOURCE_DIVERGED')
-  const forwardAppliedMigrationContinuation = await forwardBindingFromTemplate({ template, templateRef, profile, transport })
+  if (!currentTemplate.appliedMigrationContinuation || !currentTemplate.postAbortLedgerReadbackRef
+    || !currentTemplate.principalOnlyFenceRef || !currentTemplate.principalOnlyRecovery) fail('APPLIED_CONTINUATION_REFRESH_TEMPLATE_INVALID')
+  if (!H40.test(currentTemplate.sourceRevision ?? '') || !H40.test(git.sourceRevision ?? '') || !readSource.isAncestor?.(currentTemplate.sourceRevision, git.sourceRevision)) fail('APPLIED_CONTINUATION_REFRESH_SOURCE_DIVERGED')
+  const forwardAppliedMigrationContinuation = await forwardBindingFromTemplate({ template: currentTemplate, templateRef, profile, transport })
   const releaseDeadlineAt = new Date(now().getTime() + 2 * 60 * 60 * 1000).toISOString()
   const producer = (stage, input) => producePrerequisite({
     stage,
@@ -116,40 +118,38 @@ export async function refreshAppliedContinuationCapsule({
     validateIntent,
     createSourceIdentity,
     buildMigrationBundle,
-    readWorkerSource,
   })
 
   const sourceLock = await producer('source-freeze', null)
-  const templateRuntime = await transport.readJson(template.runtimeConfigRef, BUCKET, ['receipts'])
+  const templateRuntime = await transport.readJson(currentTemplate.runtimeConfigRef, BUCKET, ['receipts'])
   const runtimeConfig = templateRuntime.value?.runtimeConfig ?? templateRuntime.value
-  const retainedWorker = template.openswxWorkerRef ? {
-    openswxWorkerRef: template.openswxWorkerRef,
-    retainedOpenswxWorker: runtimeConfig.openswxWorker,
-  } : {}
+  const plainEnvironment = { ...runtimeConfig.plainEnvironment }
+  const secretVersions = { ...runtimeConfig.secretVersions }
+  delete plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED
+  delete secretVersions.PDM_WORKLOAD_AUTH_CREDENTIALS
   const runtime = await producer('runtime-config', {
     sourceLockRef: sourceLock.ref,
-    plainEnvironment: runtimeConfig.plainEnvironment,
-    secretVersions: runtimeConfig.secretVersions,
-    ...retainedWorker,
+    plainEnvironment,
+    secretVersions,
   })
   const infra = await producer('infra-reuse', {
     schemaVersion: 'jenfu.dev012.app-infra-reuse-input.v1',
     sourceLockRef: sourceLock.ref,
-    foundationReceiptRef: template.foundationReceiptRef,
-    existingInfraReceiptRef: template.infraReceiptRef,
+    foundationReceiptRef: currentTemplate.foundationReceiptRef,
+    existingInfraReceiptRef: currentTemplate.infraReceiptRef,
   })
   const continuation = {
-    postAbortLedgerReadbackRef: template.postAbortLedgerReadbackRef,
-    principalOnlyFenceRef: template.principalOnlyFenceRef,
-    principalOnlyRecovery: template.principalOnlyRecovery,
-    appliedMigrationContinuation: template.appliedMigrationContinuation,
+    postAbortLedgerReadbackRef: currentTemplate.postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: currentTemplate.principalOnlyFenceRef,
+    principalOnlyRecovery: currentTemplate.principalOnlyRecovery,
+    appliedMigrationContinuation: currentTemplate.appliedMigrationContinuation,
     ...(forwardAppliedMigrationContinuation ? { forwardAppliedMigrationContinuation } : {}),
   }
   const authority = await producer('routine-authority', {
     schemaVersion: 'jenfu.dev012.routine-owner-authority-input.v1',
     sourceLockRef: sourceLock.ref,
     runtimeConfigRef: runtime.ref,
-    baselineIntentRef: template.baselineIntentRef,
+    baselineIntentRef: currentTemplate.baselineIntentRef,
     expiresAt: releaseDeadlineAt,
     ...continuation,
   })
@@ -158,15 +158,13 @@ export async function refreshAppliedContinuationCapsule({
     runtimeConfigRef: runtime.ref,
     authorizationPolicyRef: authority.refs.authorizationPolicyRef,
     readinessReceiptRef: authority.refs.readinessReceiptRef,
-    foundationReceiptRef: template.foundationReceiptRef,
+    foundationReceiptRef: currentTemplate.foundationReceiptRef,
     infraReceiptRef: infra.ref,
     baselineIntentRef: authority.baselineIntentRef,
-    ...(template.openswxWorkerRef ? { openswxWorkerRef: template.openswxWorkerRef } : {}),
     previousRevision: authority.previousRevision,
     deadlineAt: releaseDeadlineAt,
     ...continuation,
   })
   if (!H64.test(intent.ref?.sha256 ?? '')) fail('APPLIED_CONTINUATION_REFRESH_RESULT_INVALID')
-  return { ref: intent.ref, refreshed: true, releaseId, sourceRevision: git.sourceRevision, releaseDeadlineAt,
-    ...(template.openswxWorkerRef ? { retainedWorkerDescriptorRef: template.openswxWorkerRef } : {}), templateRef }
+  return { ref: intent.ref, refreshed: true, releaseId, sourceRevision: git.sourceRevision, releaseDeadlineAt, templateRef }
 }

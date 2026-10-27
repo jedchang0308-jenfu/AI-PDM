@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const consumers = {
-  'git-fixture': ['scripts/dev117-release-efficiency.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs'],
+  'git-fixture': ['scripts/dev117-release-efficiency.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs'],
   'linked-worktree': ['scripts/dev012-owner-stage-executor.test.mjs'],
   loopback: ['scripts/dev121-principal-only-recovery-server.test.mjs'],
 }
