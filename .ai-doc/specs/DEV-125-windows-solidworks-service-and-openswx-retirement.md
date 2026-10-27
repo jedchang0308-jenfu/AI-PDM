@@ -235,7 +235,7 @@ PR #526 合併 exact main `3720c7cea8f294f086e34a175fdf911283971007`，required 
 
 缺陷版已依使用者明確授權完成解除安裝；2026-10-27T14:00:33.906Z 讀回服務不存在、相關程序 0、程式目錄不存在、資料目錄不存在、自有登錄與標準 uninstall key 均不存在。這只證明失敗安裝已清除，不代表修正版驗收通過；以修正版重新安裝前仍須取得 action-time confirmation，驗證 LocalService、service SID、ACL、程式和功能項目、重啟／覆蓋／卸載及不註冊時零 credential／device side effect。V125-03 只有在這些實機結果成立後才可改為 PASS。
 
-後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口。PR #530 已把 same-source artifact、archive、image 與 receipt 接縫合併至 `main`；本分支須保留該修正，並將現有 `actions: read` 從同時持有 production environment／GCP `id-token` 的 build job 再收斂到無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。
+後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口。PR #530 已把 same-source artifact、archive、image 與 receipt 接縫合併至 `main`；本分支保留該修正，並將 `actions: read` 從同時持有 production environment／GCP `id-token` 的 job 收斂到無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job。production job 只接收同一 workflow run 重新驗明的 artifact，且不再有 Actions artifact 讀權。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。
 
 ### 11.4 Windows 交付路徑 corrective（source 已合併／正式驗收前狀態）
 

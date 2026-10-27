@@ -61,10 +61,25 @@ test("DEV-125A exact-source installer is admitted into the immutable app image",
   const executor = read("scripts/lib/dev012-owner-stage-executor.mjs");
   const affected = read("scripts/run-production-slice-tests.mjs");
   for (const workflow of [owner, principalOwner]) {
-    assert.match(workflow, /gh run list[^\r\n]+--workflow "AI PDM CI"[^\r\n]+--commit "\$GITHUB_SHA"[^\r\n]+--event push[^\r\n]+--status success/u);
+    assert.match(workflow, /permissions: \{ actions: read, contents: read \}/u);
+    assert.match(workflow, /gh run list[^\r\n]+--workflow "ci\.yml"[^\r\n]+--commit "\$GITHUB_SHA"[^\r\n]+--event push[^\r\n]+--status success/u);
+    assert.match(workflow, /\.headBranch == \\"main\\"/u);
     assert.match(workflow, /gh run download "\$\{run_ids\[0\]\}"[^\r\n]+--name "\$artifact_name"/u);
     assert.match(workflow, /dev125-verify-windows-installer-artifact\.mjs[^\r\n]+--source-revision "\$GITHUB_SHA"[^\r\n]+--require-build-evidence/u);
+    assert.match(workflow, /actions\/upload-artifact@v4/u);
+    assert.match(workflow, /actions\/download-artifact@v4/u);
     assert.match(workflow, /DEV125_INSTALLER_ROOT=\$GITHUB_WORKSPACE/u);
+  }
+  const ownerBinder = owner.match(/\n  installer:\n([\s\S]*?)(?=\n  build:\n)/u)?.[1] ?? "";
+  const ownerBuild = owner.match(/\n  build:\n([\s\S]*?)(?=\n  migrate:\n)/u)?.[1] ?? "";
+  const principalBinder = principalOwner.match(/\n  installer:\n([\s\S]*?)(?=\n  migrate:\n)/u)?.[1] ?? "";
+  const principalBuild = principalOwner.match(/\n  migrate:\n([\s\S]*)/u)?.[1] ?? "";
+  for (const binder of [ownerBinder, principalBinder]) {
+    assert.doesNotMatch(binder, /environment: production|id-token: write/u);
+  }
+  for (const protectedJob of [ownerBuild, principalBuild]) {
+    assert.doesNotMatch(protectedJob.match(/permissions:[^\r\n]*/u)?.[0] ?? "", /actions: read/u);
+    assert.doesNotMatch(protectedJob, /gh run (?:list|download)/u);
   }
   assert.equal((ci.match(/if: github\.event_name != 'pull_request' \|\| steps\.slice\.outputs\.docs_only != 'true'/gu) ?? []).length, 3);
   assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/worker-downloads \.\/worker-downloads/u);

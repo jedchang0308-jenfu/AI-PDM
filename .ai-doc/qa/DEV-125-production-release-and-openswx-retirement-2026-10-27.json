@@ -122,10 +122,10 @@
       "programsAndFeaturesRegistryAbsent": true
     },
     "productionImageBinding": {
-      "status": "NOT_IMPLEMENTED",
-      "finding": "The required CI publishes the immutable Windows installer artifact, but the owner release source archive and runner image do not currently include worker-downloads/windows-service.",
-      "requiredRemediation": "Bind the exact successful same-source CI artifact into the owner release archive, image, build receipt and image readback without mutable latest or actor-provided URLs.",
-      "minimumAdditionalWorkflowPermission": "actions:read on an isolated same-repository artifact-binding job; approval pending"
+      "status": "SOURCE_IMPLEMENTED_AWAITING_CI_MERGE_RELEASE",
+      "finding": "PR 530 supplied the missing same-source archive, image and receipt path; the follow-up branch isolates GitHub artifact read authority from production and GCP identities.",
+      "requiredRemediation": "Pass required CI, merge PR 529, obtain the exact main installer artifact, run the owner release and verify the serving image download readback.",
+      "minimumAdditionalWorkflowPermission": "actions:read exists only on an isolated same-repository artifact-binding job with no production environment or GCP id-token; production jobs receive a reverified current-run artifact without actions:read"
     }
   },
   "validationDisposition": {
