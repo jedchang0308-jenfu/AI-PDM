@@ -99,14 +99,35 @@ async function cleanupStaleJobs() {
   }
 }
 
-let activeCredential = null;
-async function documentManagerCredential(credentials, workerId, force = false) {
-  if (!force && activeCredential && activeCredential.expiresAt > Date.now()) return activeCredential;
-  const body = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key");
-  if (!body?.key) throw new Error("DOCUMENT_MANAGER_LICENSE_KEY_MISSING");
-  activeCredential = { value: String(body.key), version: body.version ?? null, fingerprint: body.fingerprint ?? null,
-    expiresAt: Date.now() + 60_000 };
-  return activeCredential;
+async function documentManagerCredential(credentials, workerId, job, isStopping) {
+  const query = new URLSearchParams({ kind: job.kind, jobId: job.id,
+    ...(job.sourceId ? { sourceId: job.sourceId } : {}) });
+  const preview = job.kind === "preview";
+  while (!isStopping()) {
+    try {
+      const body = await api(credentials, workerId, `/api/preview-workers/solidworks-document-manager-key?${query}`, {
+        headers: { [preview ? "x-pdm-preview-lease" : "x-pdm-recognition-lease"]:
+          leaseHeader(preview ? 2 : 1, job.leaseBasis) }
+      });
+      if (!body?.key) throw new Error("DOCUMENT_MANAGER_LICENSE_KEY_MISSING");
+      return { value: String(body.key), version: body.version ?? null, fingerprint: body.fingerprint ?? null };
+    } catch (error) {
+      if ([401, 403, 409, 426].includes(Number(error?.status))) throw error;
+      // A missing/temporarily unavailable provider must not complete or reclaim
+      // this job. Its existing pulse keeps the same lease and attempt alive.
+      await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_credential_waiting").catch(error => {
+        if ([401, 403, 426].includes(Number(error?.status))) throw error;
+      });
+      // No business CAD has been downloaded or executed yet. Keep its pulse
+      // alive while giving an authorized management probe a serial recovery
+      // turn, so this computer can repair the key it is waiting for.
+      await processProbe(credentials, workerId).catch(error => {
+        if ([401, 403, 426].includes(Number(error?.status))) throw error;
+      });
+      await delay(5_000);
+    }
+  }
+  throw new Error("WORKER_STOPPING");
 }
 
 async function sendCapabilityHeartbeats(credentials, workerId, credential, issueCode = null) {
@@ -139,7 +160,7 @@ async function completeWithReadback(credentials, workerId, kind, jobId, endpoint
   }
 }
 
-async function processPreview(credentials, workerId, credential) {
+async function processPreview(credentials, workerId, isStopping) {
   const claim = await api(credentials, workerId, "/api/preview-jobs/claim", { method: "POST", body: {
     workerId, leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"],
     supportedExtensions: ["sldprt", "sldasm", "slddrw"] } });
@@ -150,8 +171,12 @@ async function processPreview(credentials, workerId, credential) {
   await pulse();
   const heartbeat = setInterval(() => void pulse().catch(() => undefined), 5_000);
   let staged;
+  let credential = null;
   let completionStarted = false;
   try {
+    credential = await documentManagerCredential(credentials, workerId,
+      { kind: "preview", id: job.jobId, leaseBasis: job.leaseBasis }, isStopping);
+    await sendCapabilityHeartbeats(credentials, workerId, credential);
     const bytes = await content(credentials, workerId, `/api/preview-jobs/${encodeURIComponent(job.jobId)}/content`,
       { "x-pdm-preview-lease": leaseHeader(2, job.leaseBasis) }, { hash: job.sourceContentHash });
     staged = await stage("preview", job.jobId, job.sourceExtension, bytes);
@@ -171,7 +196,7 @@ async function processPreview(credentials, workerId, credential) {
       { digest: canonicalDigest({ workerId, jobId: job.jobId, leaseBasis: job.leaseBasis, status: "succeeded",
         sourceContentHash: job.sourceContentHash, derivatives: complete.derivatives }), status: "succeeded" });
   } catch (error) {
-    if (!completionStarted) {
+    if (credential && !completionStarted) {
       const failed = { workerId, leaseProtocolVersion: 2, leaseBasis: job.leaseBasis, status: "failed",
         errorCode: "document_manager_preview_failed", errorSummary: "Document Manager 未提供可用的已儲存預覽。" };
       await completeWithReadback(credentials, workerId, "preview", job.jobId,
@@ -180,7 +205,7 @@ async function processPreview(credentials, workerId, credential) {
           errorCode: failed.errorCode, errorSummary: failed.errorSummary }), status: "failed" }).catch(() => undefined);
     }
     throw error;
-  } finally { clearInterval(heartbeat); if (staged) await fs.rm(staged.directory, { recursive: true, force: true }); }
+  } finally { credential = null; clearInterval(heartbeat); if (staged) await fs.rm(staged.directory, { recursive: true, force: true }); }
   return true;
 }
 
@@ -192,7 +217,7 @@ function filenameResult(source) {
       applicabilityScope: source.sourceRole }] };
 }
 
-async function processRecognition(credentials, workerId, credential) {
+async function processRecognition(credentials, workerId, isStopping) {
   const job = await api(credentials, workerId, "/api/recognition-jobs/claim", { method: "POST", body: {
     workerId, maxAttempts: 2, allowNativeSources: true } });
   if (!job) return false;
@@ -201,7 +226,14 @@ async function processRecognition(credentials, workerId, credential) {
   await pulse();
   const heartbeat = setInterval(() => void pulse().catch(() => undefined), 5_000);
   const results = [];
+  let credential = null;
   try {
+    const nativeSource = job.sources.find(source => nativeExtensions.has(String(source.fileExt ?? "").toLowerCase().replace(/^\./u, "")));
+    if (nativeSource) {
+      credential = await documentManagerCredential(credentials, workerId,
+        { kind: "recognition", id: job.sessionId, sourceId: nativeSource.id, leaseBasis: job.leaseBasis }, isStopping);
+      await sendCapabilityHeartbeats(credentials, workerId, credential);
+    }
     for (const source of job.sources) {
       results.push(filenameResult(source));
       const extension = String(source.fileExt ?? "").toLowerCase().replace(/^\./u, "");
@@ -223,7 +255,7 @@ async function processRecognition(credentials, workerId, credential) {
     await completeWithReadback(credentials, workerId, "recognition", job.sessionId,
       `/api/recognition-jobs/${encodeURIComponent(job.sessionId)}/complete`, complete,
       { digest: canonicalDigest({ results }) });
-  } finally { clearInterval(heartbeat); }
+  } finally { credential = null; clearInterval(heartbeat); }
   return true;
 }
 
@@ -239,6 +271,8 @@ async function processProbe(credentials, workerId) {
     const credential = await api(credentials, workerId,
       `/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/credential?leaseAttempt=${job.leaseAttempt}`);
     const result = await runJson(path.join(extractors, "SolidWorksDocumentManagerCredentialProbe.exe"), [], credential.value);
+    await sendCapabilityHeartbeats(credentials, workerId, result.code === 0 ? credential : null,
+      result.code === 0 ? null : "document_manager_probe_failed");
     const completion = { workerId, leaseAttempt: job.leaseAttempt, status: result.code === 0 ? "passed" : "failed",
       resultCode: result.code === 0 ? null : "native_metadata_credential_probe_failed",
       readerVersion: "solidworks-document-manager.v1",
@@ -249,7 +283,7 @@ async function processProbe(credentials, workerId) {
     await completeWithReadback(credentials, workerId, "probe", job.id,
       `/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/complete`, completion,
       { digest, status: completion.status });
-  } finally { clearInterval(heartbeat); activeCredential = null; }
+  } finally { clearInterval(heartbeat); }
   return true;
 }
 
@@ -259,21 +293,25 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log 
   while (!isStopping()) {
     try {
       if (await processProbe(credentials, workerId)) continue;
-      const credential = await documentManagerCredential(credentials, workerId);
-      await sendCapabilityHeartbeats(credentials, workerId, credential);
+      const readiness = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key?readiness=1");
+      if (readiness?.available !== true) {
+        await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_credential_waiting");
+        await delay(5_000);
+        continue;
+      }
       const worked = next === "preview"
-        ? await processPreview(credentials, workerId, credential)
-        : await processRecognition(credentials, workerId, credential);
+        ? await processPreview(credentials, workerId, isStopping)
+        : await processRecognition(credentials, workerId, isStopping);
       next = next === "preview" ? "recognition" : "preview";
       if (!worked) {
         const alternate = next === "preview"
-          ? await processPreview(credentials, workerId, credential)
-          : await processRecognition(credentials, workerId, credential);
+          ? await processPreview(credentials, workerId, isStopping)
+          : await processRecognition(credentials, workerId, isStopping);
         next = next === "preview" ? "recognition" : "preview";
         if (!alternate) await delay(5_000);
       }
     } catch (error) {
-      if ([401, 403, 426].includes(Number(error?.status))) { activeCredential = null; throw error; }
+      if ([401, 403, 426].includes(Number(error?.status))) throw error;
       log("worker_cycle_retry", { reason: String(error?.message ?? error).slice(0, 180) });
       await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_worker_degraded").catch(() => undefined);
       await delay(5_000);

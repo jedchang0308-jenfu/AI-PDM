@@ -3,7 +3,7 @@ import type { PdmCommandMetadata } from "@/lib/platform-command";
 import type { VerifiedWorkloadActor } from "@/lib/worker-service-auth";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), audit: vi.fn(),
-  authority: vi.fn(), transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
+  authority: vi.fn(), transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), readDpapi: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
   providerConfig: vi.fn(), readEnabled: vi.fn(), writeEnabled: vi.fn(),
   repository: { getReferenceById: vi.fn(), getLatestProbeJob: vi.fn(), enqueueProbeJob: vi.fn(),
     getActiveTypedProbeJob: vi.fn(),
@@ -26,12 +26,17 @@ vi.mock("@/lib/repositories/settings-secret-async-repository", () => ({ AsyncSet
 vi.mock("@/lib/google-secret-manager", () => ({ GoogleSecretManagerProvider: class { addVersion = mocks.provider; accessVersion = mocks.readProvider; },
   GoogleSecretManagerError: class extends Error {}, getGoogleSecretManagerConfig: mocks.providerConfig,
   isGoogleSecretManagerReadEnabled: mocks.readEnabled, isGoogleSecretManagerWriteEnabled: mocks.writeEnabled }));
+vi.mock("@/lib/windows-dpapi-secret-provider", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/windows-dpapi-secret-provider")>(),
+  readWindowsDpapiSecret: mocks.readDpapi
+}));
 vi.mock("@/lib/windows-service-owner-authorization", () => ({
   requireWindowsServiceOwnerAuthorization: vi.fn().mockResolvedValue(undefined)
 }));
 
 import { activateSettingsSecretReference, completeSettingsSecretProbe, createSettingsSecretDraft,
-  enqueueSettingsSecretProbe, resolveSettingsSecretProbeCredential, revokeSettingsSecretReference, listSettingsSecretStatuses } from "@/lib/settings-secret-lifecycle";
+  enqueueSettingsSecretProbe, isActiveSolidWorksDocumentManagerKeyConfigured, resolveSettingsSecretProbeCredential,
+  revokeSettingsSecretReference, listSettingsSecretStatuses } from "@/lib/settings-secret-lifecycle";
 const snapshot = { kind: "postgres" };
 const verified = { profile: { pdmUserId: "profile-tester", companyId: "company-one" },
   session: { principalId:"principal-tester",profileVersion:7,employeeId:"employee",identityIssuer:"issuer",identitySubject:"subject",
@@ -108,6 +113,40 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
     expect(status.workerPresence.status).toBe("online");
     expect(mocks.provider).not.toHaveBeenCalled();
     expect(mocks.readProvider).not.toHaveBeenCalled();
+  });
+
+  it.each(["google_secret_manager", "windows_dpapi"] as const)("reports active readable provider metadata without reading key bytes: %s", async vaultProvider => {
+    mocks.repository.listReferencesByKind.mockResolvedValue([{ ...reference, lifecycleStatus: "active", vaultProvider }]);
+
+    expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(true);
+
+    expect(mocks.repository.listReferencesByKind).toHaveBeenCalledWith("solidworks_document_manager");
+    expect(mocks.providerConfig).not.toHaveBeenCalled();
+    expect(mocks.readEnabled).not.toHaveBeenCalled();
+    expect(mocks.readProvider).not.toHaveBeenCalled();
+    expect(mocks.readDpapi).not.toHaveBeenCalled();
+  });
+
+  it("reports false when no active key reference exists", async () => {
+    mocks.repository.listReferencesByKind.mockResolvedValue([{ ...reference, lifecycleStatus: "draft" }]);
+
+    expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(false);
+
+    expect(mocks.providerConfig).not.toHaveBeenCalled();
+    expect(mocks.readProvider).not.toHaveBeenCalled();
+    expect(mocks.readDpapi).not.toHaveBeenCalled();
+  });
+
+  it("reports false for an active reference with an unsupported provider without reading it", async () => {
+    mocks.repository.listReferencesByKind.mockResolvedValue([
+      { ...reference, lifecycleStatus: "active", vaultProvider: "supabase_vault" }
+    ]);
+
+    expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(false);
+
+    expect(mocks.providerConfig).not.toHaveBeenCalled();
+    expect(mocks.readProvider).not.toHaveBeenCalled();
+    expect(mocks.readDpapi).not.toHaveBeenCalled();
   });
 
   it("queues the verified tester independently of the historical draft creator", async () => {

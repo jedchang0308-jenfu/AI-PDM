@@ -4,9 +4,13 @@
 
 Windows 安裝、裝置清單／撤銷、原生解析整合及 OpenSWX 拆除統一交付 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md)。每位有效 AI-PDM 使用者在自己的 Windows 電腦安裝並經公司 Google SSO 自助連結；不使用公司共用常開解析主機，也不需要 PDM 管理員逐台核准。本 SPEC 保留既有 queue／derivative／source hash／quality／預覽生命週期契約供重用，不另維護一套裝置資料或產品排程。
 
-DEV-125 現為 `Architecture Finalized / IMPLEMENTATION_IN_PROGRESS`。新架構只有 owner-bound Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。PR #533 的匿名 worker、固定 `windows-parser`、共用 API key、任何 caller 可取得 CAD／key／工作及「使用者接受風險」敘述全部無效；使用者從未授權。每次 claim、source download、heartbeat 與 complete 都要重驗裝置 owner 的 active account、Principal mapping、current grant 與來源權限。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer。裝置資料／API、installer、lease、發布與驗證統一見 DEV-125 §3～9 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。
+DEV-125 現為 `Architecture Finalized / RELEASED_R25 / FORMAL_ACCEPTANCE_IN_PROGRESS`。owner-bound 程式與 installer 修正已由 PR #536～#538 合併；R25 發布來源 `06d370bba2749230e4c70c8ae7bfa4580613a6e6` 保留 PR #535 官方 interop。新架構只有 owner-bound Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。PR #533 已關閉且未合併；其中匿名 worker、固定 `windows-parser`、共用 API key、任何 caller 可取得 CAD／key／工作及「使用者接受風險」敘述全部無效，使用者從未授權。每次 claim、source download、heartbeat 與 complete 都要重驗裝置 owner 的 active account、Principal mapping、current grant 與來源權限。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer。裝置資料／API、installer、lease、發布與驗證統一見 DEV-125 §3～9、§11.6、QA JSON 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。
 
 無授權裝置在線時，native preview job 保持 `queued` 且 `attempt_count` 不增加；裝置上線後自動接續。只有已被領取的 `running` 工作在 heartbeat 逾期後進入有界回收。A 的裝置不得 claim 或下載 B-only 圖檔；帳號停用、角色撤銷、Principal mapping 失效或裝置解除連結後，下一次請求立即拒絕。
+
+R25 正式驗收的 heartbeat admission 缺口與 key 取用順序由 PR #539 修正，進度見 DEV-125 §11.7。native key 必須有當前 preview／recognition 工作及來源租約，provider I/O 後重驗裝置及資源；idle 不取 key、不跨工作 cache。非管理員略過管理用 probe，仍可處理自己目前有權的原生工作。
+
+Windows parser 會接收原始 CAD，因此各工作入口與 key guard 需同時重驗來源作業的 `view` 與 `download`，不能沿歷史 server renderer 的 view-only 邊界。原生 part／assembly 必須包含 model 權限；缺少任一權限時不領取、不交付原檔或 key、不接受結果。後續撤銷立即阻擋下一次請求，領取前拒絕不耗 attempt。
 
 Status: DEV-105 RD Implemented / Revision B QA-QC Complete / Effectiveness Reclosed / Historical QA-105 18 of 18 Retained as Baseline / Primary Backfill Human-Gated / Production Release Gated
 Date: 2026-08-31

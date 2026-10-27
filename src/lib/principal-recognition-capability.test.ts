@@ -44,7 +44,9 @@ it('re-admits the captured initiator with DB canonical drawing/model source befo
   const db = { query: vi.fn(async () => [{ linked_entity_type: 'shared_model', source_role: 'cad_3d', document_category: 'other' }]) }
   await requireRecognitionJobAuthority(db as never, session)
   expect(mocks.job).toHaveBeenCalledWith(db, expect.objectContaining({ principalId: 'principal-one' }),
-    { linkedEntityType: 'shared_model', documentCategory: 'cad_3d', action: 'download' })
+    { linkedEntityType: 'shared_model', documentCategory: 'cad_3d', action: 'view_and_download' })
+  expect(mocks.job).toHaveBeenCalledWith(db, expect.objectContaining({ principalId: 'principal-one' }),
+    { linkedEntityType: 'drawing_revision', action: 'view_and_download' })
   mocks.job.mockRejectedValue({ status: 403 })
   await expect(requireRecognitionJobAuthority(db as never, session)).rejects.toMatchObject({ status: 403 })
 })

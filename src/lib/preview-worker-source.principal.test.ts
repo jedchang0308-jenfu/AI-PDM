@@ -16,7 +16,7 @@ vi.mock("@/lib/principal-job-authority", async importOriginal => ({
   requireCurrentPrincipalJobAuthority: mocks.authority
 }));
 
-import { completePreviewJobAsync, readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
+import { claimPreviewJobAsync, completePreviewJobAsync, heartbeatPreviewJobAsync, hasClaimedPreviewSourceAccessAsync, readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
 
 const bytes = Buffer.from("preview-source");
 const digest = createHash("sha256").update(bytes).digest("hex");
@@ -27,6 +27,7 @@ const initiator: PrincipalJobInitiator = { kind:'verified_principal', principalI
 let job: Record<string,unknown>; let source: Record<string,unknown>; let companyValid:boolean; let holderValid:boolean;
 const queryOne = vi.fn(async (sql:string,params:Record<string,unknown>)=> {
   if(sql.includes("FROM preview_jobs job")) {
+    if(sql.includes("status = 'queued'")) return job;
     if(!holderValid||!companyValid||job.locked_by!==params.workerId||job.attempt_count!==params.attemptCount||job.source_content_hash!==params.sourceContentHash) return null;
     return job;
   }
@@ -36,8 +37,9 @@ const queryOne = vi.fn(async (sql:string,params:Record<string,unknown>)=> {
   if(sql.includes("SELECT * FROM file_assets")) return source;
   return holderValid?{id:"job-one"}:null;
 });
-const snapshot = {kind:"postgres",queryOne};
-const client = {kind:"postgres",queryOne,transaction:vi.fn(async (run:(tx:unknown)=>Promise<unknown>)=>run(snapshot))} as unknown as AsyncDatabaseClient;
+const query = vi.fn(async () => []);
+const snapshot = {kind:"postgres",queryOne,query};
+const client = {kind:"postgres",queryOne,query,transaction:vi.fn(async (run:(tx:unknown)=>Promise<unknown>)=>run(snapshot))} as unknown as AsyncDatabaseClient;
 beforeEach(()=>{vi.clearAllMocks(); companyValid=true;holderValid=true;
  job={id:"job-one",status:"running",locked_by:"worker-one",company_id:"company-one",source_file_asset_id:"asset-one",source_content_hash:digest,
  attempt_count:1,locked_at:"2026-10-23T00:00:00.000Z",updated_at:new Date().toISOString(),source_extension:"slddrw",metadata_json:JSON.stringify({initiator})};
@@ -46,6 +48,17 @@ beforeEach(()=>{vi.clearAllMocks(); companyValid=true;holderValid=true;
 });
 const input={jobId:"job-one",workerId:"worker-one",ownerPrincipalId:"principal-one",leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:digest,attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"}};
 describe("claimed preview source boundary",()=> {
+ it("authorizes a current credential lease without loading CAD bytes",async()=>{
+  expect(await hasClaimedPreviewSourceAccessAsync(client,input)).toBe(true);
+  expect(mocks.read).not.toHaveBeenCalled();
+  expect(mocks.putObject).not.toHaveBeenCalled();
+  expect(mocks.authority).toHaveBeenCalledWith(snapshot, initiator, expect.objectContaining({action:"view_and_download"}));
+ });
+ it("denies credential lease access after the current resource permission is revoked",async()=>{
+  mocks.authority.mockRejectedValueOnce(new PrincipalJobAuthorityError("PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403));
+  expect(await hasClaimedPreviewSourceAccessAsync(client,input)).toBe(false);
+  expect(mocks.read).not.toHaveBeenCalled();
+ });
  it("delivers verified bytes with original Principal through a read-only snapshot",async()=>{
   expect(await readClaimedPreviewSourceAsync(client,input)).toMatchObject({bytes,contentHash:digest,principalId:"principal-one"});
   expect(client.transaction).toHaveBeenCalledWith(expect.any(Function),{isolationLevel:"repeatable_read",readOnly:true});
@@ -80,5 +93,41 @@ describe("claimed preview source boundary",()=> {
   mocks.authority.mockRejectedValueOnce(new PrincipalJobAuthorityError("PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE",503));
   await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toMatchObject({status:503});
   expect(mocks.read).not.toHaveBeenCalled();
+ });
+ it.each(["claim", "source", "credential", "heartbeat", "complete"])("requires download as well as view before preview %s",async operation=>{
+  mocks.authority.mockImplementation(async (_snapshot, _initiator, resource) => {
+   if(resource.action === "view_and_download") throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403);
+  });
+  if(operation === "claim") {
+   job.status="queued";
+   await expect(claimPreviewJobAsync(client,{leaseProtocolVersion:2,workerId:input.workerId,companyId:input.leaseBasis.companyId,
+    ownerPrincipalId:input.ownerPrincipalId,supportedKinds:["native_thumbnail_png"],supportedExtensions:["slddrw"]})).rejects.toMatchObject({status:403});
+  } else if(operation === "source") {
+   await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");
+  } else if(operation === "credential") {
+   expect(await hasClaimedPreviewSourceAccessAsync(client,input)).toBe(false);
+  } else if(operation === "heartbeat") {
+   expect(await heartbeatPreviewJobAsync(client,input)).toBe(false);
+  } else {
+   expect(await completePreviewJobAsync(client,{...input,status:"failed",errorCode:"reader_failed",errorSummary:"Reader failed"}))
+    .toEqual({accepted:false,derivativeIds:[]});
+  }
+  expect(mocks.authority).toHaveBeenCalledWith(snapshot,initiator,expect.objectContaining({action:"view_and_download"}));
+  expect(mocks.read).not.toHaveBeenCalled();expect(mocks.putObject).not.toHaveBeenCalled();
+  expect(queryOne.mock.calls.some(([sql])=>/^\s*(UPDATE|INSERT|DELETE)/u.test(sql))).toBe(false);
+  expect(job.attempt_count).toBe(1);
+ });
+ it.each(["sldprt","sldasm"])("requires model view and download before claiming generic-category %s bytes",async extension=>{
+  job.status="queued";job.source_extension=extension;
+  source.file_ext=extension;source.document_category="drawing_2d";
+  mocks.authority.mockImplementation(async (_snapshot,_initiator,resource)=>{
+   if(resource.capabilityRole === "cad_3d" && resource.action === "view_and_download")
+    throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_RESOURCE_VIEW_DENIED",403);
+  });
+  await expect(claimPreviewJobAsync(client,{leaseProtocolVersion:2,workerId:input.workerId,companyId:input.leaseBasis.companyId,
+   ownerPrincipalId:input.ownerPrincipalId,supportedKinds:["native_thumbnail_png"],supportedExtensions:[extension]})).rejects.toMatchObject({status:403});
+  expect(mocks.authority).toHaveBeenCalledWith(snapshot,initiator,expect.objectContaining({capabilityRole:"cad_3d",action:"view_and_download"}));
+  expect(job.attempt_count).toBe(1);expect(mocks.read).not.toHaveBeenCalled();
+  expect(queryOne.mock.calls.some(([sql])=>/^\s*(UPDATE|INSERT|DELETE)/u.test(sql))).toBe(false);
  });
 });

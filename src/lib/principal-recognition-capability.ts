@@ -25,11 +25,11 @@ export async function requireRecognitionJobAuthority(snapshot: AsyncDatabaseClie
     throw new DrawingRecognitionError('RECOGNITION_SOURCE_SCOPE_INVALID', '辨識來源範圍無法確認。', 503)
   }
   try {
-    // Recognition workers receive original objects; preview renderers use the
-    // separate view-only transformation path. Both retain the actual source group.
-    await requireCurrentPrincipalJobAuthority(snapshot, initiator, { linkedEntityType: 'drawing_revision', action: 'download' })
+    // User-owned Windows parsers receive originals, so view alone cannot grant
+    // local CAD access. Recheck both actions for every actual source group.
+    await requireCurrentPrincipalJobAuthority(snapshot, initiator, { linkedEntityType: 'drawing_revision', action: 'view_and_download' })
     for (const source of sources) await requireCurrentPrincipalJobAuthority(snapshot, initiator,
-      { linkedEntityType: source.linked_entity_type, documentCategory: source.source_role || source.document_category, action: 'download' })
+      { linkedEntityType: source.linked_entity_type, documentCategory: source.source_role || source.document_category, action: 'view_and_download' })
   } catch (error) {
     const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : 503
     throw new DrawingRecognitionError('RECOGNITION_INITIATOR_AUTHORITY_DENIED', '辨識發起者的授權已失效，請重新確認角色後再試。', status === 403 ? 403 : 503)

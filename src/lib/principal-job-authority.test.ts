@@ -123,6 +123,25 @@ describe("durable Principal job authority", () => {
     ]);
   });
 
+  it.each(["pdm.drawing.view", "pdm.drawing.download", "pdm.model.view", "pdm.model.download"])(
+    "denies a user-owned parser after the current %s permission is revoked", async deniedPermission => {
+      const resource = { linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download" } as const;
+      await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).resolves.toBeUndefined();
+      expect(mocks.evaluate.mock.calls.at(-1)?.[2]).toEqual([
+        { permissionKind: "action", permissionCode: "pdm.drawing.view" },
+        { permissionKind: "action", permissionCode: "pdm.drawing.download" },
+        { permissionKind: "action", permissionCode: "pdm.model.view" },
+        { permissionKind: "action", permissionCode: "pdm.model.download" }
+      ]);
+      mocks.evaluate.mockImplementation(async (_client, _actor, permissions) => permissions.map(
+        ({ permissionCode }: { permissionCode: string }) => ({ permissionCode, principalId: "principal-1", allowed: permissionCode !== deniedPermission })
+      ));
+      await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).rejects.toMatchObject({
+        code: "PRINCIPAL_JOB_RESOURCE_VIEW_DENIED", status: 403
+      });
+    }
+  );
+
   it("retains legacy authorization mode without dynamic catalog permissions", async () => {
     mocks.dynamic = false;
     await requireCurrentPrincipalJobAuthority(snapshot, initiator, {
@@ -130,6 +149,14 @@ describe("durable Principal job authority", () => {
     });
     expect(mocks.evaluate).not.toHaveBeenCalled();
     expect(mocks.publishedGrants).toHaveBeenCalledOnce();
+  });
+
+  it("never falls back to legacy authority for original delivery to a user-owned parser", async () => {
+    mocks.dynamic = false;
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, {
+      linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download"
+    })).rejects.toMatchObject({ code: "PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", status: 503 });
+    expect(mocks.evaluate).not.toHaveBeenCalled();
   });
 
   it.each([

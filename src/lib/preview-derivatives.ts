@@ -557,9 +557,10 @@ export async function claimPreviewJobAsync(
       const initiator = previewJobInitiatorFromMetadata(selected.metadata_json);
       if (!initiator || initiator.principalId !== input.ownerPrincipalId) return null;
       await requireCurrentPrincipalJobAuthority(transactionClient, initiator, {
+        action: "view_and_download",
         linkedEntityType: source.linked_entity_type,
         documentCategory: source.document_category,
-        capabilityRole: source.capability_role
+        capabilityRole: previewSourceCapabilityRole(source)
       });
     }
     const now = (await previewClock(transactionClient)).iso;
@@ -1302,6 +1303,15 @@ function previewJobInitiatorFromMetadata(value: unknown): PrincipalJobInitiator 
   return parsePrincipalJobInitiator((metadata as Record<string, unknown>).initiator);
 }
 
+function previewSourceCapabilityRole(source: PreviewSourceRow) {
+  // These immutable native types are model bytes even if an older upload used
+  // a generic drawing category. Claim must enforce model download before attempt++.
+  const extension = normalizeExtension(source.file_ext);
+  if (extension === "sldprt" || extension === "sldasm") return "cad_3d";
+  if (extension === "slddrw") return "drawing_2d";
+  return source.capability_role ?? source.document_category;
+}
+
 async function readClaimedPreviewSourceInSnapshot(snapshot: AsyncDatabaseClient, input: PreviewLeaseInput): Promise<ClaimedPreviewSourceSnapshot | null> {
   if (snapshot.kind !== "postgres") return null;
   const owned = await readPreviewLease(snapshot, input);
@@ -1332,15 +1342,22 @@ async function readClaimedPreviewSourceInSnapshot(snapshot: AsyncDatabaseClient,
       normalizeExtension(source.file_ext) !== normalizeExtension(job.source_extension)) return null;
   try {
     await requireCurrentPrincipalJobAuthority(snapshot, initiator, {
+      action: "view_and_download",
       linkedEntityType: source.linked_entity_type,
       documentCategory: source.document_category,
-      capabilityRole: source.capability_role
+      capabilityRole: previewSourceCapabilityRole(source)
     });
   } catch (error) {
     if (error instanceof PrincipalJobAuthorityError && error.status === 403) return null;
     throw error;
   }
   return { job, source, initiator };
+}
+
+/** Check the same current holder/source authority without loading CAD bytes. */
+export async function hasClaimedPreviewSourceAccessAsync(client: AsyncDatabaseClient, input: PreviewLeaseInput) {
+  return client.transaction(async snapshot => Boolean(await readClaimedPreviewSourceInSnapshot(snapshot, input)),
+    { isolationLevel: "repeatable_read", readOnly: true });
 }
 
 /** A workload token is not access to every asset: only the running claim holder

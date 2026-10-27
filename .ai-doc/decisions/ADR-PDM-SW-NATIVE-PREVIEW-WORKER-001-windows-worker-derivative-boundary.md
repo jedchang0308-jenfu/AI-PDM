@@ -2,7 +2,7 @@
 
 ## 2026-10-28 最新架構定案：使用者自有 Windows 裝置、Google 自助連結與 OpenSWX 退役
 
-現行狀態：`Accepted / Architecture Finalized / IMPLEMENTATION_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 未合併匿名 worker 草案；PR #535 的官方 Document Manager interop 修復保留。資料、API、發布與驗證以 DEV-125 為唯一權威。
+現行狀態：`Accepted / Architecture Finalized / RELEASED_R25 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉且未合併，PR #535 的官方 Document Manager interop 修復保留。owner-bound 實作與 installer 修正已由 PR #536～#538 合併，R25 正式發布來源為 `06d370bba2749230e4c70c8ae7bfa4580613a6e6`。資料、API、發布收據與剩餘實機驗收以 DEV-125 §11.6／QA JSON 為唯一權威。
 
 使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 
@@ -14,11 +14,14 @@
 |---|---|
 | NSIS EXE＋WinSW／Node 24＋預編譯 x64 Document Manager extractor | 重用既有 worker；不另做 MSI、自動更新、常駐使用者瀏覽器或完整 fleet。LocalService／service SID，在非互動 session 真實驗證。 |
 | Google SSO 自助連結＋DB 裝置身分＋DPAPI | 使用者只按一次「連結這台電腦」；短效 enrollment 由瀏覽器與 loopback 自動交換，不呈現註冊 ID／碼。migration 089 immutable，090 forward-only 加永久 owner Principal。無新 MFA、OrgMaster writer 或電腦 GCP IAM。 |
+| 覆蓋安裝驗證並保留既有裝置 | 設定工具以 DPAPI credential 呼叫 `/api/windows-service/self`；有效則沿用原身分，失效才進 Google 自助連結。網路／server 暫時失敗停止重連，避免重複建立裝置。只看 credential 檔案存在不能判定有效。 |
 | Document Manager 唯一引擎 | 讀屬性及檔內儲存 PNG；PRT／ASM configuration、DRW sheet 能力分別驗證。取消下文歷史 Shell／eDrawings 作為可選現行實作的解讀；缺圖明確失敗，不保留替代引擎。 |
 | Principal owner＋舊佇列 owner＋既有 generation fence | claim／source／heartbeat／complete 重驗 active account、Principal、grant 與資源權限；A 裝置不能取得 B-only 工作。queued 等待不耗 attempt；只回收已領取 stale lease。不另做 queue／receipt 平台。 |
+| Native key 隨已授權工作租約取用 | worker 先 claim 自己有權的工作再讀 key；broker 在 provider I/O 前後核對 device、owner、company、來源與既有 generation。idle 不取 key、不跨工作 cache。管理 probe 沿自己 lease 讀 key；非管理員的 probe poll 回空 queue，不阻擋正常工作。 |
+| 使用者電腦接收原檔要同時有查看與下載權 | preview／recognition 的 claim、source、heartbeat、complete 及 key guard 重驗來源各作業的 `view` 與 `download`；SLDPRT／SLDASM 包含 model 權限。只有 view 不得以 parser 繞過下載限制；claim 拒絕不增加 attempt。 |
 | OpenSWX 程式、發布、專用雲端全部退出 | 先排空、建立無 worker 依賴的 recovery，再刪專用資源；共享權限依 consumer 保留，歷史 migration／資料／收據不刪，不留下可執行 compatibility reader。 |
 
-Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 的可執行入口、日常發布依賴與專用部署資源必須退役；保留不可變歷史收據與已套用 migration 不代表保留第二套系統。拆除尚未執行，不能以本 ADR 宣告完成。
+Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 可執行入口、日常發布依賴與專用部署資源已依 DEV-125 §11／QA JSON 退出，歷史 migration／收據保留。R25 發布通過仍不替代 Windows 自助連結、低權限三格式及正常 UI 的實際驗收。
 
 下列狀態、選項與原生能力證據保留原時點；與本節衝突的 Shell／eDrawings 選項及產品排程均為歷史，不是新的實作授權。現行工程契約與 Architecture Closure Review 以 DEV-125 為準。
 

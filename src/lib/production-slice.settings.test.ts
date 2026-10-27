@@ -9,7 +9,7 @@ const commands = [
   "/api/settings/secrets/reference-one/test", "/api/settings/secrets/reference-one/activate",
   "/api/settings/secrets/reference-one/revoke", "/api/settings-secret-probe-jobs/claim",
   "/api/settings-secret-probe-jobs/job-one/heartbeat", "/api/settings-secret-probe-jobs/job-one/complete",
-  "/api/recognition-workers/heartbeat"
+  "/api/recognition-workers/heartbeat", "/api/preview-workers/heartbeat"
 ];
 const rolePolicyCommands = [
   "/api/settings/access/role-policies/drafts",
@@ -32,7 +32,7 @@ describe("DEV122 settings dispatch retains the existing owner guards", () => {
     "/api/settings/secrets/reference-one/test/extra", "/api/settings/secrets/reference-one/rotate",
     "/api/settings-secret-probe-jobs", "/api/settings-secret-probe-jobs/job-one/credential",
     "/api/settings-secret-probe-jobs/job-one/cancel", "/api/recognition-workers/heartbeat/extra",
-    "/api/recognition-jobs/claim/extra", "/api/preview-workers/heartbeat"
+    "/api/recognition-jobs/claim/extra", "/api/preview-workers/heartbeat/extra"
   ])("keeps other mutations blocked: %s", path => {
     vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", active.PDM_PRODUCTION_SLICE_MODE);
     expect(middleware(new NextRequest("https://pdm.example" + path, { method: "POST" })).status).toBe(403);

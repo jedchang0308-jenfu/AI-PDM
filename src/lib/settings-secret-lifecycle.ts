@@ -453,6 +453,14 @@ export async function resolveActiveSolidWorksDocumentManagerKey() {
   return null;
 }
 
+/** Report metadata availability without reading the configured key or provider. */
+export async function isActiveSolidWorksDocumentManagerKeyConfigured(): Promise<boolean> {
+  const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
+  const active = (await repository.listReferencesByKind("solidworks_document_manager"))
+    .find((reference) => reference.lifecycleStatus === "active");
+  return active?.vaultProvider === "google_secret_manager" || active?.vaultProvider === "windows_dpapi";
+}
+
 async function resolveSecretReferenceValue(client: AsyncDatabaseClient, reference: SettingsSecretReference) {
   const environmentSecret = workerEnvironmentSecret();
   if (environmentSecret && workerEnvironmentFallbackAllowed()) return { value: environmentSecret, source: "worker_environment" as const };
