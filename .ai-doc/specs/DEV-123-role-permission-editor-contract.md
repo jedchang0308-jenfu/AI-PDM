@@ -443,3 +443,9 @@ OrgMaster仍唯一負責人員指派、scope、期間、代理及撤銷。本節
 正式服務最終讀回：AI-PDM latest created／ready `ai-pdm-prod-3092d00b3653`、100% traffic、digest `sha256:d9c3f8b…`；OrgMaster readback當下latest created／ready `orgmaster-prod-ea3dfa78a218`、100% traffic、digest `sha256:a95cf4b…`。後者只記最終current serving revision；第23／24版實際寫入revision仍以provider request logs為準。
 
 此旅程關閉的是正式管理面與跨系統生命週期，不把「矩陣可設定20 actions」替換成「20個business caller均已真人操作」。不同管理者同時CAS、20 caller逐一allow／deny、七canonical角色逐一人員任用，以及需要可拋棄業務資料的in-flight write／long-task撤權競爭仍是`NOT RUN / Partially Covered`。架構決策未改：AI-PDM擁有capability policy；OrgMaster擁有人員／Principal指派、scope、期間與撤銷；系統管理資格不可由矩陣自授。
+
+## 19. 2026-10-27 正式 20-action business caller 旅程結果
+
+依使用者指定，本輪只補正式 `pdm.*` business caller，並明確取消不同管理者同時 CAS、七 canonical role 逐一正式任用及 in-flight 業務寫入／長任務撤權競爭。公司 Google SSO 身分 `DEV014 Free Google（JFS9014）` 在正式 `ai-pdm-prod-3092d00b3653` 實際操作 20 個 action：9 個 PASS、11 個因正式資料／第二身分／功能 slice 前置不成立而 `BLOCKED_NOT_RUN` 或 `NOT_RUN`。詳細逐項結果及正式 readback 見[QA §R25](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#2026-10-27-r25-20-個正式-business-caller-逐一旅程使用者指定範圍)與[結構化證據](../qa/DEV-123-formal-business-callers-2026-10-27.json)。
+
+此結果只關閉實際成功的 9 個 caller，不把讀取權限投影、矩陣設定或空 pending inbox 當成實際審核／發布通過；不得宣稱 20/20 或 Whole Acceptance PASS。`A0062`／`TP-2026-0002` 為本輪 disposable 驗收資料，保留供稽核，未刪除、未發布，亦未執行 migration、部署、IAM／Secret 變更。OrgMaster 相容責任與既有 §9 邊界不變。

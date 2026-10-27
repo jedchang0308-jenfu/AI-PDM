@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "ai-pdm.dev-123.formal-business-callers.v1",
+  "task": "DEV-123",
+  "runId": "DEV123-FORMAL-CALLERS-20261027-R25",
+  "observedAt": "2026-10-27",
+  "scope": {
+    "requested": "20 個正式 business caller 逐一旅程",
+    "cancelledByOwner": [
+      "不同管理者同時 CAS",
+      "七個 canonical role 逐一正式任用",
+      "in-flight 業務寫入／長任務撤權競爭"
+    ],
+    "notScope": [
+      "IAM／Secret 調整",
+      "正式 migration",
+      "正式部署",
+      "正式資料清理或刪除"
+    ]
+  },
+  "actor": {
+    "identity": "DEV014 Free Google（JFS9014）",
+    "companyId": "company-jenfu",
+    "authentication": "公司 Google SSO",
+    "authorizationReadback": "/api/numbering/permissions"
+  },
+  "runtime": {
+    "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+    "revision": "ai-pdm-prod-3092d00b3653",
+    "traffic": "100%",
+    "dataMutationBoundary": "僅建立 DEV-123 disposable A0062 圖料與 TP-2026-0002 草稿技轉包；未刪除、未發布、未修改既有正式業務資料"
+  },
+  "fixtures": {
+    "root": "A0062",
+    "part": "A0062-P01",
+    "drawing": "A0062-M01",
+    "transferPackage": {
+      "id": "91293e90-1cd9-4a96-b0b9-33c1eb170f5d",
+      "packageCode": "TP-2026-0002",
+      "status": "Draft",
+      "rowVersion": 3,
+      "scope": ["A0062-M01"]
+    }
+  },
+  "summary": {
+    "total": 20,
+    "pass": 9,
+    "blockedOrNotRun": 11,
+    "formalAcceptance": "PARTIAL"
+  },
+  "actions": [
+    {"code":"pdm.drawing.view","status":"PASS","evidence":"正式圖號工作台開啟 A0001-M01 詳情；A0062-M01 亦由搜尋 API 讀回。"},
+    {"code":"pdm.drawing.download","status":"PASS","evidence":"A0001-M01 下載既有正式 PDF D-0007-MA1.pdf。"},
+    {"code":"pdm.drawing.edit","status":"PASS","evidence":"正式 UI 建立 A0062／A0062-M01，進入編輯工作區並完成取消未核准工作。"},
+    {"code":"pdm.drawing.review","status":"BLOCKED_NOT_RUN","reason":"正式審核 inbox pending=0；目前身分無 decision 能力，沒有可安全提交的 reviewer fixture。"},
+    {"code":"pdm.drawing.publish","status":"NOT_RUN","reason":"正式可發布草稿／已核准 request 不存在，且目前身分 publish=false。"},
+    {"code":"pdm.part.view","status":"PASS","evidence":"正式料號工作台開啟 A0001-P01 詳情。"},
+    {"code":"pdm.part.download","status":"BLOCKED_NOT_RUN","reason":"/numbering/reports 明示未開放；monthly-audit-reports 與 export-jobs 均為空，A0001-P01 無附件。"},
+    {"code":"pdm.part.edit","status":"PASS","evidence":"同一正式 numbering create/edit/cancel 旅程建立並編輯 A0062-P01。"},
+    {"code":"pdm.part.review","status":"BLOCKED_NOT_RUN","reason":"正式審核 inbox pending=0；目前身分無 decision 能力。"},
+    {"code":"pdm.part.publish","status":"NOT_RUN","reason":"正式可發布料號不存在，且目前身分 publish=false。"},
+    {"code":"pdm.model.view","status":"PASS","evidence":"GET /api/parts/A0001-P01/shared-models 回 200，正式 company scope readback。"},
+    {"code":"pdm.model.download","status":"PASS","evidence":"A0001-M01 詳情提供既有 3D 原檔 D-0007-MA1.SLDPRT 下載。"},
+    {"code":"pdm.model.edit","status":"NOT_RUN","reason":"正式 UI 未提供可安全操作的 model edit caller；目前沒有可用的 edit fixture。"},
+    {"code":"pdm.model.review","status":"BLOCKED_NOT_RUN","reason":"沒有正式 model review request／pending resource；目前身分無 decision 能力。"},
+    {"code":"pdm.model.publish","status":"NOT_RUN","reason":"正式可發布 model／已核准 request 不存在，且目前身分 publish=false。"},
+    {"code":"pdm.transfer.view","status":"PASS","evidence":"正式技轉工作台與 GET /api/transfer-packages/65241ff4-234d-4309-852f-734d2582aebf 回 200。"},
+    {"code":"pdm.transfer.download","status":"BLOCKED_NOT_RUN","reason":"GET /api/handoff 回 count=0；技轉 export 回 PUBLISHED_HANDOFF_NOT_FOUND。"},
+    {"code":"pdm.transfer.edit","status":"PASS","evidence":"正式 UI 建立 TP-2026-0002、更新名稱／原因並加入 A0062-M01 scope，version 3 readback。"},
+    {"code":"pdm.transfer.review","status":"BLOCKED_NOT_RUN","reason":"TP-2026-0002 因 A0062-M01 為 Draft 而不可送整包審核；正式 pending=0。"},
+    {"code":"pdm.transfer.publish","status":"NOT_RUN","reason":"沒有 review-ready 技轉包，且目前身分 publish=false。"}
+  ],
+  "evidenceReadbacks": [
+    "GET /api/numbering/search?query=A0062：A0062／A0062-P01／A0062-M01 均為 Draft 且彼此關聯",
+    "GET /api/numbering/drawings/A0062-M01/attachments：attachments=[]",
+    "GET /api/parts/A0001-P01/attachments：attachments=[]",
+    "GET /api/technical-transfer：TP-2026-0002 Draft、officialItemCount=1、rowVersion=3",
+    "GET /api/technical-transfer/{id}/export：PUBLISHED_HANDOFF_NOT_FOUND",
+    "GET /api/handoff：count=0",
+    "GET /api/approvals?status=pending 與 status=all：0 筆"
+  ],
+  "cleanup": {
+    "newLocalhost": false,
+    "iamChanged": false,
+    "secretChanged": false,
+    "migrationExecuted": false,
+    "deploymentExecuted": false,
+    "formalBusinessDataDeleted": false,
+    "disposableRecordsRetainedForAudit": true
+  },
+  "conclusion": "本證據只關閉 9 個可實際操作的正式 caller；11 個因前置資料／身分／功能 slice 不成立而保持 BLOCKED_NOT_RUN 或 NOT_RUN。不得宣稱 20/20 或 Whole Acceptance PASS。"
+}
