@@ -66,3 +66,9 @@ R22 在獨立工作樹只重播 current-source 契約與 exact-source bilateral�
 R23／R24以正式正常SSO管理者完成同管理者雙分頁CAS、apply結果不明查回、custom角色20-action設定，以及OrgMaster第23版任用／第24版撤銷。AI-PDM停用角色後OrgMaster不得新增該角色指派；角色恢復後已撤指派不自動復活；最終角色再次inactive且指派維持revoked。這驗證「AI-PDM擁有capability policy、OrgMaster擁有人員指派／撤銷」的雙權威邊界，不需要跨系統兩階段commit、每次apply readiness、第二套enablement或同步刪除歷史。
 
 正式四次AI-PDM applications皆由provider記錄200，OrgMaster兩次versions POST皆201；unknown畫面出現時只做current readback，沒有重送。系統管理資格仍不可由矩陣自授，PDM業務資料、IAM、Secret與migration均未改。不同管理者同時CAS、20個business caller逐一旅程、七canonical角色逐一任用與in-flight業務寫入／長任務撤權競爭仍留在QA，不成為新增架構層的理由。
+
+## 2026-10-27 正式 business caller 架構驗證
+
+依使用者明確縮小範圍，只重播 20 個既有 `pdm.*` action，不新增 approval／reviewer／enablement 層。正式 actor `DEV014 Free Google（JFS9014）` 實際操作後，9 個 caller PASS；11 個因無正式可用資料、無第二 reviewer 身分、現行 production slice 未開放或目前 actor 明確 deny 而保持 `BLOCKED_NOT_RUN`／`NOT_RUN`。這證實矩陣 action 仍由既有 domain caller／guard 承接，沒有把 capability readback 誤當執行成功，也沒有為了補 20/20 而放寬 publish、審核或資料邊界。
+
+本輪建立的 `A0062` 與 `TP-2026-0002` 僅是 disposable 驗收資料，維持 Draft、未發布、未刪除；沒有 migration、部署、IAM／Secret 或正式業務資料清理。不同管理者 CAS、七角色逐一正式任用及 in-flight 寫入／長任務撤權競爭依使用者決定列為 `Owner Cancelled / Not Required`，不產生新的架構要求；整體仍為 `Whole Acceptance Partial`。逐項證據見[DEV-123 formal business caller receipt](../qa/DEV-123-formal-business-callers-2026-10-27.json)。

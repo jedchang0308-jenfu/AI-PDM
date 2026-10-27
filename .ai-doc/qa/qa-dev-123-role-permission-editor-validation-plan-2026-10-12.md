@@ -397,3 +397,32 @@ R22 關閉的是 current-source focused regression 與 exact-source bilateral �
 | 正式服務 readback | PASS：AI-PDM latest created／ready=`ai-pdm-prod-3092d00b3653`、100% traffic、digest `sha256:d9c3f8b…`；最終 OrgMaster latest created／ready=`orgmaster-prod-ea3dfa78a218`、100% traffic、digest `sha256:a95cf4b…`。後者是最終 readback 時的 current serving revision；第 23／24 版寫入時的實際 revisions 另由 provider logs 保留。 |
 
 R23／R24 關閉正式 390×844、同管理者雙分頁 CAS、unknown outcome readback、動態 custom role 20-action 設定、真實 OrgMaster 動態目錄／stale 拒絕，以及 assign→publish→inactive→revoke→reactivate-no-resurrection→final-inactive 生命週期。仍未關閉的是：不同管理者同時 CAS、20 個 business caller 的正式真人 allow／deny 逐一旅程、七個 canonical role 各自逐一正式任用，以及有可拋棄業務資料才能安全執行的 in-flight business write／long-task 撤權競爭。這些保持 `NOT RUN / Partially Covered`，所以整體仍是 `Whole Acceptance Partial`，不是 `52/52 Formal PASS`。
+
+### 2026-10-27 R25：20 個正式 business caller 逐一旅程（使用者指定範圍）
+
+本輪依使用者指定，只執行 20 個 `pdm.*` business action 的正式 caller；不同管理者 CAS、七個 canonical role 逐一任用，以及 in-flight 業務寫入／長任務撤權競爭列為 `Owner Cancelled / Not Required`，不重開。受測身分為公司 Google SSO 的 `DEV014 Free Google（JFS9014）`，正式服務為 `ai-pdm-prod-3092d00b3653`（100% traffic）。完整逐項收據見[`DEV-123-formal-business-callers-2026-10-27.json`](DEV-123-formal-business-callers-2026-10-27.json)。
+
+| 作業 | 動作 | 結果 | 正式證據／邊界 |
+|---|---|---|---|
+| 圖號 | 查看 | PASS | 圖號工作台開啟 `A0001-M01` 詳情；`A0062-M01` 由 search API 正式讀回。 |
+| 圖號 | 下載 | PASS | `A0001-M01` 下載既有正式 PDF `D-0007-MA1.pdf`。 |
+| 圖號 | 編輯 | PASS | 正式 UI 建立 `A0062`／`A0062-M01`，進入編輯工作區並取消未核准工作；含對應 `A0062-P01`。 |
+| 圖號 | 審核 | BLOCKED_NOT_RUN | 正式審核 inbox pending=0；目前身分無 decision 能力，沒有可安全操作的 reviewer fixture。 |
+| 圖號 | 發布 | NOT_RUN | 沒有正式可發布／已核准草稿，且目前身分 `publish=false`。 |
+| 料號 | 查看 | PASS | 料號工作台開啟 `A0001-P01` 詳情。 |
+| 料號 | 下載 | BLOCKED_NOT_RUN | `/numbering/reports` 明示未開放；monthly-audit-reports／export-jobs 為空，`A0001-P01` 無附件。 |
+| 料號 | 編輯 | PASS | 同一正式 numbering create/edit/cancel 旅程建立並編輯 `A0062-P01`。 |
+| 料號 | 審核 | BLOCKED_NOT_RUN | 正式審核 inbox pending=0；目前身分無 decision 能力。 |
+| 料號 | 發布 | NOT_RUN | 沒有正式可發布料號，且目前身分 `publish=false`。 |
+| 模型 | 查看 | PASS | `GET /api/parts/A0001-P01/shared-models` 回 200，company scope readback 成功。 |
+| 模型 | 下載 | PASS | `A0001-M01` 詳情提供既有 3D 原檔 `D-0007-MA1.SLDPRT`。 |
+| 模型 | 編輯 | NOT_RUN | 正式 UI 未提供可安全操作的 model edit caller，沒有可用 edit fixture。 |
+| 模型 | 審核 | BLOCKED_NOT_RUN | 沒有正式 model review request／pending resource；目前身分無 decision 能力。 |
+| 模型 | 發布 | NOT_RUN | 沒有正式可發布 model／已核准 request，且目前身分 `publish=false`。 |
+| 技轉 | 查看 | PASS | 技轉工作台及既有 `TP-2026-0001` detail API 回 200。 |
+| 技轉 | 下載 | BLOCKED_NOT_RUN | `/api/handoff` `count=0`；export 回 `PUBLISHED_HANDOFF_NOT_FOUND`。 |
+| 技轉 | 編輯 | PASS | 建立 `TP-2026-0002`，更新名稱／原因並加入 `A0062-M01` scope，version 3 readback。 |
+| 技轉 | 審核 | BLOCKED_NOT_RUN | `TP-2026-0002` 因 `A0062-M01` 為 Draft 而不可送整包審核；正式 pending=0。 |
+| 技轉 | 發布 | NOT_RUN | 沒有 review-ready 技轉包，且目前身分 `publish=false`。 |
+
+R25 統計為 **9/20 PASS、11/20 BLOCKED_NOT_RUN 或 NOT_RUN**；這是正式真實 actor／資料／端點結果，不是本機合成 PASS。`A0062`／`TP-2026-0002` 是本輪 disposable 驗收資料，保留供稽核，沒有執行刪除或正式資料清理。沒有新增 localhost、IAM／Secret 變更、migration、部署或正式業務資料發布。結論維持 `Production Released / Formal Administration Lifecycle PASS / Current-source Regression PASS / Whole Acceptance Partial`，不得將 20-action 矩陣設定誤記為 20/20 caller 通過。
