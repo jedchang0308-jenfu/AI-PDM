@@ -685,6 +685,7 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
   if (runtimeRow.value.releaseId !== intent.releaseId || runtimeRow.value.sourceRevision !== sourceRevision
     || runtimeRow.value.ownerApplicationId !== 'ai-pdm' || runtimeRow.value.status !== 'VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_RUNTIME_INVALID')
   const runtime = runtimeRow.value.runtimeConfig ?? runtimeRow.value
+  const { assertRuntimeConfig } = await import('./dev012-owner-release-runtime.mjs')
   assertHistoricalAppliedContinuationRuntimeBinding(runtime, historicalIntent, AI_BUCKET)
   const sourceLock = await readRef(intent.sourceLockRef, AI_BUCKET, token, fetchImpl)
   if (sourceLock.value.sourceSha256 !== intent.sourceSha256 || sourceLock.value.migrationManifestSha256 !== intent.migrationManifestSha256) fail('SOURCE_LOCK_INVALID')
