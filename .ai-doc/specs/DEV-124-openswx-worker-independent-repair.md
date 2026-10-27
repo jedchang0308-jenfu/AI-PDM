@@ -1,8 +1,8 @@
 # DEV-124：OpenSWX metadata worker 獨立修復
 
-狀態：`ACTIVE_124-A / RD IMPLEMENTATION READY FOR 124-A / ENTRY_READBACK_PENDING / 124-B_NOT_STARTED / NOT_ACCEPTED`
+狀態：`ACTIVE_124-A / ENTRY_READBACK_FAILED / ROOT_CAUSE_PENDING / 124-B_NOT_STARTED / NOT_ACCEPTED`
 
-來源基準：`origin/main` `e3d5c94a026e5fefe13f4a3da9312d89b045e160`（2026-10-27）
+來源基準：`origin/main` `c11b31c4229abad04f722d8c79306e6fa2a48b23`（2026-10-27）
 
 ## 1. 目的與責任邊界
 
@@ -20,6 +20,16 @@ DEV-124 只負責 OpenSWX metadata 工作的有限派送與 worker 鏈：worker 
 - 兩個既有 Secret 的 version metadata 與限定讀取鏈可讀；本次沒有讀取 Secret payload，也沒有證據支持新增 IAM、Secret 或 service identity。
 
 這些事實只建立修復起點。最近 execution 的安全錯誤原因、目前待處理 job、實際 API 往返及輸出內容仍需由下列交付流程取得，不得猜測或把歷史成功 execution 當成目前 PASS。
+
+### 2.1 124-A 首次 current readback 結果（2026-10-27）
+
+已建立 create-only operation `DEV124-A-READBACK-20261027-R1`，並由既有受保護的 production RD permission-state workflow 執行固定 read-only transaction。workflow run `40434430269` 已通過 source／CI、operation hash、WIF 與 runner 綁定，實際啟動 `ai-pdm-prod-migration-runner`；固定讀回階段其後以 `RD_PERMISSION_STATE_EXECUTION_FAILED` 終止。
+
+此結果只證明 current readback execution 失敗，不證明 `openswx_metadata_jobs` 沒有 active row，也不證明 current consumer 不存在。因 operation 已產生一次明確失敗，不得在沒有辨識新原因前原樣重送。124-A 下一步固定為：
+
+1. 讀取該 exact migration-runner execution 的 terminal condition 與去敏錯誤分類，並確認有無 immutable state／submission receipt。
+2. 若失敗屬既有 RD actor／catalog 前置，而不是 OpenSWX query 本身，將 OpenSWX entry readback 拆成 actor-independent 的固定唯讀診斷；不得為此擴張 IAM、Secret 或 business grant。
+3. 只有取得 current DB row count／active row 與 current consumer 判定，才能將 124-A 標為 `NEED_EXISTS` 或 `DEFERRED_NO_CURRENT_NEED`。在此之前維持 `UNKNOWN`、Scheduler `PAUSED`、124-B 不開始。
 
 ## 3. 現行架構契約
 
