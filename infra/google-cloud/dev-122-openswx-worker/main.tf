@@ -114,6 +114,12 @@ resource "google_cloud_scheduler_job" "dispatch" {
     }
   }
   lifecycle {
-    ignore_changes = [paused, http_target, retry_config]
+    # Provider normalization of header casing and the empty retry block must
+    # not hitchhike on the DEV-125 deletion-protection transition.
+    ignore_changes = [
+      paused,
+      http_target[0].headers,
+      retry_config,
+    ]
   }
 }

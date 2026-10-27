@@ -97,8 +97,8 @@ test("DEV-125B stages exact OpenSWX provider retirement without unprotecting sha
   assert.match(workerInfra, /resource "google_cloud_run_v2_job" "reader"/u);
   assert.match(workerInfra, /resource "google_cloud_scheduler_job" "dispatch"/u);
   assert.match(workerInfra, /deletion_protection\s*=\s*false/u);
+  assert.match(workerInfra, /ignore_changes\s*=\s*\[[\s\S]*paused,[\s\S]*http_target\[0\]\.headers,[\s\S]*retry_config,[\s\S]*\]/u);
   assert.doesNotMatch(workerInfra, /prevent_destroy\s*=\s*true/u);
-  assert.match(workerInfra, /ignore_changes\s*=\s*\[paused, http_target, retry_config\]/u);
   assert.doesNotMatch(openswxReadback, /prevent_destroy\s*=\s*true/u);
   assert.doesNotMatch(openswxSecretReadback, /prevent_destroy\s*=\s*true/u);
   assert.equal((sharedPrebuildReadback.match(/prevent_destroy\s*=\s*true/gu) ?? []).length, 2);
