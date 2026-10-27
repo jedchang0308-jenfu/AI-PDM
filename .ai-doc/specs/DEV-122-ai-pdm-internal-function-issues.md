@@ -53,10 +53,27 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 |---|---|---|---|
 | `identity_roles` | 正常登入；管理員可智慧辨識；RD 可讀寫及送審；RD 不可核准 | `RD_PERMISSION_TEST_ACTOR_VERIFIED / ADMIN_RECOGNITION_PENDING` | 實際 actor 的 allow／deny 與拒絕零副作用 |
 | `pdm_lifecycle` | Part 首次發行、Drawing major／minor、退回與重送保持一致 | `LOCAL_NATIVE_AND_UI_EVIDENCE_AVAILABLE` | 受影響交易、CAS、rollback／replay 通過 |
-| `drawing_preview` | 目前版本 PDF 可閱讀；預覽任務有限且有終態 | `LOCAL_QC_PASS / PRODUCTION_ACCEPTANCE_PENDING` | 正確版本 bytes、桌面可讀性、terminal／error 行為 |
+| `drawing_preview` | 目前版本 PDF 可閱讀；預覽任務有限且有終態 | `LOCAL_QC_PASS / PRODUCTION_ACCEPTANCE_FAIL_2026-10-27` | 正確版本 bytes、桌面可讀性、terminal／error 行為 |
 | `operations` | 正確來源建置、候選 smoke、切換讀回與 rollback-ready | `NO_RELEASE_IN_THIS_CHANGE` | 只有實際發布時驗 exact source／image／revision／traffic |
 
 能力可獨立標記 `PASS`、`FAIL`、`PENDING` 或 `NOT_APPLICABLE`。一項能力未完成，不改寫其他能力已成立的證據；DEV-122 整體結案仍需原始 7／29 全部有可接受結果。
+
+<a id="d122-05-production-preview-gap-20261027"></a>
+
+### D122-05 正式預覽缺口（2026-10-27）
+
+以公司 Google SSO 登入正式 `ai-pdm-prod`，在圖號工作台開啟 `A0001-M01` 後，畫面與 canonical file-preview API 讀回兩個不同的終態。3D 原檔 `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED`／`preview_worker_unavailable`、`retryable=false`；這表示目前沒有可用 worker 接手該預覽工作，屬本 DEV 的 F-01B 正式 server／兩個 worker v2 process rollout 與 runtime 驗收缺口。2D 原檔 `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED`／`unsupported_preview_source`、`retryable=false`；它不是 PDF viewer 尚未開發，因完整 PDF viewer 已由 PR #278 合併、PR #486 修正 render liveness 並通過 required CI，而是本筆正式 file asset 的 media type／來源分類／current binding／ready derivative 或 serving-source 適用性尚未讀回確認。
+
+本次只取得 authenticated browser 與同 session API body，沒有 provider-level serving revision、HTTP status、正式 file metadata、preview job row、worker process 或 derivative bytes readback。因此不得把 PDF 結果改判為「PR #486 未發布」，也不得把 3D 結果歸入 `DEV-124`；`DEV-124` 只負責 OpenSWX worker descriptor／reader／artifact-reuse 鏈。結構化紀錄見 [A0001 正式預覽缺口](../qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
+
+關閉 D122-05 本缺口只需補受影響責任：
+
+1. 先唯讀核對正式 serving source／revision、兩個 file asset 的 media type／binding／source hash、latest preview job 與兩個 preview worker v2 process；不直接修表或把歷史 job 改為成功。
+2. 3D 在服務已就緒後，以新工作或明確核准的 retry 證明真實 worker `claim → heartbeat → complete`，產出綁定 current source hash、非 fake generator 的 `image/png` derivative，canonical API 與 mounted UI 可讀；同時完成既有 parent-lock mounted／refusal 驗收。
+3. PDF 證明 current binding 指向受保護的 `application/pdf` bytes（含 `%PDF-` header），或指向 current-hash 的有效 `drawing_pdf`／`sheet_png` derivative；canonical API 不再回 unsupported，mounted viewer 能顯示完整圖框、尺寸與註記。若根因只是 metadata／binding，仍須透過既有受控 writer 或 forward-only migration 修正，不手動修改正式資料。
+4. 保留兩個原檔下載與 terminal safe error；不得以 fake PNG、舊版本 PDF、無來源 hash derivative、重複重新整理或擴張 IAM／Secret 取代正式修復。
+
+本段只更新 DEV-122 狀態與驗收契約；未修改產品程式、worker、schema／migration、IAM／Secret、正式資料或服務。DEV-122 整體維持 `NOT_ACCEPTED`，但 PR #278／#486 的既有 PDF 實作與通過證據不回退。
 
 ### R-01A 辨識讀取錯誤回應（2026-10-23）
 

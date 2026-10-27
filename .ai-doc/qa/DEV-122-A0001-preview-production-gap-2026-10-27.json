@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "ai-pdm.dev-122.production-preview-gap.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "issue": "D122-05",
+  "observedAt": "2026-10-27",
+  "status": "PRODUCTION_ACCEPTANCE_FAIL",
+  "scope": {
+    "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+    "authentication": "公司 Google SSO",
+    "actor": "DEV014 Free Google（JFS9014）",
+    "drawing": "A0001-M01",
+    "observation": "authenticated browser plus same-session canonical file-preview API body",
+    "servingRevisionReadback": "NOT_CAPTURED_IN_THIS_OBSERVATION",
+    "httpStatusReadback": "NOT_CAPTURED_IN_BROWSER_AX_READBACK",
+    "visualEvidence": "user-supplied screenshot in the conversation; not copied into the repository"
+  },
+  "observations": [
+    {
+      "slot": "3d",
+      "fileName": "D-0007-MA1.SLDPRT",
+      "api": "GET /api/pdm/file-assets/{fileAssetId}?context=candidate_revision&contextId={contextId}&bindingId={bindingId}&preview=1",
+      "response": {
+        "code": "PREVIEW_FAILED",
+        "message": "預覽無法顯示；可下載原檔。",
+        "retryable": false,
+        "jobErrorCode": "preview_worker_unavailable"
+      },
+      "classification": "DEV-122 F-01B production preview worker rollout or runtime acceptance gap"
+    },
+    {
+      "slot": "2d",
+      "fileName": "D-0007-MA1.pdf",
+      "api": "GET /api/pdm/file-assets/{fileAssetId}?context=candidate_revision&contextId={contextId}&bindingId={bindingId}&preview=1",
+      "response": {
+        "code": "PREVIEW_UNSUPPORTED",
+        "message": "此格式無法預覽；可下載原檔。",
+        "retryable": false,
+        "jobErrorCode": "unsupported_preview_source"
+      },
+      "classification": "production file metadata, source classification, current binding, derivative, or serving-source applicability gap; not proof that the PDF viewer is unimplemented"
+    }
+  ],
+  "existingDeliveryEvidence": [
+    {
+      "pullRequest": 278,
+      "title": "fix: render full PDF previews and distinguish recognition denials",
+      "state": "MERGED",
+      "mergedAt": "2026-10-12T05:58:56Z",
+      "requiredCi": "SUCCESS"
+    },
+    {
+      "pullRequest": 486,
+      "title": "fix(DEV-122): keep PDF render alive across resize",
+      "state": "MERGED",
+      "mergedAt": "2026-10-24T18:38:18Z",
+      "requiredCi": "SUCCESS"
+    }
+  ],
+  "acceptanceImpact": {
+    "capability": "drawing_preview",
+    "capabilityStatus": "PRODUCTION_ACCEPTANCE_FAIL_2026-10-27",
+    "wholeDevStatus": "NOT_ACCEPTED",
+    "pdfImplementationStatus": "DELIVERED_EVIDENCE_RETAINED",
+    "dev124Routing": "NOT_APPLICABLE_OPEN_SWX_ONLY"
+  },
+  "closureCriteria": {
+    "readOnlyPreflight": [
+      "read back the production serving source and revision",
+      "read back both file assets' media type, current binding, source hash, and latest preview job",
+      "read back the production server and both preview worker v2 processes before any retry"
+    ],
+    "threeDimensional": [
+      "after service readiness, use a new job or an explicitly approved retry and observe claim, heartbeat, and complete",
+      "produce a non-fake image/png derivative bound to the current source hash",
+      "canonical API and mounted UI display the derivative",
+      "complete the existing parent-lock mounted and refusal acceptance"
+    ],
+    "pdf": [
+      "prove the current binding resolves to protected application/pdf bytes with a %PDF- header, or a valid current-hash drawing_pdf or sheet_png derivative",
+      "canonical preview no longer returns PREVIEW_UNSUPPORTED",
+      "mounted viewer renders the complete border, dimensions, and annotations while original download remains available"
+    ]
+  },
+  "prohibitedSubstitutes": [
+    "direct production table edits",
+    "marking a historical job successful",
+    "fake PNG or fake generator output",
+    "using an older PDF revision",
+    "repeated browser refresh as remediation",
+    "IAM or Secret expansion without a separately demonstrated need",
+    "routing this SolidWorks preview gap to DEV-124"
+  ],
+  "changesInThisRecord": {
+    "productCode": false,
+    "worker": false,
+    "schemaOrMigration": false,
+    "iamOrSecret": false,
+    "productionData": false,
+    "deployment": false,
+    "documentationOnly": true
+  },
+  "conclusion": "D122-05 remains open. The 3D result is a DEV-122 F-01B production worker rollout/runtime gap; the PDF result is a production source-classification or binding regression that requires readback before choosing a repair."
+}

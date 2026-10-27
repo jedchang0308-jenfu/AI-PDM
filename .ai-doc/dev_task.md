@@ -2,6 +2,12 @@
 
 現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
 
+## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
+
+正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，確認 F-01B 仍缺正式 server／兩個 worker v2 process rollout 與 runtime 驗收；2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。PDF 完整 viewer 已由 PR #278 合併、PR #486 修正 liveness 並通過 required CI，因此本案列為正式 file metadata／來源分類／current binding／derivative 或 serving-source 適用性待讀回，不重開 viewer 架構。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
+
+本次只更新文件，沒有修改產品、worker、schema／migration、IAM／Secret、正式資料或服務；不得將這個 SolidWorks preview gap 轉列只負責 OpenSWX 鏈的 DEV-124。D122-05／`drawing_preview` 正式驗收為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
+
 ## DEV-122 — 辨識 worker Production dispatch（修正／受保護交付中）
 
 B68 已實證專用 RD 測試帳號正常登入、grant、工作台與辨識 GET；現有辨識 session 仍 queued／attempt 0。正式 revision 的 `official-numbering-draft` 與原始 middleware 三個合成 403 證明 worker 必經路徑未開通；尚無 worker 實際送出請求的證據。精確修正及安全界線見 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#辨識-worker-production-dispatch2026-10-23)。不重送／重排既有工作；部署、正常 claim→complete 與內容品質須分開驗證，原 7／29 不提升。
