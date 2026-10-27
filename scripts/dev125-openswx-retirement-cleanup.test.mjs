@@ -7,6 +7,7 @@ import { bindDiagnosticRef } from './dev117-production-diagnostics.mjs'
 import { runMain as runMigrationRunner } from './dev117-production-migration-runner.mjs'
 import {
   assertRuntimeReadback,
+  submitCleanupOnce,
   summarizeProviderState,
 } from './dev125-openswx-retirement-cleanup.mjs'
 import {
@@ -143,6 +144,21 @@ test('readback binding and provider inventory refuse truncation, enabled dispatc
   assert.throws(() => summarizeProviderState({ ...scheduler, state: 'ENABLED' }, job, terminal), /NOT_PAUSED/u)
   assert.throws(() => summarizeProviderState(scheduler, job, { ...terminal, nextPageToken: 'more' }), /INVENTORY_INVALID/u)
   assert.throws(() => summarizeProviderState(scheduler, job, { executions: [{}] }), /EXECUTIONS_ACTIVE/u)
+})
+
+test('cleanup replay preserves the sealed workflow source while rejecting immutable drift', async () => {
+  const submission = {
+    schemaVersion: 'aipdm.dev125.openswx-retirement-cleanup-submission.v1',
+    workflowSourceRevision: 'b'.repeat(40),
+    sourceRevision,
+    observedAt: '2026-10-27T00:00:00.000Z',
+    args: ['fixed'],
+  }
+  const priorCore = { ...submission, workflowSourceRevision: 'a'.repeat(40) }
+  const prior = { ...priorCore, receiptSha256: sha256(Buffer.from(canonicalize(priorCore))) }
+  const transport = { async readBytes() { return { bytes: Buffer.from(JSON.stringify(prior)), metadata: { generation: '7' } } } }
+  assert.deepEqual(await submitCleanupOnce({ transport, submissionRef: 'gs://bucket/submission.json', submission, job: {}, providerStateBase64: 'fixed' }), { resumed: true })
+  await assert.rejects(submitCleanupOnce({ transport, submissionRef: 'gs://bucket/submission.json', submission: { ...submission, args: ['drift'] }, job: {}, providerStateBase64: 'fixed' }), /DEV125_CLEANUP_SUBMISSION_INVALID/u)
 })
 
 test('migration runner executes only the fixed hash-bound cleanup branch and publishes its receipt', async () => {
