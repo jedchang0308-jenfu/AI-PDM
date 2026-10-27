@@ -24,6 +24,7 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   const installer = read("windows-service/installer/AI-PDM-Windows-Setup.nsi");
   const helper = read("windows-service/tools/AipdmCredentialHelper.cs");
   const probe = read("windows-service/tools/AipdmDocumentManagerProbe.cs");
+  const documentManagerRuntime = read("windows-service/tools/SolidWorksDocumentManagerRuntime.cs");
   const configurator = read("windows-service/configurator/AipdmWindowsConfigurator.cs");
   const notices = read("windows-service/THIRD-PARTY-NOTICES.txt");
   assert.match(build, /WinSW-x64\.exe[\s\S]+05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da/u);
@@ -43,10 +44,16 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.doesNotMatch(installer, /RMDir \/r "\$SMPROGRAMS\\AI-PDM"/u);
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
-  assert.match(probe, /SwDocumentMgr\.SwDMClassFactory/u);
-  assert.match(probe, /serverVersion[\s\S]+serverSha256[\s\S]+late-bound-com[\s\S]+runtimeMajor/u);
-  assert.match(probe, /Activator\.CreateInstance\(factory\)/u);
-  assert.match(build, /solidworksDocumentManager[\s\S]+late-bound-com[\s\S]+not-bundled/u);
+  assert.match(documentManagerRuntime, /SwDocumentMgr\.SwDMClassFactory/u);
+  assert.match(documentManagerRuntime, /SolidWorks\.Interop\.swdocumentmgr\.dll[\s\S]+e52dfa2d3a1e978a/u);
+  assert.match(documentManagerRuntime, /Assembly\.LoadFrom\(interopPath\)[\s\S]+ISwDMClassFactory/u);
+  for (const requiredInterface of [
+    "ISwDMApplication", "ISwDMDocument3", "ISwDMDocument10", "ISwDMDocument11",
+    "ISwDMConfigurationMgr2", "ISwDMConfiguration4", "ISwDMConfiguration9", "ISwDMSheet2",
+  ]) assert.match(documentManagerRuntime, new RegExp(`ValidateRequiredInteropContract[\\s\\S]+${requiredInterface}`, "u"));
+  assert.match(probe, /serverVersion[\s\S]+serverSha256[\s\S]+interopVersion[\s\S]+interopSha256[\s\S]+runtime-loaded-official-interop[\s\S]+runtimeMajor/u);
+  assert.match(documentManagerRuntime, /Activator\.CreateInstance\(factoryType\)/u);
+  assert.match(build, /solidworksDocumentManager[\s\S]+runtime-loaded-official-interop[\s\S]+not-bundled/u);
   assert.doesNotMatch(build, /SolidWorks\.Interop\.sw(?:documentmgr|const)\.dll/u);
   assert.match(notices, /Document Manager is not redistributed/u);
   assert.doesNotMatch(build, /swdocumentmgr\.dll[^\r\n]+(?:https?:\/\/|Invoke-WebRequest)/iu);
@@ -211,13 +218,17 @@ test("DEV-125B authenticates non-OpenSWX worker calls from the current device ro
   assert.match(recognition, /sourceSetFingerprint[\s\S]+attemptCount[\s\S]+lockedAt/u);
 });
 
-test("DEV-125B native exporters use only registered late-bound official COM", () => {
+test("DEV-125B native exporters runtime-load only the registered official interop", () => {
   for (const file of ["scripts/solidworks-document-manager-metadata-exporter.cs",
     "scripts/solidworks-document-manager-preview-exporter.cs",
     "scripts/solidworks-document-manager-credential-probe.cs"]) {
     const source = read(file);
-    assert.match(source, /SwDocumentMgr\.SwDMClassFactory/u);
-    assert.match(source, /Activator\.CreateInstance/u);
+    assert.match(source, /SolidWorksDocumentManagerRuntime/u);
+    assert.doesNotMatch(source, /\bdynamic\b/u);
     assert.doesNotMatch(source, /SolidWorks\.Interop/u);
   }
+  const runtime = read("windows-service/tools/SolidWorksDocumentManagerRuntime.cs");
+  assert.match(runtime, /ISwDMClassFactory[\s\S]+ISwDMApplication[\s\S]+ISwDMDocument3/u);
+  assert.doesNotMatch(read("scripts/build-dev125-windows-installer.ps1"),
+    /(?:Copy-Item|File \/r)[^\r\n]+SolidWorks\.Interop\.swdocumentmgr\.dll/iu);
 });

@@ -36,12 +36,14 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             return 65;
         }
 
+        SolidWorksDocumentManagerRuntime runtime = null;
         object app = null;
         object doc = null;
 
         try
         {
-            app = CreateDocumentManagerApplication(licenseKey);
+            runtime = SolidWorksDocumentManagerRuntime.Load();
+            app = runtime.CreateApplication(licenseKey);
             if (app == null)
             {
                 Console.Error.WriteLine("DOCUMENT_MANAGER_APPLICATION_UNAVAILABLE");
@@ -55,7 +57,7 @@ internal static class SolidWorksDocumentManagerPreviewExporter
                 return 64;
             }
             int openError = 0;
-            doc = ((dynamic)app).GetDocument(sourcePath, documentType, true, out openError);
+            doc = runtime.OpenDocument(app, sourcePath, documentType, out openError);
             if (doc == null || openError != 0)
             {
                 Console.Error.WriteLine("DOCUMENT_MANAGER_OPEN_FAILED:" + openError);
@@ -64,11 +66,11 @@ internal static class SolidWorksDocumentManagerPreviewExporter
 
             string previewSource;
             byte[] pngBytes = documentType == 3
-                ? TryReadFirstSheetPreview(doc, out previewSource)
-                : TryReadActiveConfigurationPreview(doc, out previewSource);
+                ? TryReadFirstSheetPreview(runtime, doc, out previewSource)
+                : TryReadActiveConfigurationPreview(runtime, doc, out previewSource);
             if ((pngBytes == null || pngBytes.Length == 0) && documentType == 3)
             {
-                pngBytes = TryReadDocumentPreview(doc, out previewSource);
+                pngBytes = TryReadDocumentPreview(runtime, doc, out previewSource);
             }
 
             if (pngBytes == null || pngBytes.Length == 0)
@@ -93,7 +95,7 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             {
                 if (doc != null)
                 {
-                    ((dynamic)doc).CloseDoc();
+                    runtime.CloseDocument(doc);
                 }
             }
             catch
@@ -101,8 +103,8 @@ internal static class SolidWorksDocumentManagerPreviewExporter
                 // Do not mask the primary export result.
             }
 
-            ReleaseCom(doc);
-            ReleaseCom(app);
+            SolidWorksDocumentManagerRuntime.Release(doc);
+            SolidWorksDocumentManagerRuntime.Release(app);
         }
     }
 
@@ -129,29 +131,10 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return "";
     }
 
-    private static object CreateDocumentManagerApplication(string licenseKey)
-    {
-        Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
-        if (factoryType == null)
-        {
-            return null;
-        }
-
-        object factoryObject = Activator.CreateInstance(factoryType);
-        if (factoryObject == null)
-        {
-            return null;
-        }
-
-        object application = ((dynamic)factoryObject).GetApplication(licenseKey);
-        ReleaseCom(factoryObject);
-        return application;
-    }
-
-    private static byte[] TryReadFirstSheetPreview(object doc, out string previewSource)
+    private static byte[] TryReadFirstSheetPreview(SolidWorksDocumentManagerRuntime runtime, object doc, out string previewSource)
     {
         previewSource = "sheet";
-        object sheets = ((dynamic)doc).GetSheets();
+        object sheets = runtime.GetSheets(doc);
         foreach (object item in EnumerateObject(sheets))
         {
             if (item == null)
@@ -160,11 +143,11 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             }
 
             int previewError = 0;
-            object bytesObject = ((dynamic)item).GetPreviewPNGBitmapBytes(out previewError);
+            object bytesObject = runtime.GetSheetPreview(item, out previewError);
             byte[] bytes = ConvertVariantByteArray(bytesObject);
             if (previewError == 0 && bytes != null && bytes.Length > 0)
             {
-                previewSource = "sheet:" + SafeSheetName(item);
+                previewSource = "sheet:" + SafeSheetName(runtime, item);
                 return bytes;
             }
         }
@@ -172,23 +155,22 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return null;
     }
 
-    private static byte[] TryReadActiveConfigurationPreview(object doc, out string previewSource)
+    private static byte[] TryReadActiveConfigurationPreview(SolidWorksDocumentManagerRuntime runtime, object doc, out string previewSource)
     {
         previewSource = "configuration";
         object managerObject = null;
         object configurationObject = null;
         try
         {
-            managerObject = ((dynamic)doc).ConfigurationManager;
+            managerObject = runtime.GetConfigurationManager(doc);
             if (managerObject == null) return null;
-            dynamic manager = managerObject;
-            string activeName = Convert.ToString(manager.GetActiveConfigurationName()) ?? "";
+            string activeName = runtime.GetActiveConfigurationName(managerObject);
             if (String.IsNullOrWhiteSpace(activeName)) return null;
             int configurationError = 0;
-            configurationObject = manager.GetConfigurationByName2(activeName, out configurationError);
+            configurationObject = runtime.GetConfigurationByName(managerObject, activeName, out configurationError);
             if (configurationObject == null || configurationError != 0) return null;
             int previewError = 0;
-            object bytesObject = ((dynamic)configurationObject).GetPreviewPNGBitmapBytes(out previewError);
+            object bytesObject = runtime.GetConfigurationPreview(configurationObject, out previewError);
             byte[] bytes = ConvertVariantByteArray(bytesObject);
             if (previewError != 0 || bytes == null || bytes.Length == 0) return null;
             previewSource = "configuration:" + activeName;
@@ -196,16 +178,16 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         }
         finally
         {
-            ReleaseCom(configurationObject);
-            ReleaseCom(managerObject);
+            SolidWorksDocumentManagerRuntime.Release(configurationObject);
+            SolidWorksDocumentManagerRuntime.Release(managerObject);
         }
     }
 
-    private static byte[] TryReadDocumentPreview(object doc, out string previewSource)
+    private static byte[] TryReadDocumentPreview(SolidWorksDocumentManagerRuntime runtime, object doc, out string previewSource)
     {
         previewSource = "document";
         int previewError = 0;
-        object bytesObject = ((dynamic)doc).GetPreviewPNGBitmapBytes(out previewError);
+        object bytesObject = runtime.GetDocumentPreview(doc, out previewError);
         byte[] bytes = ConvertVariantByteArray(bytesObject);
         return previewError == 0 ? bytes : null;
     }
@@ -260,21 +242,16 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return bytes;
     }
 
-    private static string SafeSheetName(object sheet)
+    private static string SafeSheetName(SolidWorksDocumentManagerRuntime runtime, object sheet)
     {
         try
         {
-            return Convert.ToString(((dynamic)sheet).Name) ?? "";
+            return runtime.GetSheetName(sheet);
         }
         catch
         {
             return "";
         }
-    }
-
-    private static void ReleaseCom(object value)
-    {
-        if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
     private static string JsonEscape(string value)

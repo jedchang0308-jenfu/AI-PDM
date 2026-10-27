@@ -11,17 +11,13 @@ internal static class SolidWorksDocumentManagerCredentialProbe
         object app = null;
         try
         {
-            Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
-            if (factoryType == null) return Emit("failed", "native_metadata_api_unavailable");
-            object factoryObject = Activator.CreateInstance(factoryType);
-            if (factoryObject == null) return Emit("failed", "native_metadata_api_unavailable");
-            app = ((dynamic)factoryObject).GetApplication(key);
-            if (Marshal.IsComObject(factoryObject)) Marshal.ReleaseComObject(factoryObject);
+            SolidWorksDocumentManagerRuntime runtime = SolidWorksDocumentManagerRuntime.Load();
+            app = runtime.CreateApplication(key);
             return app == null ? Emit("failed", "native_metadata_license_invalid") : Emit("succeeded", "native_metadata_probe_passed");
         }
         catch (COMException) { return Emit("failed", "native_metadata_license_invalid"); }
         catch { return Emit("failed", "native_metadata_credential_probe_failed"); }
-        finally { if (app != null && Marshal.IsComObject(app)) Marshal.ReleaseComObject(app); }
+        finally { SolidWorksDocumentManagerRuntime.Release(app); }
     }
 
     private static int Emit(string status, string diagnostic)
