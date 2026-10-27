@@ -17,6 +17,7 @@ import {
   KeyRound,
   LoaderCircle,
   LockKeyhole,
+  MonitorCog,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -1122,6 +1123,14 @@ function SettingsCenterOverview({
           detail={solidWorksStatus.liveGate.message}
           href="/settings/security"
           actionLabel="查看安全狀態"
+        />
+        <SettingsStatusTile
+          icon={<MonitorCog size={18} />}
+          title="Windows 解析服務"
+          status={limited ? "未開放" : "電腦管理"}
+          detail={limited ? "Windows 解析服務尚未開放。" : "下載安裝程式、註冊電腦並查看連線與解析能力。"}
+          href={limited ? undefined : "/settings/windows-service"}
+          actionLabel="管理解析電腦"
         />
       </div>
     </section>

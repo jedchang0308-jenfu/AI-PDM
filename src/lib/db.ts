@@ -293,6 +293,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "numbering_draft_parts", "series_code", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
   ensureSolidWorksNativePreviewSchema(database);
+  ensureDev125WindowsServiceSchema(database);
   ensureDev088ReplacementAttachmentSchema(database);
   ensureDev087CanonicalWorkbenchSchema(database);
   ensureDev107DrawingRecognitionLineageSchema(database);
@@ -306,6 +307,55 @@ function initDatabase(database: SqliteDatabase) {
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
   assertSqliteInitializerIntegrity(database);
+}
+
+export function ensureDev125WindowsServiceSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS windows_service_devices (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+      name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 100 AND name=trim(name)),
+      credential_hash TEXT NOT NULL UNIQUE CHECK (length(credential_hash)=64),
+      status TEXT NOT NULL CHECK (status IN ('active','revoked')),
+      instance_id TEXT,
+      service_version TEXT NOT NULL CHECK (length(service_version) BETWEEN 1 AND 40),
+      protocol_version INTEGER NOT NULL CHECK (protocol_version=1),
+      registered_by TEXT NOT NULL,
+      registered_at TEXT NOT NULL,
+      last_seen_at TEXT,
+      revoked_at TEXT,
+      revoked_by TEXT,
+      row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+      updated_at TEXT NOT NULL,
+      CHECK ((status='active' AND revoked_at IS NULL AND revoked_by IS NULL)
+        OR (status='revoked' AND revoked_at IS NOT NULL AND revoked_by IS NOT NULL))
+    );
+    CREATE TABLE IF NOT EXISTS windows_service_enrollments (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+      request_id TEXT NOT NULL,
+      request_hash TEXT NOT NULL CHECK (length(request_hash)=64),
+      code_hash TEXT NOT NULL UNIQUE CHECK (length(code_hash)=64),
+      created_by TEXT NOT NULL,
+      creator_session_hash TEXT NOT NULL CHECK (length(creator_session_hash)=64),
+      creator_auth_epoch INTEGER NOT NULL CHECK (creator_auth_epoch >= 0),
+      creator_identity_issuer TEXT NOT NULL,
+      creator_identity_subject TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      consumed_at TEXT,
+      device_id TEXT UNIQUE REFERENCES windows_service_devices(id) ON DELETE RESTRICT,
+      UNIQUE (company_id,request_id),
+      CHECK ((consumed_at IS NULL AND device_id IS NULL) OR (consumed_at IS NOT NULL AND device_id IS NOT NULL))
+    );
+    CREATE INDEX IF NOT EXISTS windows_service_devices_company_status_idx
+      ON windows_service_devices(company_id,status,registered_at,id);
+    CREATE INDEX IF NOT EXISTS windows_service_enrollments_expiry_idx
+      ON windows_service_enrollments(company_id,expires_at,id) WHERE consumed_at IS NULL;
+  `);
+  ensureColumn(database, "preview_jobs", "worker_completion_json", "TEXT");
+  ensureColumn(database, "drawing_recognition_sessions", "worker_completion_json", "TEXT");
+  ensureColumn(database, "settings_secret_probe_jobs", "worker_completion_json", "TEXT");
 }
 
 function ensureRoleCapabilityDisplaySnapshotSchema(database: SqliteDatabase) {

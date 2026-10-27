@@ -13,13 +13,15 @@ const reviewed = JSON.parse(readFileSync(join(root,
 
 test('v2 source hash binds every reviewed route and retired cross-owner mutation', () => {
   assert.deepEqual(buildPrincipalRouteMapV2(source, reviewed), reviewed)
-  assert.deepEqual(reviewed.denominator, { uniqueFiles: 151, uniqueMethods: 173, policyEntries: 183 })
+  assert.deepEqual(reviewed.denominator, { uniqueFiles: 155, uniqueMethods: 177, policyEntries: 187 })
   assert.equal(reviewed.entries.filter(entry => entry.path === 'src/app/api/numbering/export-jobs/route.ts' &&
     entry.method === 'POST' && entry.permissionCode === 'numbering.export.create' && entry.scopeResolver === 'workspace').length, 1)
   assert.equal(reviewed.entries.filter(entry =>
     entry.path === 'src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts' &&
     entry.method === 'POST' && entry.permissionCode === 'numbering.attachments.manage').length, 1)
   assert.equal(reviewed.entries.filter(e => e.path.includes('/openswx-metadata/')).length, 3)
+  assert.equal(reviewed.entries.filter(e => e.path.includes('/settings/windows-service/') &&
+    e.permissionCode === 'settings.secret.manage' && e.scopeResolver === 'workspace').length, 4)
 })
 
 test('new grants, restored old mutations, and deleted policies all fail the source lock', () => {

@@ -53,6 +53,7 @@ const AUTHORIZATION_TESTS = [
 ]
 
 const WORKER_TESTS = [
+  'scripts/dev125-windows-service-contract.test.mjs',
   'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
   'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
   'scripts/dev122-openswx-owner-release.test.mjs',

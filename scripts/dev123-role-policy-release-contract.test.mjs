@@ -21,9 +21,9 @@ function reseal(input) {
   input.files.set(profilePath,Buffer.from(canonicalize(input.profile)))
   return input
 }
-test('DEV-123 owner proof accepts the exact complete 38-entry source and preserves the 35-entry prefix',()=>{
+test('current owner proof accepts the exact complete 39-entry source and preserves the DEV-123 35-entry prefix',()=>{
   const input=fixture()
-  assert.equal(input.bundle.entries.length,38)
+  assert.equal(input.bundle.entries.length,39)
   assert.equal(input.bundle.baselineCount,15)
   assert.doesNotThrow(()=>assertAiPdmMigrationContent(input))
   const previous=structuredClone(input.profile)
@@ -33,7 +33,7 @@ test('DEV-123 owner proof accepts the exact complete 38-entry source and preserv
   assert.deepEqual(input.bundle.entries.slice(0,35),prefix.bundle.entries)
 })
 test('DEV-123 owner proof rejects a substituted source or applied SQL in every appended migration',()=>{
-  for(const index of [35,36,37]) for(const kind of ['source','applied']) {
+  for(const index of [35,36,37,38]) for(const kind of ['source','applied']) {
     const input=fixture(), entry=input.bundle.entries[index]
     if(kind==='source') {
       const bytes=Buffer.concat([input.files.get(entry.path),Buffer.from('\n-- forged source\n')])
@@ -51,7 +51,7 @@ test('DEV-123 source authority rejects incomplete, reordered and extended migrat
     const input=fixture()
     if(mutation.startsWith('partial')) input.bundle.entries=input.bundle.entries.slice(0,Number(mutation.slice(7)))
     else if(mutation==='reorder') [input.bundle.entries[35],input.bundle.entries[36]]=[input.bundle.entries[36],input.bundle.entries[35]]
-    else input.bundle.entries.push({...input.bundle.entries[37],order:39})
+    else input.bundle.entries.push({...input.bundle.entries[38],order:40})
     assert.throws(()=>assertAiPdmMigrationContent(reseal(input)),/ARCHIVE_BUNDLE_INVALID/u,mutation)
   }
 })

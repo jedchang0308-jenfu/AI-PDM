@@ -10,7 +10,7 @@ import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 describe("DEV-121 route authorization manifest", () => {
   it("auxiliary context GET/POST/cancel bind only published review/run and preserve the exact denominator", () => {
-    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 151, uniqueMethods: 173, policyEntries: 183 });
+    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 155, uniqueMethods: 177, policyEntries: 187 });
     const path = "src/app/api/numbering/openswx-metadata/drawing_revision/own-context/route.ts";
     expect(resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "numbering.recognition.review" })).toMatchObject({ permissionCode: "numbering.recognition.review" });
     expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });

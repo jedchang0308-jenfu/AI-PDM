@@ -13785,6 +13785,39 @@ select.dropdown-select:focus-visible,
   .settings-secret-spin, .settings-secret-pulse { animation: none; }
 }
 
+.windows-service-page { display: grid; gap: 16px; min-width: 0; }
+.windows-service-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.windows-service-heading .primary-button { flex: 0 0 auto; text-decoration: none; }
+.windows-service-message { border-radius: 6px; padding: 10px 12px; font-size: 13px; }
+.windows-service-message.is-success { color: var(--success); background: #e8f7ef; }
+.windows-service-message.is-error { color: var(--danger); background: #feecec; }
+.windows-service-enrollment-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 14px; }
+.windows-service-enrollment-panel h2, .windows-service-enrollment-panel p { margin: 0; }
+.windows-service-enrollment-panel p { margin-top: 5px; color: var(--muted); }
+.windows-service-enrollment { grid-column: 1 / -1; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; }
+.windows-service-enrollment label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.windows-service-enrollment label > span { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.windows-service-enrollment code { min-width: 0; overflow-wrap: anywhere; color: var(--text); font-size: 13px; font-weight: 500; }
+.windows-service-enrollment small { color: var(--muted); }
+.windows-service-device-panel { padding: 0; overflow: hidden; }
+.windows-service-device-panel .panel-header { padding: 16px; }
+.windows-service-table { width: 100%; border-collapse: collapse; }
+.windows-service-table th, .windows-service-table td { padding: 12px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.windows-service-table th { color: var(--muted); font-size: 12px; }
+.windows-service-table td strong, .windows-service-table td small { display: block; }
+.windows-service-table td small { margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
+.windows-service-status, .windows-service-capabilities span { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+.windows-service-status.is-online, .windows-service-capabilities .is-ready { color: #087443; background: #e8f7ef; }
+.windows-service-status.is-offline, .windows-service-capabilities .is-degraded { color: #8a5b00; background: #fff5d6; }
+.windows-service-status.is-revoked, .windows-service-capabilities .is-blocked { color: var(--muted); background: #eef1f4; }
+.windows-service-capabilities { display: flex; flex-wrap: wrap; gap: 5px; }
+@media (max-width: 760px) {
+  .windows-service-heading, .windows-service-enrollment-panel { grid-template-columns: 1fr; display: grid; }
+  .windows-service-heading .primary-button, .windows-service-enrollment-panel > .secondary-button { width: 100%; justify-content: center; }
+  .windows-service-device-panel .table-wrap { overflow-x: auto; }
+  .windows-service-table { min-width: 760px; }
+}
+
 .settings-drive-status {
   display: inline-flex;
   align-items: center;

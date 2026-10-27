@@ -479,6 +479,11 @@
         "order": 38,
         "path": "db/postgres/088_dev123_recognition_job_authority.sql",
         "sha256": "16f1a1b4655afc493ebdcb724e7a1c3bd239d9f34c581845e2de49b419728f83"
+      },
+      {
+        "order": 39,
+        "path": "db/postgres/089_dev125_windows_service_devices.sql",
+        "sha256": "f4fa558338b2478c4f03aed0423f984c77f7aebcb4d6ffd12fd48d6c1080c909"
       }
     ]
   },

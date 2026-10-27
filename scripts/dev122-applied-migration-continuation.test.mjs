@@ -200,8 +200,8 @@ test('both continuation consumers authenticate a current38 profile through the s
     ancestorRunner: () => true, compatibilityRunner: () => true }
   const validated = assertAppliedMigrationReadbackSource(input)
   assert.deepEqual(validated.probes, buildRdLedgerProbeBundles(f.runnerFull))
-  assert.equal(fullMigration.bundle.entries.length, 38)
-  assert.equal(profile.migrations.entries.length, 38)
+  assert.equal(fullMigration.bundle.entries.length, 39)
+  assert.equal(profile.migrations.entries.length, 39)
   assert.throws(() => assertAppliedMigrationReadbackSource({ ...input, installedBundle: undefined }),
     /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
   const changed = structuredClone(profile)

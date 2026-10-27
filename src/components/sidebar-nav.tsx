@@ -16,6 +16,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  MonitorCog,
   PackageSearch,
   Search,
   Settings,
@@ -90,6 +91,7 @@ const navSections: NavSection[] = [
       { href: "/policy", label: "管理辦法", icon: FileText },
       { href: "/account/security", label: "我的帳號安全", icon: KeyRound },
       { href: "/settings/accounts", label: "帳號與權限", icon: UserCog },
+      { href: "/settings/windows-service", label: "Windows 解析服務", icon: MonitorCog },
       { href: "/settings", label: "系統設定", icon: Settings },
       { href: "/login", label: "登入", icon: LogIn }
     ]

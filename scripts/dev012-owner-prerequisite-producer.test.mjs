@@ -179,12 +179,13 @@ test('routine authority binds a fresh source to the exact active baseline withou
   assert.throws(() => buildRoutineAuthority({ profile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, baselineIntentRef: ref('baseline-intent'), dataCutoverCompletionRef: { ...dataCutoverCompletionRef, uri: 'gs://sibling/receipts/completion.json' }, previousRevision: 'ai-pdm-prod-00001-old', observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' }), /PREREQUISITE_REF_INVALID/)
 })
 
-for (const entryCount of [35, 38]) test(`routine authority preserves the historical program-only predecessor under current ${entryCount} source`, () => {
+for (const entryCount of [35, 38, 39]) test(`routine authority preserves the historical program-only predecessor under current ${entryCount} source`, () => {
   const profile35 = { application: { id: 'ai-pdm' }, migrations: { entries: [
     ...Array.from({ length: 34 }, (_, index) => ({ order: index + 1, path: index === 33 ? 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql' : `db/postgres/${String(index + 1).padStart(3, '0')}_fixture.sql` })),
     { order: 35, path: 'db/postgres/085_dev121_principal_role_catalog_v7.sql' },
   ] } }
-  if (entryCount === 38) profile35.migrations.entries.push(...['086_dev123_role_policy_editor_v1.sql', '087_dev123_role_policy_candidate_validation.sql', '088_dev123_recognition_job_authority.sql'].map((name,index) => ({ order:36+index,path:'db/postgres/'+name })))
+  if (entryCount >= 38) profile35.migrations.entries.push(...['086_dev123_role_policy_editor_v1.sql', '087_dev123_role_policy_candidate_validation.sql', '088_dev123_recognition_job_authority.sql'].map((name,index) => ({ order:36+index,path:'db/postgres/'+name })))
+  if (entryCount === 39) profile35.migrations.entries.push({ order:39,path:'db/postgres/089_dev125_windows_service_devices.sql' })
   const historical = { programOnlyBaseline: { releaseId: 'DEV122-PROGRAM-20261011-B36-R10' } }
   const calls = []
   const validate = (value, candidateProfile) => {

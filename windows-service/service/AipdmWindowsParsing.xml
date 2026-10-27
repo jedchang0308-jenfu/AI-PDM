@@ -1,0 +1,27 @@
+<service>
+  <id>AipdmWindowsParsing</id>
+  <name>AI-PDM Windows Parsing Service</name>
+  <description>Uses the locally installed SOLIDWORKS Document Manager to process authorized AI-PDM jobs.</description>
+  <executable>%BASE%\runtime\node.exe</executable>
+  <arguments>"%BASE%\service\service.mjs"</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <serviceaccount>
+    <username>NT AUTHORITY\LocalService</username>
+  </serviceaccount>
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>20 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+  <logpath>%ProgramData%\AI-PDM Windows Service\logs</logpath>
+  <log mode="roll-by-size-time">
+    <sizeThreshold>10240</sizeThreshold>
+    <pattern>yyyyMMdd</pattern>
+    <autoRollAtTime>00:00:00</autoRollAtTime>
+    <zipOlderThanNumDays>7</zipOlderThanNumDays>
+    <zipDateFormat>yyyyMMdd</zipDateFormat>
+    <keepFiles>14</keepFiles>
+  </log>
+</service>
