@@ -45,7 +45,7 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 |---|---|
 | 安裝形式 | NSIS 3 Unicode 的 `AI-PDM-Windows-Setup-<version>.exe`；不另做 MSI。打包既有 Node 24 LTS 執行碼、WinSW 2.12.0 與預編譯 x64 C# extractor，使用 .NET Framework 4.8；第一版在 Windows 11 x64 驗證。使用者端不安裝 Node、編譯器或完整 SolidWorks。 |
 | 服務帳號／檔案 | WinSW 服務 `AipdmWindowsParsing` 使用 LocalService，啟用 service SID；程式在 `%ProgramFiles%\AI-PDM Windows Service`，credential／暫存在 `%ProgramData%\AI-PDM Windows Service`，ACL 僅該 service SID、SYSTEM、Administrators。安裝／解除安裝才需管理員；解析不以 LocalSystem 或人員帳號執行。 |
-| 原生元件 | 官方 Document Manager x64 COM runtime／interop；相容 major、來源及 SHA-256 寫入安裝 manifest。使用公司合法取得、與 key／目標檔版本相容的元件。先檢查既有 COM 註冊；相容者重用，不覆蓋他人路徑。不相容則安裝失敗並說明，不自動破壞 SolidWorks。解除安裝只解除仍指向本產品且由本產品建立的註冊。 |
+| 原生元件 | 官方 Document Manager x64 COM runtime；extractor 採 late-bound COM，不把 SolidWorks runtime 或專有 managed interop 放入公開原始碼／安裝包。安裝時啟動 COM 驗證 x64 runtime，並將版本、來源檔名及 SHA-256 寫入本機 runtime receipt。使用公司合法取得、與 key／目標檔版本相容的元件；相容者重用，不覆蓋或解除註冊他人路徑。不相容則安裝失敗並說明。 |
 | 引擎能力 | 屬性讀取沿 DEV-035 document／configuration scope；PRT／ASM 取 active configuration 的已儲存 PNG，SLDDRW 取第一張 sheet 的已儲存 PNG，無 sheet 圖才查文件內已儲存預覽。全部經同一 Document Manager extractor，不合成假圖。不提供模型重建、互動 3D、任意解析度或 CAD 轉 PDF。 |
 | 套件／更新 | 每次產物固定 app source SHA、版本、protocolVersion=1、檔案 hashes、依賴版本與 notices。Windows CI 產出安裝包，既有 app build 依同 source 與 hash 收入 image 的 `worker-downloads/`，下載 API 只讀該唯讀目錄的 manifest；不新增 runtime 儲存桶讀權、GitHub token 或任意 URL 下載。第一版人工下載新版覆蓋安裝、保留本機身分；無自動更新平台。預設不採購簽章、不宣稱 SmartScreen 信任。 |
 
@@ -194,4 +194,4 @@ App 及 release adapter 使用現有 affected-slice planner、required CI、owne
 
 125-A 已完成 RD source：migration 089、管理員電腦清單／下載／註冊／停用 API、device enroll／self／start／heartbeat、設定頁、DB 即時裝置身分、NSIS 3.11＋WinSW 2.12.0＋Node 24 套件、LocalService/service SID、DPAPI LocalMachine credential、Document Manager x64 runtime 版本／SHA-256 probe，以及 same-source installer manifest／CI artifact。OpenSWX 尚未在此切片移除；它會在 125-C 於 replacement 可用後一次退出，不形成產品雙軌。
 
-125-A RD 證據：隔離 PostgreSQL 6 組通過（單次碼／重送／錯碼限流／過期／session 撤權／instance 競爭／heartbeat／撤銷）；installer 實際編譯及 manifest digest readback 通過；本機既有 Document Manager runtime 與 interop 均為 x64 major 33 且 probe 通過；DEV-125 contract 6 tests、既有 release 52 tests、slice planner 21 tests、typecheck 與 DB boundary 通過。全 repository lint 為 0 error／既有 9 warnings。尚待 PR required CI、管理員正常 SSO、安裝／重啟／覆蓋／卸載實機操作，因此 V125-01／03／04 仍為 `PARTIAL`；V125-02 自動化範圍為 `PASS`。125-B／125-C 與 V125-05～12 尚未完成。
+125-A RD 證據：隔離 PostgreSQL 6 組通過（單次碼／重送／錯碼限流／過期／session 撤權／instance 競爭／heartbeat／撤銷）；installer 實際編譯及 manifest digest readback 通過；本機既有 Document Manager x64 major 33 COM runtime 啟動及 runtime digest probe 通過，extractor 改採不需散布專有 DLL 的 late-bound COM；DEV-125 contract 6 tests、既有 release 52 tests、slice planner 21 tests、typecheck 與 DB boundary 通過。全 repository lint 為 0 error／既有 9 warnings。尚待 PR required CI、管理員正常 SSO、安裝／重啟／覆蓋／卸載實機操作，因此 V125-01／03／04 仍為 `PARTIAL`；V125-02 自動化範圍為 `PASS`。125-B／125-C 與 V125-05～12 尚未完成。

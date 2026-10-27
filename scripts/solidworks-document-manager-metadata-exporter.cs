@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using SolidWorks.Interop.swdocumentmgr;
 
 internal static class SolidWorksDocumentManagerMetadataExporter
 {
@@ -17,30 +16,29 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         if (!File.Exists(sourcePath)) return Fail("native_metadata_source_not_found");
         string licenseKey = ReadLicenseKey();
         if (String.IsNullOrWhiteSpace(licenseKey)) return Fail("native_metadata_license_missing");
-        ISwDMApplication app = null;
-        ISwDMDocument doc = null;
+        object app = null;
+        object doc = null;
         try
         {
             Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
             if (factoryType == null) return Fail("native_metadata_api_unavailable");
             object factoryObject = Activator.CreateInstance(factoryType);
-            ISwDMClassFactory factory = factoryObject as ISwDMClassFactory;
-            if (factory == null) return Fail("native_metadata_api_unavailable");
-            SwDMApplication rawApp = factory.GetApplication(licenseKey);
-            app = rawApp as ISwDMApplication;
-            Marshal.ReleaseComObject(factory);
+            if (factoryObject == null) return Fail("native_metadata_api_unavailable");
+            dynamic factory = factoryObject;
+            app = factory.GetApplication(licenseKey);
+            Marshal.ReleaseComObject(factoryObject);
             if (app == null) return Fail("native_metadata_api_unavailable");
 
-            SwDmDocumentType documentType = DocumentTypeFor(sourcePath);
-            SwDmDocumentOpenError openError = SwDmDocumentOpenError.swDmDocumentOpenErrorNone;
-            SwDMDocument rawDoc = app.GetDocument(sourcePath, documentType, true, out openError);
-            doc = rawDoc as ISwDMDocument;
-            if (doc == null || openError != SwDmDocumentOpenError.swDmDocumentOpenErrorNone) return Fail("native_metadata_open_failed");
+            int documentType = DocumentTypeFor(sourcePath);
+            int openError = 0;
+            dynamic application = app;
+            doc = application.GetDocument(sourcePath, documentType, true, out openError);
+            if (doc == null || openError != 0) return Fail("native_metadata_open_failed");
 
             List<RawProperty> properties = new List<RawProperty>();
             ReadDocumentProperties(doc, properties);
             ReadConfigurationProperties(doc, properties);
-            Console.WriteLine(BuildPayload(documentType.ToString(), properties, new List<string>()));
+            Console.WriteLine(BuildPayload(DocumentTypeName(documentType), properties, new List<string>()));
             return 0;
         }
         catch (COMException)
@@ -53,53 +51,41 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         }
         finally
         {
-            try { if (doc != null) doc.CloseDoc(); } catch { }
-            if (doc != null) Marshal.ReleaseComObject(doc);
-            if (app != null) Marshal.ReleaseComObject(app);
+            try { if (doc != null) ((dynamic)doc).CloseDoc(); } catch { }
+            ReleaseCom(doc);
+            ReleaseCom(app);
         }
     }
 
-    private static void ReadDocumentProperties(ISwDMDocument doc, List<RawProperty> output)
+    private static void ReadDocumentProperties(object doc, List<RawProperty> output)
     {
-        ISwDMDocument3 document3 = doc as ISwDMDocument3;
-        if (document3 == null) return;
+        dynamic document3 = doc;
         object names = null, types = null, linked = null, values = null;
         document3.GetAllCustomPropertyNamesAndValues(out names, out types, out linked, out values);
         AppendProperties(output, "document", names, types, linked, values);
     }
 
-    private static void ReadConfigurationProperties(ISwDMDocument doc, List<RawProperty> output)
+    private static void ReadConfigurationProperties(object doc, List<RawProperty> output)
     {
-        SwDMConfigurationMgr rawManager = doc.ConfigurationManager;
-        ISwDMConfigurationMgr manager = rawManager as ISwDMConfigurationMgr;
-        if (manager == null) return;
-        ISwDMConfigurationMgr2 manager2 = manager as ISwDMConfigurationMgr2;
-        object rawNames;
-        if (manager2 != null)
-        {
-            SwDMConfigurationError result;
-            rawNames = manager2.GetConfigurationNames2(out result);
-        }
-        else rawNames = manager.GetConfigurationNames();
+        object rawManager = ((dynamic)doc).ConfigurationManager;
+        if (rawManager == null) return;
+        dynamic manager = rawManager;
+        int result = 0;
+        object rawNames = manager.GetConfigurationNames2(out result);
         foreach (object item in Enumerate(rawNames))
         {
             string configurationName = Convert.ToString(item) ?? "";
             if (String.IsNullOrWhiteSpace(configurationName)) continue;
-            SwDMConfiguration rawConfiguration;
-            if (manager2 != null)
-            {
-                SwDMConfigurationError result;
-                rawConfiguration = manager2.GetConfigurationByName2(configurationName, out result);
-            }
-            else rawConfiguration = manager.GetConfigurationByName(configurationName);
-            ISwDMConfiguration4 configuration = rawConfiguration as ISwDMConfiguration4;
-            if (configuration == null) continue;
+            result = 0;
+            object rawConfiguration = manager.GetConfigurationByName2(configurationName, out result);
+            if (rawConfiguration == null) continue;
+            dynamic configuration = rawConfiguration;
             object names = null, types = null, linked = null, values = null;
             configuration.GetAllCustomPropertyNamesAndValues(out names, out types, out linked, out values);
             AppendProperties(output, "configuration:" + configurationName, names, types, linked, values);
-            if (rawConfiguration != null) Marshal.ReleaseComObject(rawConfiguration);
+            ReleaseCom(rawConfiguration);
         }
-        Marshal.ReleaseComObject(manager);
+        ReleaseCom(rawManager);
     }
 
     private static void AppendProperties(List<RawProperty> output, string scope, object names, object types, object linked, object values)
@@ -134,12 +120,24 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         foreach (object item in array) yield return item;
     }
 
-    private static SwDmDocumentType DocumentTypeFor(string sourcePath)
+    private static int DocumentTypeFor(string sourcePath)
     {
         string ext = Path.GetExtension(sourcePath).ToLowerInvariant();
-        if (ext == ".sldprt") return SwDmDocumentType.swDmDocumentPart;
-        if (ext == ".sldasm") return SwDmDocumentType.swDmDocumentAssembly;
-        return SwDmDocumentType.swDmDocumentDrawing;
+        if (ext == ".sldprt") return 1;
+        if (ext == ".sldasm") return 2;
+        return 3;
+    }
+
+    private static string DocumentTypeName(int documentType)
+    {
+        if (documentType == 1) return "swDmDocumentPart";
+        if (documentType == 2) return "swDmDocumentAssembly";
+        return "swDmDocumentDrawing";
+    }
+
+    private static void ReleaseCom(object value)
+    {
+        if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
     private static string ReadLicenseKey()

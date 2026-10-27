@@ -4,7 +4,6 @@ param(
   [ValidatePattern('^[0-9A-Za-z._-]{1,40}$')][string]$Version = $env:PDM_WINDOWS_SERVICE_VERSION,
   [ValidatePattern('^https://[^/]+$')][string]$BaseUrl = 'https://ai-pdm-prod-9536592944.asia-east1.run.app',
   [string]$OutputRoot,
-  [string]$InteropDirectory,
   [string]$NodeExecutable = $null
 )
 
@@ -24,22 +23,6 @@ if (-not ($output + [IO.Path]::DirectorySeparatorChar).StartsWith($allowedPrefix
 $node = if ($NodeExecutable) { [IO.Path]::GetFullPath($NodeExecutable) } else { (Get-Command node.exe).Source }
 $nodeVersion = (& $node --version).Trim()
 if ($nodeVersion -notmatch '^v24\.') { throw "DEV125_NODE_24_REQUIRED:$nodeVersion" }
-
-$candidates = @(
-  $InteropDirectory,
-  'C:\Program Files\Common Files\SOLIDWORKS Shared',
-  'C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\api\redist'
-) | Where-Object { $_ }
-$interop = $null
-foreach ($candidate in $candidates) {
-  $resolved = [IO.Path]::GetFullPath($candidate)
-  if ((Test-Path (Join-Path $resolved 'SolidWorks.Interop.swdocumentmgr.dll')) -and
-      (Test-Path (Join-Path $resolved 'SolidWorks.Interop.swconst.dll'))) {
-    $interop = $resolved
-    break
-  }
-}
-if (-not $interop) { throw 'DEV125_SOLIDWORKS_DOCUMENT_MANAGER_INTEROP_UNAVAILABLE' }
 
 $csc = @(
   'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe',
@@ -97,8 +80,6 @@ Copy-Item -LiteralPath $winSwPath -Destination (Join-Path $stage 'AipdmWindowsPa
 Copy-Item -LiteralPath (Join-Path $root 'windows-service\service\AipdmWindowsParsing.xml') -Destination (Join-Path $stage 'AipdmWindowsParsing.xml')
 Copy-Item -LiteralPath (Join-Path $root 'windows-service\service\service.mjs') -Destination (Join-Path $stage 'service\service.mjs')
 Copy-Item -LiteralPath (Join-Path $root 'windows-service\THIRD-PARTY-NOTICES.txt') -Destination (Join-Path $stage 'THIRD-PARTY-NOTICES.txt')
-Copy-Item -LiteralPath (Join-Path $interop 'SolidWorks.Interop.swdocumentmgr.dll') -Destination (Join-Path $stage 'extractors\SolidWorks.Interop.swdocumentmgr.dll')
-Copy-Item -LiteralPath (Join-Path $interop 'SolidWorks.Interop.swconst.dll') -Destination (Join-Path $stage 'extractors\SolidWorks.Interop.swconst.dll')
 
 $product = [ordered]@{
   contractVersion = 'ai-pdm.windows-service-product.v1'
@@ -111,11 +92,10 @@ $product = [ordered]@{
     winsw = [ordered]@{ version = '2.12.0'; sha256 = $winSwSha256 }
     nsis = [ordered]@{ version = '3.11'; sha256 = $nsisSha256 }
     dotNetFramework = '4.8'
-    solidworksInterop = [ordered]@{
-      documentManagerFileVersion = (Get-Item -LiteralPath (Join-Path $interop 'SolidWorks.Interop.swdocumentmgr.dll')).VersionInfo.FileVersion
-      documentManagerSha256 = Get-Sha256 (Join-Path $interop 'SolidWorks.Interop.swdocumentmgr.dll')
-      constantsFileVersion = (Get-Item -LiteralPath (Join-Path $interop 'SolidWorks.Interop.swconst.dll')).VersionInfo.FileVersion
-      constantsSha256 = Get-Sha256 (Join-Path $interop 'SolidWorks.Interop.swconst.dll')
+    solidworksDocumentManager = [ordered]@{
+      binding = 'late-bound-com'
+      progId = 'SwDocumentMgr.SwDMClassFactory'
+      redistribution = 'not-bundled'
     }
   }
 }
@@ -132,11 +112,10 @@ Write-Utf8NoBom (Join-Path $stage 'product.json') ($product | ConvertTo-Json -De
   /reference:System.dll /reference:System.Core.dll /reference:System.Security.dll /reference:System.Web.Extensions.dll `
   (Join-Path $root 'windows-service\tools\AipdmDocumentManagerProbe.cs')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerMetadataExporter.exe')" `
-  "/reference:$(Join-Path $stage 'extractors\SolidWorks.Interop.swdocumentmgr.dll')" `
-  "/reference:$(Join-Path $stage 'extractors\SolidWorks.Interop.swconst.dll')" `
+  /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'scripts\solidworks-document-manager-metadata-exporter.cs')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerPreviewExporter.exe')" `
-  "/reference:$(Join-Path $stage 'extractors\SolidWorks.Interop.swdocumentmgr.dll')" `
+  /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'scripts\solidworks-document-manager-preview-exporter.cs')
 
 $installerName = "AI-PDM-Windows-Setup-$Version.exe"

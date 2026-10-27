@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Runtime.InteropServices;
-using SolidWorks.Interop.swdocumentmgr;
 
 internal static class SolidWorksDocumentManagerPreviewExporter
 {
@@ -37,8 +36,8 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             return 65;
         }
 
-        ISwDMApplication app = null;
-        ISwDMDocument doc = null;
+        object app = null;
+        object doc = null;
 
         try
         {
@@ -49,10 +48,9 @@ internal static class SolidWorksDocumentManagerPreviewExporter
                 return 70;
             }
 
-            SwDmDocumentOpenError openError = SwDmDocumentOpenError.swDmDocumentOpenErrorNone;
-            SwDMDocument rawDoc = app.GetDocument(sourcePath, SwDmDocumentType.swDmDocumentDrawing, true, out openError);
-            doc = rawDoc as ISwDMDocument;
-            if (doc == null || openError != SwDmDocumentOpenError.swDmDocumentOpenErrorNone)
+            int openError = 0;
+            doc = ((dynamic)app).GetDocument(sourcePath, 3, true, out openError);
+            if (doc == null || openError != 0)
             {
                 Console.Error.WriteLine("DOCUMENT_MANAGER_OPEN_FAILED:" + openError);
                 return 71;
@@ -87,7 +85,7 @@ internal static class SolidWorksDocumentManagerPreviewExporter
             {
                 if (doc != null)
                 {
-                    doc.CloseDoc();
+                    ((dynamic)doc).CloseDoc();
                 }
             }
             catch
@@ -95,15 +93,8 @@ internal static class SolidWorksDocumentManagerPreviewExporter
                 // Do not mask the primary export result.
             }
 
-            if (doc != null)
-            {
-                Marshal.ReleaseComObject(doc);
-            }
-
-            if (app != null)
-            {
-                Marshal.ReleaseComObject(app);
-            }
+            ReleaseCom(doc);
+            ReleaseCom(app);
         }
     }
 
@@ -121,7 +112,7 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return "";
     }
 
-    private static ISwDMApplication CreateDocumentManagerApplication(string licenseKey)
+    private static object CreateDocumentManagerApplication(string licenseKey)
     {
         Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
         if (factoryType == null)
@@ -130,42 +121,33 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         }
 
         object factoryObject = Activator.CreateInstance(factoryType);
-        ISwDMClassFactory factory = factoryObject as ISwDMClassFactory;
-        if (factory == null)
+        if (factoryObject == null)
         {
             return null;
         }
 
-        SwDMApplication rawApplication = factory.GetApplication(licenseKey);
-        ISwDMApplication application = rawApplication as ISwDMApplication;
-        Marshal.ReleaseComObject(factory);
+        object application = ((dynamic)factoryObject).GetApplication(licenseKey);
+        ReleaseCom(factoryObject);
         return application;
     }
 
-    private static byte[] TryReadFirstSheetPreview(ISwDMDocument doc, out string previewSource)
+    private static byte[] TryReadFirstSheetPreview(object doc, out string previewSource)
     {
         previewSource = "sheet";
-        ISwDMDocument10 doc10 = doc as ISwDMDocument10;
-        if (doc10 == null)
-        {
-            return null;
-        }
-
-        object sheets = doc10.GetSheets();
+        object sheets = ((dynamic)doc).GetSheets();
         foreach (object item in EnumerateObject(sheets))
         {
-            ISwDMSheet2 sheet = item as ISwDMSheet2;
-            if (sheet == null)
+            if (item == null)
             {
                 continue;
             }
 
-            SwDmPreviewError previewError = SwDmPreviewError.swDmPreviewErrorNone;
-            object bytesObject = sheet.GetPreviewPNGBitmapBytes(out previewError);
+            int previewError = 0;
+            object bytesObject = ((dynamic)item).GetPreviewPNGBitmapBytes(out previewError);
             byte[] bytes = ConvertVariantByteArray(bytesObject);
-            if (previewError == SwDmPreviewError.swDmPreviewErrorNone && bytes != null && bytes.Length > 0)
+            if (previewError == 0 && bytes != null && bytes.Length > 0)
             {
-                previewSource = "sheet:" + SafeSheetName(sheet);
+                previewSource = "sheet:" + SafeSheetName(item);
                 return bytes;
             }
         }
@@ -173,19 +155,13 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return null;
     }
 
-    private static byte[] TryReadDocumentPreview(ISwDMDocument doc, out string previewSource)
+    private static byte[] TryReadDocumentPreview(object doc, out string previewSource)
     {
         previewSource = "document";
-        ISwDMDocument11 doc11 = doc as ISwDMDocument11;
-        if (doc11 == null)
-        {
-            return null;
-        }
-
-        SwDmPreviewError previewError = SwDmPreviewError.swDmPreviewErrorNone;
-        object bytesObject = doc11.GetPreviewPNGBitmapBytes(out previewError);
+        int previewError = 0;
+        object bytesObject = ((dynamic)doc).GetPreviewPNGBitmapBytes(out previewError);
         byte[] bytes = ConvertVariantByteArray(bytesObject);
-        return previewError == SwDmPreviewError.swDmPreviewErrorNone ? bytes : null;
+        return previewError == 0 ? bytes : null;
     }
 
     private static IEnumerable EnumerateObject(object value)
@@ -238,16 +214,21 @@ internal static class SolidWorksDocumentManagerPreviewExporter
         return bytes;
     }
 
-    private static string SafeSheetName(ISwDMSheet2 sheet)
+    private static string SafeSheetName(object sheet)
     {
         try
         {
-            return sheet.Name ?? "";
+            return Convert.ToString(((dynamic)sheet).Name) ?? "";
         }
         catch
         {
             return "";
         }
+    }
+
+    private static void ReleaseCom(object value)
+    {
+        if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
     private static string JsonEscape(string value)

@@ -6,5 +6,5 @@ AI-PDM Windows Parsing Service bundles these unmodified runtime components:
   https://nsis.sourceforge.io/License
 
 SOLIDWORKS Document Manager is not redistributed by this installer. The installer reuses an
-already registered, company-licensed x64 Document Manager runtime and installs only the managed
-interop assemblies required by the precompiled extractors.
+already registered, company-licensed x64 Document Manager runtime through its official COM API.
+No SOLIDWORKS runtime or managed interop assembly is bundled.

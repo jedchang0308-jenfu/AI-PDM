@@ -35,8 +35,10 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(probe, /SwDocumentMgr\.SwDMClassFactory/u);
-  assert.match(probe, /serverVersion[\s\S]+serverSha256[\s\S]+interopVersion[\s\S]+interopSha256/u);
-  assert.match(probe, /serverVersion\.FileMajorPart != interopVersion\.Major/u);
+  assert.match(probe, /serverVersion[\s\S]+serverSha256[\s\S]+late-bound-com[\s\S]+runtimeMajor/u);
+  assert.match(probe, /Activator\.CreateInstance\(factory\)/u);
+  assert.match(build, /solidworksDocumentManager[\s\S]+late-bound-com[\s\S]+not-bundled/u);
+  assert.doesNotMatch(build, /SolidWorks\.Interop\.sw(?:documentmgr|const)\.dll/u);
   assert.match(notices, /Document Manager is not redistributed/u);
   assert.doesNotMatch(build, /swdocumentmgr\.dll[^\r\n]+(?:https?:\/\/|Invoke-WebRequest)/iu);
 });
