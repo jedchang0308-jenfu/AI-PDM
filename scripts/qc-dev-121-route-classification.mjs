@@ -167,6 +167,24 @@ const publicStatusRoutes = new Map([
   ["GET /api/production-slice/status", "productionSliceClientStatus"],
   ["GET /api/numbering/state-flow/status", "numberStateFlowV1ClientStatus"]
 ]);
+const windowsServiceRoutes = new Map([
+  ["POST /api/windows-service/enroll", {
+    category: "windows_service_enrollment",
+    markers: ["WindowsServiceDeviceRepository", ".enroll({", "sourceKey", "WINDOWS_SERVICE_PROTOCOL_VERSION"]
+  }],
+  ["GET /api/windows-service/self", {
+    category: "windows_service_device",
+    markers: ["authenticateWindowsServiceDevice(request", "bootstrap: true"]
+  }],
+  ["POST /api/windows-service/start", {
+    category: "windows_service_device",
+    markers: ["authenticateWindowsServiceDevice(request", "bootstrap: true", ".start({"]
+  }],
+  ["POST /api/windows-service/heartbeat", {
+    category: "windows_service_device",
+    markers: ["authenticateWindowsServiceDevice(request)", ".heartbeat({"]
+  }]
+]);
 const retiredRoutes = new Map([
   ["PUT /api/policy/management", "PDM_POLICY_FILE_EDITOR_RETIRED"],
   ["POST /api/numbering/drawing-revisions/submissions", "DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED"],
@@ -366,6 +384,15 @@ function main() {
         continue;
       }
       const graph = functionGraph(sourceFile, handler.method);
+      const windowsServiceRoute = windowsServiceRoutes.get(key);
+      if (windowsServiceRoute) {
+        containsAll(graph, windowsServiceRoute.markers, key);
+        if (centralPermissionGuard.test(graph) || sessionGuard.test(graph) || workerCapabilityGuard.test(graph)) {
+          throw new Error(`${key}: Windows service route crossed into a human-session or legacy-worker guard`);
+        }
+        assign(key, windowsServiceRoute.category);
+        continue;
+      }
       const principalSessionMarkers = principalSessionRoutes.get(key);
       if (principalSessionMarkers) {
         if (principalSessionMarkers.some((name) => !graph.includes(name + "(")) ||
@@ -443,7 +470,7 @@ function main() {
     const key = `${routeMapEntry.method} ${routePath}`;
     if (!observedMethods.has(key)) throw new Error(`DEV-121 permission manifest points to a missing API handler: ${key}`);
   }
-  for (const expected of [identityProtocolRoutes, principalSessionRoutes, principalCompanyReadRoutes, publicStatusRoutes, retiredRoutes]) {
+  for (const expected of [identityProtocolRoutes, principalSessionRoutes, principalCompanyReadRoutes, publicStatusRoutes, windowsServiceRoutes, retiredRoutes]) {
     for (const key of expected.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 public/retired route allowlist is stale: ${key}`);
   }
   for (const key of explicitPermissionCalls.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 permission route assertion is stale: ${key}`);
