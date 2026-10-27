@@ -149,6 +149,17 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
+function infraRunnerSourceRevision(existingInfra) {
+  if (existingInfra?.schemaVersion === 'jenfu.dev012.app-infra-receipt.v1') {
+    const revision = existingInfra.reusedSourceRevision ?? existingInfra.sourceRevision
+    return H40.test(revision ?? '') ? revision : null
+  }
+  if (existingInfra?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v2') {
+    return H40.test(existingInfra.reusedSourceRevision ?? '') ? existingInfra.reusedSourceRevision : null
+  }
+  return null
+}
+
 export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
   const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`
   const task = job?.template?.template
@@ -157,7 +168,8 @@ export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
   const environmentRows = container?.env
   const environment = Array.isArray(environmentRows) && new Set(environmentRows.map((row) => row?.name)).size === environmentRows.length
     ? Object.fromEntries(environmentRows.map((row) => [row.name, row.value])) : null
-  if (!profile.migrations?.jobName || !profile.migrations?.serviceAccount
+  const runnerSourceRevision = infraRunnerSourceRevision(existingInfra)
+  if (!profile.migrations?.jobName || !profile.migrations?.serviceAccount || !runnerSourceRevision
     || job?.name !== jobName || !job.uid || !job.etag || job.generation == null || job.observedGeneration == null
     || !Number.isFinite(Date.parse(job.updateTime)) || job.reconciling === true
     || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED'
@@ -165,7 +177,7 @@ export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
     || job.template?.taskCount !== 1 || job.template?.parallelism !== 1
     || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s'
     || containers?.length !== 1 || !container || container.image !== existingInfra?.migrationRunnerDigest
-    || environment?.PDM_SOURCE_REVISION !== existingInfra?.reusedSourceRevision) fail('INFRA_REUSE_PROVIDER_JOB_MISMATCH')
+    || environment?.PDM_SOURCE_REVISION !== runnerSourceRevision) fail('INFRA_REUSE_PROVIDER_JOB_MISMATCH')
   return {
     name: job.name,
     uid: job.uid,
@@ -185,10 +197,11 @@ export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundat
   const ownerPrefix = `${profile.artifact.migrationRunnerUri}@sha256:`
   const controllerPrefix = `${profile.artifact.uri.slice(0, profile.artifact.uri.lastIndexOf('/'))}/`
   const migrationWorkflowRef = `${profile.application.repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/${profile.application.branch}`
+  const runnerSourceRevision = infraRunnerSourceRevision(existingInfra)
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || !H40.test(sourceLock.sourceRevision ?? '')
     || !['jenfu.dev012.app-infra-receipt.v1', 'jenfu.dev012.app-infra-reuse-receipt.v2'].includes(existingInfra?.schemaVersion) || existingInfra.ownerApplicationId !== profile.application.id || existingInfra.projectId !== profile.target.projectId || existingInfra.region !== profile.target.region
     || existingInfra.status !== 'APPLIED' || existingInfra.releaseAuthority !== true || !['PRODUCTION_PROVIDER', 'PRODUCTION_PROVIDER_REUSE'].includes(existingInfra.evidenceScope) || existingInfra.receiptSha256 !== sha256(canonicalize(core))
-    || existingInfra.sourceRevision === sourceLock.sourceRevision || !H40.test(existingInfra.sourceRevision ?? '')
+    || existingInfra.sourceRevision === sourceLock.sourceRevision || !H40.test(existingInfra.sourceRevision ?? '') || !runnerSourceRevision
     || existingInfra.foundationManifestSha256 !== foundation?.foundationManifestSha256
     || !existingInfra.migrationRunnerDigest?.startsWith(ownerPrefix) || !existingInfra.controllerImageDigest?.startsWith(controllerPrefix) || !existingInfra.controllerImageDigest?.includes('@sha256:')
     || (profile.application.id === 'ai-pdm' && existingInfra.mutationProfile === 'APP_INFRA_AIPDM_PRINCIPAL_MIGRATION_WIF' && !existingInfra.allowedWorkflowRefs?.includes(migrationWorkflowRef))
@@ -198,7 +211,7 @@ export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundat
     schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', ownerApplicationId: profile.application.id,
     projectId: profile.target.projectId, region: profile.target.region, releaseId,
     sourceRevision: sourceLock.sourceRevision, foundationManifestSha256: foundation.foundationManifestSha256,
-    reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: existingInfra.reusedSourceRevision,
+    reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: runnerSourceRevision,
     migrationRunnerDigest: existingInfra.migrationRunnerDigest, controllerImageDigest: existingInfra.controllerImageDigest,
     providerJobReadback,
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
@@ -385,11 +398,13 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       transport.readJson(exactRef(input.foundationReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.existingInfraReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
+    const runnerSourceRevision = infraRunnerSourceRevision(existingInfraResult.value)
+    if (!runnerSourceRevision) fail('INFRA_REUSE_INPUT_INVALID')
     if (profile.application.id === 'ai-pdm') {
       migrationRunnerCompatibilityVerifier({
         root,
         currentSourceRevision: sourceLockResult.value.sourceRevision,
-        runnerSourceRevision: existingInfraResult.value.reusedSourceRevision,
+        runnerSourceRevision,
       })
     }
     const providerJob = await transport.request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`)
