@@ -1126,9 +1126,9 @@ function SettingsCenterOverview({
         />
         <SettingsStatusTile
           icon={<MonitorCog size={18} />}
-          title="Windows 解析服務"
+          title="Windows 解析程式"
           status="電腦管理"
-          detail="下載安裝程式、註冊電腦並查看連線與解析能力。"
+          detail="下載安裝程式、自助連結自己的電腦並查看連線與解析能力。"
           href="/settings/windows-service"
           actionLabel="管理解析電腦"
         />

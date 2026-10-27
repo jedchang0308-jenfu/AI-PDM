@@ -93,11 +93,14 @@ try {
     CREATE SCHEMA orgmaster_contract;
     SET ROLE jenfu_ai_pdm_migrator;
     CREATE TABLE ai_pdm_core.companies (id text PRIMARY KEY);
+    CREATE TABLE ai_pdm_core.users (id text PRIMARY KEY, company_id text NOT NULL REFERENCES ai_pdm_core.companies(id));
     CREATE TABLE ai_pdm_core.principal_accounts (
       principal_id text PRIMARY KEY, company_id text NOT NULL REFERENCES ai_pdm_core.companies(id),
-      employee_id text NOT NULL, account_type text NOT NULL, account_status text NOT NULL,
+      pdm_user_id text NOT NULL REFERENCES ai_pdm_core.users(id), employee_id text NOT NULL,
+      account_type text NOT NULL, account_status text NOT NULL,
       lifecycle_version bigint NOT NULL, profile_version bigint NOT NULL,
-      system_role_enabled boolean NOT NULL, session_invalid_before timestamptz
+      system_role_enabled boolean NOT NULL, minimum_assurance text NOT NULL,
+      session_invalid_before timestamptz
     );
     CREATE TABLE ai_pdm_core.principal_session_records (
       principal_id text NOT NULL REFERENCES ai_pdm_core.principal_accounts(principal_id),
@@ -140,24 +143,66 @@ try {
     CREATE FUNCTION platform_contract.read_principal_auth_state_v3(subject text)
       RETURNS TABLE(principal_id text,auth_epoch bigint,revoked_before timestamptz)
       LANGUAGE sql STABLE AS $$ SELECT subject,7::bigint,NULL::timestamptz $$;
-    CREATE FUNCTION orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(text,text,text,text)
-      RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;
+    CREATE TABLE orgmaster_contract.test_active_principal_accounts (
+      contract_version text NOT NULL, principal_issuer text NOT NULL, principal_subject text NOT NULL,
+      principal_id text NOT NULL, employee_id text NOT NULL, employee_status text NOT NULL
+    );
+    CREATE VIEW orgmaster_contract.v_active_principal_accounts_v1 AS
+      SELECT * FROM orgmaster_contract.test_active_principal_accounts;
+    CREATE TABLE orgmaster_contract.test_ai_pdm_principal_grants (
+      contract_version text NOT NULL, assignment_version_id text NOT NULL, assignment_version bigint NOT NULL,
+      assignment_id text NOT NULL, grant_kind text NOT NULL, delegation_id text,
+      application_id text NOT NULL, principal_id text NOT NULL, employee_id text NOT NULL,
+      subject_kind text NOT NULL, target_principal_id text, stable_role_id text NOT NULL,
+      role_code text NOT NULL, catalog_version text NOT NULL, scope_kind text NOT NULL,
+      scope_key text, valid_from timestamptz NOT NULL, valid_until timestamptz, published_at timestamptz NOT NULL
+    );
+    CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 AS
+      SELECT * FROM orgmaster_contract.test_ai_pdm_principal_grants;
     GRANT USAGE ON SCHEMA ai_pdm_core,platform_contract,orgmaster_contract TO jenfu_ai_pdm_runtime;
-    GRANT SELECT ON ai_pdm_core.principal_accounts,ai_pdm_core.principal_session_records,
+    GRANT SELECT ON ai_pdm_core.users,ai_pdm_core.principal_accounts,ai_pdm_core.principal_session_records,
       ai_pdm_core.preview_jobs,ai_pdm_core.drawing_recognition_sessions,
       ai_pdm_core.settings_secret_probe_jobs,ai_pdm_core.worker_capability_heartbeats TO jenfu_ai_pdm_runtime;
     GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.employee_login_rate_limits TO jenfu_ai_pdm_runtime;
     GRANT INSERT ON ai_pdm_core.audit_logs TO jenfu_ai_pdm_runtime;
-    GRANT EXECUTE ON FUNCTION platform_contract.read_principal_auth_state_v3(text),
-      orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(text,text,text,text) TO jenfu_ai_pdm_runtime;
+    GRANT SELECT ON orgmaster_contract.v_active_principal_accounts_v1,
+      orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 TO jenfu_ai_pdm_runtime;
+    GRANT EXECUTE ON FUNCTION platform_contract.read_principal_auth_state_v3(text) TO jenfu_ai_pdm_runtime;
     INSERT INTO ai_pdm_core.companies VALUES ('company-jenfu');
-    INSERT INTO ai_pdm_core.principal_accounts VALUES
-      ('principal-admin','company-jenfu','employee-admin','human_privileged','active',1,1,true,NULL);
+    INSERT INTO ai_pdm_core.users VALUES ('profile-rd','company-jenfu'),('profile-b','company-jenfu');
+    INSERT INTO ai_pdm_core.principal_accounts
+      (principal_id,company_id,pdm_user_id,employee_id,account_type,account_status,lifecycle_version,
+       profile_version,system_role_enabled,minimum_assurance,session_invalid_before) VALUES
+      ('principal-rd','company-jenfu','profile-rd','employee-rd','human_personal','active',1,1,true,'aal1',NULL),
+      ('principal-b','company-jenfu','profile-b','employee-b','human_personal','active',1,1,true,'aal1',NULL);
     INSERT INTO ai_pdm_core.principal_session_records VALUES
-      ('principal-admin',repeat('1',64),7,1,1,now()-interval '1 minute',now()-interval '1 minute',
+      ('principal-rd',repeat('1',64),7,1,1,now()-interval '1 minute',now()-interval '1 minute',
+       now()+interval '1 hour',NULL,'aal1'),
+      ('principal-b',repeat('2',64),7,1,1,now()-interval '1 minute',now()-interval '1 minute',
        now()+interval '1 hour',NULL,'aal1');
+    INSERT INTO orgmaster_contract.test_active_principal_accounts VALUES
+      ('organization.active-principal.v1','https://accounts.google.com','subject-rd','principal-rd','employee-rd','active'),
+      ('organization.active-principal.v1','https://accounts.google.com','subject-b','principal-b','employee-b','active');
+    INSERT INTO orgmaster_contract.test_ai_pdm_principal_grants VALUES
+      ('jenfu.orgmaster.ai-pdm-principal-grants.v4','version-current',1,'assignment-rd','direct',NULL,
+       'ai-pdm','principal-rd','employee-rd','employee',NULL,'role-rd','rd',
+       'ai-pdm.role-catalog.2026-09-03.v3','global',NULL,now()-interval '1 day',NULL,now()-interval '1 day'),
+      ('jenfu.orgmaster.ai-pdm-principal-grants.v4','version-current',1,'assignment-b','direct',NULL,
+       'ai-pdm','principal-b','employee-b','employee',NULL,'role-production','production',
+       'ai-pdm.role-catalog.2026-09-03.v3','global',NULL,now()-interval '1 day',NULL,now()-interval '1 day');
   `);
   await admin.query(fs.readFileSync(path.join(root, "db/postgres/089_dev125_windows_service_devices.sql"), "utf8"));
+  const legacyDeviceId = uuid();
+  await admin.query(`
+    INSERT INTO ai_pdm_core.windows_service_devices
+      (id,company_id,name,credential_hash,status,service_version,protocol_version,registered_by)
+    VALUES ($1,'company-jenfu','LEGACY-RD',$2,'active','0.0.9',1,'principal-rd')
+  `, [legacyDeviceId, hash(token(20))]);
+  await admin.query(fs.readFileSync(path.join(root, "db/postgres/090_dev125_windows_device_owner_principal.sql"), "utf8"));
+  await check("migration 090 backfills the permanent Principal owner without changing migration 089", async () => {
+    const row = await admin.query("SELECT owner_principal_id FROM ai_pdm_core.windows_service_devices WHERE id=$1", [legacyDeviceId]);
+    assert.equal(row.rows[0].owner_principal_id, "principal-rd");
+  });
 
   const [{ createAsyncDatabaseClient }, devices] = await Promise.all([
     import("../src/lib/db-async-provider.ts"), import("../src/lib/windows-service-devices.ts")
@@ -169,8 +214,8 @@ try {
   });
   const repository = new devices.WindowsServiceDeviceRepository(runtime);
   const creator = {
-    companyId: "company-jenfu", createdBy: "principal-admin", creatorSessionHash: "1".repeat(64),
-    creatorAuthEpoch: 7, creatorIdentityIssuer: "https://accounts.google.com", creatorIdentitySubject: "subject-admin"
+    companyId: "company-jenfu", createdBy: "principal-rd", creatorSessionHash: "1".repeat(64),
+    creatorAuthEpoch: 7, creatorIdentityIssuer: "https://accounts.google.com", creatorIdentitySubject: "subject-rd"
   };
 
   const enrollmentCode = token(1);
@@ -204,7 +249,7 @@ try {
     assert.equal(first.created, true);
     assert.equal(retry.created, false);
     const count = await admin.query("SELECT count(*)::int AS count FROM ai_pdm_core.windows_service_devices");
-    assert.equal(count.rows[0].count, 1);
+    assert.equal(count.rows[0].count, 2);
   });
 
   await check("wrong codes persist rate-limit state and the eleventh source attempt is blocked", async () => {
@@ -237,16 +282,16 @@ try {
     await expectCode(() => repository.enroll({ ...enrollInput, enrollmentId: expired.enrollment.id,
       code: expired.value, deviceId: uuid(), credentialHash: hash(token(7)), sourceKey: "source-expired" }), "WINDOWS_SERVICE_ENROLLMENT_EXPIRED");
     const revoked = await make(8);
-    await admin.query("UPDATE ai_pdm_core.principal_session_records SET revoked_at=now() WHERE principal_id='principal-admin'");
+    await admin.query("UPDATE ai_pdm_core.principal_session_records SET revoked_at=now() WHERE principal_id='principal-rd'");
     await expectCode(() => repository.enroll({ ...enrollInput, enrollmentId: revoked.enrollment.id,
       code: revoked.value, deviceId: uuid(), credentialHash: hash(token(9)), sourceKey: "source-revoked-session" }), "WINDOWS_SERVICE_ENROLLMENT_INVALID");
-    await admin.query("UPDATE ai_pdm_core.principal_session_records SET revoked_at=NULL WHERE principal_id='principal-admin'");
+    await admin.query("UPDATE ai_pdm_core.principal_session_records SET revoked_at=NULL WHERE principal_id='principal-rd'");
   });
 
   let active;
   const instanceId = uuid();
   await check("one current instance starts idempotently and a fresh competing instance is rejected", async () => {
-    const found = await repository.findByCredentialHash(hash(deviceToken));
+    const found = await repository.findAuthorizedByCredentialHash(hash(deviceToken));
     assert.equal(found.device.id, deviceId);
     active = await repository.start({ credentialHash: hash(deviceToken), deviceId, companyId: "company-jenfu",
       instanceId, expectedRowVersion: found.device.rowVersion, serviceVersion: "0.1.0", protocolVersion: 1 });
@@ -257,6 +302,31 @@ try {
       instanceId: uuid(), expectedRowVersion: active.rowVersion, serviceVersion: "0.1.0", protocolVersion: 1 }), "WINDOWS_SERVICE_INSTANCE_CONFLICT");
   });
 
+  await check("device authentication is owner-bound and account or role revocation denies the next request", async () => {
+    const found = await repository.findAuthorizedByCredentialHash(hash(deviceToken));
+    assert.equal(found.owner.principalId, "principal-rd");
+    const own = await repository.list("company-jenfu", "principal-rd");
+    assert.equal(own.every((row) => row.ownerPrincipalId === "principal-rd"), true);
+    await admin.query("UPDATE ai_pdm_core.principal_accounts SET account_status='suspended' WHERE principal_id='principal-rd'");
+    await expectCode(() => repository.findAuthorizedByCredentialHash(hash(deviceToken)), "principal_account_inactive");
+    await admin.query("UPDATE ai_pdm_core.principal_accounts SET account_status='active' WHERE principal_id='principal-rd'");
+    await admin.query("DELETE FROM orgmaster_contract.test_ai_pdm_principal_grants WHERE principal_id='principal-rd'");
+    await expectCode(() => repository.findAuthorizedByCredentialHash(hash(deviceToken)), "permission_not_granted");
+    await admin.query(`
+      INSERT INTO orgmaster_contract.test_ai_pdm_principal_grants VALUES
+        ('jenfu.orgmaster.ai-pdm-principal-grants.v4','version-current',1,'assignment-rd','direct',NULL,
+         'ai-pdm','principal-rd','employee-rd','employee',NULL,'role-rd','rd',
+         'ai-pdm.role-catalog.2026-09-03.v3','global',NULL,now()-interval '1 day',NULL,now()-interval '1 day')
+    `);
+  });
+
+  await check("migration 090 prevents changing a device to another Principal owner", async () => {
+    await assert.rejects(
+      admin.query("UPDATE ai_pdm_core.windows_service_devices SET owner_principal_id='principal-b' WHERE id=$1", [deviceId]),
+      (error) => error?.code === "23514"
+    );
+  });
+
   await check("database-clock heartbeat drives online state and revocation immediately denies the device", async () => {
     const heartbeat = await repository.heartbeat({ credentialHash: hash(deviceToken), deviceId,
       companyId: "company-jenfu", instanceId });
@@ -264,12 +334,12 @@ try {
     const listed = await repository.list("company-jenfu");
     assert.equal(listed.find((row) => row.id === deviceId).connection, "online");
     const revoked = await repository.revoke({ companyId: "company-jenfu", deviceId,
-      expectedRowVersion: active.rowVersion, actorPrincipalId: "principal-admin" });
+      expectedRowVersion: active.rowVersion, actorPrincipalId: "principal-rd", canManageAll: false });
     assert.equal(revoked.status, "revoked");
     assert.equal(revoked.instanceId, null);
     await expectCode(() => repository.heartbeat({ credentialHash: hash(deviceToken), deviceId,
       companyId: "company-jenfu", instanceId }), "WORKER_DEVICE_UNAUTHORIZED");
-    assert.equal((await repository.findByCredentialHash(hash(deviceToken))).device.status, "revoked");
+    assert.equal(await repository.findAuthorizedByCredentialHash(hash(deviceToken)), null);
   });
 
   const plaintext = await admin.query(`

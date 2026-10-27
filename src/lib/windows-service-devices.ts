@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
 
 export const WINDOWS_SERVICE_PROTOCOL_VERSION = 1;
@@ -20,6 +22,7 @@ export type WindowsServiceDevice = {
   instanceId: string | null;
   serviceVersion: string;
   protocolVersion: 1;
+  ownerPrincipalId: string;
   registeredBy: string;
   registeredAt: string;
   lastSeenAt: string | null;
@@ -56,7 +59,7 @@ export type WindowsServiceEnrollment = {
 type DeviceRow = {
   id: string; company_id: string; name: string; credential_hash: string; status: WindowsServiceDeviceStatus;
   instance_id: string | null; service_version: string; protocol_version: number | string;
-  registered_by: string; registered_at: string | Date; last_seen_at: string | Date | null;
+  owner_principal_id: string; registered_by: string; registered_at: string | Date; last_seen_at: string | Date | null;
   revoked_at: string | Date | null; revoked_by: string | null; row_version: number | string;
 };
 type EnrollmentRow = {
@@ -78,7 +81,8 @@ function mapDevice(row: DeviceRow): WindowsServiceDevice {
   return {
     id: row.id, companyId: row.company_id, name: row.name, status: row.status,
     instanceId: row.instance_id, serviceVersion: row.service_version,
-    protocolVersion: Number(row.protocol_version) as 1, registeredBy: row.registered_by,
+    protocolVersion: Number(row.protocol_version) as 1, ownerPrincipalId: row.owner_principal_id,
+    registeredBy: row.registered_by,
     registeredAt: iso(row.registered_at)!, lastSeenAt: iso(row.last_seen_at),
     revokedAt: iso(row.revoked_at), revokedBy: row.revoked_by, rowVersion: Number(row.row_version)
   };
@@ -129,12 +133,14 @@ const RATE_LIMIT_UPSERT = `
 export class WindowsServiceDeviceRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
-  async list(companyId: string): Promise<WindowsServiceDeviceListItem[]> {
+  async list(companyId: string, ownerPrincipalId?: string): Promise<WindowsServiceDeviceListItem[]> {
     const currentTime = await databaseNow(this.client);
     const rows = await this.client.query<DeviceRow>(`
       SELECT * FROM ai_pdm_core.windows_service_devices
-      WHERE company_id=:companyId ORDER BY registered_at DESC,id
-    `, { companyId });
+      WHERE company_id=:companyId
+        AND (CAST(:ownerPrincipalId AS text) IS NULL OR owner_principal_id=CAST(:ownerPrincipalId AS text))
+      ORDER BY registered_at DESC,id
+    `, { companyId, ownerPrincipalId: ownerPrincipalId ?? null });
     const heartbeats = await this.client.query<{
       worker_id: string; capability_code: string; status: "ready" | "blocked" | "degraded";
       reader_version: string | null; last_seen_at: string | Date;
@@ -145,7 +151,8 @@ export class WindowsServiceDeviceRepository {
       JOIN ai_pdm_core.windows_service_devices device
         ON heartbeat.worker_id=(device.id || ':' || device.instance_id)
       WHERE device.company_id=:companyId AND device.status='active' AND device.instance_id IS NOT NULL
-    `, { companyId });
+        AND (CAST(:ownerPrincipalId AS text) IS NULL OR device.owner_principal_id=CAST(:ownerPrincipalId AS text))
+    `, { companyId, ownerPrincipalId: ownerPrincipalId ?? null });
     const cutoff = Date.parse(currentTime) - 30_000;
     return rows.map((row) => {
       const device = mapDevice(row);
@@ -199,7 +206,8 @@ export class WindowsServiceDeviceRepository {
     });
   }
 
-  async revoke(input: { companyId: string; deviceId: string; expectedRowVersion: number; actorPrincipalId: string }) {
+  async revoke(input: { companyId: string; deviceId: string; expectedRowVersion: number;
+    actorPrincipalId: string; canManageAll: boolean }) {
     if (!validUuid(input.deviceId) || !Number.isSafeInteger(input.expectedRowVersion) || input.expectedRowVersion < 1) {
       throw new WindowsServiceDeviceError("WINDOWS_SERVICE_REVOKE_INPUT_INVALID", 400);
     }
@@ -211,6 +219,9 @@ export class WindowsServiceDeviceRepository {
       `, input);
       if (!row) throw new WindowsServiceDeviceError("WINDOWS_SERVICE_DEVICE_NOT_FOUND", 404);
       const current = mapDevice(row);
+      if (!input.canManageAll && current.ownerPrincipalId !== input.actorPrincipalId) {
+        throw new WindowsServiceDeviceError("WINDOWS_SERVICE_DEVICE_FORBIDDEN", 403);
+      }
       if (current.status === "revoked") return current;
       if (current.rowVersion !== input.expectedRowVersion) {
         throw new WindowsServiceDeviceError("WINDOWS_SERVICE_VERSION_CONFLICT", 409);
@@ -284,9 +295,9 @@ export class WindowsServiceDeviceRepository {
       await client.execute(`
         INSERT INTO ai_pdm_core.windows_service_devices
           (id,company_id,name,credential_hash,status,instance_id,service_version,protocol_version,
-           registered_by,registered_at,row_version,updated_at)
+           owner_principal_id,registered_by,registered_at,row_version,updated_at)
         VALUES (:deviceId,:companyId,:name,:credentialHash,'active',NULL,:serviceVersion,
-          :protocolVersion,:registeredBy,:registeredAt,1,:registeredAt)
+          :protocolVersion,:registeredBy,:registeredBy,:registeredAt,1,:registeredAt)
       `, {
         ...input, companyId: enrollment.companyId, registeredBy: enrollment.createdBy, registeredAt: currentTime
       });
@@ -314,13 +325,47 @@ export class WindowsServiceDeviceRepository {
     }, { isolationLevel: "serializable" });
   }
 
-  async findByCredentialHash(credentialHash: string) {
+  async findAuthorizedByCredentialHash(credentialHash: string) {
     if (!validHash(credentialHash)) return null;
-    const row = await this.client.queryOne<DeviceRow>(
-      "SELECT * FROM ai_pdm_core.windows_service_devices WHERE credential_hash=:credentialHash",
-      { credentialHash }
-    );
-    return row ? { device: mapDevice(row), credentialHash: row.credential_hash } : null;
+    return this.client.transaction(async (snapshot) => {
+      const row = await snapshot.queryOne<DeviceRow>(
+        "SELECT * FROM ai_pdm_core.windows_service_devices WHERE credential_hash=:credentialHash",
+        { credentialHash }
+      );
+      if (!row || row.status !== "active") return null;
+      const device = mapDevice(row);
+      const account = await new JenfuPrincipalAccountRepository(snapshot).requireActive(device.ownerPrincipalId);
+      if (account.companyId !== device.companyId) return null;
+      const identities = await snapshot.query<{
+        principal_issuer: string; principal_subject: string; principal_id: string; employee_id: string;
+      }>(`
+        SELECT principal_issuer,principal_subject,principal_id,employee_id
+        FROM orgmaster_contract.v_active_principal_accounts_v1
+        WHERE principal_id=:principalId AND employee_id=:employeeId
+        ORDER BY principal_issuer,principal_subject
+        FETCH FIRST 2 ROWS ONLY
+      `, { principalId: account.principalId, employeeId: account.employeeId });
+      if (identities.length !== 1 || identities[0].principal_id !== account.principalId ||
+          identities[0].employee_id !== account.employeeId) return null;
+      await validatePrincipalPublishedGrantSnapshot(snapshot, {
+        principalId: account.principalId,
+        employeeId: account.employeeId,
+        identityIssuer: identities[0].principal_issuer,
+        identitySubject: identities[0].principal_subject
+      });
+      return {
+        device,
+        credentialHash: row.credential_hash,
+        owner: {
+          principalId: account.principalId,
+          employeeId: account.employeeId,
+          pdmUserId: account.pdmUserId,
+          companyId: account.companyId,
+          identityIssuer: identities[0].principal_issuer,
+          identitySubject: identities[0].principal_subject
+        }
+      };
+    }, { readOnly: true, isolationLevel: "repeatable_read" });
   }
 
   async findActiveJob(input: { companyId: string; workerId: string }): Promise<WindowsServiceActiveJob | null> {
@@ -447,7 +492,6 @@ export class WindowsServiceDeviceRepository {
           ON epoch.principal_id=account.principal_id
         WHERE account.principal_id=:principalId AND account.company_id=:companyId
           AND account.account_status='active' AND account.system_role_enabled
-          AND account.account_type='human_privileged'
           AND session.revoked_at IS NULL AND session.assurance_level IN ('aal1','aal2')
           AND session.principal_auth_epoch=:authEpoch AND epoch.auth_epoch=:authEpoch
           AND session.lifecycle_version=account.lifecycle_version
@@ -455,15 +499,26 @@ export class WindowsServiceDeviceRepository {
           AND session.issued_at<=CAST(:now AS timestamptz) AND session.expires_at>CAST(:now AS timestamptz)
           AND (epoch.revoked_before IS NULL OR session.authenticated_at>epoch.revoked_before)
           AND (account.session_invalid_before IS NULL OR session.issued_at>account.session_invalid_before)
-          AND orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(
-            account.principal_id,account.employee_id,:identityIssuer,:identitySubject)
       ) AS eligible
     `, {
       sessionHash: enrollment.creatorSessionHash, principalId: enrollment.createdBy,
       companyId: enrollment.companyId, authEpoch: enrollment.creatorAuthEpoch, now,
       identityIssuer: enrollment.creatorIdentityIssuer, identitySubject: enrollment.creatorIdentitySubject
     });
-    return row?.eligible === true;
+    if (row?.eligible !== true) return false;
+    try {
+      const account = await new JenfuPrincipalAccountRepository(client).requireActive(enrollment.createdBy);
+      if (account.companyId !== enrollment.companyId) return false;
+      await validatePrincipalPublishedGrantSnapshot(client, {
+        principalId: enrollment.createdBy,
+        employeeId: account.employeeId,
+        identityIssuer: enrollment.creatorIdentityIssuer,
+        identitySubject: enrollment.creatorIdentitySubject
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

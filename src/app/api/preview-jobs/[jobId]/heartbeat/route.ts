@@ -19,7 +19,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
   const workerId = actor.id;
   const leaseBasis = parsePreviewLeaseEnvelope(body);
   if (!leaseBasis) return NextResponse.json({ error: "INVALID_PREVIEW_LEASE" }, { status: 400 });
-  const accepted = await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), { jobId, workerId, leaseBasis });
+  const accepted = await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), {
+    jobId, workerId, ownerPrincipalId: actor.ownerPrincipalId, leaseBasis
+  });
   return accepted
     ? NextResponse.json({ ok: true, leaseProtocolVersion: previewLeaseProtocolVersion })
     : NextResponse.json({ code: "PREVIEW_JOB_CLAIM_LOST" }, { status: 409 });

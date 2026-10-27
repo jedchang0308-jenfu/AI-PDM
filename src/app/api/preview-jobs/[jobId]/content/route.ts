@@ -13,7 +13,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ jobI
   try {
     const { jobId } = await params;
     const result = await readClaimedPreviewSourceAsync(getAsyncDatabaseClient(), {
-      jobId, workerId: authentication.actor.id, leaseBasis
+      jobId, workerId: authentication.actor.id,
+      ownerPrincipalId: authentication.actor.ownerPrincipalId, leaseBasis
     });
     return new Response(new Uint8Array(result.bytes), { headers: {
       ...protectedFileResponseHeaders("attachment", result.fileName, result.mimeType),

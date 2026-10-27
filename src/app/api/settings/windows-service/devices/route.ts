@@ -1,13 +1,14 @@
 import { WindowsServiceDeviceRepository } from "@/lib/windows-service-devices";
-import { windowsServiceAdminReadRoute } from "@/lib/windows-service-admin-route";
+import { windowsServiceUserReadRoute } from "@/lib/windows-service-admin-route";
 
 export const runtime = "nodejs";
 const routePath = "src/app/api/settings/windows-service/devices/route.ts";
 const headers = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request) {
-  return windowsServiceAdminReadRoute(request, routePath, async (client, company) => {
-    const devices = await new WindowsServiceDeviceRepository(client).list(company.companyId);
+  return windowsServiceUserReadRoute(request, routePath, async (client, company, verified, canManageAll) => {
+    const devices = await new WindowsServiceDeviceRepository(client).list(company.companyId,
+      canManageAll ? undefined : verified.session.principalId);
     return Response.json({ devices: devices.map((device) => ({
       id: device.id,
       name: device.name,
@@ -16,7 +17,8 @@ export async function GET(request: Request) {
       connection: device.connection,
       capabilities: device.capabilities,
       lastSeenAt: device.lastSeenAt,
-      rowVersion: device.rowVersion
-    })) }, { headers });
+      rowVersion: device.rowVersion,
+      ownedByCurrentUser: device.ownerPrincipalId === verified.session.principalId
+    })), canManageAll }, { headers });
   });
 }

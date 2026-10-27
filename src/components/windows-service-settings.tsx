@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Clipboard, Download, MonitorCog, RefreshCw, ShieldOff } from "lucide-react";
+import { Download, Link2, RefreshCw, ShieldOff } from "lucide-react";
 
 type Device = {
   id: string;
@@ -12,9 +12,10 @@ type Device = {
   capabilities: Array<{ code: string; status: "ready" | "blocked" | "degraded"; readerVersion: string | null }>;
   lastSeenAt: string | null;
   rowVersion: number;
+  ownedByCurrentUser: boolean;
 };
 
-type Enrollment = { id: string; code: string; expiresAt: string };
+type Pairing = { port: number; state: string } | null;
 type PageState = "loading" | "ready" | "forbidden" | "error";
 const capabilityLabels: Record<string, string> = {
   solidworks_3d_preview_png: "3D 預覽",
@@ -43,10 +44,22 @@ function errorMessage(body: { error?: string; code?: string } | null, fallback: 
   const code = body?.error ?? body?.code;
   const known: Record<string, string> = {
     INSTALLER_UNAVAILABLE: "目前版本的安裝程式尚未就緒。",
-    ROLE_POLICY_MANAGER_REQUIRED: "只有直接指派的 PDM 系統管理員可以管理解析電腦。",
-    WINDOWS_SERVICE_VERSION_CONFLICT: "電腦狀態已更新，請重新整理後再試。"
+    WINDOWS_SERVICE_VERSION_CONFLICT: "電腦狀態已更新，請重新整理後再試。",
+    WINDOWS_SERVICE_DEVICE_FORBIDDEN: "你只能解除連結自己的電腦。"
   };
   return code ? known[code] ?? `${fallback}（${code}）` : fallback;
+}
+
+function pairingFromLocation(): { pairing: Pairing; invalid: boolean } {
+  if (typeof window === "undefined") return { pairing: null, invalid: false };
+  const query = new URLSearchParams(window.location.search);
+  if (query.get("pair") !== "1") return { pairing: null, invalid: false };
+  const port = Number(query.get("port"));
+  const state = query.get("state") ?? "";
+  const exact = [...query.keys()].every((key) => ["pair", "port", "state"].includes(key));
+  if (!exact || !Number.isSafeInteger(port) || port < 49152 || port > 65535 ||
+      !/^[A-Za-z0-9_-]{43}$/u.test(state)) return { pairing: null, invalid: true };
+  return { pairing: { port, state }, invalid: false };
 }
 
 export function WindowsServiceSettings() {
@@ -54,17 +67,21 @@ export function WindowsServiceSettings() {
   const [state, setState] = useState<PageState>("loading");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
-  const [copied, setCopied] = useState<"code" | "id" | null>(null);
+  const [pairing, setPairing] = useState<Pairing>(null);
+  const [pairingInvalid, setPairingInvalid] = useState(false);
+  const [canManageAll, setCanManageAll] = useState(false);
 
   const loadDevices = useCallback(async () => {
     setState("loading");
     try {
       const response = await fetch("/api/settings/windows-service/devices", { cache: "no-store" });
-      const body = await response.json().catch(() => null) as { devices?: Device[]; error?: string; code?: string } | null;
+      const body = await response.json().catch(() => null) as {
+        devices?: Device[]; canManageAll?: boolean; error?: string; code?: string;
+      } | null;
       if (response.status === 401 || response.status === 403) { setState("forbidden"); return; }
       if (!response.ok || !Array.isArray(body?.devices)) throw new Error(errorMessage(body, "解析電腦清單讀取失敗。"));
       setDevices(body.devices);
+      setCanManageAll(body.canManageAll === true);
       setState("ready");
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "解析電腦清單讀取失敗。" });
@@ -72,32 +89,44 @@ export function WindowsServiceSettings() {
     }
   }, []);
 
-  useEffect(() => { void loadDevices(); }, [loadDevices]);
+  useEffect(() => {
+    const result = pairingFromLocation();
+    setPairing(result.pairing);
+    setPairingInvalid(result.invalid);
+    void loadDevices();
+  }, [loadDevices]);
 
-  async function createEnrollment() {
+  async function linkComputer() {
+    if (!pairing) return;
     setBusy(true);
     setMessage(null);
-    setEnrollment(null);
     try {
-      const random = crypto.getRandomValues(new Uint8Array(32));
-      const code = toBase64Url(random);
+      const code = toBase64Url(crypto.getRandomValues(new Uint8Array(32)));
       const requestId = crypto.randomUUID();
       const response = await fetch("/api/settings/windows-service/enrollments", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId, codeHash: await sha256(code) })
       });
-      const body = await response.json().catch(() => null) as { id?: string; expiresAt?: string; error?: string; code?: string } | null;
-      if (!response.ok || !body?.id || !body.expiresAt) throw new Error(errorMessage(body, "註冊碼建立失敗。"));
-      setEnrollment({ id: body.id, code, expiresAt: body.expiresAt });
-      setMessage({ type: "success", text: "單次註冊碼已建立；關閉或重整後不會再次顯示。" });
+      const body = await response.json().catch(() => null) as {
+        id?: string; expiresAt?: string; error?: string; code?: string;
+      } | null;
+      if (!response.ok || !body?.id || !body.expiresAt) {
+        throw new Error(errorMessage(body, "無法建立安全連結。"));
+      }
+      const callback = new URL(`http://127.0.0.1:${pairing.port}/`);
+      callback.searchParams.set("state", pairing.state);
+      callback.searchParams.set("enrollmentId", body.id);
+      callback.searchParams.set("code", code);
+      window.location.assign(callback.toString());
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "註冊碼建立失敗。" });
-    } finally { setBusy(false); }
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "無法連結這台電腦。" });
+      setBusy(false);
+    }
   }
 
   async function revoke(device: Device) {
-    if (!window.confirm(`確定停用「${device.name}」？停用後必須重新註冊才能使用。`)) return;
+    if (!window.confirm(`確定解除連結「${device.name}」？解除後這台電腦會立即停止取得工作。`)) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -107,76 +136,67 @@ export function WindowsServiceSettings() {
         body: JSON.stringify({ expectedRowVersion: device.rowVersion })
       });
       const body = await response.json().catch(() => null) as { error?: string; code?: string } | null;
-      if (!response.ok) throw new Error(errorMessage(body, "停用解析電腦失敗。"));
-      setMessage({ type: "success", text: `已停用「${device.name}」。` });
+      if (!response.ok) throw new Error(errorMessage(body, "解除連結失敗。"));
+      setMessage({ type: "success", text: `已解除連結「${device.name}」。` });
       await loadDevices();
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "停用解析電腦失敗。" });
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "解除連結失敗。" });
     } finally { setBusy(false); }
-  }
-
-  async function copy(value: string, kind: "code" | "id") {
-    await navigator.clipboard.writeText(value);
-    setCopied(kind);
-    window.setTimeout(() => setCopied(null), 1600);
   }
 
   return (
     <div className="windows-service-page">
       <header className="page-header windows-service-heading">
         <div>
-          <h1>Windows 解析服務</h1>
-          <p>下載一次安裝、建立十分鐘註冊碼，並查看公司內可解析 SolidWorks 檔案的電腦。</p>
+          <h1>Windows 解析程式</h1>
+          <p>每位使用者在自己的 Windows 電腦安裝；登入公司 Google 帳號後即可自行連結。</p>
         </div>
-        <a className="primary-button" href="/api/settings/windows-service/installer">
+        {!pairing ? <a className="primary-button" href="/api/settings/windows-service/installer">
           <Download size={17} aria-hidden="true" />下載安裝程式
-        </a>
+        </a> : null}
       </header>
 
-      {state === "forbidden" ? <section className="panel" role="alert">你沒有管理 Windows 解析服務的權限。</section> : null}
+      {state === "forbidden" ? <section className="panel" role="alert">你的 AI-PDM 帳號目前無法使用此功能。</section> : null}
       {message ? <div className={`windows-service-message is-${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</div> : null}
 
-      {state !== "forbidden" ? <>
-        <section className="panel windows-service-enrollment-panel">
-          <div>
-            <h2>註冊電腦</h2>
-            <p>安裝後，在本機「AI-PDM 解析服務設定」貼上註冊 ID 與單次註冊碼。</p>
-          </div>
-          <button className="secondary-button" type="button" disabled={busy} onClick={() => void createEnrollment()}>
-            <MonitorCog size={17} aria-hidden="true" />建立註冊碼
-          </button>
-          {enrollment ? <div className="windows-service-enrollment" role="status">
-            <label>註冊 ID<span><code>{enrollment.id}</code><button type="button" className="icon-button" aria-label="複製註冊 ID" onClick={() => void copy(enrollment.id, "id")}>{copied === "id" ? <Check size={16} /> : <Clipboard size={16} />}</button></span></label>
-            <label>單次註冊碼<span><code>{enrollment.code}</code><button type="button" className="icon-button" aria-label="複製單次註冊碼" onClick={() => void copy(enrollment.code, "code")}>{copied === "code" ? <Check size={16} /> : <Clipboard size={16} />}</button></span></label>
-            <small>有效至 {formatTime(enrollment.expiresAt)}。系統只保存雜湊，離開本頁後無法找回原碼。</small>
-          </div> : null}
-        </section>
+      {pairingInvalid ? <section className="panel" role="alert">
+        <h2>連結請求無效</h2><p>請回到安裝視窗，按「重新開啟登入頁」。</p>
+      </section> : null}
 
-        <section className="panel windows-service-device-panel">
-          <div className="panel-header">
-            <div><h2>已註冊電腦</h2><p>連線與可處理項目分開顯示；離線不會刪除既有預覽結果。</p></div>
-            <button className="secondary-button" type="button" disabled={busy || state === "loading"} onClick={() => void loadDevices()}><RefreshCw size={16} aria-hidden="true" />重新整理</button>
-          </div>
-          <div className="table-wrap">
-            <table className="windows-service-table">
-              <thead><tr><th>電腦</th><th>版本</th><th>連線</th><th>可處理項目</th><th>最後連線</th><th><span className="sr-only">操作</span></th></tr></thead>
-              <tbody>
-                {state === "loading" ? <tr><td colSpan={6}>正在讀取...</td></tr> : null}
-                {state === "error" ? <tr><td colSpan={6}>目前無法讀取清單。</td></tr> : null}
-                {state === "ready" && devices.length === 0 ? <tr><td colSpan={6}>尚未註冊解析電腦。</td></tr> : null}
-                {state === "ready" ? devices.map((device) => <tr key={device.id}>
-                  <td><strong>{device.name}</strong><small>{device.id}</small></td>
-                  <td>{device.serviceVersion}</td>
-                  <td><span className={`windows-service-status is-${device.connection}`}>{device.connection === "online" ? "在線" : device.connection === "offline" ? "離線" : "已停用"}</span></td>
-                  <td><div className="windows-service-capabilities">{device.capabilities.length ? device.capabilities.map((capability) => <span className={`is-${capability.status}`} key={capability.code}>{capabilityLabels[capability.code] ?? capability.code}</span>) : <span className="is-blocked">尚未就緒</span>}</div></td>
-                  <td>{formatTime(device.lastSeenAt)}</td>
-                  <td>{device.status === "active" ? <button className="danger-button" type="button" disabled={busy} onClick={() => void revoke(device)}><ShieldOff size={15} aria-hidden="true" />停用</button> : null}</td>
-                </tr>) : null}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </> : null}
+      {pairing ? <section className="panel windows-service-enrollment-panel">
+        <div>
+          <h2>連結這台電腦</h2>
+          <p>確認後，系統會為這台電腦建立獨立、可撤銷且只屬於你目前帳號的裝置憑證。</p>
+        </div>
+        <button className="primary-button" type="button" disabled={busy || state !== "ready"} onClick={() => void linkComputer()}>
+          <Link2 size={17} aria-hidden="true" />{busy ? "正在連結…" : "連結這台電腦"}
+        </button>
+      </section> : null}
+
+      {!pairing && state !== "forbidden" ? <section className="panel windows-service-device-panel">
+        <div className="panel-header">
+          <div><h2>{canManageAll ? "已連結電腦" : "我的已連結電腦"}</h2><p>離線時工作會保留，電腦重新上線後自動接續。</p></div>
+          <button className="secondary-button" type="button" disabled={busy || state === "loading"} onClick={() => void loadDevices()}><RefreshCw size={16} aria-hidden="true" />重新整理</button>
+        </div>
+        <div className="table-wrap">
+          <table className="windows-service-table">
+            <thead><tr><th>電腦</th><th>版本</th><th>連線</th><th>可處理項目</th><th>最後連線</th><th><span className="sr-only">操作</span></th></tr></thead>
+            <tbody>
+              {state === "loading" ? <tr><td colSpan={6}>正在讀取...</td></tr> : null}
+              {state === "error" ? <tr><td colSpan={6}>目前無法讀取清單。</td></tr> : null}
+              {state === "ready" && devices.length === 0 ? <tr><td colSpan={6}>尚未連結解析電腦。</td></tr> : null}
+              {state === "ready" ? devices.map((device) => <tr key={device.id}>
+                <td><strong>{device.name}</strong><small>{device.id}</small></td>
+                <td>{device.serviceVersion}</td>
+                <td><span className={`windows-service-status is-${device.connection}`}>{device.connection === "online" ? "在線" : device.connection === "offline" ? "離線" : "已解除"}</span></td>
+                <td><div className="windows-service-capabilities">{device.capabilities.length ? device.capabilities.map((capability) => <span className={`is-${capability.status}`} key={capability.code}>{capabilityLabels[capability.code] ?? capability.code}</span>) : <span className="is-blocked">尚未就緒</span>}</div></td>
+                <td>{formatTime(device.lastSeenAt)}</td>
+                <td>{device.status === "active" && (device.ownedByCurrentUser || canManageAll) ? <button className="danger-button" type="button" disabled={busy} onClick={() => void revoke(device)}><ShieldOff size={15} aria-hidden="true" />解除連結</button> : null}</td>
+              </tr>) : null}
+            </tbody>
+          </table>
+        </div>
+      </section> : null}
     </div>
   );
 }

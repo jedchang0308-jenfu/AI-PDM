@@ -1,10 +1,12 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
-## 現行後續入口（2026-10-27）
+## 現行後續入口（2026-10-28）
 
-Windows 安裝、裝置清單／撤銷、原生解析整合及 OpenSWX 拆除統一交付 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md)。本 SPEC 保留既有 queue／derivative／source hash／quality／預覽生命週期契約供重用，不另維護一套裝置資料或產品排程；DEV-122／124 的舊下一步已由該任務承接。
+Windows 安裝、裝置清單／撤銷、原生解析整合及 OpenSWX 拆除統一交付 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md)。每位有效 AI-PDM 使用者在自己的 Windows 電腦安裝並經公司 Google SSO 自助連結；不使用公司共用常開解析主機，也不需要 PDM 管理員逐台核准。本 SPEC 保留既有 queue／derivative／source hash／quality／預覽生命週期契約供重用，不另維護一套裝置資料或產品排程。
 
-DEV-125 已達 `RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED`。新架構只有 Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。下文歷史 Shell／renderer 選項僅保留當時證據，不可用來擴大現行實作。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer，不因 Windows 安裝而延後修正來源綁定。裝置資料／API、installer、lease 加嚴、source／provider 完整退出與驗證統一見 DEV-125 §3～10 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。此處更新文件不表示安裝服務或拆除已實作。
+DEV-125 現為 `Architecture Finalized / IMPLEMENTATION_IN_PROGRESS`。新架構只有 owner-bound Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。PR #533 的匿名 worker、固定 `windows-parser`、共用 API key、任何 caller 可取得 CAD／key／工作及「使用者接受風險」敘述全部無效；使用者從未授權。每次 claim、source download、heartbeat 與 complete 都要重驗裝置 owner 的 active account、Principal mapping、current grant 與來源權限。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer。裝置資料／API、installer、lease、發布與驗證統一見 DEV-125 §3～9 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。
+
+無授權裝置在線時，native preview job 保持 `queued` 且 `attempt_count` 不增加；裝置上線後自動接續。只有已被領取的 `running` 工作在 heartbeat 逾期後進入有界回收。A 的裝置不得 claim 或下載 B-only 圖檔；帳號停用、角色撤銷、Principal mapping 失效或裝置解除連結後，下一次請求立即拒絕。
 
 Status: DEV-105 RD Implemented / Revision B QA-QC Complete / Effectiveness Reclosed / Historical QA-105 18 of 18 Retained as Baseline / Primary Backfill Human-Gated / Production Release Gated
 Date: 2026-08-31
@@ -136,7 +138,7 @@ prepare/enqueue，worker health只檢查process；系統根因是completion evid
 ### 0A.2 Spec Impact Preflight
 
 - 分類：`Compatible CAPA amendment`；風險=`High / P1`。
-- 保留：native source/derivative分離、source-hash guard、Windows隔離worker、token-gated BFF、quality gate、
+- 保留：native source/derivative分離、source-hash guard、owner-bound Windows隔離worker、device-authenticated BFF、quality gate、
   canonical file-read、shared preview projection與DEV-065 Part source selection。
 - 修正：source lifecycle scheduling、detail recovery、Shell bitmap conversion、3D capability health、backfill inventory與
   source-exists UI copy。
@@ -207,7 +209,7 @@ fingerprint-gated Human-Gated。2026-08-31新失敗訊號證明first-load galler
 ### 0.2 Spec Impact Preflight與治理
 
 - 分類：`Intentional replacement + compatible extension`。
-- 保留：本ADR的Windows隔離worker、source/derivative分離、source-hash guard、token-gated BFF、private/no-store、current-owner completion、blank-output quality gate、Phase 2 PDF與Phase 3 interactive 3D邊界。
+- 保留：本ADR的 owner-bound Windows隔離worker、source/derivative分離、source-hash guard、device-authenticated BFF、private/no-store、current-owner completion、blank-output quality gate、Phase 2 PDF與Phase 3 interactive 3D邊界。
 - 取代：DEV-056完成宣告、launcher以plaintext env／GSM設定判斷2D worker是否可啟動、SLDDRW Phase 1自動建立`drawing_pdf`、queued job可永久呈現「產生中」、recognition或3D worker狀態可代替2D renderer readiness的任何舊敘述。
 - ADR判定：不新增ADR；既有Windows Worker Derivative Boundary仍正確，本amendment只修正同一架構內的啟動、job kind、capability與read projection契約，並同步更新既有ADR。
 - 風險：Medium implementation / P0 defect。修改跨launcher、worker、queue producer、read projection與settings UI，但不改CAD source、domain ownership、permission或production data。
@@ -248,11 +250,11 @@ derivative -> browser-readable display artifact, never controlled CAD source
 
 #### 0.5.1 Launcher與credential hot apply
 
-- `scripts/start-localhost-3000.ps1`的2D worker啟動資格只能依Windows平台、worker script／interop可用、server URL與preview worker service token判斷；不得再用`PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY`、alternate env key或GSM env是否存在作為啟動gate。
+- 已安裝2D worker的啟動資格依 Windows 平台、worker script／interop可用、server URL與 owner-bound device credential 判斷；不得使用固定 preview worker service token、匿名身分、`PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY` 或 alternate env key作為授權 fallback。
 - launcher必須啟動無credential的persistent 2D worker。worker在無active key時回`blocked/preview_credential_missing` capability heartbeat並暫不claim，不得退出或要求重啟。
 - worker沿用`/api/preview-workers/solidworks-document-manager-key`與`resolveActiveSolidWorksDocumentManagerKey()`；local解析`windows_dpapi`，staging/production解析`google_secret_manager`。UI後設、rotation或revoke要由同一PID在下一poll／refresh週期套用。
 - key最多保留60秒process-memory cache，只能傳入當次native child；不得進global process env、command line、DB、job payload、stdout/stderr、browser response或evidence。
-- runtime status的`not_configured`只表示worker必要執行元件或service token缺失；credential缺少屬於worker `blocked` capability，不得把兩者混為同一狀態。
+- runtime status的`not_configured`只表示 worker 必要執行元件或 owner-bound device link 缺失；Document Manager credential 缺少屬於 worker `blocked` capability，不得把兩者混為同一狀態。
 
 #### 0.5.2 Preview kind與derivative contract
 
@@ -273,7 +275,7 @@ derivative -> browser-readable display artifact, never controlled CAD source
 #### 0.5.4 Recovery與使用者可見狀態
 
 - `master-attachments`、candidate/drawing/part/review的unified entity detail及任何共用preview projection，在decorate前必須進入同一prepare/recovery service，禁止只有legacy attachment list會回收stale job。
-- `queued`且120秒仍`locked_by=null`：終止為`failed/preview_worker_unavailable`。若原因是kind不相容，使用`preview_kind_unavailable`並建立正確PNG job。
+- `queued`且`locked_by=null`：不因時間經過而終止，也不增加 attempt；顯示等待授權裝置上線。只有已領取的 `running` 工作 heartbeat 逾期才回收。若 requested kind 本身不相容，才以`preview_kind_unavailable`明確終止並建立正確PNG job。
 - `running`且30秒無job heartbeat：最多requeue三次；第三次後終止為redacted failed。old owner completion/failure維持拒絕。
 - UI mapping：
   - `queued + renderer online`：`等待預覽服務`，短時poll；
@@ -293,8 +295,8 @@ derivative -> browser-readable display artifact, never controlled CAD source
 ### 0.6 API、資料與權限影響
 
 - 保留`POST /api/preview-jobs/claim`、job heartbeat、complete/fail與derivative streaming contract；claim仍以supported kind／extension做exact filter。
-- 新增`POST /api/preview-workers/heartbeat`，沿用preview worker service token、constant-time compare、private/no-store與repository upsert；browser session不得呼叫。
-- credential broker保持worker-only；Admin UI不直接取得key。
+- `POST /api/preview-workers/heartbeat` 使用 owner-bound device auth、private/no-store與repository upsert；browser session、固定 token、匿名 caller不得呼叫。
+- credential broker保持授權裝置的受控 worker-only；Admin UI及一般 browser 不直接取得 key，每次 credential request 重驗 owner current account／Principal／grant／probe lease。
 - 所有preview enqueue／retry與derivative read沿用source attachment權限及company scope；heartbeat不得取得CAD檔案或人類角色權限。
 - 無schema migration、無source attachment migration、無歷史job/data直接修復腳本；A0002錯kindjob由產品recovery path收斂。
 
@@ -316,7 +318,7 @@ derivative -> browser-readable display artifact, never controlled CAD source
 | active version失效或revoked | `blocked/preview_credential_unavailable`；清除cache | UI啟用已測試版本；不用restart |
 | interop/renderer不存在 | `blocked/preview_renderer_unavailable` | 修復受控worker安裝；不得fallback到request handler |
 | producer/worker kind不相容 | 舊job `preview_kind_unavailable`＋新PNG job | contract test阻止再次漂移 |
-| queued逾120秒無claim | `preview_worker_unavailable` | 顯示服務未就緒；服務恢復後idempotent retry |
+| queued 無裝置在線 | 保持 queued、attempt 不變 | 顯示等待解析電腦；授權裝置上線後自動 claim |
 | running heartbeat逾30秒 | requeue最多3次，之後failed | 新owner接手；old owner結果拒絕 |
 | PNG blank/low-information | terminal redacted fail，不建立ready derivative | 提示在SolidWorks儲存preview或未來renderer phase |
 | source hash changed | reject completion、舊derivative stale | 對新hash排新job |

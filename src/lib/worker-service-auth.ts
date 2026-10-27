@@ -23,9 +23,9 @@ export function isWorkerPurposeConfigured(purpose: WorkloadPurpose): boolean {
 }
 
 /**
- * Authenticate the single DEV-125 Windows service identity. There is no
- * environment credential fallback: token hash, device status and current
- * instance are re-read from PostgreSQL for every request.
+ * Authenticate one user-owned DEV-125 Windows device. There is no anonymous,
+ * shared-key or environment-credential fallback: token hash, device status,
+ * owner account, current Principal grant and instance are re-read for every request.
  */
 export async function authenticateWorkerService(
   request: Request,

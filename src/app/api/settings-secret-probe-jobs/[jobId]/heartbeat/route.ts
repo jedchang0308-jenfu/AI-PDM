@@ -23,7 +23,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
     const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
     const job = await repository.getProbeJobById(jobId);
     if (job && body.leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) return NextResponse.json({error:"PROBE_PROTOCOL_UPGRADE_REQUIRED"},{status:409});
-    const ok = await repository.heartbeatProbeJob(jobId,workerId,actor.companyId,new Date().toISOString(),body.leaseAttempt);
+    const ok = await repository.heartbeatProbeJob(jobId, workerId, actor.companyId,
+      new Date().toISOString(), body.leaseAttempt, actor.owner);
     return ok ? NextResponse.json({ok:true},{headers:{"cache-control":"private, no-store"}}) : NextResponse.json({error:"SECRET_PROBE_JOB_LOCKED"},{status:409});
   } catch {
     return NextResponse.json({error:"SECRET_PROBE_DEPENDENCY_UNAVAILABLE",retryable:true},{status:503,headers:{"cache-control":"private, no-store"}});

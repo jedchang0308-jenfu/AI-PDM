@@ -44,7 +44,7 @@ beforeEach(()=>{vi.clearAllMocks(); companyValid=true;holderValid=true;
  source={id:"asset-one",company_id:"company-one",file_ext:"slddrw",linked_entity_type:"drawing_revision",document_category:"drawing_2d",capability_role:"drawing_2d",file_name:"drawing.slddrw",file_size:bytes.length,content_hash:digest,storage_provider:"local_repository",storage_key:"source/one"};
  mocks.read.mockReset().mockResolvedValue(bytes); mocks.authority.mockReset().mockResolvedValue(undefined);
 });
-const input={jobId:"job-one",workerId:"worker-one",leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:digest,attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"}};
+const input={jobId:"job-one",workerId:"worker-one",ownerPrincipalId:"principal-one",leaseBasis:{companyId:"company-one",sourceFileAssetId:"asset-one",sourceContentHash:digest,attemptCount:1,lockedAt:"2026-10-23T00:00:00.000Z"}};
 describe("claimed preview source boundary",()=> {
  it("delivers verified bytes with original Principal through a read-only snapshot",async()=>{
   expect(await readClaimedPreviewSourceAsync(client,input)).toMatchObject({bytes,contentHash:digest,principalId:"principal-one"});
@@ -53,6 +53,11 @@ describe("claimed preview source boundary",()=> {
  it("rejects a different holder before storage access",async()=>{job.locked_by="other";await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");expect(mocks.read).not.toHaveBeenCalled()});
  it("rejects wrong company before storage access",async()=>{companyValid=false;await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");expect(mocks.read).not.toHaveBeenCalled()});
  it("rejects legacy or absent initiator before storage access",async()=>{job.metadata_json="{}";await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");expect(mocks.read).not.toHaveBeenCalled()});
+ it("does not let user A's device read user B's claimed source",async()=>{
+  const otherOwner={...input,ownerPrincipalId:"principal-two"};
+  await expect(readClaimedPreviewSourceAsync(client,otherOwner)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");
+  expect(mocks.read).not.toHaveBeenCalled();
+ });
  it("rejects stale source hash before storage access",async()=>{source.content_hash="a".repeat(64);await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST");expect(mocks.read).not.toHaveBeenCalled()});
  it("rejects substituted bytes",async()=>{mocks.read.mockResolvedValue(Buffer.from("wrong"));await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow()});
  it("does not deliver after the holder changes during file I/O",async()=>{mocks.read.mockImplementationOnce(async()=>{holderValid=false;return bytes});await expect(readClaimedPreviewSourceAsync(client,input)).rejects.toThrow("PREVIEW_JOB_CLAIM_LOST")});

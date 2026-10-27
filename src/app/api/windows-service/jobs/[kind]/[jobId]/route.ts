@@ -19,10 +19,14 @@ export async function GET(request: Request, context: { params: Promise<{ kind: s
     return NextResponse.json({ error: "WINDOWS_SERVICE_JOB_NOT_FOUND" }, { status: 404, headers });
   }
   const table = tables[kind as keyof typeof tables];
+  const ownerPredicate = kind === "preview"
+    ? "metadata_json::jsonb #>> '{initiator,principalId}'=:ownerPrincipalId"
+    : "initiator_principal_id=:ownerPrincipalId";
   const row = await getAsyncDatabaseClient().queryOne<{
     status: string; locked_by: string | null; worker_completion_json: unknown;
   }>(`SELECT status,locked_by,worker_completion_json FROM ${table}
-      WHERE id=:jobId AND company_id=:companyId`, { jobId, companyId: actor.companyId });
+      WHERE id=:jobId AND company_id=:companyId AND ${ownerPredicate}`,
+    { jobId, companyId: actor.companyId, ownerPrincipalId: actor.ownerPrincipalId });
   if (!row) return NextResponse.json({ error: "WINDOWS_SERVICE_JOB_NOT_FOUND" }, { status: 404, headers });
   let receipt: Record<string, unknown> | null = null;
   try {

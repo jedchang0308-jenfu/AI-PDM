@@ -18,7 +18,10 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
     const leaseBasis = parseRecognitionLeaseBasis(body.leaseBasis);
     if (!leaseBasis || leaseBasis.companyId !== actor.companyId) throw new Error("RECOGNITION_LEASE_REQUIRED");
     const { sessionId } = await context.params;
-    await heartbeatDrawingRecognitionJob({ sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"), workerId: actor.id, leaseBasis });
+    await heartbeatDrawingRecognitionJob({
+      sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+      workerId: actor.id, ownerPrincipalId: actor.ownerPrincipalId, leaseBasis
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return recognitionErrorResponse(error, "recognition-jobs.heartbeat");

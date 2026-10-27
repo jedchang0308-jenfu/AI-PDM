@@ -45,11 +45,16 @@ function Write-Utf8NoBom([string]$Path, [string]$Value) {
   [IO.File]::WriteAllText($Path, $Value, (New-Object Text.UTF8Encoding($false)))
 }
 
+function Assert-NativeSuccess([string]$Step) {
+  if ($LASTEXITCODE -ne 0) { throw "DEV125_NATIVE_STEP_FAILED:${Step}:$LASTEXITCODE" }
+}
+
 function Get-PinnedFile([string]$Path, [string]$Url, [string]$ExpectedSha256) {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
   if (-not (Test-Path -LiteralPath $Path) -or (Get-Sha256 $Path) -ne $ExpectedSha256) {
     Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     & curl.exe -L --fail --retry 2 --output $Path $Url
+    Assert-NativeSuccess "download"
   }
   $actual = Get-Sha256 $Path
   if ($actual -ne $ExpectedSha256) { throw "DEV125_DEPENDENCY_DIGEST_MISMATCH:${Path}:$actual" }
@@ -104,32 +109,39 @@ Write-Utf8NoBom (Join-Path $stage 'product.json') ($product | ConvertTo-Json -De
 
 & $csc /nologo /platform:x64 /target:exe "/out:$(Join-Path $stage 'tools\AipdmCredentialHelper.exe')" `
   /reference:System.Security.dll (Join-Path $root 'windows-service\tools\AipdmCredentialHelper.cs')
+Assert-NativeSuccess "credential-helper-compile"
 & $csc /nologo /platform:x64 /target:winexe "/out:$(Join-Path $stage 'AipdmWindowsConfigurator.exe')" `
   "/win32manifest:$(Join-Path $root 'windows-service\configurator\app.manifest')" `
   /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Net.Http.dll `
   /reference:System.Security.dll /reference:System.Web.Extensions.dll /reference:System.Windows.Forms.dll `
   (Join-Path $root 'windows-service\configurator\AipdmWindowsConfigurator.cs')
+Assert-NativeSuccess "configurator-compile"
 & $csc /nologo /platform:x64 /target:exe "/out:$(Join-Path $stage 'AipdmDocumentManagerProbe.exe')" `
   /reference:System.dll /reference:System.Core.dll /reference:System.Security.dll /reference:System.Web.Extensions.dll `
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'windows-service\tools\AipdmDocumentManagerProbe.cs')
+Assert-NativeSuccess "document-manager-probe-compile"
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerMetadataExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-metadata-exporter.cs')
+Assert-NativeSuccess "metadata-exporter-compile"
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerPreviewExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-preview-exporter.cs')
+Assert-NativeSuccess "preview-exporter-compile"
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerCredentialProbe.exe')" `
   /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-credential-probe.cs')
+Assert-NativeSuccess "credential-probe-compile"
 
 $installerName = "AI-PDM-Windows-Setup-$Version.exe"
 $installerPath = Join-Path $downloadDirectory $installerName
 & $makensis /INPUTCHARSET UTF8 "/DSTAGE=$stage" "/DOUTPUT=$installerPath" "/DPRODUCT_VERSION=$Version" `
   (Join-Path $root 'windows-service\installer\AI-PDM-Windows-Setup.nsi')
+Assert-NativeSuccess "nsis-compile"
 if (-not (Test-Path -LiteralPath $installerPath)) { throw 'DEV125_INSTALLER_BUILD_FAILED' }
 
 $manifest = [ordered]@{

@@ -723,9 +723,11 @@ try {
     (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
     VALUES ('typed-duplicate',$1,'solidworks_document_manager','pending',$2,'company-jenfu',$3,1,'settings_secret_probe')`,
   ['secret-legacy',actorProfile,actor.principalId]),error => error.code==='23505');
+  const workerOwner = {...actor,pdmUserId:actorProfile,companyId:'company-jenfu'};
   const replacementWorker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',
-    instanceId:'00000000-0000-4000-8000-000000000125',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
-  assert.equal((await repository.claimProbeJob(replacementWorker.id,replacementWorker.companyId,new Date().toISOString())).id,replacement.id);
+    instanceId:'00000000-0000-4000-8000-000000000125',ownerPrincipalId:actor.principalId,
+    purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager'],owner:workerOwner};
+  assert.equal((await repository.claimProbeJob(replacementWorker.id,replacementWorker.companyId,new Date().toISOString(),undefined,workerOwner)).id,replacement.id);
   await completeSettingsSecretProbe({probeJobId:replacement.id,worker:replacementWorker,status:'failed',resultCode:'synthetic_legacy_replacement',readerVersion:'synthetic'});
   assert.deepEqual((await database.query("SELECT to_jsonb(job) AS value FROM ai_pdm_core.settings_secret_probe_jobs job WHERE id='probe-legacy'")).rows[0].value,legacyBefore);
   checks.push('actual078 rejects old-writer INSERT, preserves legacy non-actor UPDATE, holds NULL row without reserving typed slot; normal same-reference typed enqueue/claim and typed uniqueness hold');
@@ -758,11 +760,12 @@ try {
     ['untyped-'+crypto.randomUUID(),draft.id,actorProfile,principalId,version,purpose]),error => error.code==='23514');
   }
   const worker = {kind:'windows_service_device',id:'settings-synthetic-worker',companyId:'company-jenfu',
-    instanceId:'00000000-0000-4000-8000-000000000125',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
-  const claimed = await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString());
+    instanceId:'00000000-0000-4000-8000-000000000125',ownerPrincipalId:actor.principalId,
+    purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager'],owner:workerOwner};
+  const claimed = await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner);
   assert.equal(claimed.id,queued.id);assert.equal(claimed.initiatorPrincipalId,actor.principalId);
-  assert.equal(await repository.heartbeatProbeJob(queued.id,'another-worker',worker.companyId,new Date().toISOString()),false);
-  assert.equal(await repository.heartbeatProbeJob(queued.id,worker.id,worker.companyId,new Date().toISOString()),true);
+  assert.equal(await repository.heartbeatProbeJob(queued.id,'another-worker',worker.companyId,new Date().toISOString(),undefined,workerOwner),false);
+  assert.equal(await repository.heartbeatProbeJob(queued.id,worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner),true);
   const beforeWorker = await effects();
   const completeInput = {probeJobId:queued.id,worker,status:'failed',resultCode:'synthetic_probe_failure',readerVersion:'synthetic-reader'};
   await assert.rejects(completeSettingsSecretProbe({...completeInput,worker:{...worker,id:'another-worker'}}),error => error.code === 'SECRET_PROBE_JOB_LOCKED');
@@ -775,7 +778,7 @@ try {
   assert.equal((await repository.getReferenceById('secret-other-creator')).lifecycleStatus,'draft');
   checks.push('actual enqueue/replay preserves tester separate from draft creator; native078 freezes full provenance tuple and rejects crosscompany/profile FK; actual claim/heartbeat/failed completion retain technical executor plus human initiator');
   const ownProbe = await enqueueSettingsSecretProbe({secretReferenceId:draft.id},metadata('test','settings-queue-activate'));
-  assert.equal((await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString())).id,ownProbe.id);
+  assert.equal((await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner)).id,ownProbe.id);
   await completeSettingsSecretProbe({...completeInput,probeJobId:ownProbe.id,status:'passed',resultCode:null});
   const activatedSecret = await activateSettingsSecretReference({secretReferenceId:draft.id},metadata('activate','settings-activate'));
   assert.equal(activatedSecret.lifecycleStatus,'active');
@@ -803,18 +806,18 @@ try {
   await assert.rejects(activateSettingsSecretReference({secretReferenceId:'secret-legacy-passed'},metadata('activate','legacy-activate')),
     error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
   await database.query("UPDATE ai_pdm_core.settings_secret_probe_jobs SET status='running',locked_by=$1,attempt_count=2,updated_at=clock_timestamp()-interval '2 minutes' WHERE id='probe-legacy'",[worker.id]);
-  assert.equal(await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString()),null);
+  assert.equal(await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner),null);
   assert.equal((await repository.getProbeJobById('probe-legacy')).status,'running');
-  assert.equal(await repository.heartbeatProbeJob('probe-legacy',worker.id,worker.companyId,new Date().toISOString()),false);
+  assert.equal(await repository.heartbeatProbeJob('probe-legacy',worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner),false);
   await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:'probe-legacy'}),error => error.code==='WORKLOAD_FORBIDDEN');
   await assert.rejects(resolveSettingsSecretProbeCredential('probe-legacy',worker),error => error.code==='WORKLOAD_FORBIDDEN');
   assert.deepEqual(await effects(),deniedBefore);
   checks.push('actual command rejects forged Principal/profile/company and out-of-company published grant with zero effects; pre078 NULL job cannot claim/heartbeat/complete/credential/activate or be repaired from creator');
   const staleProbe = await enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-stale-probe'));
-  await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString());
+  await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner);
   await database.query('UPDATE ai_pdm_core.settings_secret_probe_jobs SET updated_at=clock_timestamp()-interval \'2 minutes\' WHERE id=$1',[staleProbe.id]);
   const staleBefore = await effects();
-  assert.equal(await repository.heartbeatProbeJob(staleProbe.id,worker.id,worker.companyId,new Date().toISOString()),false);
+  assert.equal(await repository.heartbeatProbeJob(staleProbe.id,worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner),false);
   await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:staleProbe.id}),error => error.code==='SECRET_PROBE_JOB_LOCKED');
   assert.deepEqual(await effects(),staleBefore);
   await database.query('UPDATE ai_pdm_core.settings_secret_probe_jobs SET updated_at=clock_timestamp() WHERE id=$1',[staleProbe.id]);
@@ -846,7 +849,7 @@ try {
     assert.deepEqual(await effects(),queueRollbackBefore);
   } finally { await database.query('DROP TRIGGER settings_test_audit_failure ON ai_pdm_core.audit_logs'); }
   const rollbackJob = await enqueueSettingsSecretProbe({secretReferenceId:rollbackReference.id},metadata('test','settings-queue-for-worker-rollback'));
-  assert.equal((await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString())).id,rollbackJob.id);
+  assert.equal((await repository.claimProbeJob(worker.id,worker.companyId,new Date().toISOString(),undefined,workerOwner)).id,rollbackJob.id);
   await database.query(`CREATE TRIGGER settings_test_audit_failure BEFORE INSERT ON ai_pdm_core.audit_logs
     FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.settings_test_audit_failure();`);
   const workerRollbackBefore = await effects();

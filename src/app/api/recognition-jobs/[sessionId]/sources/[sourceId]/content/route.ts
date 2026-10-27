@@ -20,6 +20,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
       sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
       sourceId: requireSafeRecognitionId(sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
       workerId: requireSafeRecognitionId(workerId, "RECOGNITION_WORKER_ID_INVALID"),
+      ownerPrincipalId: actor.ownerPrincipalId,
       leaseBasis
     });
     const safeName = result.fileName.replace(/[\r\n"\\]/gu, "_").slice(0, 180) || "source.bin";

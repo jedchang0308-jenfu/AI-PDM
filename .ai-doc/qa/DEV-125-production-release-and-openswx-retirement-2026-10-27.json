@@ -1,9 +1,58 @@
 {
-  "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v1",
+  "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T15:20:04.497Z",
-  "status": "PASS_WITH_WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS",
-  "source": {
+  "recordedAt": "2026-10-27T17:20:21.672Z",
+  "status": "SUPERSEDED_ARCHITECTURE_IMPLEMENTATION_IN_PROGRESS",
+  "supersedingArchitecture": {
+    "effectiveDate": "2026-10-28",
+    "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
+    "replacesPullRequestDraft": 533,
+    "anonymousWorkerAuthorized": false,
+    "manualRegistrationFieldsAllowed": false,
+    "sharedAlwaysOnHost": false,
+    "perDeviceOwnerBinding": ["companyId", "principalId", "deviceId", "activeAccount"],
+    "revalidateEveryRequest": ["claim", "sourceDownload", "heartbeat", "credentialAccess", "complete"],
+    "migration089Immutable": true,
+    "forwardMigration": "090_dev125_windows_device_owner_principal.sql",
+    "orgMasterResponsibility": "PERSON_ROLE_ASSIGNMENT_ONLY",
+    "iamSecretCrossProjectExpansion": false
+  },
+  "currentCandidate": {
+    "branch": "codex/dev125-google-pairing-20261028",
+    "revision": "UNCOMMITTED",
+    "pullRequest": "PENDING",
+    "requiredCi": "PENDING",
+    "productionRelease": "PENDING"
+  },
+  "localVerification": {
+    "typecheckApp": "PASS",
+    "dev125Contract": "PASS_42",
+    "postgresDeviceOwner": "PASS_9",
+    "affectedProductionSlice": "PASS",
+    "continuousReleaseContract": "PASS_382",
+    "principalCallerContract": "PASS_597",
+    "databaseBoundary": "PASS",
+    "principalPreviewRecognitionFocused": "PASS_96",
+    "routePolicySource": "PASS",
+    "lint": "PASS_0_ERRORS_9_PREEXISTING_WARNINGS",
+    "isolatedBuild": "PASS_PRIMARY_UNCHANGED",
+    "initialInstallerCompile": "FAIL_CSHARP5_AWAIT_IN_CATCH_AND_FALSE_PASS_DETECTED",
+    "installerCompileCorrection": "IMPLEMENTED_AWAIT_OUTSIDE_CATCH_AND_NATIVE_EXIT_FAIL_FAST_REBUILD_PENDING",
+    "notProductionProof": true
+  },
+  "acceptanceMatrix": [
+    {"id":"SELF-LINK-RD","actor":"RD","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
+    {"id":"SELF-LINK-PPC","actor":"採購／生管","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
+    {"id":"SELF-LINK-PRODUCTION","actor":"生產人員","expected":"Google SSO self-link without PDM manager approval","status":"PLANNED_FORMAL"},
+    {"id":"NO-MANUAL-CODE","expected":"No registration ID or one-time code field in web or configurator","status":"PASS_SOURCE_CONTRACT"},
+    {"id":"OWNER-ISOLATION","expected":"Device A cannot obtain B-only job or CAD bytes","status":"PASS_FOCUSED_AND_POSTGRES"},
+    {"id":"IMMEDIATE-REVOCATION","expected":"Role, account, Principal mapping or device revoke denies next request","status":"PASS_POSTGRES_FORMAL_PENDING"},
+    {"id":"WINDOWS-LIFECYCLE","expected":"shutdown, restart, overwrite install, reinstall and multiple computers","status":"PLANNED_FORMAL"},
+    {"id":"OFFLINE-QUEUE","expected":"queued work remains and does not consume attempt while no device is online","status":"PASS_FOCUSED_FORMAL_PENDING"},
+    {"id":"REAL-CAD-THREE-FORMAT","expected":"SLDPRT, SLDASM and SLDDRW real Document Manager parse","status":"PLANNED_FORMAL"},
+    {"id":"SECRET-BYTES-REDACTION","expected":"No Document Manager key, device token or CAD bytes in UI, API logs or evidence","status":"PLANNED_FORMAL"}
+  ],
+  "previousReleasedSource": {
     "revision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
     "pullRequest": 531,
     "relatedPullRequests": [529, 530, 531],
@@ -84,7 +133,7 @@
       "historicalMigrationAndImmutableReceipts": "RETAINED"
     }
   },
-  "windowsAcceptance": {
+  "previousWindowsAcceptance": {
     "status": "FAIL_REMEDIATION_ARTIFACT_READY_REINSTALL_PENDING",
     "initialArtifact": {
       "version": "0.1.0-ci.1356",
@@ -151,26 +200,28 @@
     }
   },
   "validationDisposition": {
-    "V125-01": "PARTIAL",
-    "V125-02": "PASS_AUTOMATED_SCOPE",
-    "V125-03": "FAIL_REMEDIATION_IN_PROGRESS",
-    "V125-04": "PARTIAL_FORMAL_DEVICE_NOT_RUN",
-    "V125-05": "PARTIAL_FORMAL_DEVICE_NOT_RUN",
+    "V125-01": "PARTIAL_SELF_LINK_FORMAL_PENDING",
+    "V125-02": "PASS_SOURCE_CONTRACT_FORMAL_PENDING",
+    "V125-03": "PARTIAL_WINDOWS_LIFECYCLE_PENDING",
+    "V125-04": "PASS_LOCAL_OWNER_ISOLATION_FORMAL_PENDING",
+    "V125-05": "PASS_LOCAL_OFFLINE_QUEUE_FORMAL_PENDING",
     "V125-06": "NOT_RUN",
     "V125-07": "PARTIAL_REAL_READER_NOT_RUN",
     "V125-08": "NOT_RUN",
     "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "PARTIAL",
+    "V125-12": "PENDING_NEW_PR_CI_RELEASE",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Merge, pass required CI and release the settings overview corrective so the open Windows service is no longer shown as unavailable",
-    "Install and enroll the same-source Windows service on an authorized Windows 11 x64 device",
+    "Commit the owner-bound self-link implementation, merge its normal PR, pass required CI and release exact merged main",
+    "Install and Google-self-link the same-source Windows service on authorized RD, procurement-production-control and production user contexts",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
-    "Verify A0001-M01 native preview, PDF, administrator recognition and normal UI outcomes",
+    "Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",
+    "Verify A0001-M01 native preview, PDF, role-scoped recognition and normal UI outcomes",
+    "Run redaction checks for Document Manager key, device token and CAD bytes",
     "Bind the device, native-file and UI evidence to one source, installer and production release chain"
   ],
   "safety": {

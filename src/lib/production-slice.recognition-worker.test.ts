@@ -6,13 +6,22 @@ import { POST as claim } from "@/app/api/recognition-jobs/claim/route";
 import { POST as heartbeat } from "@/app/api/recognition-jobs/[sessionId]/heartbeat/route";
 import { POST as complete } from "@/app/api/recognition-jobs/[sessionId]/complete/route";
 
-const mocks = vi.hoisted(() => ({ claim: vi.fn(), heartbeat: vi.fn(), complete: vi.fn(), queryOne: vi.fn() }));
+const mocks = vi.hoisted(() => ({ claim: vi.fn(), heartbeat: vi.fn(), complete: vi.fn(), authorize: vi.fn() }));
 vi.mock("@/lib/drawing-recognition", () => ({
   claimDrawingRecognitionJob: mocks.claim,
   heartbeatDrawingRecognitionJob: mocks.heartbeat,
   completeDrawingRecognitionJob: mocks.complete
 }));
-vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres", queryOne: mocks.queryOne }) }));
+vi.mock("@/lib/windows-service-devices", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/windows-service-devices")>();
+  return {
+    ...actual,
+    WindowsServiceDeviceRepository: class {
+      findAuthorizedByCredentialHash(credential: string) { return mocks.authorize(credential); }
+    }
+  };
+});
+vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres" }) }));
 
 const sessionId = "recognition-fixture";
 const deviceId = "recognition-device-fixture";
@@ -25,10 +34,12 @@ const leaseBasis = { companyId: "company-one", sourceSetFingerprint: "fixture-fi
 const paths = ["/api/recognition-jobs/claim", `/api/recognition-jobs/${sessionId}/heartbeat`,
   `/api/recognition-jobs/${sessionId}/complete`] as const;
 
-const deviceRow = { id: deviceId, company_id: "company-one", name: "Recognition worker", credential_hash: credentialHash,
-  status: "active", instance_id: instanceId, service_version: "test", protocol_version: 1,
-  registered_by: "profile-one", registered_at: lockedAt, last_seen_at: lockedAt,
-  revoked_at: null, revoked_by: null, row_version: 1 };
+const device = { id: deviceId, companyId: "company-one", name: "Recognition worker", status: "active" as const,
+  instanceId, serviceVersion: "test", protocolVersion: 1 as const, ownerPrincipalId: "principal-one",
+  registeredBy: "profile-one", registeredAt: lockedAt, lastSeenAt: lockedAt,
+  revokedAt: null, revokedBy: null, rowVersion: 1 };
+const owner = { principalId: "principal-one", employeeId: "employee-one", pdmUserId: "profile-one",
+  companyId: "company-one", identityIssuer: "https://accounts.google.com", identitySubject: "subject-one" };
 
 function body(path: string, worker = workerId) {
   if (path === paths[0]) return { workerId: worker, maxAttempts: 2, allowNativeSources: true };
@@ -52,7 +63,7 @@ function expectNoCommand() { for (const command of [mocks.claim, mocks.heartbeat
 beforeEach(() => {
   vi.resetAllMocks(); vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
-  mocks.queryOne.mockResolvedValue(deviceRow);
+  mocks.authorize.mockResolvedValue({ device, credentialHash, owner });
   mocks.claim.mockResolvedValue({ sessionId, companyId: "company-one", sourceSetFingerprint: leaseBasis.sourceSetFingerprint,
     attemptCount: 1, lockedAt });
   mocks.complete.mockResolvedValue({ id: sessionId, status: "review_ready" });
@@ -65,10 +76,10 @@ describe("recognition worker dispatch retains the current device boundary", () =
     const selected = path === paths[0] ? mocks.claim : path === paths[1] ? mocks.heartbeat : mocks.complete;
     expect(selected).toHaveBeenCalledOnce();
     expect(selected).toHaveBeenCalledWith(path === paths[0]
-      ? { workerId, companyId: "company-one", maxAttempts: 2, allowNativeSources: true }
-      : path === paths[1] ? { sessionId, workerId, leaseBasis }
-      : { sessionId, workerId, leaseBasis, results: [] });
-    expect(mocks.queryOne).toHaveBeenCalledWith(expect.stringContaining("windows_service_devices"), { credentialHash });
+      ? { workerId, ownerPrincipalId: "principal-one", companyId: "company-one", maxAttempts: 2, allowNativeSources: true }
+      : path === paths[1] ? { sessionId, workerId, ownerPrincipalId: "principal-one", leaseBasis }
+      : { sessionId, workerId, ownerPrincipalId: "principal-one", leaseBasis, results: [] });
+    expect(mocks.authorize).toHaveBeenCalledWith(credentialHash);
   });
 
   it.each(paths)("keeps %s blocked in an unknown production slice", async path => {
@@ -99,7 +110,7 @@ describe("recognition worker dispatch retains the current device boundary", () =
   });
 
   it.each(paths)("rejects a revoked current device at %s without commands", async path => {
-    mocks.queryOne.mockResolvedValue(null); const response = await dispatch(path);
+    mocks.authorize.mockResolvedValue(null); const response = await dispatch(path);
     expect(response.status).toBe(403); expect(await response.json()).toEqual({ error: "WORKER_DEVICE_UNAUTHORIZED" });
     expectNoCommand();
   });
@@ -111,7 +122,7 @@ describe("recognition worker dispatch retains the current device boundary", () =
   });
 
   it.each(paths)("fails closed when the device directory is unavailable at %s", async path => {
-    mocks.queryOne.mockRejectedValue(new Error("synthetic database unavailable")); const response = await dispatch(path);
+    mocks.authorize.mockRejectedValue(new Error("synthetic database unavailable")); const response = await dispatch(path);
     expect(response.status).toBe(503); expect(await response.json()).toEqual({ error: "WORKER_DEVICE_AUTH_UNAVAILABLE" });
     expectNoCommand();
   });

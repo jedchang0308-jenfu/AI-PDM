@@ -1,4 +1,6 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { requireWindowsServiceOwnerAuthorization,
+  type WindowsServiceOwnerIdentity } from "@/lib/windows-service-owner-authorization";
 
 export type SettingsSecretLifecycleStatus = "draft" | "tested" | "active" | "retired" | "revoked";
 export type SettingsSecretVaultProvider = "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
@@ -634,8 +636,13 @@ export class AsyncSettingsSecretRepository {
     return row ? mapProbeJob(row) : null;
   }
 
-  async claimProbeJob(workerId: string, companyId: string, now: string, protocolVersion?: 2): Promise<SettingsSecretProbeJob | null> {
+  async claimProbeJob(workerId: string, companyId: string, now: string, protocolVersion?: 2,
+    owner?: WindowsServiceOwnerIdentity): Promise<SettingsSecretProbeJob | null> {
     return this.client.transaction(async (transactionClient) => {
+      if (transactionClient.kind === "postgres") {
+        if (!owner || owner.companyId !== companyId) return null;
+        await requireWindowsServiceOwnerAuthorization(transactionClient, owner, "settings.secret.manage");
+      }
       const staleCutoff = new Date(Date.parse(now) - 60_000).toISOString();
       await transactionClient.execute(
         `UPDATE settings_secret_probe_jobs SET status = 'expired', result_code = 'probe_attempt_limit_exceeded', completed_at = :now, updated_at = :now
@@ -647,12 +654,14 @@ export class AsyncSettingsSecretRepository {
       const candidate = await transactionClient.queryOne<SettingsSecretProbeJobRow>(
         `SELECT * FROM settings_secret_probe_jobs
          WHERE company_id = :companyId AND initiator_principal_id IS NOT NULL
+           AND (CAST(:ownerPrincipalId AS text) IS NULL OR initiator_principal_id=CAST(:ownerPrincipalId AS text))
            AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
            AND (:protocolV2=1 OR NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
              WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id))
            AND (status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff AND attempt_count < max_attempts))
          ORDER BY created_at ASC LIMIT 1${transactionClient.kind === "postgres" ? " FOR UPDATE SKIP LOCKED" : ""}`,
-        { staleCutoff, companyId, protocolV2: protocolVersion === 2 ? 1 : 0 }
+        { staleCutoff, companyId, ownerPrincipalId: owner?.principalId ?? null,
+          protocolV2: protocolVersion === 2 ? 1 : 0 }
       );
       if (!candidate) return null;
       await transactionClient.execute(
@@ -666,33 +675,45 @@ export class AsyncSettingsSecretRepository {
     });
   }
 
-  async heartbeatProbeJob(id: string, workerId: string, companyId: string, now: string, leaseAttempt?: number): Promise<boolean> {
+  async heartbeatProbeJob(id: string, workerId: string, companyId: string, now: string,
+    leaseAttempt?: number, owner?: WindowsServiceOwnerIdentity): Promise<boolean> {
+    if (this.client.kind === "postgres") {
+      if (!owner || owner.companyId !== companyId) return false;
+      await requireWindowsServiceOwnerAuthorization(this.client, owner, "settings.secret.manage");
+    }
     const updated = await this.client.queryOne<{ id: string }>(
       `UPDATE settings_secret_probe_jobs SET heartbeat_at = :now, updated_at = :now
        WHERE id = :id AND status = 'running' AND locked_by = :workerId
          AND company_id = :companyId AND initiator_principal_id IS NOT NULL
+         AND (CAST(:ownerPrincipalId AS text) IS NULL OR initiator_principal_id=CAST(:ownerPrincipalId AS text))
          AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
          AND ((CAST(:leaseAttempt AS bigint) IS NOT NULL AND attempt_count=CAST(:leaseAttempt AS bigint))
            OR (CAST(:leaseAttempt AS bigint) IS NULL AND NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
              WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id)))
          AND updated_at >= :staleCutoff RETURNING id`,
-      { id, workerId, companyId, now, leaseAttempt: leaseAttempt ?? null, staleCutoff: new Date(Date.parse(now) - 60_000).toISOString() }
+      { id, workerId, companyId, now, ownerPrincipalId: owner?.principalId ?? null,
+        leaseAttempt: leaseAttempt ?? null, staleCutoff: new Date(Date.parse(now) - 60_000).toISOString() }
     );
     return Boolean(updated);
   }
 
-  async completeProbeJob(input: { id: string; workerId: string; companyId: string; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">; resultCode: string | null; readerVersion: string | null; completedAt: string; leaseAttempt?: number; workerCompletionJson: string }): Promise<boolean> {
+  async completeProbeJob(input: { id: string; workerId: string; companyId: string;
+    owner?: WindowsServiceOwnerIdentity; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">;
+    resultCode: string | null; readerVersion: string | null; completedAt: string;
+    leaseAttempt?: number; workerCompletionJson: string }): Promise<boolean> {
     const updated = await this.client.queryOne<{ id: string }>(
       `UPDATE settings_secret_probe_jobs SET status = :status, result_code = :resultCode, reader_version = :readerVersion,
         completed_at = :completedAt, updated_at = :completedAt, worker_completion_json = :workerCompletionJson
         WHERE id = :id AND status = 'running' AND locked_by = :workerId
         AND company_id = :companyId AND initiator_principal_id IS NOT NULL
+        AND (CAST(:ownerPrincipalId AS text) IS NULL OR initiator_principal_id=CAST(:ownerPrincipalId AS text))
         AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
         AND ((CAST(:leaseAttempt AS bigint) IS NOT NULL AND attempt_count=CAST(:leaseAttempt AS bigint))
           OR (CAST(:leaseAttempt AS bigint) IS NULL AND NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
             WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id)))
         AND updated_at >= :staleCutoff RETURNING id`,
-      { ...input, leaseAttempt: input.leaseAttempt ?? null, staleCutoff: new Date(Date.parse(input.completedAt) - 60_000).toISOString() }
+      { ...input, ownerPrincipalId: input.owner?.principalId ?? null,
+        leaseAttempt: input.leaseAttempt ?? null, staleCutoff: new Date(Date.parse(input.completedAt) - 60_000).toISOString() }
     );
     return Boolean(updated);
   }

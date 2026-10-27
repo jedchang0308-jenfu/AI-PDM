@@ -667,22 +667,26 @@ export async function formalizeDrawingRecognition(input: {
   return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
 }
 
-export async function claimDrawingRecognitionJob(input: { workerId: string; companyId: string; maxAttempts?: number; allowNativeSources?: boolean; client?: AsyncDatabaseClient }) {
+export async function claimDrawingRecognitionJob(input: { workerId: string; companyId: string;
+  ownerPrincipalId?: string; maxAttempts?: number; allowNativeSources?: boolean; client?: AsyncDatabaseClient }) {
   return new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient()).claimJob({
     workerId: requireSafeRecognitionId(input.workerId, "RECOGNITION_WORKER_ID_INVALID"),
     companyId: requireSafeRecognitionId(input.companyId, "RECOGNITION_COMPANY_ID_INVALID"),
+    ownerPrincipalId: input.ownerPrincipalId,
     maxAttempts: Math.max(1, Math.min(input.maxAttempts ?? 2, 5)),
     allowNativeSources: input.allowNativeSources !== false
   });
 }
 
-export async function heartbeatDrawingRecognitionJob(input: { sessionId: string; workerId: string; leaseBasis: RecognitionLeaseBasis; client?: AsyncDatabaseClient }) {
+export async function heartbeatDrawingRecognitionJob(input: { sessionId: string; workerId: string;
+  ownerPrincipalId?: string; leaseBasis: RecognitionLeaseBasis; client?: AsyncDatabaseClient }) {
   return new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient()).heartbeatJob(input);
 }
 
 export async function completeDrawingRecognitionJob(input: {
   sessionId: string;
   workerId: string;
+  ownerPrincipalId?: string;
   leaseBasis: RecognitionLeaseBasis;
   results: DrawingRecognitionAdapterCompletion[];
   client?: AsyncDatabaseClient;
@@ -694,6 +698,7 @@ export async function readClaimedDrawingRecognitionSource(input: {
   sessionId: string;
   sourceId: string;
   workerId: string;
+  ownerPrincipalId?: string;
   leaseBasis: RecognitionLeaseBasis;
   client?: AsyncDatabaseClient;
 }) {
@@ -702,6 +707,7 @@ export async function readClaimedDrawingRecognitionSource(input: {
     sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
     sourceId: requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
     workerId: requireSafeRecognitionId(input.workerId, "RECOGNITION_WORKER_ID_INVALID"),
+    ownerPrincipalId: input.ownerPrincipalId,
     leaseBasis: input.leaseBasis
   }), { readOnly: true, isolationLevel: 'repeatable_read' });
   const source = await readSource();

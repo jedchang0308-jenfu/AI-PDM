@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("DEV-125A schema is additive, app-owned, and device credentials are hash-only", () => {
   const sql = read("db/postgres/089_dev125_windows_service_devices.sql");
+  const owner = read("db/postgres/090_dev125_windows_device_owner_principal.sql");
   assert.match(sql, /CREATE TABLE ai_pdm_core\.windows_service_devices/u);
   assert.match(sql, /CREATE TABLE ai_pdm_core\.windows_service_enrollments/u);
   assert.match(sql, /credential_hash char\(64\) NOT NULL UNIQUE/u);
@@ -16,6 +17,11 @@ test("DEV-125A schema is additive, app-owned, and device credentials are hash-on
   assert.equal((sql.match(/worker_completion_json jsonb/gu) ?? []).length, 3);
   assert.doesNotMatch(sql, /CREATE TABLE (?!ai_pdm_core\.)/u);
   assert.doesNotMatch(sql, /\b(?:DROP|TRUNCATE|DELETE FROM)\b/iu);
+  assert.match(owner, /ADD COLUMN owner_principal_id text/u);
+  assert.match(owner, /SET owner_principal_id = registered_by/u);
+  assert.match(owner, /ALTER COLUMN owner_principal_id SET NOT NULL/u);
+  assert.match(owner, /AIPDM_WINDOWS_DEVICE_OWNER_IMMUTABLE/u);
+  assert.doesNotMatch(owner, /ALTER TABLE[\s\S]+089_dev125|\b(?:DROP|TRUNCATE|DELETE FROM)\b/iu);
 });
 
 test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not redistribute Document Manager", () => {
@@ -26,9 +32,11 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   const probe = read("windows-service/tools/AipdmDocumentManagerProbe.cs");
   const documentManagerRuntime = read("windows-service/tools/SolidWorksDocumentManagerRuntime.cs");
   const configurator = read("windows-service/configurator/AipdmWindowsConfigurator.cs");
+  const settingsUi = read("src/components/windows-service-settings.tsx");
   const notices = read("windows-service/THIRD-PARTY-NOTICES.txt");
   assert.match(build, /WinSW-x64\.exe[\s\S]+05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da/u);
   assert.match(build, /nsis-3\.11\.zip[\s\S]+c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1/u);
+  assert.match(build, /function Assert-NativeSuccess[\s\S]+configurator-compile[\s\S]+nsis-compile/u);
   assert.match(xml, /<serviceaccount>[\s\S]+<domain>NT AUTHORITY<\/domain>[\s\S]+<user>LocalService<\/user>[\s\S]+<\/serviceaccount>/u);
   assert.doesNotMatch(xml, /<username>/u);
   assert.doesNotMatch(xml, /LocalSystem/u);
@@ -40,10 +48,19 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.match(installer, /DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service"/u);
   assert.match(installer, /Section "Uninstall"[\s\S]+SetShellVarContext all[\s\S]+SetRegView 64/u);
   assert.match(installer, /sc\.exe" query AipdmWindowsParsing[\s\S]+\$ServiceResult == 0[\s\S]+Abort[\s\S]+\$ServiceResult != 1060[\s\S]+Abort/u);
+  assert.match(installer, /IfFileExists "\$APPDATA\\AI-PDM Windows Service\\credential\.bin" pairing_done 0[\s\S]+ExecShell "runas" "\$INSTDIR\\AipdmWindowsConfigurator\.exe"/u);
   assert.doesNotMatch(installer, /MUI_PAGE_DIRECTORY|InstallDirRegKey/u);
   assert.doesNotMatch(installer, /RMDir \/r "\$SMPROGRAMS\\AI-PDM"/u);
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
+  assert.match(configurator, /TcpListener\(IPAddress\.Loopback, 0\)/u);
+  assert.match(configurator, /\/settings\/windows-service\?pair=1&port=/u);
+  assert.match(configurator, /連結這台電腦/u);
+  assert.doesNotMatch(configurator, /TextBox|註冊 ID|單次註冊碼|貼上註冊/u);
+  assert.match(settingsUi, /公司 Google 帳號[\s\S]+連結這台電腦/u);
+  assert.match(settingsUi, /127\.0\.0\.1/u);
+  assert.match(settingsUi, /ownedByCurrentUser|canManageAll/u);
+  assert.doesNotMatch(settingsUi, /註冊 ID|單次註冊碼|貼上註冊/u);
   assert.match(documentManagerRuntime, /SwDocumentMgr\.SwDMClassFactory/u);
   assert.match(documentManagerRuntime, /SolidWorks\.Interop\.swdocumentmgr\.dll[\s\S]+e52dfa2d3a1e978a/u);
   assert.match(documentManagerRuntime, /Assembly\.LoadFrom\(interopPath\)[\s\S]+ISwDMClassFactory/u);
@@ -115,7 +132,7 @@ test("DEV-125A service has one fixed device protocol and no legacy worker creden
   assert.match(service, /\/api\/windows-service\/start/u);
   assert.match(service, /\/api\/windows-service\/heartbeat/u);
   assert.doesNotMatch(service, /PDM_WORKLOAD_CREDENTIAL|openswx/iu);
-  assert.match(auth, /findByCredentialHash/u);
+  assert.match(auth, /findAuthorizedByCredentialHash/u);
   assert.match(auth, /x-pdm-preview-worker-token/u);
   assert.doesNotMatch(auth, /process\.env\.(?:PDM_WORKLOAD|PDM_PREVIEW)/u);
   assert.match(installerReader, /worker-downloads[\s\S]+windows-service[\s\S]+manifest\.json/u);
@@ -169,7 +186,7 @@ test("DEV-125B removes OpenSWX provider declarations while retaining shared preb
   assert.match(sharedPrebuildReadback, /role_id\s*=\s*"aipdmDev122PrebuildList"/u);
 });
 
-test("DEV-125A manager routes stay behind the existing secret-management permission", () => {
+test("DEV-125A active users self-link while PDM managers retain emergency scope", () => {
   const routeMap = JSON.parse(read("config/access-control/jenfu-route-permission-map.v2.json"));
   const expected = new Set([
     "src/app/api/settings/windows-service/devices/[deviceId]/revoke/route.ts",
@@ -179,8 +196,9 @@ test("DEV-125A manager routes stay behind the existing secret-management permiss
   ]);
   const entries = routeMap.entries.filter((row) => expected.has(row.path));
   assert.equal(entries.length, 4);
-  assert.deepEqual(new Set(entries.map((row) => row.permissionCode)), new Set(["settings.secret.manage"]));
-  assert.deepEqual(new Set(entries.map((row) => row.authorizationMode)), new Set(["permission"]));
+  assert.deepEqual(new Set(entries.map((row) => row.permissionCode)), new Set([null]));
+  assert.deepEqual(new Set(entries.map((row) => row.authorizationMode)), new Set(["authenticated_domain"]));
+  assert.ok(entries.some((row) => row.preservedGuards.includes("owner-only self revoke")));
 });
 
 test("DEV-125B runs probe, preview and recognition in one installed scheduler with bounded native execution", () => {
@@ -209,13 +227,14 @@ test("DEV-125B authenticates non-OpenSWX worker calls from the current device ro
   const probe = read("src/lib/repositories/settings-secret-async-repository.ts");
   assert.match(auth, /await authenticateWindowsServiceDevice\(request\)/u);
   assert.doesNotMatch(auth.split("authenticateLegacyOpenSwxService")[0], /PDM_WORKLOAD_AUTH_CREDENTIALS/u);
-  assert.match(deviceAuth, /findByCredentialHash[\s\S]+status !== "active"[\s\S]+instanceLabel/u);
+  assert.match(deviceAuth, /findAuthorizedByCredentialHash[\s\S]+status !== "active"[\s\S]+instanceLabel/u);
   for (const source of [preview, recognition, probe]) {
     assert.match(source, /company_id/u);
     assert.match(source, /worker_completion_json/u);
   }
   assert.match(preview, /attemptCount[\s\S]+lockedAt[\s\S]+sourceContentHash/u);
   assert.match(recognition, /sourceSetFingerprint[\s\S]+attemptCount[\s\S]+lockedAt/u);
+  for (const source of [preview, recognition, probe]) assert.match(source, /ownerPrincipalId|initiator_principal_id/u);
 });
 
 test("DEV-125B native exporters runtime-load only the registered official interop", () => {

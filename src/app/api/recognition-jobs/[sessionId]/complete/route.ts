@@ -22,6 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
     const session = await completeDrawingRecognitionJob({
       sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
       workerId: actor.id,
+      ownerPrincipalId: actor.ownerPrincipalId,
       leaseBasis,
       results: body.results as DrawingRecognitionAdapterCompletion[]
     });

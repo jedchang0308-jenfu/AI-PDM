@@ -8,8 +8,8 @@ import { parsePrincipalJobInitiator, requireCurrentPrincipalJobAuthority } from 
 export async function requireRecognitionJobAuthority(snapshot: AsyncDatabaseClient, session: {
   id: string; company_id: string; created_by: string; initiator_principal_id?: string | null;
   initiator_authority_json?: unknown
-}) {
-  if (!await isDynamicRolePolicyInSnapshot(snapshot)) return false
+}, options: { requireCurrentPolicy?: boolean } = {}) {
+  if (!options.requireCurrentPolicy && !await isDynamicRolePolicyInSnapshot(snapshot)) return false
   const initiator = parsePrincipalJobInitiator(session.initiator_authority_json)
   if (!initiator || initiator.principalId !== session.initiator_principal_id ||
       initiator.pdmUserId !== session.created_by || initiator.companyId !== session.company_id) {

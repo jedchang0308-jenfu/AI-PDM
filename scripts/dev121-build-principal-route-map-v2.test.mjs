@@ -21,7 +21,8 @@ test('v2 source hash binds every reviewed route and retired cross-owner mutation
     entry.method === 'POST' && entry.permissionCode === 'numbering.attachments.manage').length, 1)
   assert.equal(reviewed.entries.filter(e => e.path.includes('/openswx-metadata/')).length, 0)
   assert.equal(reviewed.entries.filter(e => e.path.includes('/settings/windows-service/') &&
-    e.permissionCode === 'settings.secret.manage' && e.scopeResolver === 'workspace').length, 4)
+    e.authorizationMode === 'authenticated_domain' && e.permissionCode === null &&
+    e.scopeResolver === 'workspace').length, 4)
 })
 
 test('new grants, restored old mutations, and deleted policies all fail the source lock', () => {

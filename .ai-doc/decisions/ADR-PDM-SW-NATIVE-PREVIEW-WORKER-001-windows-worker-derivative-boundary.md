@@ -1,19 +1,21 @@
 # ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows Worker Derivative Boundary
 
-## 2026-10-27 架構定案：Windows 單一路徑與 OpenSWX 退役
+## 2026-10-28 最新架構定案：使用者自有 Windows 裝置、Google 自助連結與 OpenSWX 退役
 
-現行狀態：`Accepted / Architecture Finalized / RD Implementation Ready / IMPLEMENTATION_NOT_STARTED`。已對照 PR #496 合併後 main `e8d8d4fa917f92743dacd2186ef2cfca45518187` 完成實作定位與自查；不是獨立 QC 或正式能力通過。資料、API、發布與 12 組驗證只在 DEV-125 維護，不新增平行 ADR／QA 文件。
+現行狀態：`Accepted / Architecture Finalized / IMPLEMENTATION_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 未合併匿名 worker 草案；PR #535 的官方 Document Manager interop 修復保留。資料、API、發布與驗證以 DEV-125 為唯一權威。
+
+使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 
 使用者確認以可安裝的 Windows 解析服務及電腦清單管理原生 CAD 處理，拒絕 OpenSWX／Document Manager 長期雙軌。[DEV-125](../specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) 是唯一後續開發入口；DEV-122 以部分成果移交結案，DEV-124 取消修復。
 
-沿用雲端 auth／queue／source-hash 與 Windows native execution 邊界，重用現有 Document Manager reader／preview／broker。多台電腦屬同一 Windows 解析產品，各自可撤銷、原子領取工作；不新增第二套佇列或 parser provider 選擇器。新入口、裝置清單及 OpenSWX 完整拆除的唯一產品契約在 DEV-125，這裡只記架構取捨。
+沿用雲端 auth／queue／source-hash 與 Windows native execution 邊界，重用現有 Document Manager reader／preview／broker。每位有效 AI-PDM 使用者在自己的 Windows 電腦安裝；不設共用常開解析主機，不需 PDM 管理員逐台核准。多台電腦各有可撤銷身分並只領 owner 目前有權的工作；不新增第二套佇列或 parser provider 選擇器。
 
 | 已定案 | 取捨 |
 |---|---|
 | NSIS EXE＋WinSW／Node 24＋預編譯 x64 Document Manager extractor | 重用既有 worker；不另做 MSI、自動更新、常駐使用者瀏覽器或完整 fleet。LocalService／service SID，在非互動 session 真實驗證。 |
-| DB 裝置身分＋十分鐘單次註冊碼＋DPAPI | 兩個小表取代 native 靜態 env credentials；所有 caller 即時檢查 company／active instance，沿既有管理員登入與 key broker，無新 MFA、OrgMaster writer 或電腦 GCP IAM。 |
+| Google SSO 自助連結＋DB 裝置身分＋DPAPI | 使用者只按一次「連結這台電腦」；短效 enrollment 由瀏覽器與 loopback 自動交換，不呈現註冊 ID／碼。migration 089 immutable，090 forward-only 加永久 owner Principal。無新 MFA、OrgMaster writer 或電腦 GCP IAM。 |
 | Document Manager 唯一引擎 | 讀屬性及檔內儲存 PNG；PRT／ASM configuration、DRW sheet 能力分別驗證。取消下文歷史 Shell／eDrawings 作為可選現行實作的解讀；缺圖明確失敗，不保留替代引擎。 |
-| 舊佇列 owner＋既有 generation fence | 加嚴公司與實例／租約驗證，結果與完成 digest 同 transaction；不另做 queue／receipt 平台。撤銷不能回收已傳輸 bytes，不能承諾遠端抹除。 |
+| Principal owner＋舊佇列 owner＋既有 generation fence | claim／source／heartbeat／complete 重驗 active account、Principal、grant 與資源權限；A 裝置不能取得 B-only 工作。queued 等待不耗 attempt；只回收已領取 stale lease。不另做 queue／receipt 平台。 |
 | OpenSWX 程式、發布、專用雲端全部退出 | 先排空、建立無 worker 依賴的 recovery，再刪專用資源；共享權限依 consumer 保留，歷史 migration／資料／收據不刪，不留下可執行 compatibility reader。 |
 
 Document Manager 的已儲存預覽擷取不能承諾任意 CAD 轉 PDF 或互動 3D；各格式能力依原生實測判定。OpenSWX 的可執行入口、日常發布依賴與專用部署資源必須退役；保留不可變歷史收據與已套用 migration 不代表保留第二套系統。拆除尚未執行，不能以本 ADR 宣告完成。
@@ -131,7 +133,7 @@ RD must not mark the DEV complete until:
 - UI shows ready, queued, running, failed, stale and skipped preview states.
 - Worker job payloads and evidence are redacted.
 - Worker heartbeats, 30-second stale recovery and current-owner completion guards are verified.
-- Unclaimed queued jobs stop waiting after 120 seconds, and no offline, blocked or kind-mismatched job is presented as actively generating.
+- Unclaimed queued jobs remain queued without consuming an attempt while no authorized device is online; only an already-running stale lease is recovered or exhausted. The UI shows waiting, not active generation.
 - A real A0002 `.SLDDRW` sample is claimed by the dedicated 2D worker and produces a current-source-hash PNG; this receipt restores Phase 1 local completion for DEV-056.
 - Browser/API responses do not expose SolidWorks API/license key material.
 - Next.js request handlers do not run native CAD tooling synchronously.
