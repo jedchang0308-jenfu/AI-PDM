@@ -6,12 +6,12 @@ resource "google_project_iam_custom_role" "verifier_job_readback" {
   permissions = ["run.jobs.get", "run.executions.list"]
 }
 resource "google_cloud_run_v2_job_iam_member" "verifier_readback" {
-  project  = "jenfu-platform-prod"
-  location = "asia-east1"
-  name     = "ai-pdm-prod-openswx-metadata"
+  project    = "jenfu-platform-prod"
+  location   = "asia-east1"
+  name       = "ai-pdm-prod-openswx-metadata"
   depends_on = [google_project_iam_custom_role.verifier_job_readback]
-  role     = "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
-  member   = "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com"
+  role       = "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
+  member     = "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com"
 }
 resource "google_project_iam_custom_role" "release_scheduler_readback" {
   project     = "jenfu-platform-prod"
@@ -21,13 +21,13 @@ resource "google_project_iam_custom_role" "release_scheduler_readback" {
 }
 resource "google_project_iam_member" "verifier_scheduler_readback" {
   depends_on = [google_project_iam_custom_role.release_scheduler_readback]
-  project = "jenfu-platform-prod"
-  role    = "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
-  member  = "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com"
+  project    = "jenfu-platform-prod"
+  role       = "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+  member     = "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com"
 }
 resource "google_project_iam_member" "deployer_scheduler_readback" {
   depends_on = [google_project_iam_custom_role.release_scheduler_readback]
-  project = "jenfu-platform-prod"
-  role    = "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
-  member  = "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com"
+  project    = "jenfu-platform-prod"
+  role       = "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+  member     = "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com"
 }

@@ -65,7 +65,7 @@ resource "google_cloud_run_v2_job" "reader" {
   }
   # After bootstrap the protected owner performs exact etag-fenced Job updates.
   lifecycle {
-    ignore_changes  = [template]
+    ignore_changes = [template]
   }
 }
 resource "google_cloud_run_v2_job_iam_member" "app_run" {
@@ -114,6 +114,12 @@ resource "google_cloud_scheduler_job" "dispatch" {
     }
   }
   lifecycle {
-    ignore_changes  = [paused]
+    # Provider normalization of header casing and the empty retry block must
+    # not hitchhike on the DEV-125 deletion-protection transition.
+    ignore_changes = [
+      paused,
+      http_target[0].headers,
+      retry_config,
+    ]
   }
 }
