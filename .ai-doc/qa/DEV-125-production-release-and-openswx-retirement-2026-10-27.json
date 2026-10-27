@@ -1,8 +1,8 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T17:20:21.672Z",
-  "status": "SUPERSEDED_ARCHITECTURE_IMPLEMENTATION_IN_PROGRESS",
+  "recordedAt": "2026-10-27T19:33:59.820Z",
+  "status": "RELEASED_R25_FORMAL_ACCEPTANCE_IN_PROGRESS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -18,11 +18,14 @@
     "iamSecretCrossProjectExpansion": false
   },
   "currentCandidate": {
-    "branch": "codex/dev125-google-pairing-20261028",
-    "revision": "UNCOMMITTED",
-    "pullRequest": "PENDING",
-    "requiredCi": "PENDING",
-    "productionRelease": "PENDING"
+    "branch": "main",
+    "revision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
+    "pullRequest": 538,
+    "relatedPullRequests": [535, 536, 537, 538],
+    "replacedDraftPullRequest": {"number":533,"state":"CLOSED","merged":false,"closedAt":"2026-10-27T17:24:02Z"},
+    "requiredCi": {"run":40565759836,"conclusion":"success"},
+    "mainCi": {"run":40566610056,"conclusion":"success","checks":["DEV-012 Isolated PostgreSQL Cutover","Production Slice QC"]},
+    "productionRelease": "DEV125-SELFLINK-20261028-R25"
   },
   "localVerification": {
     "typecheckApp": "PASS",
@@ -37,7 +40,8 @@
     "lint": "PASS_0_ERRORS_9_PREEXISTING_WARNINGS",
     "isolatedBuild": "PASS_PRIMARY_UNCHANGED",
     "initialInstallerCompile": "FAIL_CSHARP5_AWAIT_IN_CATCH_AND_FALSE_PASS_DETECTED",
-    "installerCompileCorrection": "IMPLEMENTED_AWAIT_OUTSIDE_CATCH_AND_NATIVE_EXIT_FAIL_FAST_REBUILD_PENDING",
+    "installerCompileCorrection": "PASS_MAIN_CI_OFFICIAL_INSTALLER_0.1.0-ci.1383",
+    "installerOverlayCorrection": "PASS_CONTRACT_13_NODE_29_VITEST_AND_AFFECTED_SLICE_FORMAL_PENDING",
     "notProductionProof": true
   },
   "acceptanceMatrix": [
@@ -60,6 +64,35 @@
     "requiredCiConclusion": "success"
   },
   "release": {
+    "releaseId": "DEV125-SELFLINK-20261028-R25",
+    "sourceRevision": "06d370bba2749230e4c70c8ae7bfa4580613a6e6",
+    "githubRun": 40567208247,
+    "githubRunConclusion": "success",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-SELFLINK-20261028-R25/da66023e962fb76199f2acaa16dc6687a04739c33b4a6c550c79feb5f04ddec2",
+    "releaseIntentSha256": "da66023e962fb76199f2acaa16dc6687a04739c33b4a6c550c79feb5f04ddec2",
+    "deploymentCapsuleSha256": "08cbf336ed4196064760479c08601ac53e9f38b5dde14327f3ae724e7550499b",
+    "terminalReceiptSha256": "41e9c1152bae64982bf4fd7ce17b8256500dc56649b0901fe4178266208b70fb",
+    "terminalResult": "RELEASED",
+    "remainingHumanAction": 0,
+    "remainingHumanActionScope": "RELEASE_WORKFLOW_ONLY_NOT_PRODUCT_ACCEPTANCE",
+    "stages": {"prepare":"PASS","windowsInstallerBind":"PASS","build":"PASS","migrate":"PASS","candidate":"PASS","entrypoint":"PASS","verify":"PASS","decision":"PASS","activate":"PASS","canonical":"PASS","finalize":"PASS","terminal":"PASS"},
+    "database": {"disposition":"FORWARD_APPLIED","applied":0,"replayed":40,"ledgerCount":40,"boundaryStatus":"PASS","migration089Modified":false,"migration090":"APPLIED_AND_REPLAYED","executionName":"ai-pdm-prod-migration-runner-n47wz"},
+    "service": {"name":"ai-pdm-prod","revision":"ai-pdm-prod-8effb9783333","imageDigest":"asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:d9088c0f17638c43d24f95f62a677394ff2121095151016e6f23180405433816","trafficPercent":100,"trafficTargets":1,"tags":0,"ready":true},
+    "smoke": {"candidate":"PASS","canonical":"PASS","origin":"https://ai-pdm-prod-9536592944.asia-east1.run.app","authModeProbe":200,"platformSessionProbe":200,"ssoStartAuthorizeCallback":303,"targetSessionProbe":200,"authenticatedProbe":200,"unauthenticatedProbe":401,"revokedSessionProbe":401},
+    "installer": {"version":"0.1.0-ci.1383","protocolVersion":1,"sha256":"aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d","size":29267355,"sourceRevision":"06d370bba2749230e4c70c8ae7bfa4580613a6e6","artifactId":12763163010,"localDownloadHash":"PASS","releaseCapsuleBinding":"PASS"}
+  },
+  "currentWindowsAcceptance": {
+    "status": "WAITING_FOR_HUMAN_UAC",
+    "installerVersion": "0.1.0-ci.1383",
+    "installedVersionBeforeUpgrade": "0.1.0-ci.1370",
+    "observedServiceAccount": "NT AUTHORITY\\LocalService",
+    "serviceStateBeforeUpgrade": "Running",
+    "googleSelfLink": "NOT_RUN",
+    "overlayIdempotency": "NOT_RUN_FORMAL",
+    "nativeThreeFormatUnderService": "NOT_RUN",
+    "knownAssemblySample": {"fileName":"A0053.SLDASM","size":174437,"sha256":"a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694","status":"LOCATED_NOT_FORMAL_PARSE_PROOF"}
+  },
+  "previousReleaseR20": {
     "releaseId": "DEV125-WINDOWS-20261027-R20",
     "githubRun": 40524682058,
     "githubRunConclusion": "success",
@@ -211,12 +244,11 @@
     "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "PENDING_NEW_PR_CI_RELEASE",
+    "V125-12": "PARTIAL_R25_RELEASE_CHAIN_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Commit the owner-bound self-link implementation, merge its normal PR, pass required CI and release exact merged main",
     "Install and Google-self-link the same-source Windows service on authorized RD, procurement-production-control and production user contexts",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",

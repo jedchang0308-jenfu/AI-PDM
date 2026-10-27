@@ -6,11 +6,11 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / USER-OWNED DEVICE ARCHITECTURE FINAL / 125-C EXIT COMPLETE` | 2026-10-28 取代 PR #533 匿名 worker 草案：每位 active AI-PDM 使用者在自己的 Windows 電腦安裝，經公司 Google SSO 一鍵自助連結；每台裝置永久綁 company／Principal／電腦／active account，所有 workload request 即時重驗。無人工註冊碼、無管理員逐台核准、無共用常開主機、無匿名／固定／共用 token。migration 089 immutable，新增 forward-only 090；保留 PR #535 official interop 修復。現行切片在獨立 worktree 實作／驗證中，待正常 PR、required CI、正式發布及角色／Windows／三格式驗收。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R25 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE` | PR #533 已關閉未合併；#536～#538 完成每位 active 使用者的公司 Google SSO 自助連結、永久裝置 owner、逐請求重驗及冪等覆蓋安裝，保留 #535 official interop。089 immutable、forward-only 090 已套用；required CI／main CI／R25 owner run `40567208247` 全成功，source `06d370bba…`，正式 revision `ai-pdm-prod-8effb9783333` 唯一 100%。installer `.1383` 已驗 hash；UAC 等本人確認，角色／Windows lifecycle／低權限三格式與正常 UI 驗收仍未完成。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。OpenSWX 排空、provider／active source 退出及 PR #535 official Document Manager interop 修復均保留。2026-10-28 最新架構改為使用者自有 Windows 裝置與 Google SSO 自助連結，取代 PR #533 未完成 merge 的匿名／固定 worker 方向；PR #533 不得合併。owner-bound 程式、migration 090、API／資料／發布契約與 QA 正在 `codex/dev125-google-pairing-20261028` 收斂；完成條件是正常 PR／required CI／exact-main owner release，以及 RD、採購／生管、生產人員自助連結、跨使用者隔離、立即撤權、Windows lifecycle、離線 queue、三格式真實解析與敏感資料零洩漏。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.6](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#116-google-自助連結與-r25-正式發布2026-10-28)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。OpenSWX 已退出，PR #535 修復保留，#533 已關閉且未合併。#536～#538、required CI、main CI 與 R25 正式發布已完成，installer=`0.1.0-ci.1383`；不能因此關閉整體 DEV。下一步是完成 R25 實機自助連結、RD／採購生管／生產權限驗收、跨使用者隔離／即時撤權、Windows lifecycle、離線 queue 接續、低權限三格式／A0001 預覽／辨識與 redaction。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
 
 以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #500 fixed readback 已於 run `40498277520` 完成 R15；PR #525／#526 其後完成 provider／active source 退出，不需要再次擴張 IAM、重建 OpenSWX 或重放已刪 executor。
 

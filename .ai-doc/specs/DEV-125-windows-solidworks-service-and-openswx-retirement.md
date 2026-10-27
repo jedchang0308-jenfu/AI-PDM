@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 2026-10-28 USER-OWNED WINDOWS DEVICE ARCHITECTURE FINAL / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§10～11 的較早紀錄只供追溯。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項。
+狀態：`RELEASED_R25 / USER-OWNED WINDOWS DEVICE ARCHITECTURE FINAL / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.6 是最新發布證據，較早紀錄只供追溯。OpenSWX 修復、排程與 provider 資源已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
@@ -159,7 +159,7 @@ D122-05A／05B 原 ID 僅作來源引用，後續診斷、修復與驗收都在 
 
 App 及 release adapter 使用現有 affected-slice planner、required CI、owner workflow；修改 SQL 執行 `npm run check:db-boundary`，修改 app 執行既定 typecheck／isolated build；修改 release adapter 依既有 DEV-117 continuous／QC／abort 驗證。installer build 在 Windows runner 產出獨立 immutable artifact 與 hash，成功只代表可安裝，不代替真實 COM 驗收。AI-PDM owner build receipt 增加 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}` 並與 image 內 manifest 比對；固定 same-source artifact 輸入，拒絕 actor 提供 URL 或 mutable latest。這項相容擴充與 OpenSWX workerRef 移除在同一發布契約修訂，不另建 owner workflow。不得為此新增 GCP Windows VM、公司 IAM 管理平台或跨專案 reader/writer。OrgMaster／Jenfu-Platform／JF-FMS：無程式／schema／部署修改範圍。
 
-本次發布必須從最新 protected `main` 的正常 PR 合併來源建立，保留 PR #535 的官方 Document Manager interop 修復；migration manifest 在既有 39 筆後只追加 090，089 bytes／checksum 不變。PR #533 不得 merge；新 PR 合併並通過 required CI 後關閉 #533 為 superseded。正式 owner workflow只使用本次 exact merged source、same-source installer 與 40-entry migration bundle；不新增 IAM、Secret、credential、OrgMaster 或其他專案責任。
+本次發布必須從最新 protected `main` 的正常 PR 合併來源建立，保留 PR #535 的官方 Document Manager interop 修復；migration manifest 在既有 39 筆後只追加 090，089 bytes／checksum 不變。PR #533 已關閉為 superseded，不能 merge。正式 owner workflow只使用本次 exact merged source、same-source installer 與 40-entry migration bundle；不新增 IAM、Secret、GCP credential、OrgMaster 或其他專案責任。使用者自助連結時簽發裝置憑證屬 §4～5 的既定產品流程。
 
 發布包必須綁定實際 app SHA、migration ledger、安裝 hash／protocol 與 provider retirement plan；這些由 exact-source builder 生成，不填假值。缺合法 key、COM 不相容、未證明新的 recovery 或 provider UNKNOWN 時，阻擋各自相關的打包／原生驗收／刪除，其他隔離工作繼續；不以新增備援引擎解決。
 
@@ -258,3 +258,13 @@ Windows 11 x64 實機目前安裝 R20 `.1370`；讀回服務為 `Running / Auto 
 在不安裝、不連正式 worker 的隔離 stage，以授權金鑰對 `D-0007-MA1.SLDPRT`、`A0053.SLDASM`、`D-0007-MA1.SLDDRW` 首次執行實際 credential、metadata 與 preview 時，原 `.1373` source 的 credential probe 與三格式 metadata 全部失敗，preview 均回 `RuntimeBinderException`：`System.__ComObject` 不包含 `GetApplication`。實機進一步證實該 COM class factory 不支援 `IDispatch`；先前 probe 只證明 ProgID activation，沒有證明功能呼叫。依官方 interface 契約，本 corrective 改為從已註冊 native server 同目錄載入強式簽章身分為 `SolidWorks.Interop.swdocumentmgr`／public-key token `e52dfa2d3a1e978a` 的官方 interop，以 `ISwDMClassFactory` 等明確 interface 反射呼叫；安裝包仍不含 native 或 managed SolidWorks DLL。
 
 修正後同一組隔離實機重播：credential probe 通過；三格式 metadata 分別讀得 14／5／3 個屬性，PNG 分別為 6,483／36,707／13,105 bytes且視覺內容有效；三個原檔前後 SHA-256 完全一致。installer probe 亦會在安裝前 eager-resolve extractor 實際需要的 factory、application、document、configuration 與 sheet interface／member，避免只有 class factory 可啟動、工作執行時才發現版本不相容。DEV-125 contract `13/13`、Vitest `29/29`、affected slice `20/20`、typecheck、lint（0 error；9 existing warnings）及 isolated build（artifact／primary／cleanup=true）通過。這證明 corrective candidate 與三個授權樣本可運作，尚未替代 PR／required CI／正式新 installer、服務身分下執行、註冊／撤權與 A0001 正式 UI 驗收。
+
+### 11.6 Google 自助連結與 R25 正式發布（2026-10-28）
+
+PR #533 已於 `2026-10-27T17:24:02Z` 關閉且未合併；未知 worktree 修改保留。PR #535 的官方 interop 修復保留，PR #536 完成 owner-bound device auth、Google 自助連結、全 caller 重新授權與 forward-only migration 090。PR #537 修復舊 credential 檔案使覆蓋安裝跳過連結的問題；PR #538 再將覆蓋安裝收斂為先向 `/api/windows-service/self` 驗證既有 DPAPI credential，有效即保留相同裝置身分，失效才開啟 Google 自助連結，網路／server 暫時失敗則停止，不建立重複裝置。人工註冊 ID／碼 UI 已移除。
+
+正式發布來源是 PR #538 merged main `06d370bba2749230e4c70c8ae7bfa4580613a6e6`；required PR CI run `40565759836` 與 main CI run `40566610056` 的兩項必要檢查皆成功。`DEV125-SELFLINK-20261028-R25`／[owner run 40567208247](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/40567208247) 完成所有階段，terminal 為 `PASS / RELEASED / remainingHumanAction=0`（此欄只代表發布工作流）。migration readback=`applied 0 / replayed 40 / ledgerCount 40 / boundary PASS`；090 已套用且此次重播，089 未修改。正式 revision `ai-pdm-prod-8effb9783333`、image digest `sha256:d9088c0f17638c43d24f95f62a677394ff2121095151016e6f23180405433816`，provider 讀回唯一 100% traffic、零 tag、Ready=True。
+
+same-source installer=`0.1.0-ci.1383 / protocol 1 / 29,267,355 bytes / SHA-256 aa49888b9bcc7f9a9ac7d771c9f8ea480969af5f02793f86a68045465ecc790d`。CI artifact、build evidence、release capsule 及下載實檔一致。candidate／canonical smoke 的 session、登入 probe 均 200，SSO start／authorize／callback 303，未登入／撤銷 session 401。terminal receipt 外部 SHA-256=`41e9c1152bae64982bf4fd7ce17b8256500dc56649b0901fe4178266208b70fb`；完整 refs 見 QA JSON。
+
+實機 R25 安裝目前停在 Windows UAC 等待使用者本人確認；舊服務仍為 `.1370 / Running / NT AUTHORITY\\LocalService`。新版自助連結、低權限服務三格式工作、正式撤銷、重啟／覆蓋／重裝／多電腦與 A0001 UI 尚未取得完整證據，維持 `PARTIAL / NOT_RUN`。已定位真實 `A0053.SLDASM`（174,437 bytes、SHA-256 `a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694`）；定位與隔離 native reader 結果不能代替正式服務驗收。此次未新增 IAM、Secret 或 OrgMaster／其他專案修改。
