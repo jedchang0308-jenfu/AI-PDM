@@ -1090,7 +1090,8 @@ export class DrawingRecognitionAsyncRepository {
         (this.client.kind === "postgres" && (!input.ownerPrincipalId || session.initiator_principal_id !== input.ownerPrincipalId))) {
       throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409, true);
     }
-    if (await requireRecognitionJobAuthority(this.client, session, { requireCurrentPolicy: true })) {
+    if (await requireRecognitionJobAuthority(this.client, session,
+      { requireCurrentPolicy: this.client.kind === "postgres" })) {
       await this.assertCurrentSourceSet(session);
     }
     const source = await this.client.queryOne<SourceRow>(
@@ -1184,7 +1185,8 @@ export class DrawingRecognitionAsyncRepository {
             (!input.ownerPrincipalId || session.initiator_principal_id !== input.ownerPrincipalId))) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
       }
-      if (await requireRecognitionJobAuthority(client, session, { requireCurrentPolicy: !browserBaseline })) {
+      if (await requireRecognitionJobAuthority(client, session,
+        { requireCurrentPolicy: client.kind === "postgres" && !browserBaseline })) {
         await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
       }
       const lockedAt = session.locked_at == null ? null : new Date(session.locked_at).toISOString();
