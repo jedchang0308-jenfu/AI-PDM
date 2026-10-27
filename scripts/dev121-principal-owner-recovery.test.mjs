@@ -258,8 +258,12 @@ function ordinaryAbortFixture() {
       crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }], boundaryStatus: 'PASS', executionName: 'own/job/execution',
       startedAt: '2026-09-30T00:02:00Z', completedAt: '2026-09-30T00:03:00Z', status: 'PASS' }
     const migration = put(paths.migrate, { ...migrationCore, receiptSha256: sha256(canonicalize(migrationCore)) })
+    const migrationAdmission = put(paths.migrationAdmission, stageReceipt({ profile, intent, stage: 'migrate',
+      previousReceiptRef: deployment.ref, facts: { migrationReceiptRef: migration.ref, disposition: 'FORWARD_APPLIED',
+        sourceRevision: source, manifestSha256: intent.migrationManifestSha256 }, observedAt: '2026-09-30T00:03:10Z' }))
     const common = { candidateRevision: revision, artifactDigest: image }
-    const candidate = seal('candidate', { ...common, previousRevision: previous, beforeTraffic: [{ revision: previous, percent: 100 }], migrationReceiptRef: migration.ref, deploymentCapsuleRef: deployment.ref }, migration.ref)
+    const candidate = seal('candidate', { ...common, previousRevision: previous, beforeTraffic: [{ revision: previous, percent: 100 }],
+      migrationReceiptRef: migration.ref, migrationAdmissionRef: migrationAdmission.ref, deploymentCapsuleRef: deployment.ref }, migrationAdmission.ref)
     const entry = seal('entrypoint', { before: snapshot, after: snapshot, canonicalOrigin, changed: false, updateMask: 'ingress,defaultUriDisabled,invokerIamDisabled', templateSha256Before: 'a'.repeat(64), templateSha256After: 'a'.repeat(64), trafficSha256Before: 'b'.repeat(64), trafficSha256After: 'b'.repeat(64) }, candidate.ref)
     const smoke = { schemaVersion: 'jenfu.dev121.principal-candidate-smoke.v1', ownerApplicationId: 'ai-pdm', status: 'PASS', ...common,
       observations: [{ id: 'auth-mode', status: 200 }, { id: 'platform-session', status: 200 }, { id: 'sso-start', status: 303 }, { id: 'sso-authorize', status: 303 }, { id: 'sso-callback', status: 303 }, { id: 'target-session', status: 200 }, { id: 'authenticated-probe', status: 200 }, { id: 'unauthenticated-probe', status: 401 }, { id: 'session-revoked', status: 401 }] }
@@ -272,11 +276,15 @@ function ordinaryAbortFixture() {
       const finalize = seal('finalize', { ...common, result: 'RELEASED', temporaryCandidateTags: 0 }, canonical.ref)
       seal('terminal', { ...common, result: 'RELEASED', databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0 }, finalize.ref)
     } else {
-      const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: previous, databaseDisposition: 'FORWARD_APPLIED', entrypointRecovery: { changed: false, result: 'BASELINE_ALREADY_ACTIVE', providerOperationRef: null }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
-      const rollback = seal('rollback', facts, entry.ref); seal('terminal', { ...facts }, rollback.ref)
+      const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: previous, databaseDisposition: 'FORWARD_APPLIED',
+        migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref,
+        entrypointRecovery: { changed: false, result: 'BASELINE_ALREADY_ACTIVE', providerOperationRef: null }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+      const rollback = seal('rollback', facts, entry.ref)
+      const { recoveryOrder: _recoveryOrder, ...terminalFacts } = facts
+      seal('terminal', terminalFacts, rollback.ref)
     }
     revisions.set(revision, { name: `${service.name}/revisions/${revision}`, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: 'ai-pdm', image, env: Object.entries(modes).map(([name,value]) => ({ name,value })) }] })
-    return { intent, intentRow, paths, seal, runtimeRow, lock, image, revision, cloudBuild, provenance }
+    return { intent, intentRow, paths, seal, runtimeRow, lock, image, revision, cloudBuild, provenance, migration, migrationAdmission, candidate }
   }
   const anchor = release({ source: 'b'.repeat(40), releaseId: 'DEV121-RELEASED-ANCHOR', revision: previousRevision, previous: 'ai-pdm-prod-000000000000', imageDigit: 'b', released: true })
   const failed = release({ source: 'a'.repeat(40), releaseId: 'DEV121-FAILED-CANDIDATE', revision: candidateRevision, previous: previousRevision, imageDigit: 'c', anchorRef: anchor.intentRow.ref })
@@ -661,7 +669,8 @@ test('applied continuation retry accepts one current-baseline rollback after act
 test('ordinary abort rejects non-Principal or incomplete native chain and current control/run/traffic/entry drift',async()=>{
   const mutations=[
     h=>h.objects.delete(h.anchor.paths.decision), h=>h.objects.delete(h.failed.paths.deployment),
-    h=>h.objects.delete(h.failed.paths.migrate),h=>h.put(h.failed.paths.activate,{result:'ACTIVATED'}),
+    h=>h.objects.delete(h.failed.paths.migrate), h=>h.objects.delete(h.failed.paths.migrationAdmission),
+    h=>h.put(h.failed.paths.activate,{result:'ACTIVATED'}),
     h=>{h.ownerRun.status='in_progress'},h=>{h.ownerRun.headSha='f'.repeat(40)},
     h=>{h.controlCore.leaseExpiresAt='2999-01-01T00:00:00Z';h.control()},h=>{h.controlCore.inputFingerprint='f'.repeat(64);h.control()},
     h=>{h.service.trafficStatuses.push({revision:candidateRevision,percent:0,tag:'candidate'})},h=>{h.service.traffic=[{revision:candidateRevision,percent:100}]},
@@ -1700,10 +1709,18 @@ async function inheritedOrdinaryAbortFixture() {
   const migration = h.put(f.paths.migrate, { ...migrationCore, executionName: 'ai-pdm-prod-migration-runner-current',
     startedAt: '2026-10-02T00:02:00Z', completedAt: '2026-10-02T00:03:00Z', receiptSha256: sha256(canonicalize({ ...migrationCore,
       executionName: 'ai-pdm-prod-migration-runner-current', startedAt: '2026-10-02T00:02:00Z', completedAt: '2026-10-02T00:03:00Z' })) })
-  const candidate = f.seal('candidate', { ...h.objects.get(f.paths.candidate).value.facts, migrationReceiptRef: migration.ref, deploymentCapsuleRef: deployment.ref }, migration.ref)
+  const migrationAdmission = h.put(f.paths.migrationAdmission, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'migrate',
+    previousReceiptRef: deployment.ref, facts: { migrationReceiptRef: migration.ref, disposition: 'FORWARD_APPLIED',
+      sourceRevision: f.intent.sourceRevision, manifestSha256: f.intent.migrationManifestSha256 }, observedAt: '2026-10-02T00:03:10Z' }))
+  const candidate = f.seal('candidate', { ...h.objects.get(f.paths.candidate).value.facts, migrationReceiptRef: migration.ref,
+    migrationAdmissionRef: migrationAdmission.ref, deploymentCapsuleRef: deployment.ref }, migrationAdmission.ref)
   const entry = f.seal('entrypoint', h.objects.get(f.paths.entrypoint).value.facts, candidate.ref)
-  const rollback = f.seal('rollback', h.objects.get(f.paths.rollback).value.facts, entry.ref)
-  f.seal('terminal', h.objects.get(f.paths.terminal).value.facts, rollback.ref)
+  const rollbackFacts = { ...h.objects.get(f.paths.rollback).value.facts,
+    migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  const rollback = f.seal('rollback', rollbackFacts, entry.ref)
+  const terminalFacts = { ...h.objects.get(f.paths.terminal).value.facts,
+    migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  f.seal('terminal', terminalFacts, rollback.ref)
   const currentRun = { ...unpublishedRun, id: '44', headSha: f.intent.sourceRevision, createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-10-02T00:05:00Z' }
   Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
     ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/44', candidateRevision: f.revision,
@@ -1862,8 +1879,12 @@ async function decisionOrdinaryAbortFixture() {
   const { receiptSha256: _seal, ...originalMigration } = h.objects.get(f.paths.migrate).value
   const core = { ...originalMigration, executionName: 'ai-pdm-prod-migration-runner-second', startedAt: '2026-10-03T00:02:00Z', completedAt: '2026-10-03T00:03:00Z' }
   const migration = h.put(f.paths.migrate, { ...core, receiptSha256: sha256(canonicalize(core)) })
+  const migrationAdmission = h.put(f.paths.migrationAdmission, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'migrate',
+    previousReceiptRef: deployment.ref, facts: { migrationReceiptRef: migration.ref, disposition: 'FORWARD_APPLIED',
+      sourceRevision: f.intent.sourceRevision, manifestSha256: f.intent.migrationManifestSha256 }, observedAt: '2026-10-03T00:03:10Z' }))
   const candidate = f.seal('candidate', { ...h.objects.get(f.paths.candidate).value.facts, migrationReceiptRef: migration.ref,
-    deploymentCapsuleRef: deployment.ref, tagUri: candidateOrigin, tag: candidateTag }, migration.ref)
+    migrationAdmissionRef: migrationAdmission.ref, deploymentCapsuleRef: deployment.ref,
+    tagUri: candidateOrigin, tag: candidateTag }, migrationAdmission.ref)
   const entry = f.seal('entrypoint', h.objects.get(f.paths.entrypoint).value.facts, candidate.ref)
   const smoke = { ...structuredClone(h.objects.get(h.anchor.paths.verify).value.facts.smoke), candidateRevision: f.revision,
     artifactDigest: f.image, origin: candidateOrigin }
@@ -1871,8 +1892,12 @@ async function decisionOrdinaryAbortFixture() {
   const verify = optionalSeal('verify', { candidateRevision: f.revision, artifactDigest: f.image, candidateReceiptRef: candidate.ref,
     entrypointReceiptRef: entry.ref, tagUri: candidateOrigin, providerTagUri: candidateOrigin, sideEffects: h.profile.sideEffects, smoke }, entry.ref)
   const decision = optionalSeal('decision', { candidateRevision: f.revision, artifactDigest: f.image, decision: 'GO', remainingHumanAction: 0, verifyReceiptRef: verify.ref }, verify.ref)
-  const rollback = f.seal('rollback', h.objects.get(f.paths.rollback).value.facts, entry.ref)
-  f.seal('terminal', h.objects.get(f.paths.terminal).value.facts, rollback.ref)
+  const rollbackFacts = { ...h.objects.get(f.paths.rollback).value.facts,
+    migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  const rollback = f.seal('rollback', rollbackFacts, entry.ref)
+  const terminalFacts = { ...h.objects.get(f.paths.terminal).value.facts,
+    migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  f.seal('terminal', terminalFacts, rollback.ref)
   const currentRun = { ...ordinaryRun, id: '45', headSha: f.intent.sourceRevision, createdAt: '2026-10-03T00:00:00Z', updatedAt: '2026-10-03T00:05:00Z' }
   Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
     ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/45', candidateRevision: f.revision,
