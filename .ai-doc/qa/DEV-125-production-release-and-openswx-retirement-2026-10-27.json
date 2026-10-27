@@ -104,6 +104,8 @@
     "relatedSourceFindings": ["non-manager device probe claim failed before business work", "native key was fetched before job claim and cached across jobs"],
     "changes": ["exact POST preview capability heartbeat admission with existing device guards", "non-manager probe claim returns empty queue before reconciliation", "native key requires owned current preview or recognition lease and source", "device and source authority rechecked after provider I/O", "worker checks metadata readiness then claims and holds key only within current job", "provider outages wait on the same job lease without failed completion or reclaim", "successful leased probe reports its version/fingerprint heartbeat"],
     "focusedVerification": {"vitest":137,"workerRuntime":7,"postgres":11,"nativeComExecutedByTheseTests":false},
+    "initialRequiredCiFailure": {"run":40575253108,"check":"Production Slice QC","step":"Verify preview and recognition slice","test":"production-slice.settings.test.ts","cause":"Historical deny-list still blocked exact preview heartbeat, contradicting current guarded admission","correction":"Move exact POST heartbeat into admitted cases; keep suffix and non-POST paths blocked; rerun both settings and actual device-handler tests"},
+    "correctedPreviewSliceLocal": {"vitest":327,"settingsAndActualDeviceHandler":73,"dev079SourceContract":"PASS","dev079IsolatedOwnerInvariant":"PASS","requiredCi":"PENDING_NEW_HEAD"},
     "attemptLossReview": "P1_FOUND_AND_CORRECTED_BEFORE_RELEASE_METADATA_PREFLIGHT_AND_SAME_LEASE_PROVIDER_WAIT_WITH_SERIAL_PROBE_RECOVERY",
     "localIsolatedBuild": "NOT_RUN_CAPACITY_RESERVATION_BLOCKED_REQUIRED_CI_ISOLATED_BUILD_REQUIRED",
     "formalFeatureAcceptance": "PENDING_CORRECTIVE_RELEASE_AND_WINDOWS_INSTALL"
