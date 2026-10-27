@@ -13,7 +13,7 @@ vi.mock("react", async importOriginal => {
 });
 import { SettingsScreen } from "@/components/settings-screen";
 
-describe("DEV122 actual settings presentation respects the server slice status", () => {
+describe("Production slice settings presentation respects the server slice status", () => {
   beforeEach(() => {
     fixture.limited = true;
     fixture.secretCapability = true;
@@ -52,6 +52,9 @@ describe("DEV122 actual settings presentation respects the server slice status",
     for (const area of ["integrations", "system"]) expect(html).not.toContain(`href="/settings/${area}"`);
     expect(html).toContain("整合設定尚未開放");
     expect(html).not.toContain("管理整合設定");
+    expect(html).toContain('href="/settings/windows-service"');
+    expect(html).toContain("管理解析電腦");
+    expect(html).not.toContain("Windows 解析服務尚未開放");
   });
   it("mounts the actual read-only role-capability reader on the admitted workflow page", () => {
     fixture.limited = true;

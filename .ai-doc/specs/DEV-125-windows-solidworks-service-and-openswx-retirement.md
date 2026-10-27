@@ -2,9 +2,9 @@
 
 狀態：`IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項；整體尚未結案的原因是 Windows 首次安裝缺陷修正後的實機重驗、SolidWorks 三格式、A0001 預覽與管理員辨識驗收未完成。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。現行 main 為 `3720c7cea8f294f086e34a175fdf911283971007`；後續結果須以各切片 exact source／CI／發布讀回為準。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
-最新 main CI run `40505306777` 已對 exact main `3720c7cea8f294f086e34a175fdf911283971007` 完成 `DEV-012 Isolated PostgreSQL Cutover`與 `Production Slice QC`，兩者均 `SUCCESS`；這是 source／build／contract 證據，不代替下列 Windows 實機驗收。
+最新發布來源的 main CI run `40523534853` 已對 exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33` 完成 `DEV-012 Isolated PostgreSQL Cutover`與 `Production Slice QC`，兩者均 `SUCCESS`；這是 source／build／contract 證據，不代替下列 Windows 實機驗收。
 
 ## 1. 要交付的結果
 
@@ -237,16 +237,10 @@ PR #526 合併 exact main `3720c7cea8f294f086e34a175fdf911283971007`，required 
 
 後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口。PR #530 已把 same-source artifact、archive、image 與 receipt 接縫合併至 `main`；本分支保留該修正，並將 `actions: read` 從同時持有 production environment／GCP `id-token` 的 job 收斂到無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job。production job 只接收同一 workflow run 重新驗明的 artifact，且不再有 Actions artifact 讀權。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。
 
-### 11.4 Windows 交付路徑 corrective（source 已合併／正式驗收前狀態）
+### 11.4 R20 Windows 交付路徑發布與正式讀回（2026-10-27）
 
-後續正式畫面檢查發現 `/settings/windows-service` 雖已實作，仍被 `official-numbering-draft` production-slice page gate 改寫成未開放；同時 CI 只保存獨立 Windows installer artifact，owner source archive 與 app image 沒有帶入該產物，下載 API 因此可能回 `INSTALLER_UNAVAILABLE`。這兩項是 DEV-125 交付路徑缺口，不是重新啟動 DEV-122／124。
+PR #529～#531 已合併；exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33` 的 main CI run `40523534853` 兩項必要檢查均通過，產生 installer `0.1.0-ci.1370`（protocol 1、SHA-256 `906807b7df3e1bb80304418f3c75380c7661795db11b5ebde0f353b77451be73`、size `29257933`）。正式 owner release `DEV125-WINDOWS-20261027-R20`／run `40524682058` 的 preflight、isolated installer binding、build、migration、candidate smoke、activate readback 全部 `SUCCESS`；terminal 為 `PASS / RELEASED / remainingHumanAction=0`。migration applied 0／replayed 39／ledger 39；`ai-pdm-prod-39846fac3736` 以 image digest `sha256:b1634e283dc0edaceb942b9f80af42abf14abaf3370ce03ea7b86841a431dae4` 承接正式流量。build、provenance 與 deployment capsule 三方都綁同一 installer source／version／protocol／digest；R19 只留下 source/runtime 前置收據，未建立 release intent、未部署或切流，且未重用。
 
-PR #530 已將下列 source corrective 合併至 `main`；required main CI、正式 owner release 與產品驗收仍須以 exact source／artifact／image 證據完成，故不先改寫 V125-01／03～09 或 V125-12 的產品驗收判定：
+公司 Google SSO 管理員在正式 `/settings/windows-service` 已能讀取下載入口、建立註冊碼入口及空裝置清單；未登入直接 GET installer API 回 `401 / private,no-store`。登入後兩次瀏覽器下載均取得 `29257933` bytes，實際 SHA-256 都是 `906807b7df3e1bb80304418f3c75380c7661795db11b5ebde0f353b77451be73`，與 manifest／R20 receipt 一致；Chrome 因可執行檔下載保留為未確認暫存，本輪未繞過警示、未執行安裝。正式頁面仍有一項顯示缺陷：`/settings` 總覽在 production-slice 模式把已開放的 Windows 解析服務誤標為「未開放」且隱藏管理連結。本切片修正該卡片為固定「電腦管理」並保留 `/settings/windows-service` 連結，focused presentation test 8／8 PASS；發布前 V125-01 仍維持 `PARTIAL`。
 
-- production slice 只開放既有管理頁及 Windows service／preview worker 的 exact command routes；頁面、manager Principal、device credential、company、lease 與撤權 owner guard 維持原樣，未擴張 OrgMaster、IAM 或 Secret。
-- Windows CI artifact 以 release SHA、manifest、build evidence、檔名、size 與 SHA-256 fail closed；所有 `main` push（包含 docs-only source tip）都保留同 SHA artifact，PR 則只在非 docs-only 時建置。
-- owner workflow 只下載同一 `GITHUB_SHA` 的成功 push CI artifact，將唯一 manifest／EXE 加入 immutable source archive；Docker 最終 runner layer 再次驗 source revision、manifest、檔名、size 與 EXE digest。
-- build stage、provenance 與 deployment capsule 都記錄相同 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}`；owner build 回傳不一致或缺少綁定即停止。舊 receipt 沒有此 additive 欄位仍可唯讀相容，不能冒充新 source 的 installer 證據。
-- affected-slice required CI 的 worker group 已納入 artifact verifier 與實際 production-slice middleware Vitest，不只靠 package script 的本機結果。
-
-目前本機證據包含 DEV-125 contract／artifact／route、owner build receipt 正反案例、release runtime／recovery reader、typecheck 及 affected planner／release-core／worker；最終計數、merge SHA、CI run、image digest 與正式頁面／下載結果待實際完成後回填本節，不預填為 PASS。
+同一 Windows 11 x64 主機的 `SwDocumentMgr.SwDMClassFactory` late-bound COM probe 已實際通過：Document Manager 2025 `33.3.0.0092`、runtime major 33、x64；授權檔含可用 key（內容未輸出或記錄）。這只建立 V125-03／06 的前置條件，不替代修正版安裝、低權限 service、三格式讀取或正式 UI 結果。現行缺口仍為修正版實機重裝／更新／卸載、正式裝置註冊與撤權、SLDPRT／SLDASM／SLDDRW 原生結果、A0001 current binding、3D／PDF 預覽及管理員辨識。
