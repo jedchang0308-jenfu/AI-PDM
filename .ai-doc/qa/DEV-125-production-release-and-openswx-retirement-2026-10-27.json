@@ -78,7 +78,7 @@
     }
   },
   "windowsAcceptance": {
-    "status": "FAIL_REMEDIATION_BUILT_UNINSTALL_PENDING",
+    "status": "FAIL_REMEDIATION_ARTIFACT_READY_UNINSTALL_PENDING",
     "initialArtifact": {
       "version": "0.1.0-ci.1356",
       "sourceRevision": "3720c7cea8f294f086e34a175fdf911283971007",
@@ -93,11 +93,16 @@
     },
     "rootCause": "WinSW 2.12.0 requires serviceaccount/domain plus serviceaccount/user; the username element was ignored. The NSIS package did not write the standard Windows uninstall registry key.",
     "correctedArtifact": {
-      "version": "0.1.0-ci.1357",
-      "sourceRevision": "6758bb6088e11970949c2ca499680964c8247524",
+      "version": "0.1.0-ci.1361",
+      "sourceRevision": "9f8bf4995234a88fc562741c78fccda76018e322",
+      "prHeadRevision": "ebeceaebc42603f6294ac05e2f6b6f02653b4d98",
+      "contentTree": "490028618f513d46fce45dbf9aac1a8ee69fba6c",
       "protocolVersion": 1,
-      "sha256": "fa0ed20fb9317b703021b0c0ccb1ed0eb42c569c119901cb3ee17d849f489b9f",
-      "size": 28260246,
+      "sha256": "8936eb286d0c1c3b570ef11230651c4c0ddcc57ce450f181b0519865b657cfba",
+      "size": 29257184,
+      "artifactId": 12739205967,
+      "ciRunId": 40514708934,
+      "requiredChecks": "PASS_2_OF_2",
       "contractTests": "PASS_11",
       "installerBuild": "PASS",
       "manifestReadback": "PASS",

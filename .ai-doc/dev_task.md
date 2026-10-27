@@ -6,7 +6,7 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS` | PR #498～#526 已完成裝置管理、單一路徑 Windows worker、正式發布、OpenSWX DB 排空、provider／active source 退役及退役 executor 移除。V125-10／11 已有 exact receipt／provider readback／source 證據；首次實機安裝發現 WinSW 2.12 帳號 schema 與解除安裝登錄缺陷，PR #529 已提供修正版，仍待重新安裝、三格式 Document Manager、正式裝置註冊／撤權、A0001 3D／PDF 與管理員辨識驗收。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS` | PR #498～#526 已完成裝置管理、單一路徑 Windows worker、正式發布、OpenSWX DB 排空、provider／active source 退役及退役 executor 移除。V125-10／11 已有 exact receipt／provider readback／source 證據；首次實機安裝發現 WinSW 2.12 帳號 schema 與解除安裝缺陷，PR #529 已完成 fail-closed 修正、required CI 2／2 及 exact-head installer `0.1.0-ci.1361`，仍待缺陷版 UAC 解除安裝、修正版重新安裝、三格式 Document Manager、正式裝置註冊／撤權、A0001 3D／PDF 與管理員辨識驗收。 |
 
 <a id="dev-125-windows-service"></a>
 
