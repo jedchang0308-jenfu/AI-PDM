@@ -6,7 +6,7 @@ export const RUNTIME_STATE_SCHEMA = 'aipdm.dev122.preview-openswx-runtime-readba
 export const RUNTIME_DATABASE_RECEIPT_SCHEMA = 'aipdm.dev122.preview-openswx-runtime-database-receipt.v1'
 export const RUNTIME_STATE_RECEIPT_SCHEMA = 'aipdm.dev122.preview-openswx-runtime-readback-receipt.v1'
 export const RUNTIME_STATE_PGOPTIONS = '-c default_transaction_read_only=on'
-export const RUNTIME_STATE_PREFIX = 'source/preview-openswx-runtime-readback'
+export const RUNTIME_STATE_PREFIX = 'source/openswx-dispatch-recovery/dev125-preview-runtime-readback'
 export const RUNTIME_STATE_RECEIPT_PREFIX = 'receipts/diagnostics/DEV122-PREVIEW-OPENSWX-RUNTIME'
 export const RUNTIME_STATE_TARGET = Object.freeze({
   ownerApplicationId: 'ai-pdm',
