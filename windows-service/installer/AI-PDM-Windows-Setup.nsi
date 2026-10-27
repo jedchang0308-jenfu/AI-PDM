@@ -99,6 +99,15 @@ Section "AI-PDM Windows Parsing Service" SEC_MAIN
   ${EndIf}
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "DisplayName" "AI-PDM Windows Parsing Service"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "DisplayVersion" "${PRODUCT_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "Publisher" "Jenfu Machinery"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "DisplayIcon" "$INSTDIR\AipdmWindowsConfigurator.exe"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "QuietUninstallString" '$\"$INSTDIR\Uninstall.exe$\" /S'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\AI-PDM"
   CreateShortCut "$SMPROGRAMS\AI-PDM\解析服務設定.lnk" "$INSTDIR\AipdmWindowsConfigurator.exe"
   CreateShortCut "$SMPROGRAMS\AI-PDM\解除安裝.lnk" "$INSTDIR\Uninstall.exe"
@@ -114,6 +123,7 @@ Section "Uninstall"
     nsExec::ExecToLog '"$INSTDIR\AipdmWindowsParsing.exe" uninstall --no-elevate'
   RMDir /r "$SMPROGRAMS\AI-PDM"
   RMDir /r "$APPDATA\AI-PDM Windows Service"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-PDM Windows Parsing Service"
   DeleteRegKey HKLM "Software\Jenfu\AI-PDM Windows Service"
   RMDir /r "$INSTDIR"
 SectionEnd

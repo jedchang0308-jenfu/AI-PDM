@@ -27,11 +27,15 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   const notices = read("windows-service/THIRD-PARTY-NOTICES.txt");
   assert.match(build, /WinSW-x64\.exe[\s\S]+05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da/u);
   assert.match(build, /nsis-3\.11\.zip[\s\S]+c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1/u);
-  assert.match(xml, /<username>NT AUTHORITY\\LocalService<\/username>/u);
+  assert.match(xml, /<serviceaccount>[\s\S]+<domain>NT AUTHORITY<\/domain>[\s\S]+<user>LocalService<\/user>[\s\S]+<\/serviceaccount>/u);
+  assert.doesNotMatch(xml, /<username>/u);
   assert.doesNotMatch(xml, /LocalSystem/u);
   assert.match(installer, /SwDocumentMgr\.SwDMClassFactory\\CLSID/u);
   assert.match(installer, /sc\.exe" sidtype AipdmWindowsParsing unrestricted/u);
   assert.match(installer, /NT SERVICE\\AipdmWindowsParsing:\(OI\)\(CI\)\(M\)/u);
+  assert.match(installer, /WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service" "DisplayName"/u);
+  assert.match(installer, /WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service" "UninstallString"/u);
+  assert.match(installer, /DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service"/u);
   assert.match(helper, /ProtectedData\.Unprotect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(configurator, /ProtectedData\.Protect\([\s\S]+DataProtectionScope\.LocalMachine/u);
   assert.match(probe, /SwDocumentMgr\.SwDMClassFactory/u);
