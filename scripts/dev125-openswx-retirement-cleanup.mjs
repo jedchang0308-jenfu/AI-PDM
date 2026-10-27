@@ -141,8 +141,10 @@ export async function submitCleanupOnce({ transport, submissionRef, submission, 
   if (prior) {
     const core = { ...prior.value }; delete core.receiptSha256
     if (typeof core.observedAt !== 'string' || !Number.isFinite(Date.parse(core.observedAt)) ||
+        !/^[a-f0-9]{40}$/u.test(core.workflowSourceRevision ?? '') ||
         prior.value.receiptSha256 !== sha256(Buffer.from(canonicalize(core))) ||
-        canonicalize(core) !== canonicalize({ ...submission, observedAt: core.observedAt })) fail('DEV125_CLEANUP_SUBMISSION_INVALID')
+        canonicalize(core) !== canonicalize({ ...submission, workflowSourceRevision: core.workflowSourceRevision,
+          observedAt: core.observedAt })) fail('DEV125_CLEANUP_SUBMISSION_INVALID')
     return { resumed: true }
   }
   const sealed = { ...submission, receiptSha256: sha256(Buffer.from(canonicalize(submission))) }
