@@ -79,21 +79,21 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 | Issue／切片 | 目前可證明狀態 | 下一個可驗收交付 |
 |---|---|---|
 | D122-01～04 | 既有本機交易／UI／API結果可重用；沒有新證據支持正式環境整組通過。 | 只有來源或行為受本輪修正影響才重驗；不重播無關完整套件。 |
-| D122-05／3D F-01B | lease v2 source 已合併且目前正式 serving source 已包含該修正；`A0001-M01` 仍回 `preview_worker_unavailable`。歷史 D122-05A actor-independent 固定診斷已完成本機實作，後續責任已移交 DEV-125；正式 runner rollout／readback 尚未執行。 | DEV-125 先以固定唯讀診斷讀回 current file binding／hash、current-hash latest preview job 與兩個 stable worker identity heartbeat；heartbeat 不能冒充 OS process，process 維持 `unknown`。再依證據修正 runtime／資料責任，完成真實 `claim → heartbeat → complete`、current-hash 非 fake PNG、mounted UI 及 parent-lock mounted／refusal。 |
-| D122-05／PDF | viewer 與 render liveness source 已合併且目前正式 serving source 已包含該修正；正式檔仍回 `unsupported_preview_source`。 | 先以固定唯讀診斷讀回 media type、current binding、source hash、job／derivative；只修實際 metadata／binding／derivative 責任，透過既有 writer 或必要 forward-only migration，不手改正式資料。以 canonical API、受保護 `%PDF-` bytes 或 current-hash derivative及 mounted viewer 可讀關閉。 |
-| 管理員 recognition／worker | worker route放行與PDF browser-baseline source已合併；`ADMIN_RECOGNITION_PENDING`，尚不能證明CAD consumer或正常結果。 | 先讀回實際actor／grant、session／queue及consumer runtime；若確認CAD consumer缺位，建立獨立recognition runtime，禁止共用OpenSWX或preview credential。以管理員allow／deny零副作用及正常worker/result readback驗收。 |
+| D122-05／3D F-01B | R15 fixed readback 已完成；`A0001-M01` 的 `D-0007-MA1.SLDPRT` current binding、asset、job 與 derivative 皆不存在，OpenSWX 則已安全退出。後續責任已移交 DEV-125。 | 由正常業務 writer 建立受控 current binding，完成 Windows service 的真實 `claim → heartbeat → complete`、current-hash 非 fake PNG、mounted UI 及 parent-lock mounted／refusal；不得用 OpenSWX 或手動 SQL 補資料。 |
+| D122-05／PDF | R15 證明 `D-0007-MA1.pdf` 同樣缺 current binding、asset 與 derivative；舊 `unsupported_preview_source` 是移交前觀察，不再代表現行資料已存在但 viewer 不支援。 | 由正常 writer 建立 current binding 後，以 canonical API、受保護 `%PDF-` bytes 或 current-hash derivative 及 mounted viewer 可讀關閉；PDF 不依賴 Windows service。 |
+| 管理員 recognition／worker | OpenSWX 已退出；DEV-125 將 preview／recognition／probe 統一由同一 Windows service scheduler 與 device auth 承接。`ADMIN_RECOGNITION_PENDING`，尚未取得正式正常結果。 | 完成正式管理員 allow／deny 零副作用、Windows service claim／complete 及辨識結果 readback；不再建立另一個 OpenSWX 或平行 recognition runtime。 |
 | Part attachment | 正常入口與本機storage/UI證據已合併；正式受權上傳／重載／下載未完成。 | 確認serving source後，以專用受權actor驗正常上傳、清單重載、受保護下載bytes／hash、audit及一個拒絕零副作用案例。正式business mutation只能在明確執行該驗收時產生。 |
 | D122-06 | 本機採購API結果已驗；相關修正已合併。 | 無新漂移時不重驗；不能把本機結果寫成正式驗收。 |
 | D122-07 | `DISABLED_DEFERRED`。 | 不施工、不算PASS；未來需求成立才另行re-entry。 |
 | F-01F native CAD | `USER_OWNED_PENDING_NOT_PASS`。 | 使用受控原生檔與native reader保留exact bytes／hash、版本及結果；PDF、合成fixture、OpenSWX或preview worker不能代替。 |
 
-目前 DEV-122 可直接施工的程式變更，必須由上述 readback 指向具體責任後才選檔；主線已有 source 不等於正式 runtime／actor／data acceptance。D122-05 的 SolidWorks preview 與 DEV-124 的 OpenSWX metadata worker 是兩個獨立交付點；DEV-124 的[權威開發契約](DEV-124-openswx-worker-independent-repair.md)不得改寫本表狀態。
+DEV-122 已停止新施工；R15 與 provider retirement 已把後續責任收斂至 DEV-125 的 Windows service、正式 current binding 與 mounted UI／管理員辨識驗收。主線已有 source 不等於正式 runtime／actor／data acceptance；DEV-124 僅保留已取消修復與安全退出歷史，不再是平行交付點。
 
 <a id="d122-05-production-preview-gap-20261027"></a>
 
 ### D122-05 正式預覽缺口（2026-10-27）
 
-以公司 Google SSO 登入正式 `ai-pdm-prod`，在圖號工作台開啟 `A0001-M01` 後，畫面與 canonical file-preview API 讀回兩個不同的終態。3D 原檔 `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED`／`preview_worker_unavailable`、`retryable=false`；這表示目前沒有可用 worker 接手該預覽工作，屬本 DEV 的 F-01B 正式 server／兩個 worker v2 process rollout 與 runtime 驗收缺口。2D 原檔 `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED`／`unsupported_preview_source`、`retryable=false`；它不是 PDF viewer 尚未開發，因完整 PDF viewer 已由 PR #278 合併、PR #486 修正 render liveness 並通過 required CI，而是本筆正式 file asset 的 media type／來源分類／current binding／ready derivative 或 serving-source 適用性尚未讀回確認。
+本段保留 2026-10-27 R15 前的正式觀察：以公司 Google SSO 登入 `ai-pdm-prod`，在圖號工作台開啟 `A0001-M01` 時，3D 原檔 `D-0007-MA1.SLDPRT` 曾回覆 `PREVIEW_FAILED`／`preview_worker_unavailable`、`retryable=false`；2D 原檔 `D-0007-MA1.pdf` 曾回覆 `PREVIEW_UNSUPPORTED`／`unsupported_preview_source`、`retryable=false`。R15 後續 fixed readback 已取代當時對原因的推測，證明兩檔 current binding、asset 與 derivative 皆不存在；因此現行缺口是由正常業務 writer 建立受控 binding，再由 DEV-125 Windows service 處理 native CAD、既有 PDF viewer 處理 PDF，並完成 mounted UI 驗收，不再執行舊 server／雙 worker v2 或 OpenSWX 路徑。
 
 後續 provider readback 已確認目前正式 service revision `ai-pdm-prod-3092d00b3653`、image digest `sha256:d9c3f8b2267475969cd00dc6e68b0e24504d41f18ba830024c0b1033ff43b068` 與 source `ad74f179747cdd807c6bf8a4958dba81434b5074`，且該來源包含 Part attachment、preview lease v2、recognition worker middleware、採購、PDF browser baseline 與 PDF render liveness 的已合併修正。因此目前缺口不是「修正尚未部署」，而是正式 file asset／preview job／derivative／worker process 的實際狀態與資料綁定尚未讀回，或其後仍有 runtime 缺陷。
 

@@ -137,7 +137,12 @@ test('DEV-125 Windows package source selects the worker boundary without unknown
   for (const file of [
     'windows-service/service/service.mjs',
     'windows-service/installer/AI-PDM-Windows-Setup.nsi',
+    'worker-downloads/windows-service/.gitkeep',
     'scripts/build-dev125-windows-installer.ps1',
+    'scripts/dev125-verify-windows-installer-artifact.mjs',
+    'scripts/dev125-windows-installer-artifact.test.mjs',
+    'scripts/dev125-production-slice-windows-service.test.mjs',
+    'scripts/lib/dev125-windows-installer-artifact.mjs',
     'scripts/dev125-windows-service-contract.test.mjs',
   ]) {
     const plan = createProductionSlicePlan([file])
@@ -152,6 +157,7 @@ test('shared release control selects its own safety boundary without unrelated p
     '.github/workflows/ci.yml',
     'scripts/plan-production-slice.mjs',
     'scripts/lib/dev121-owner-release-proof.mjs',
+    'scripts/dev125-windows-installer-evidence.test.mjs',
     'scripts/lib/dev121-preactivation-abort-continuation.mjs',
     'scripts/dev121-principal-owner-recovery.test.mjs',
     'scripts/dev122-applied-continuation-capsule-refresh.mjs',

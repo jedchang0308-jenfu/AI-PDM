@@ -8,6 +8,7 @@ import { assertReconciledPrincipalAbortBinding } from './dev121-principal-only-r
 import { assertAppliedMigrationContinuation, assertForwardAppliedMigrationContinuation, assertHistoricalAppliedContinuationRuntimeConfig, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
 import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
 import { fetchProviderRead } from './dev012-read-retry.mjs'
+import { assertDev125WindowsInstallerReceipt } from './dev125-windows-installer-artifact.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -1056,7 +1057,22 @@ async function readBuildEvidence({ owner, config, revision, releaseId, root,
       provenance.value.artifactRegistry?.uri !== artifactDigest) {
     fail('PROVENANCE_INVALID')
   }
+  assertDev125WindowsInstallerEvidence({ owner, revision, deployment: deployment.value,
+    build: build.value, provenance: provenance.value })
   return { deployment, build, provenance }
+}
+
+export function assertDev125WindowsInstallerEvidence({ owner, revision, deployment, build, provenance }) {
+  const installerRows = [deployment?.windowsInstaller, build?.facts?.windowsInstaller, provenance?.windowsInstaller]
+  if (installerRows.some(Boolean)) {
+    try {
+      if (owner !== 'ai-pdm' || installerRows.some(row => !row) ||
+          installerRows.some(row => canonicalize(assertDev125WindowsInstallerReceipt(row, revision)) !== canonicalize(installerRows[0]))) {
+        fail('PROVENANCE_INVALID')
+      }
+    } catch { fail('PROVENANCE_INVALID') }
+  }
+  return true
 }
 
 async function readReleasedStageChain({ owner, config, revision, releaseId, root,

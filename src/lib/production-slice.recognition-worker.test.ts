@@ -88,7 +88,7 @@ describe("recognition worker dispatch retains the current device boundary", () =
     "/api/recognition-jobs/complete", `/api/recognition-jobs/${sessionId}/heartbeat/extra`,
     `/api/recognition-jobs/${sessionId}/complete/extra`, `/api/recognition-jobs/${sessionId}/cancel`,
     `/api/recognition-jobs/${sessionId}/requeue`, `/api/recognition-jobs/${sessionId}/sources/source-one/content`,
-    "/api/recognition-jobs-extra/claim", "/api/preview-jobs/claim"])("keeps unlisted worker mutation %s closed", path => {
+    "/api/recognition-jobs-extra/claim", "/api/preview-jobs-extra/claim"])("keeps unlisted worker mutation %s closed", path => {
       expect(middleware(request(path)).status).toBe(403); expectNoCommand();
     });
 

@@ -235,4 +235,18 @@ PR #526 合併 exact main `3720c7cea8f294f086e34a175fdf911283971007`，required 
 
 缺陷版已依使用者明確授權完成解除安裝；2026-10-27T14:00:33.906Z 讀回服務不存在、相關程序 0、程式目錄不存在、資料目錄不存在、自有登錄與標準 uninstall key 均不存在。這只證明失敗安裝已清除，不代表修正版驗收通過；以修正版重新安裝前仍須取得 action-time confirmation，驗證 LocalService、service SID、ACL、程式和功能項目、重啟／覆蓋／卸載及不註冊時零 credential／device side effect。V125-03 只有在這些實機結果成立後才可改為 PASS。
 
-後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口：須由隔離、唯讀的 artifact-binding job 精確連結同 repo／main／source SHA／成功 required CI run 與唯一 artifact，重驗 manifest、build evidence、檔名、hash、size，再把 bytes 作為獨立 hash-bound input 加入 deterministic source archive；owner build receipt 與 built-image readback 必須同時比對 `windowsInstaller`。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。GitHub workflow 如需 `actions: read`，只可授予無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job；此最小權限仍待人類確認後才可實作。
+後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口。PR #530 已把 same-source artifact、archive、image 與 receipt 接縫合併至 `main`；本分支須保留該修正，並將現有 `actions: read` 從同時持有 production environment／GCP `id-token` 的 build job 再收斂到無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。
+
+### 11.4 Windows 交付路徑 corrective（source 已合併／正式驗收前狀態）
+
+後續正式畫面檢查發現 `/settings/windows-service` 雖已實作，仍被 `official-numbering-draft` production-slice page gate 改寫成未開放；同時 CI 只保存獨立 Windows installer artifact，owner source archive 與 app image 沒有帶入該產物，下載 API 因此可能回 `INSTALLER_UNAVAILABLE`。這兩項是 DEV-125 交付路徑缺口，不是重新啟動 DEV-122／124。
+
+PR #530 已將下列 source corrective 合併至 `main`；required main CI、正式 owner release 與產品驗收仍須以 exact source／artifact／image 證據完成，故不先改寫 V125-01／03～09 或 V125-12 的產品驗收判定：
+
+- production slice 只開放既有管理頁及 Windows service／preview worker 的 exact command routes；頁面、manager Principal、device credential、company、lease 與撤權 owner guard 維持原樣，未擴張 OrgMaster、IAM 或 Secret。
+- Windows CI artifact 以 release SHA、manifest、build evidence、檔名、size 與 SHA-256 fail closed；所有 `main` push（包含 docs-only source tip）都保留同 SHA artifact，PR 則只在非 docs-only 時建置。
+- owner workflow 只下載同一 `GITHUB_SHA` 的成功 push CI artifact，將唯一 manifest／EXE 加入 immutable source archive；Docker 最終 runner layer 再次驗 source revision、manifest、檔名、size 與 EXE digest。
+- build stage、provenance 與 deployment capsule 都記錄相同 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}`；owner build 回傳不一致或缺少綁定即停止。舊 receipt 沒有此 additive 欄位仍可唯讀相容，不能冒充新 source 的 installer 證據。
+- affected-slice required CI 的 worker group 已納入 artifact verifier 與實際 production-slice middleware Vitest，不只靠 package script 的本機結果。
+
+目前本機證據包含 DEV-125 contract／artifact／route、owner build receipt 正反案例、release runtime／recovery reader、typecheck 及 affected planner／release-core／worker；最終計數、merge SHA、CI run、image digest 與正式頁面／下載結果待實際完成後回填本節，不預填為 PASS。
