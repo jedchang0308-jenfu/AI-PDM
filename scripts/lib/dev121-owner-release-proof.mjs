@@ -51,6 +51,10 @@ function proofError(code, detail = null) {
   return Object.assign(new Error(detail === null ? key : `${key}:${detail}`), { code: key })
 }
 function fail(code, detail = null) { throw proofError(code, detail) }
+export function isMissingGcsEvidenceObject(error) {
+  return error?.code === 'MIGRATION_GCS_METADATA_FAILED'
+    && error.message === 'MIGRATION_GCS_METADATA_FAILED:404'
+}
 function exactKeys(value, keys) {
   return value && typeof value === 'object' && !Array.isArray(value) &&
     canonicalize(Object.keys(value).sort()) === canonicalize([...keys].sort())
@@ -700,7 +704,7 @@ async function readAppliedOnlyObservedGraph({ sourceRevision, refs, token, fetch
       let object
       try { object = await readGcsObject({ uri, expectedBucket: AI_BUCKET, expectedPrefix: prefixes[0], token, fetchImpl: scopeFetch(fetchImpl) }) }
       catch (error) {
-        if (error?.code === 'MIGRATION_GCS_METADATA_FAILED' && error.message === '404') throw Object.assign(new Error('MISSING'), { code: 'MISSING' })
+        if (isMissingGcsEvidenceObject(error)) throw Object.assign(new Error('MISSING'), { code: 'MISSING' })
         throw error
       }
       const ref = { uri, sha256: expectedSha256 ?? sha256(object.bytes) }

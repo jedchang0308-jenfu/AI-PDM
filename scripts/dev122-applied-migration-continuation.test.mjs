@@ -7,7 +7,7 @@ import { assertNoForwardMigrationSubmission, readAppliedMigrationContinuationHis
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
-import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
+import { assertAiPdmMigrationContent, assertAiPdmRepairMigrationMode, isMissingGcsEvidenceObject } from './lib/dev121-owner-release-proof.mjs'
 import { buildRdLedgerProbeBundles, buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProfileSha256, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 
 const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -16,6 +16,17 @@ const runnerSource = 'b'.repeat(40)
 const currentSource = 'c'.repeat(40)
 const digest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'d'.repeat(64)}`
 const read = file => JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
+
+test('historical optional evidence accepts only the exact provider 404 shape', () => {
+  const missing = Object.assign(new Error('MIGRATION_GCS_METADATA_FAILED:404'), { code: 'MIGRATION_GCS_METADATA_FAILED' })
+  assert.equal(isMissingGcsEvidenceObject(missing), true)
+  for (const error of [
+    Object.assign(new Error('MIGRATION_GCS_METADATA_FAILED:403'), { code: 'MIGRATION_GCS_METADATA_FAILED' }),
+    Object.assign(new Error('404'), { code: 'MIGRATION_GCS_METADATA_FAILED' }),
+    Object.assign(new Error('MIGRATION_GCS_METADATA_FAILED:404'), { code: 'OTHER' }),
+    new Error('MIGRATION_GCS_METADATA_FAILED:404'),
+  ]) assert.equal(isMissingGcsEvidenceObject(error), false)
+})
 const profile = read('config/release/dev117-ai-pdm-independent-production-v3.json')
 const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
 const ref = (uri, value = null) => ({ uri, sha256: value === null ? 'e'.repeat(64) : sha256(Buffer.from(`${canonicalize(value)}\n`)) })
