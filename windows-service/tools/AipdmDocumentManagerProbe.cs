@@ -1,4 +1,3 @@
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,28 +37,23 @@ internal static class AipdmDocumentManagerProbe
 
     private static Dictionary<string, object> Inspect()
     {
-        Type factory = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory", false);
-        if (factory == null) throw new InvalidOperationException("COM_CLASS_MISSING");
-        string clsid = factory.GUID.ToString("B");
-        string registryKey = "CLSID\\" + clsid + "\\InprocServer32";
-        string serverPath;
-        using (RegistryKey key = Registry.ClassesRoot.OpenSubKey(registryKey, false))
-            serverPath = Convert.ToString(key == null ? null : key.GetValue(null));
-        serverPath = Environment.ExpandEnvironmentVariables((serverPath ?? "").Trim().Trim('"'));
-        if (!Path.IsPathRooted(serverPath) || !File.Exists(serverPath))
-            throw new FileNotFoundException("COM_SERVER_MISSING");
+        SolidWorksDocumentManagerRuntime runtime = SolidWorksDocumentManagerRuntime.Load();
+        string clsid = runtime.FactoryComType.GUID.ToString("B");
+        string serverPath = runtime.NativeServerPath;
+        string interopPath = runtime.InteropAssemblyPath;
         FileVersionInfo serverVersion = FileVersionInfo.GetVersionInfo(serverPath);
+        FileVersionInfo interopVersion = FileVersionInfo.GetVersionInfo(interopPath);
         if (serverVersion.FileMajorPart <= 0) throw new InvalidDataException("DOCUMENT_MANAGER_VERSION_UNKNOWN");
-        object factoryObject = Activator.CreateInstance(factory);
-        if (factoryObject == null) throw new InvalidOperationException("COM_ACTIVATION_FAILED");
-        if (Marshal.IsComObject(factoryObject)) Marshal.ReleaseComObject(factoryObject);
         return new Dictionary<string, object> {
             { "contractVersion", "ai-pdm.document-manager-runtime.v1" },
             { "clsid", clsid.ToLowerInvariant() },
             { "serverFileName", Path.GetFileName(serverPath) },
             { "serverVersion", serverVersion.FileVersion ?? "" },
             { "serverSha256", Sha256(serverPath) },
-            { "binding", "late-bound-com" },
+            { "interopFileName", Path.GetFileName(interopPath) },
+            { "interopVersion", interopVersion.FileVersion ?? "" },
+            { "interopSha256", Sha256(interopPath) },
+            { "binding", "runtime-loaded-official-interop" },
             { "runtimeMajor", serverVersion.FileMajorPart },
             { "architecture", Environment.Is64BitProcess ? "x64" : "x86" }
         };

@@ -94,7 +94,7 @@ $product = [ordered]@{
     nsis = [ordered]@{ version = '3.11'; sha256 = $nsisSha256 }
     dotNetFramework = '4.8'
     solidworksDocumentManager = [ordered]@{
-      binding = 'late-bound-com'
+      binding = 'runtime-loaded-official-interop'
       progId = 'SwDocumentMgr.SwDMClassFactory'
       redistribution = 'not-bundled'
     }
@@ -111,15 +111,19 @@ Write-Utf8NoBom (Join-Path $stage 'product.json') ($product | ConvertTo-Json -De
   (Join-Path $root 'windows-service\configurator\AipdmWindowsConfigurator.cs')
 & $csc /nologo /platform:x64 /target:exe "/out:$(Join-Path $stage 'AipdmDocumentManagerProbe.exe')" `
   /reference:System.dll /reference:System.Core.dll /reference:System.Security.dll /reference:System.Web.Extensions.dll `
+  (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'windows-service\tools\AipdmDocumentManagerProbe.cs')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerMetadataExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
+  (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-metadata-exporter.cs')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerPreviewExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
+  (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-preview-exporter.cs')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerCredentialProbe.exe')" `
   /reference:Microsoft.CSharp.dll `
+  (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-credential-probe.cs')
 
 $installerName = "AI-PDM-Windows-Setup-$Version.exe"

@@ -16,28 +16,23 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         if (!File.Exists(sourcePath)) return Fail("native_metadata_source_not_found");
         string licenseKey = ReadLicenseKey();
         if (String.IsNullOrWhiteSpace(licenseKey)) return Fail("native_metadata_license_missing");
+        SolidWorksDocumentManagerRuntime runtime = null;
         object app = null;
         object doc = null;
         try
         {
-            Type factoryType = Type.GetTypeFromProgID("SwDocumentMgr.SwDMClassFactory");
-            if (factoryType == null) return Fail("native_metadata_api_unavailable");
-            object factoryObject = Activator.CreateInstance(factoryType);
-            if (factoryObject == null) return Fail("native_metadata_api_unavailable");
-            dynamic factory = factoryObject;
-            app = factory.GetApplication(licenseKey);
-            Marshal.ReleaseComObject(factoryObject);
+            runtime = SolidWorksDocumentManagerRuntime.Load();
+            app = runtime.CreateApplication(licenseKey);
             if (app == null) return Fail("native_metadata_api_unavailable");
 
             int documentType = DocumentTypeFor(sourcePath);
             int openError = 0;
-            dynamic application = app;
-            doc = application.GetDocument(sourcePath, documentType, true, out openError);
+            doc = runtime.OpenDocument(app, sourcePath, documentType, out openError);
             if (doc == null || openError != 0) return Fail("native_metadata_open_failed");
 
             List<RawProperty> properties = new List<RawProperty>();
-            ReadDocumentProperties(doc, properties);
-            ReadConfigurationProperties(doc, properties);
+            ReadDocumentProperties(runtime, doc, properties);
+            ReadConfigurationProperties(runtime, doc, properties);
             Console.WriteLine(BuildPayload(DocumentTypeName(documentType), properties, new List<string>()));
             return 0;
         }
@@ -51,41 +46,49 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         }
         finally
         {
-            try { if (doc != null) ((dynamic)doc).CloseDoc(); } catch { }
-            ReleaseCom(doc);
-            ReleaseCom(app);
+            try { if (runtime != null && doc != null) runtime.CloseDocument(doc); } catch { }
+            SolidWorksDocumentManagerRuntime.Release(doc);
+            SolidWorksDocumentManagerRuntime.Release(app);
         }
     }
 
-    private static void ReadDocumentProperties(object doc, List<RawProperty> output)
+    private static void ReadDocumentProperties(SolidWorksDocumentManagerRuntime runtime, object doc, List<RawProperty> output)
     {
-        dynamic document3 = doc;
         object names = null, types = null, linked = null, values = null;
-        document3.GetAllCustomPropertyNamesAndValues(out names, out types, out linked, out values);
+        runtime.ReadDocumentProperties(doc, out names, out types, out linked, out values);
         AppendProperties(output, "document", names, types, linked, values);
     }
 
-    private static void ReadConfigurationProperties(object doc, List<RawProperty> output)
+    private static void ReadConfigurationProperties(SolidWorksDocumentManagerRuntime runtime, object doc, List<RawProperty> output)
     {
-        object rawManager = ((dynamic)doc).ConfigurationManager;
+        object rawManager = runtime.GetConfigurationManager(doc);
         if (rawManager == null) return;
-        dynamic manager = rawManager;
-        int result = 0;
-        object rawNames = manager.GetConfigurationNames2(out result);
-        foreach (object item in Enumerate(rawNames))
+        try
         {
-            string configurationName = Convert.ToString(item) ?? "";
-            if (String.IsNullOrWhiteSpace(configurationName)) continue;
-            result = 0;
-            object rawConfiguration = manager.GetConfigurationByName2(configurationName, out result);
-            if (rawConfiguration == null) continue;
-            dynamic configuration = rawConfiguration;
-            object names = null, types = null, linked = null, values = null;
-            configuration.GetAllCustomPropertyNamesAndValues(out names, out types, out linked, out values);
-            AppendProperties(output, "configuration:" + configurationName, names, types, linked, values);
-            ReleaseCom(rawConfiguration);
+            int result = 0;
+            object rawNames = runtime.GetConfigurationNames(rawManager, out result);
+            foreach (object item in Enumerate(rawNames))
+            {
+                string configurationName = Convert.ToString(item) ?? "";
+                if (String.IsNullOrWhiteSpace(configurationName)) continue;
+                object rawConfiguration = runtime.GetConfigurationByName(rawManager, configurationName, out result);
+                if (rawConfiguration == null) continue;
+                try
+                {
+                    object names = null, types = null, linked = null, values = null;
+                    runtime.ReadConfigurationProperties(rawConfiguration, out names, out types, out linked, out values);
+                    AppendProperties(output, "configuration:" + configurationName, names, types, linked, values);
+                }
+                finally
+                {
+                    SolidWorksDocumentManagerRuntime.Release(rawConfiguration);
+                }
+            }
         }
-        ReleaseCom(rawManager);
+        finally
+        {
+            SolidWorksDocumentManagerRuntime.Release(rawManager);
+        }
     }
 
     private static void AppendProperties(List<RawProperty> output, string scope, object names, object types, object linked, object values)
@@ -133,11 +136,6 @@ internal static class SolidWorksDocumentManagerMetadataExporter
         if (documentType == 1) return "swDmDocumentPart";
         if (documentType == 2) return "swDmDocumentAssembly";
         return "swDmDocumentDrawing";
-    }
-
-    private static void ReleaseCom(object value)
-    {
-        if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
     private static string ReadLicenseKey()
