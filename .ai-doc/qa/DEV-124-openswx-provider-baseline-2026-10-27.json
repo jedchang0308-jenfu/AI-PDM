@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "aipdm.dev124.openswx-provider-baseline.v1",
+  "task": "DEV-124",
+  "observedAt": "2026-10-27T01:35:03.1313887Z",
+  "sourceRevision": "e3d5c94a026e5fefe13f4a3da9312d89b045e160",
+  "collection": {
+    "method": "direct read-only provider describe/list",
+    "mutationPerformed": false,
+    "databaseReadPerformed": false,
+    "executionLogsRead": false,
+    "secretPayloadRead": false,
+    "environmentVariablesRead": false
+  },
+  "job": {
+    "name": "ai-pdm-prod-openswx-metadata",
+    "generation": 25,
+    "ready": true,
+    "executionCount": 46,
+    "latestExecution": {
+      "name": "ai-pdm-prod-openswx-metadata-49hht",
+      "createdAt": "2026-10-18T07:10:56.002108Z",
+      "completed": false,
+      "reason": "NonZeroExitCode",
+      "failedCount": 1
+    }
+  },
+  "scheduler": {
+    "name": "aipdm-prod-openswx-dispatch",
+    "state": "PAUSED",
+    "schedule": "*/5 * * * *"
+  },
+  "interpretation": {
+    "resourceReadyIsAcceptance": false,
+    "latestExecutionAccepted": false,
+    "entryReadbackPending": true,
+    "nextRead": "Current openswx_metadata_jobs dispatch projection and current consumer need, followed by sanitized exact-execution diagnosis only when NEED_EXISTS."
+  },
+  "limitations": [
+    "This snapshot is not an immutable release receipt and does not bind the live image to an exact source descriptor.",
+    "The active database dispatch row, provider operation and current product consumer state were not read.",
+    "The NonZeroExitCode does not identify the root cause without bounded execution-log diagnosis.",
+    "No SolidWorks preview or drawing-recognition result is represented by this OpenSWX baseline."
+  ]
+}

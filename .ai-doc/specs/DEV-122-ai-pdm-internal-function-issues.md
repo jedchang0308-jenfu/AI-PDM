@@ -58,6 +58,23 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 
 能力可獨立標記 `PASS`、`FAIL`、`PENDING` 或 `NOT_APPLICABLE`。一項能力未完成，不改寫其他能力已成立的證據；DEV-122 整體結案仍需原始 7／29 全部有可接受結果。
 
+<a id="current-delivery-handoff-20261027"></a>
+
+### 現行交付切片（2026-10-27）
+
+| Issue／切片 | 目前可證明狀態 | 下一個可驗收交付 |
+|---|---|---|
+| D122-01～04 | 既有本機交易／UI／API結果可重用；沒有新證據支持正式環境整組通過。 | 只有來源或行為受本輪修正影響才重驗；不重播無關完整套件。 |
+| D122-05／3D F-01B | lease v2 source 已合併；正式 `A0001-M01` 仍回 `preview_worker_unavailable`。 | 先讀回正式 server source、current file binding／hash、latest preview job與兩個v2 worker process；再完成受控rollout、真實 `claim → heartbeat → complete`、current-hash非fake PNG、mounted UI及parent-lock mounted／refusal。 |
+| D122-05／PDF | viewer與render liveness source已合併；正式檔仍回 `unsupported_preview_source`。 | 先讀回media type、current binding、source hash、job／derivative與serving source；只修實際metadata／binding／derivative責任，透過既有writer或必要forward-only migration，不手改正式資料。以canonical API、受保護 `%PDF-` bytes或current-hash derivative及mounted viewer可讀關閉。 |
+| 管理員 recognition／worker | worker route放行與PDF browser-baseline source已合併；`ADMIN_RECOGNITION_PENDING`，尚不能證明CAD consumer或正常結果。 | 先讀回實際actor／grant、session／queue及consumer runtime；若確認CAD consumer缺位，建立獨立recognition runtime，禁止共用OpenSWX或preview credential。以管理員allow／deny零副作用及正常worker/result readback驗收。 |
+| Part attachment | 正常入口與本機storage/UI證據已合併；正式受權上傳／重載／下載未完成。 | 確認serving source後，以專用受權actor驗正常上傳、清單重載、受保護下載bytes／hash、audit及一個拒絕零副作用案例。正式business mutation只能在明確執行該驗收時產生。 |
+| D122-06 | 本機採購API結果已驗；相關修正已合併。 | 無新漂移時不重驗；不能把本機結果寫成正式驗收。 |
+| D122-07 | `DISABLED_DEFERRED`。 | 不施工、不算PASS；未來需求成立才另行re-entry。 |
+| F-01F native CAD | `USER_OWNED_PENDING_NOT_PASS`。 | 使用受控原生檔與native reader保留exact bytes／hash、版本及結果；PDF、合成fixture、OpenSWX或preview worker不能代替。 |
+
+目前 DEV-122 可直接施工的程式變更，必須由上述 readback 指向具體責任後才選檔；主線已有 source 不等於正式 runtime／actor／data acceptance。D122-05 的 SolidWorks preview 與 DEV-124 的 OpenSWX metadata worker 是兩個獨立交付點；DEV-124 的[權威開發契約](DEV-124-openswx-worker-independent-repair.md)不得改寫本表狀態。
+
 <a id="d122-05-production-preview-gap-20261027"></a>
 
 ### D122-05 正式預覽缺口（2026-10-27）

@@ -4,7 +4,7 @@
 
 現行完成判定與最低充分證據見 [CURRENT COO amendment](specs/DEV-122-ai-pdm-internal-function-issues.md#current-coo-outcome-closure-20261023)；單一現況為既有私有證據根的 `output/qa/dev-122/openswx-phase2/owner-checks/DEV122-current7-outcome-matrix-20261023.json`。原 29 ID 保留為診斷／證據標籤，較舊 DEV-122 聚合狀態保留追溯；現行聚合以本 CURRENT 為準。
 
-F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
+2026-10-27 的實作順序與責任分流見[現行交付切片](specs/DEV-122-ai-pdm-internal-function-issues.md#current-delivery-handoff-20261027)。F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DEV-122 現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#f01b-preview-worker-lease-v2) → [任務狀態](dev_task.md)。本地證據不替代 OS worker／Production 或 parent-lock 驗收。
 
 ## DEV-122 D122-05 — A0001-M01 正式預覽缺口（2026-10-27）
 
@@ -18,9 +18,9 @@ F-01B worker 租約 v2／正常取消的實作、安全與 rollout 邊界見 [DE
 
 PR #444 exact main的正式續跑在prepare因完整owner proof遞迴進入無關OpenSWX歷史而停止；corrective以migration-only source／receipt／runner／ledger／recovery reader取代該依賴，existing worker binding只被動帶過，workerless continuation亦可成立。planner僅選documentation＋database＋release-control；fresh 17／17、214／214、27／27與DB boundary PASS。OpenSWX自身修復改由DEV-124獨立追蹤，不阻擋RD，也不被RD結果改判PASS。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-22-applied-migration-證據隔離本地-affected-slice-pass待受保護交付)。
 
-## DEV-124 — OpenSWX worker 獨立修復（DEFERRED）
+## DEV-124 — OpenSWX worker 獨立修復（ACTIVE 124-A／ENTRY READBACK PENDING／124-B NOT STARTED）
 
-worker descriptor、reader、profile／deadline、Secret IAM continuation、artifact reuse與recovery由本任務獨立驗收；不得成為RD catalog→085→grant→API→UI的前置條件。[任務](dev_task.md#dev-124--openswx-worker-獨立修復deferrednot_started不阻擋-rd)。
+worker descriptor、reader、profile／deadline、Secret IAM continuation、artifact reuse、Job／Scheduler、dispatch recovery及OpenSWX API／DB終態由本任務獨立驗收。[2026-10-27 01:35Z 唯讀 provider baseline](qa/DEV-124-openswx-provider-baseline-2026-10-27.json)為Job Ready、最近execution `NonZeroExitCode`、Scheduler暫停；目前只啟動124-A，先判定active DB dispatch與current consumer，有需求才開始124-B，無需求不重播歷史鏈。不得成為RD catalog→085→grant→API→UI的前置條件，也不得承接SolidWorks preview或recognition consumer。[開發契約](specs/DEV-124-openswx-worker-independent-repair.md)／[任務](dev_task.md)。
 
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
