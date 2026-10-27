@@ -20,10 +20,53 @@ env:
   PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: "true"
 
 jobs:
+  installer:
+    runs-on: ubuntu-latest
+    permissions: { actions: read, contents: read }
+    outputs:
+      status: ${{ steps.bind.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0" }
+      - id: bind
+        name: Bind exact-source DEV-125 Windows installer when available
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -euo pipefail
+          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "ci.yml" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,headBranch,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .headBranch == \"main\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
+          if [[ "${#run_ids[@]}" -ne 1 ]]; then
+            echo "status=unavailable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          artifact_name="dev125-windows-installer-$GITHUB_SHA"
+          artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
+          mkdir -p "$artifact_root"
+          if ! gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"; then
+            echo "status=unavailable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence; then
+            echo "status=invalid" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=ready" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: ${{ steps.bind.outputs.status == 'ready' }}
+        with:
+          name: dev125-bound-windows-installer-${{ github.sha }}
+          path: ${{ runner.temp }}/dev125-installer-artifact/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
   migrate:
+    needs: installer
     runs-on: ubuntu-latest
     environment: production
-    permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }
+    permissions: { contents: read, pull-requests: read, checks: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -96,18 +139,23 @@ jobs:
         run: |
           echo "capsule_uri=${REFRESHED_URI:-$BOUND_URI}" >> "$GITHUB_OUTPUT"
           echo "capsule_sha256=${REFRESHED_SHA256:-$BOUND_SHA256}" >> "$GITHUB_OUTPUT"
-      - name: Bind exact-source DEV-125 Windows installer
+      - name: Require an exact-source DEV-125 Windows installer for owner release
         if: ${{ steps.builder_auth.outcome == 'success' }}
         shell: bash
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env: { DEV125_INSTALLER_BIND_STATUS: "${{ needs.installer.outputs.status }}" }
+        run: test "$DEV125_INSTALLER_BIND_STATUS" = "ready"
+      - uses: actions/download-artifact@v4
+        if: ${{ steps.builder_auth.outcome == 'success' }}
+        with:
+          name: dev125-bound-windows-installer-${{ github.sha }}
+          path: ${{ runner.temp }}/dev125-installer-artifact
+      - name: Verify bound DEV-125 Windows installer
+        if: ${{ steps.builder_auth.outcome == 'success' }}
+        shell: bash
         run: |
           set -euo pipefail
-          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
-          [[ "${#run_ids[@]}" -eq 1 ]]
-          artifact_name="dev125-windows-installer-$GITHUB_SHA"
           artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
-          mkdir -p "$artifact_root" "$GITHUB_WORKSPACE/worker-downloads/windows-service"
-          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+          mkdir -p "$GITHUB_WORKSPACE/worker-downloads/windows-service"
           node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
           cp "$artifact_root/worker-downloads/windows-service/"* "$GITHUB_WORKSPACE/worker-downloads/windows-service/"
           echo "DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"

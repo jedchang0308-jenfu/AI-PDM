@@ -91,12 +91,42 @@ jobs:
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
 
-  build:
-    name: build
+  installer:
+    name: windows-installer-bind
     needs: preflight
     runs-on: ubuntu-latest
+    permissions: { actions: read, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0" }
+      - name: Bind exact-source DEV-125 Windows installer
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -euo pipefail
+          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "ci.yml" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,headBranch,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .headBranch == \"main\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
+          [[ "${#run_ids[@]}" -eq 1 ]]
+          artifact_name="dev125-windows-installer-$GITHUB_SHA"
+          artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
+          mkdir -p "$artifact_root"
+          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+          node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev125-bound-windows-installer-${{ github.sha }}
+          path: ${{ runner.temp }}/dev125-installer-artifact/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  build:
+    name: build
+    needs: [preflight, installer]
+    runs-on: ubuntu-latest
     environment: production
-    permissions: { actions: read, contents: read, id-token: write }
+    permissions: { contents: read, id-token: write }
     outputs:
       failure_code: ${{ steps.build.outputs.failure_code }}
     steps:
@@ -105,17 +135,16 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - name: Bind exact-source DEV-125 Windows installer
+      - uses: actions/download-artifact@v4
+        with:
+          name: dev125-bound-windows-installer-${{ github.sha }}
+          path: ${{ runner.temp }}/dev125-installer-artifact
+      - name: Verify bound DEV-125 Windows installer
         shell: bash
-        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -euo pipefail
-          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
-          [[ "${#run_ids[@]}" -eq 1 ]]
-          artifact_name="dev125-windows-installer-$GITHUB_SHA"
           artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
-          mkdir -p "$artifact_root" "$GITHUB_WORKSPACE/worker-downloads/windows-service"
-          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+          mkdir -p "$GITHUB_WORKSPACE/worker-downloads/windows-service"
           node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
           cp "$artifact_root/worker-downloads/windows-service/"* "$GITHUB_WORKSPACE/worker-downloads/windows-service/"
           echo "DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
@@ -303,7 +332,7 @@ jobs:
 
   failure:
     if: ${{ always() && inputs.executionMode == 'full_release' && needs.preflight.result == 'success' && contains(needs.*.result, 'failure') }}
-    needs: [preflight, build, migrate, candidate-smoke, activate-readback]
+    needs: [preflight, installer, build, migrate, candidate-smoke, activate-readback]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }

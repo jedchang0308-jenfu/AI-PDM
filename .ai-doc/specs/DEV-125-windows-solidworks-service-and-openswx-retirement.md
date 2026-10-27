@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_PENDING`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項；整體尚未結案的原因是 Windows／SolidWorks 實機、A0001 預覽與管理員辨識驗收未完成。
+狀態：`IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項；整體尚未結案的原因是 Windows 首次安裝缺陷修正後的實機重驗、SolidWorks 三格式、A0001 預覽與管理員辨識驗收未完成。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。現行 main 為 `3720c7cea8f294f086e34a175fdf911283971007`；後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -223,11 +223,25 @@ R4 之後的 prerequisite 續接另揭露三個 release-adapter 缺口。第一�
 
 依上述 exact receipts、provider readback 與 source 退出，V125-10／V125-11 收斂為 `PASS`；V125-12 僅完成正式發布與 OpenSWX 不回復部分，仍為 `PARTIAL / NOT_ACCEPTED`。V125-01／03～09 仍依現有證據為 `PARTIAL`／`NOT_RUN`；必須完成 Windows 11 x64 服務實機、三格式 Document Manager、正式裝置註冊／停用、A0001 current binding 建立後的 3D／PDF 預覽、管理員辨識及原缺口對照，DEV-125 才能整體結案。
 
-### 11.2 Windows 交付路徑 corrective（合併／正式驗收前狀態）
+### 11.2 R18 正式發布收斂（2026-10-27）
+
+PR #526 合併 exact main `3720c7cea8f294f086e34a175fdf911283971007`，required CI run `40505306777` 兩項必要檢查通過；正式 owner release `DEV125-FINAL-20261027-R18`／run `40507513920` 完成 preflight、build、migrate、candidate、verify、decision、activate、canonical 與 finalize。terminal 為 `PASS / RELEASED / remainingHumanAction=0`，migration applied 0／replayed 39／ledger 39；`ai-pdm-prod-66f9b3ca5852` 以 image digest `sha256:00080078bfa210441f3e2538184bee437793e64d3fb9ae8622e898eeca380497` 承接唯一 100% traffic、零 tag。candidate 與 canonical 的 Platform session、SSO callback、authenticated probe 皆 200／303，未登入與撤銷 session 皆 401。此結果取代 §11.1 較早的 serving revision，但不替代 Windows／A0001 產品驗收；結構化資料見 [正式發布與退役證據](../qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。
+
+### 11.3 Windows 首次實機安裝缺陷與修正（2026-10-27）
+
+同來源 `0.1.0-ci.1356` 安裝包已在 Windows 11 x64 實機完成安裝，但使用者取消註冊，因此未產生 `credential.bin`、device identity 或正式裝置資料。安裝後 readback 顯示 `AipdmWindowsParsing` 為 `Running / Auto`，實際登入身分卻是 `LocalSystem`，而且 Windows「程式和功能」沒有解除安裝項目；這兩項使 V125-03 維持 `FAIL / REMEDIATION_IN_PROGRESS`，不可用原 contract 測試或服務啟動取代。
+
+根因是 WinSW 2.12.0 的服務帳號 schema 應使用 `<domain>NT AUTHORITY</domain>` 與 `<user>LocalService</user>`，現有 XML 誤用 WinSW 3.x 的 `<username>` 而被 2.12.0 忽略；NSIS 也只寫自有版本 key，未寫 Windows 標準 uninstall key。PR #529 的 `6758bb6088e11970949c2ca499680964c8247524` 修正服務帳號與標準解除安裝登錄，`fdbc32ec35909b9f1ca5d1377251058e3b29f2fd` 補 64-bit 登錄檢視，`ebeceaebc42603f6294ac05e2f6b6f02653b4d98` 再將解除安裝改為服務確實不存在後才刪檔／登錄，固定安裝路徑並只刪本產品捷徑；focused contract 11 項通過。最新 required CI run `40514708934` 的兩項必要檢查均通過，並產生 installer `0.1.0-ci.1361`（artifact ID `12739205967`、protocol 1、SHA-256 `8936eb286d0c1c3b570ef11230651c4c0ddcc57ce450f181b0519865b657cfba`、size `29257184`）。artifact 綁 GitHub PR merge ref `9f8bf4995234a88fc562741c78fccda76018e322`；其 tree `490028618f513d46fce45dbf9aac1a8ee69fba6c` 與 PR head `ebeceaebc42603f6294ac05e2f6b6f02653b4d98` 完全相同，下載後 manifest／build evidence／實檔 hash 與 size 讀回一致。
+
+缺陷版已依使用者明確授權完成解除安裝；2026-10-27T14:00:33.906Z 讀回服務不存在、相關程序 0、程式目錄不存在、資料目錄不存在、自有登錄與標準 uninstall key 均不存在。這只證明失敗安裝已清除，不代表修正版驗收通過；以修正版重新安裝前仍須取得 action-time confirmation，驗證 LocalService、service SID、ACL、程式和功能項目、重啟／覆蓋／卸載及不註冊時零 credential／device side effect。V125-03 只有在這些實機結果成立後才可改為 PASS。
+
+後續查核同時發現 owner release 的 source archive 仍只有 clean Git tree，runner image 也未複製 `worker-downloads/windows-service`；因此即使 required CI 已產生 immutable installer，正式下載 API 仍可能因 image 缺檔回 503。這是 §3／§9 既定 same-source 契約的實作缺口。PR #530 已把 same-source artifact、archive、image 與 receipt 接縫合併至 `main`；本分支保留該修正，並將 `actions: read` 從同時持有 production environment／GCP `id-token` 的 job 收斂到無 production environment、無 `id-token`、無 GCP 身分的隔離 binding job。production job 只接收同一 workflow run 重新驗明的 artifact，且不再有 Actions artifact 讀權。不得使用 mutable latest、name-only 最近一筆、actor URL、runtime 網路下載或新增 GCP runtime 讀權。
+
+### 11.4 Windows 交付路徑 corrective（source 已合併／正式驗收前狀態）
 
 後續正式畫面檢查發現 `/settings/windows-service` 雖已實作，仍被 `official-numbering-draft` production-slice page gate 改寫成未開放；同時 CI 只保存獨立 Windows installer artifact，owner source archive 與 app image 沒有帶入該產物，下載 API 因此可能回 `INSTALLER_UNAVAILABLE`。這兩項是 DEV-125 交付路徑缺口，不是重新啟動 DEV-122／124。
 
-本 corrective 已在獨立 branch 完成下列 source 收斂，尚待 protected PR／required CI／正式 owner release，故不先改寫 V125-01／03～09 或 V125-12 的產品驗收判定：
+PR #530 已將下列 source corrective 合併至 `main`；required main CI、正式 owner release 與產品驗收仍須以 exact source／artifact／image 證據完成，故不先改寫 V125-01／03～09 或 V125-12 的產品驗收判定：
 
 - production slice 只開放既有管理頁及 Windows service／preview worker 的 exact command routes；頁面、manager Principal、device credential、company、lease 與撤權 owner guard 維持原樣，未擴張 OrgMaster、IAM 或 Secret。
 - Windows CI artifact 以 release SHA、manifest、build evidence、檔名、size 與 SHA-256 fail closed；所有 `main` push（包含 docs-only source tip）都保留同 SHA artifact，PR 則只在非 docs-only 時建置。

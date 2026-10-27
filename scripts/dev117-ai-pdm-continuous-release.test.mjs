@@ -370,7 +370,14 @@ test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {
 })
 
 test('S1B-20 AI-PDM single-capsule workflow and mutation masks', () => {
-  assert.equal(assertDev117WorkflowSource(fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8')), true)
+  const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8')
+  assert.equal(assertDev117WorkflowSource(source), true)
+  for (const changed of [
+    source.replace('permissions: { actions: read, contents: read }', 'permissions: { contents: read }'),
+    source.replace('permissions: { actions: read, contents: read }', 'permissions: { actions: read, contents: read, id-token: write }'),
+    source.replace('.headBranch == \\"main\\"', '.headBranch == \\"feature\\"'),
+    source.replace('permissions: { contents: read, id-token: write }', 'permissions: { actions: read, contents: read, id-token: write }'),
+  ]) assert.throws(() => assertDev117WorkflowSource(changed), { code: 'WORKFLOW_INSTALLER_ARTIFACT_DRIFT' })
   assert.equal(buildDev117Mutation({ operation: 'CREATE_CANDIDATE', service: 'ai-pdm-prod', updateMask: 'template', revision: 'candidate-1', trafficPercent: 0, etag: 'e' }).trafficPercent, 0)
   assert.equal(buildDev117Mutation({ operation: 'CONFIGURE_ENTRYPOINT', service: 'ai-pdm-prod', updateMask: 'ingress,defaultUriDisabled,invokerIamDisabled', revision: null, trafficPercent: null, etag: 'e' }).updateMask, 'ingress,defaultUriDisabled,invokerIamDisabled')
   assert.equal(buildDev117CandidateTag({ service: 'ai-pdm-prod', revision: 'ai-pdm-prod-candidate-1', tag: `candidate-${'a'.repeat(12)}`, beforeTraffic: [{ revision: 'ai-pdm-prod-prev', percent: 100 }], etag: 'e' }).traffic.at(-1).percent, 0)
@@ -402,6 +409,9 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'UNKNOWN'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, ', 'permissions: { '), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, contents: read }', 'permissions: { actions: read, contents: read, id-token: write }'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('.headBranch == \\"main\\"', '.headBranch == \\"feature\\"'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }', 'permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(/          GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\r?\n(?=          GOOGLE_OAUTH_ACCESS_TOKEN:)/u, ''), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })

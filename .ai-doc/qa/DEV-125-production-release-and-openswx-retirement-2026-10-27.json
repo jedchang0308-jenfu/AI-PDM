@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v1",
+  "taskId": "DEV-125",
+  "recordedAt": "2026-10-27T14:00:33.906Z",
+  "status": "PASS_WITH_WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS",
+  "source": {
+    "revision": "3720c7cea8f294f086e34a175fdf911283971007",
+    "pullRequest": 526,
+    "requiredCiRun": 40505306777,
+    "requiredCiConclusion": "success"
+  },
+  "release": {
+    "releaseId": "DEV125-FINAL-20261027-R18",
+    "githubRun": 40507513920,
+    "githubRunConclusion": "success",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-FINAL-20261027-R18/bab2df91361a7626a28497a98b368d65eee298340956f55ad8cc8d4120aa9e13",
+    "stages": {
+      "prepare": "PASS",
+      "build": "PASS",
+      "migrationAdmission": "PASS",
+      "migrate": "PASS",
+      "candidate": "PASS",
+      "entrypoint": "PASS",
+      "verify": "PASS",
+      "decision": "PASS",
+      "activate": "PASS",
+      "canonical": "PASS",
+      "finalize": "PASS",
+      "terminal": "PASS"
+    },
+    "terminalResult": "RELEASED",
+    "remainingHumanAction": 0,
+    "database": {
+      "disposition": "FORWARD_APPLIED",
+      "applied": 0,
+      "replayed": 39,
+      "ledgerCount": 39
+    },
+    "service": {
+      "name": "ai-pdm-prod",
+      "revision": "ai-pdm-prod-66f9b3ca5852",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:00080078bfa210441f3e2538184bee437793e64d3fb9ae8622e898eeca380497",
+      "trafficPercent": 100,
+      "trafficTargets": 1,
+      "tags": 0,
+      "ready": true,
+      "sourceBinding": "GitHub exact HEAD and immutable per-stage receipts; no custom sourceRevision label was present on the Cloud Run revision"
+    },
+    "smoke": {
+      "candidate": "PASS",
+      "canonical": "PASS",
+      "authenticatedProbe": 200,
+      "unauthenticatedProbe": 401,
+      "revokedSessionProbe": 401
+    }
+  },
+  "openswxRetirement": {
+    "cleanupReceipt": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-OPENSWX-RETIREMENT/1d4748cd0f43be828ec314eebdd2d43ec11336873309c9c8426659ff14324d10/cleanup.json",
+    "cleanupStatus": "RETIREMENT_COMPLETE",
+    "mutatedActiveRows": 2,
+    "remainingActiveRows": 0,
+    "historicalExecutionCount": 46,
+    "activeExecutionCount": 0,
+    "providerReadback": {
+      "cloudRunJob": "NOT_FOUND",
+      "scheduler": "NOT_FOUND",
+      "readerServiceAccount": "NOT_FOUND",
+      "dispatchServiceAccount": "NOT_FOUND",
+      "readerTokenSecret": "NOT_FOUND",
+      "legacyWorkloadCredentialSecret": "NOT_FOUND"
+    },
+    "sourceRetirement": {
+      "activeProductPath": "REMOVED",
+      "formalDiagnosticAndCleanupExecutors": "REMOVED",
+      "dedicatedTerraformRoot": "REMOVED",
+      "legacyRecreationAddresses": "REMOVED",
+      "historicalMigrationAndImmutableReceipts": "RETAINED"
+    }
+  },
+  "windowsAcceptance": {
+    "status": "FAIL_REMEDIATION_ARTIFACT_READY_REINSTALL_PENDING",
+    "initialArtifact": {
+      "version": "0.1.0-ci.1356",
+      "sourceRevision": "3720c7cea8f294f086e34a175fdf911283971007",
+      "sha256": "f9b2d6f84b79b14b4a108fff18295cec18dcef47bb7e90a871103a85b27ea740",
+      "installation": "COMPLETED",
+      "registration": "CANCELLED_BY_USER",
+      "credentialCreated": false,
+      "deviceIdentityCreated": false,
+      "currentPresence": "ABSENT_AFTER_FAILED_ACCEPTANCE_UNINSTALL",
+      "observedServiceAccount": "LocalSystem",
+      "requiredServiceAccount": "NT AUTHORITY\\LocalService",
+      "programsAndFeaturesEntry": "MISSING"
+    },
+    "rootCause": "WinSW 2.12.0 requires serviceaccount/domain plus serviceaccount/user; the username element was ignored. The NSIS package did not write the standard Windows uninstall registry key.",
+    "correctedArtifact": {
+      "version": "0.1.0-ci.1361",
+      "sourceRevision": "9f8bf4995234a88fc562741c78fccda76018e322",
+      "prHeadRevision": "ebeceaebc42603f6294ac05e2f6b6f02653b4d98",
+      "contentTree": "490028618f513d46fce45dbf9aac1a8ee69fba6c",
+      "protocolVersion": 1,
+      "sha256": "8936eb286d0c1c3b570ef11230651c4c0ddcc57ce450f181b0519865b657cfba",
+      "size": 29257184,
+      "artifactId": 12739205967,
+      "ciRunId": 40514708934,
+      "requiredChecks": "PASS_2_OF_2",
+      "contractTests": "PASS_11",
+      "installerBuild": "PASS",
+      "manifestReadback": "PASS",
+      "realMachineInstall": "NOT_RUN"
+    },
+    "uninstall": {
+      "authorized": true,
+      "uacConfirmed": true,
+      "completedAt": "2026-10-27T14:00:33.906Z",
+      "verifiedAbsent": true,
+      "serviceAbsent": true,
+      "processCount": 0,
+      "installDirectoryAbsent": true,
+      "dataDirectoryAbsent": true,
+      "vendorRegistryAbsent": true,
+      "programsAndFeaturesRegistryAbsent": true
+    },
+    "productionImageBinding": {
+      "status": "SOURCE_IMPLEMENTED_AWAITING_CI_MERGE_RELEASE",
+      "finding": "PR 530 supplied the missing same-source archive, image and receipt path; the follow-up branch isolates GitHub artifact read authority from production and GCP identities.",
+      "requiredRemediation": "Pass required CI, merge PR 529, obtain the exact main installer artifact, run the owner release and verify the serving image download readback.",
+      "minimumAdditionalWorkflowPermission": "actions:read exists only on an isolated same-repository artifact-binding job with no production environment or GCP id-token; production jobs receive a reverified current-run artifact without actions:read"
+    }
+  },
+  "validationDisposition": {
+    "V125-11": "PASS",
+    "V125-01": "PARTIAL",
+    "V125-03": "FAIL_REMEDIATION_IN_PROGRESS",
+    "V125-04_to_10": "PARTIAL_OR_NOT_RUN",
+    "V125-12": "PARTIAL",
+    "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
+    "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
+  },
+  "remaining": [
+    "Bind the exact successful same-source Windows installer artifact into the owner release archive, image and receipt, then verify image readback",
+    "Install and enroll the same-source Windows service on an authorized Windows 11 x64 device",
+    "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
+    "Verify A0001-M01 native preview, PDF, administrator recognition and normal UI outcomes",
+    "Remove the final historical predecessor compatibility branches after the Windows recovery baseline is proven"
+  ],
+  "safety": {
+    "secretsRecorded": false,
+    "businessCadModified": false,
+    "manualDatabaseEdit": false,
+    "downMigration": false,
+    "orgMasterModified": false
+  }
+}

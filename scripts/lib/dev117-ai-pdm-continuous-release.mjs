@@ -176,25 +176,32 @@ export function assertDev117WorkflowSource(source) {
   if (!source.includes('PDM_ENFORCE_DAILY_MODE_BOUNDARY: "true"')) fail('WORKFLOW_RELEASE_MODE_BOUNDARY_MISSING', 'Daily full release must reject special recovery modes')
   for (const forbidden of ['product_owner_decision:', 'artifact_receipt_ref:', 'candidate_receipt_ref:', 'level4_receipt_ref:', 'stage:']) if (source.includes(forbidden)) fail('HISTORICAL_INPUT_ACTIVE', `Forbidden v1 workflow input ${forbidden}`)
   if (!source.includes('group: production-release-ai-pdm-prod')) fail('WORKFLOW_CONCURRENCY_DRIFT', 'Concurrency must be service-wide')
-  const expectedJobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback', 'failure']
+  const expectedJobs = ['preflight', 'installer', 'build', 'migrate', 'candidate-smoke', 'activate-readback', 'failure']
   const observedJobs = [...source.matchAll(/^  ([a-z][a-z-]+):$/gmu)].map((match) => match[1])
   if (JSON.stringify(observedJobs) !== JSON.stringify(expectedJobs)) fail('WORKFLOW_JOB_MISSING', 'Owner workflow must expose five logical stages plus failure recovery')
-  if (!/\n  failure:[\s\S]*?needs:\s*\[preflight, build, migrate, candidate-smoke, activate-readback\]/u.test(source)) fail('FINALIZE_FAILURE_WIRING_MISSING')
+  if (!/\n  failure:[\s\S]*?needs:\s*\[preflight, installer, build, migrate, candidate-smoke, activate-readback\]/u.test(source)) fail('FINALIZE_FAILURE_WIRING_MISSING')
   if (/CAPSULE_PROVIDER_FETCH_REQUIRED|run:\s*echo\s/iu.test(source)) fail('PROVIDER_PLACEHOLDER_ACTIVE', 'Workflow contains a provider placeholder')
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 6 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   const migrationBinding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'
   const preflightBlock = jobBlocks.preflight ?? ''
+  const installerBlock = jobBlocks.installer ?? ''
   const buildBlock = jobBlocks.build ?? ''
   if (!preflightBlock.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
       !preflightBlock.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       source.includes('test:production-slice:affected')) {
     fail('WORKFLOW_SOURCE_CHECK_DRIFT', 'Owner workflow must read exact required CI results instead of rerunning source tests')
   }
-  if (!buildBlock.includes('permissions: { actions: read, contents: read, id-token: write }') ||
-      !buildBlock.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success') ||
+  if (!installerBlock.includes('permissions: { actions: read, contents: read }') ||
+      installerBlock.includes('environment: production') || installerBlock.includes('id-token: write') ||
+      !installerBlock.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow "ci.yml" --commit "$GITHUB_SHA" --event push --status success') ||
+      !installerBlock.includes('.headBranch == \\"main\\"') ||
       !buildBlock.includes('node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence') ||
+      !installerBlock.includes('actions/upload-artifact@v4') ||
+      !buildBlock.includes('permissions: { contents: read, id-token: write }') || buildBlock.includes('actions: read') ||
+      buildBlock.includes('gh run list') || buildBlock.includes('gh run download') || buildBlock.includes('GH_TOKEN:') ||
+      !buildBlock.includes('actions/download-artifact@v4') ||
       !buildBlock.includes('DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE')) {
-    fail('WORKFLOW_INSTALLER_ARTIFACT_DRIFT', 'Build must bind the exact-source DEV-125 installer artifact')
+    fail('WORKFLOW_INSTALLER_ARTIFACT_DRIFT', 'A GitHub-read-only job must bind the exact-source installer before the production build')
   }
   const stagePlan = {
     preflight: [{ stage: 'prepare', auth: 'verifier_auth', proof: true }],
@@ -277,12 +284,18 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const historicalAppliedOnly = "if: ${{ steps.classify.outputs.kind == 'applied_release' && steps.migrate.outputs.migration_disposition == 'HISTORICAL_EVIDENCE_REUSED' && steps.migrate.outputs.schema_stage_only != 'true' }}"
   const rollbackOnly = "if: ${{ failure() && steps.classify.outputs.kind == 'applied_release' && (steps.prepare.outcome == 'success' || steps.prepare.outcome == 'failure') }}"
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
-      JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
+      JSON.stringify(jobs) !== JSON.stringify(['installer', 'migrate']) ||
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback']) ||
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
       (source.match(/^      - run:/gm) ?? []).length !== 1 ||
       source.includes('test:production-slice:affected') ||
-      !source.includes('permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }') ||
+      !/  installer:[\s\S]*?permissions: \{ actions: read, contents: read \}[\s\S]*?--workflow "ci\.yml"[\s\S]*?\.headBranch == \\"main\\"[\s\S]*?actions\/upload-artifact@v4/u.test(source) ||
+      /  installer:[\s\S]*?(?:environment: production|id-token: write)/u.test(source.split('\n  migrate:')[0]) ||
+      !source.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
+      /  migrate:[\s\S]*?permissions: \{[^\r\n}]*actions: read/u.test(source) ||
+      !source.includes('needs: installer') ||
+      !source.includes('actions/download-artifact@v4') ||
+      !source.includes('DEV125_INSTALLER_BIND_STATUS: "${{ needs.installer.outputs.status }}"') ||
       !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||

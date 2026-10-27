@@ -96,7 +96,12 @@ test('template ref and workflow identity are exact and traversal-safe', () => {
     `${templateRef.uri}#sha256=latest`,
   ]) assert.throws(() => bindAppliedContinuationTemplateRef(value), /APPLIED_CONTINUATION_TEMPLATE_REF_INVALID/u)
   assert.throws(() => assertAppliedContinuationRefreshEnvironment({ ...environment, GITHUB_REF: 'refs/heads/feature' }, CURRENT), /APPLIED_CONTINUATION_REFRESH_WORKFLOW_REQUIRED/u)
-  assert.match(workflow, /permissions: \{ actions: read, contents: read, pull-requests: read, checks: read, id-token: write \}/u)
+  const installerJob = workflow.match(/\r?\n  installer:\r?\n([\s\S]*?)(?=\r?\n  migrate:\r?\n)/u)?.[1] ?? ''
+  const migrateJob = workflow.match(/\r?\n  migrate:\r?\n([\s\S]*)/u)?.[1] ?? ''
+  assert.match(installerJob, /permissions: \{ actions: read, contents: read \}/u)
+  assert.doesNotMatch(installerJob, /environment: production|id-token: write/u)
+  assert.match(migrateJob, /permissions: \{ contents: read, pull-requests: read, checks: read, id-token: write \}/u)
+  assert.doesNotMatch(migrateJob.match(/permissions:[^\r\n]*/u)?.[0] ?? '', /actions: read/u)
   assert.match(workflow, /- id: capsule[\s\S]*?env:\s+GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\s+GOOGLE_OAUTH_ACCESS_TOKEN:/u)
 })
 
