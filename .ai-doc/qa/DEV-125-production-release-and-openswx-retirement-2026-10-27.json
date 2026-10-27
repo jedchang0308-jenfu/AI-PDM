@@ -1,19 +1,19 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v1",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T14:00:33.906Z",
+  "recordedAt": "2026-10-27T15:13:34.146Z",
   "status": "PASS_WITH_WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS",
   "source": {
-    "revision": "3720c7cea8f294f086e34a175fdf911283971007",
-    "pullRequest": 526,
-    "requiredCiRun": 40505306777,
+    "revision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
+    "pullRequest": 531,
+    "requiredCiRun": 40523534853,
     "requiredCiConclusion": "success"
   },
   "release": {
-    "releaseId": "DEV125-FINAL-20261027-R18",
-    "githubRun": 40507513920,
+    "releaseId": "DEV125-WINDOWS-20261027-R20",
+    "githubRun": 40524682058,
     "githubRunConclusion": "success",
-    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-FINAL-20261027-R18/bab2df91361a7626a28497a98b368d65eee298340956f55ad8cc8d4120aa9e13",
+    "receiptRoot": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-WINDOWS-20261027-R20/4b6d471a92d252dabf8bbe34ee69efb5f7ceaa3ff02bffc865d8885e6d234a82",
     "stages": {
       "prepare": "PASS",
       "build": "PASS",
@@ -38,8 +38,8 @@
     },
     "service": {
       "name": "ai-pdm-prod",
-      "revision": "ai-pdm-prod-66f9b3ca5852",
-      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:00080078bfa210441f3e2538184bee437793e64d3fb9ae8622e898eeca380497",
+      "revision": "ai-pdm-prod-39846fac3736",
+      "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:b1634e283dc0edaceb942b9f80af42abf14abaf3370ce03ea7b86841a431dae4",
       "trafficPercent": 100,
       "trafficTargets": 1,
       "tags": 0,
@@ -94,20 +94,39 @@
     },
     "rootCause": "WinSW 2.12.0 requires serviceaccount/domain plus serviceaccount/user; the username element was ignored. The NSIS package did not write the standard Windows uninstall registry key.",
     "correctedArtifact": {
-      "version": "0.1.0-ci.1361",
-      "sourceRevision": "9f8bf4995234a88fc562741c78fccda76018e322",
-      "prHeadRevision": "ebeceaebc42603f6294ac05e2f6b6f02653b4d98",
-      "contentTree": "490028618f513d46fce45dbf9aac1a8ee69fba6c",
+      "version": "0.1.0-ci.1370",
+      "sourceRevision": "ef8a7b9ebddc8e820e44874e34cf17c52a670d33",
       "protocolVersion": 1,
-      "sha256": "8936eb286d0c1c3b570ef11230651c4c0ddcc57ce450f181b0519865b657cfba",
-      "size": 29257184,
-      "artifactId": 12739205967,
-      "ciRunId": 40514708934,
+      "sha256": "906807b7df3e1bb80304418f3c75380c7661795db11b5ebde0f353b77451be73",
+      "size": 29257933,
+      "artifactId": 12742851994,
+      "ciRunId": 40523534853,
       "requiredChecks": "PASS_2_OF_2",
-      "contractTests": "PASS_11",
+      "contractTests": "PASS_REQUIRED_CI",
       "installerBuild": "PASS",
       "manifestReadback": "PASS",
+      "releaseReceiptBinding": "PASS",
       "realMachineInstall": "NOT_RUN"
+    },
+    "preinstallReadback": {
+      "service": "ABSENT",
+      "installDirectory": "ABSENT",
+      "dataDirectory": "ABSENT",
+      "vendorRegistry": "PRESENT_STALE_VERSION_0.1.0-ci.1356",
+      "registeredProductionDevices": 0,
+      "documentManager": {
+        "classRegistered": true,
+        "runtimePresent": true,
+        "fileVersion": "33.3.0.0092"
+      },
+      "authorizedAcceptanceInputs": {
+        "sldprt": 4,
+        "sldasm": 1,
+        "slddrw": 5,
+        "pdf": 2,
+        "allNonEmpty": true,
+        "coLocated": true
+      }
     },
     "uninstall": {
       "authorized": true,
@@ -122,27 +141,35 @@
       "programsAndFeaturesRegistryAbsent": true
     },
     "productionImageBinding": {
-      "status": "SOURCE_IMPLEMENTED_AWAITING_CI_MERGE_RELEASE",
-      "finding": "PR 530 supplied the missing same-source archive, image and receipt path; the follow-up branch isolates GitHub artifact read authority from production and GCP identities.",
-      "requiredRemediation": "Pass required CI, merge PR 529, obtain the exact main installer artifact, run the owner release and verify the serving image download readback.",
+      "status": "PASS_RELEASED_CURRENT_SOURCE",
+      "finding": "PR 531 merged the release-adapter compatibility corrective; exact-main CI and owner release bound installer 0.1.0-ci.1370 into the serving image and immutable receipts.",
+      "requiredRemediation": "None for source, image or release binding; Windows real-machine installation and product acceptance remain.",
       "minimumAdditionalWorkflowPermission": "actions:read exists only on an isolated same-repository artifact-binding job with no production environment or GCP id-token; production jobs receive a reverified current-run artifact without actions:read"
+    },
+    "productionDownloadReadback": {
+      "adminPage": "PASS_AUTHENTICATED_VISIBLE",
+      "deviceList": "EMPTY",
+      "serverStatus": 200,
+      "serverResponseSize": 29258506,
+      "browserAutomation": "ERR_BLOCKED_BY_CLIENT_NO_LOCAL_DOWNLOAD",
+      "disposition": "SERVER_DELIVERY_PASS_BROWSER_DOWNLOAD_NOT_ACCEPTED"
     }
   },
   "validationDisposition": {
     "V125-11": "PASS",
-    "V125-01": "PARTIAL",
-    "V125-03": "FAIL_REMEDIATION_IN_PROGRESS",
+    "V125-01": "PARTIAL_SERVER_DELIVERY_PASS_BROWSER_DOWNLOAD_NOT_ACCEPTED",
+    "V125-03": "FAIL_REMEDIATION_ARTIFACT_RELEASED_REINSTALL_PENDING",
     "V125-04_to_10": "PARTIAL_OR_NOT_RUN",
     "V125-12": "PARTIAL",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Bind the exact successful same-source Windows installer artifact into the owner release archive, image and receipt, then verify image readback",
     "Install and enroll the same-source Windows service on an authorized Windows 11 x64 device",
+    "Verify LocalService, service SID, ACL, Programs and Features, restart, overwrite update, uninstall and final reinstall",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify A0001-M01 native preview, PDF, administrator recognition and normal UI outcomes",
-    "Remove the final historical predecessor compatibility branches after the Windows recovery baseline is proven"
+    "Revoke the acceptance device and prove immediate denial, then register the retained delivery device again if the service is to remain operational"
   ],
   "safety": {
     "secretsRecorded": false,

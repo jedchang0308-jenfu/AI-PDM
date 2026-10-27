@@ -10,7 +10,7 @@
 
 DEV-125 是唯一後續實作／驗收入口；DEV-124 取消 OpenSWX 修復並由 125 承接拆除。PR #525／#526 及後續 provider readback 已證明 OpenSWX DB 無 active／pending row、dispatch disabled，專用 Job／Scheduler／service accounts／token Secret／roles 與 active source 已退出；這部分不再是待開發項。尚未完成的是正式 Windows 裝置與 A0001 預覽／管理員辨識驗收，不是重新開發 DEV-122 預覽 UI 或復活 OpenSWX。原 D122-05A／05B 與 29 個診斷 ID 保留來源對照，不另開平行施工。現行任務處置亦記於 [既有機器可讀契約](DEV-122-self-use-acceptance.v1.json)；私有七項矩陣是既有受測快照，不再被當作本輪 active 工作清單。
 
-現行證據修訂：正式 owner run `40473862392` 已將 DEV-125 Windows 單路徑 source 發布並切換 100% traffic。fixed runtime operation `DEV125-RUNTIME-20261027-R15` 不再是待執行；它證明 A0001 的 `D-0007-MA1.SLDPRT`與 `D-0007-MA1.pdf` current binding 均為 `MISSING`，asset／job／derivative 皆為 0，兩個歷史 worker identity 也無 fresh heartbeat。所以 D122-05 仍未驗收，但精確剩餘責任已收斂為「建立正式 current asset binding＋Windows runtime 真實解析＋mounted UI 讀回」；下方尚待 runner rollout／fresh readback／provider inventory 的句子為當時歷史語境。
+現行證據修訂：正式 owner run `40524682058` 已將 DEV-125 exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33` 發布至 `ai-pdm-prod-39846fac3736` 並切換唯一 100% traffic；正式 Windows 管理頁可登入，但目前尚未註冊解析電腦。fixed runtime operation `DEV125-RUNTIME-20261027-R15` 已證明 A0001 的 `D-0007-MA1.SLDPRT`與 `D-0007-MA1.pdf` current binding 均為 `MISSING`，asset／job／derivative 皆為 0，兩個歷史 worker identity 也無 fresh heartbeat。所以 D122-05 仍未驗收，精確剩餘責任維持「建立正式 current asset binding＋Windows runtime 真實解析＋mounted UI 讀回」；下方尚待 runner rollout／fresh readback／provider inventory 的句子為當時歷史語境。
 
 **以下為移交前契約與證據。** 下文的 CURRENT、ACTIVE、下一步及發布指示均保留當時語境，不是重新啟動 DEV-122 的命令；仍適用的資料、授權、來源完整性與失敗恢復契約由 DEV-125 重用。歷史已驗與未驗的結果不回寫。
 

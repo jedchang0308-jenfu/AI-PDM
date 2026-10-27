@@ -6,7 +6,7 @@
 
 **下文完整保留為歷史修復計畫及證據，原 124-A／B／C 不再排程執行。** 只在 DEV-125 安全退出需要時重用既有唯讀能力與收據，不為拆除先把整套 OpenSWX 修好。
 
-現行結案基準：`origin/main` `3720c7cea8f294f086e34a175fdf911283971007`（2026-10-27）。PR #525 合併 provider declarations 刪除，精確 apply 後 worker tfstate serial 7 為零 managed address，readback tfstate serial 5 只保留 shared prebuild controls；PR #526 合併退役 Terraform roots、runtime cleanup／readback operation 與 active executor 移除。本文下方 124-A／B／C、「尚待 readback／rollout／provider 退出」均是當時歷史語境，不是現行待辦。
+現行結案基準：`origin/main` `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`（2026-10-27）。PR #525 合併 provider declarations 刪除，精確 apply 後 worker tfstate serial 7 為零 managed address，readback tfstate serial 5 只保留 shared prebuild controls；PR #526 合併退役 Terraform roots、runtime cleanup／readback operation 與 active executor 移除。其後 PR #531／正式 release `DEV125-WINDOWS-20261027-R20` 未重新引入 OpenSWX。本文下方 124-A／B／C、「尚待 readback／rollout／provider 退出」均是當時歷史語境，不是現行待辦。
 
 ## 1. 目的與責任邊界
 

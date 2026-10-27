@@ -2,9 +2,9 @@
 
 狀態：`IMPLEMENTATION_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE / WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為 RD 實作與驗證契約，§10 記錄架構收斂審查，§11 記錄實際交付進度。OpenSWX 修復、排程與 provider 資源已退出，不再是本任務待開發項；整體尚未結案的原因是 Windows 首次安裝缺陷修正後的實機重驗、SolidWorks 三格式、A0001 預覽與管理員辨識驗收未完成。
 
-決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。現行 main 為 `3720c7cea8f294f086e34a175fdf911283971007`；後續結果須以各切片 exact source／CI／發布讀回為準。
+決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。其後完成 OpenSWX DB 排空、provider 資源刪除及 readback；PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #531 已合併 Windows installer same-source release adapter corrective，現行 main 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`，正式 owner run `40524682058` 已發布該 exact source；後續產品結果仍須以 Windows 實機與正式資料／UI 證據判定。
 
-最新 main CI run `40505306777` 已對 exact main `3720c7cea8f294f086e34a175fdf911283971007` 完成 `DEV-012 Isolated PostgreSQL Cutover`與 `Production Slice QC`，兩者均 `SUCCESS`；這是 source／build／contract 證據，不代替下列 Windows 實機驗收。
+最新 main CI run `40523534853` 已對 exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33` 完成 `DEV-012 Isolated PostgreSQL Cutover`與 `Production Slice QC`，兩者均 `SUCCESS`；這是 source／build／contract 證據，不代替下列 Windows 實機驗收。
 
 ## 1. 要交付的結果
 
@@ -249,4 +249,16 @@ PR #530 已將下列 source corrective 合併至 `main`；required main CI、正
 - build stage、provenance 與 deployment capsule 都記錄相同 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}`；owner build 回傳不一致或缺少綁定即停止。舊 receipt 沒有此 additive 欄位仍可唯讀相容，不能冒充新 source 的 installer 證據。
 - affected-slice required CI 的 worker group 已納入 artifact verifier 與實際 production-slice middleware Vitest，不只靠 package script 的本機結果。
 
-目前本機證據包含 DEV-125 contract／artifact／route、owner build receipt 正反案例、release runtime／recovery reader、typecheck 及 affected planner／release-core／worker；最終計數、merge SHA、CI run、image digest 與正式頁面／下載結果待實際完成後回填本節，不預填為 PASS。
+目前本機證據包含 DEV-125 contract／artifact／route、owner build receipt 正反案例、release runtime／recovery reader、typecheck 及 affected planner／release-core／worker；該 corrective 的 merge、CI、發布與正式入口讀回已由下節補齊，Windows 實機及業務結果仍不得預填為 PASS。
+
+### 11.5 R20 same-source installer 正式發布與安裝前讀回（2026-10-27）
+
+PR #531 已合併 exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`；main CI run `40523534853` 的兩項 required checks 均 `SUCCESS`。同 SHA artifact `0.1.0-ci.1370`（artifact ID `12742851994`、protocol 1、size `29257933`、SHA-256 `906807b7df3e1bb80304418f3c75380c7661795db11b5ebde0f353b77451be73`）已由 manifest、build evidence 與本機實檔讀回一致。
+
+正式 owner release `DEV125-WINDOWS-20261027-R20`／run `40524682058` 完成 preflight、same-source installer bind、build、migration replay、candidate、verify、decision、activate、canonical 與 finalize；terminal=`PASS / RELEASED`、remainingHumanAction=`0`。`ai-pdm-prod-39846fac3736` 以 image digest `sha256:b1634e283dc0edaceb942b9f80af42abf14abaf3370ce03ea7b86841a431dae4` 承接唯一 100% traffic、零 tag，Cloud Run generation／observedGeneration 均為 271、Ready=True。這取代 §11.2 的 R18 serving baseline；R18 留作歷史，不是現行版本。
+
+正式公司管理員頁面 `/settings/windows-service` 已可登入並顯示下載、建立註冊碼及電腦清單；讀回為尚未註冊解析電腦。正式 installer endpoint 的 Cloud Run request log 回 `200` 且 responseSize=`29258506`；Chrome 自動化擴充套件仍以 `ERR_BLOCKED_BY_CLIENT` 阻止下載導覽，未得到新的本機下載檔，因此只將 server delivery path 記為通過，不把瀏覽器實際下載記為 PASS。實機驗收可使用上述已驗明的 immutable GitHub artifact，不把工具攔截誤判成產品 503。
+
+安裝前本機讀回為：`AipdmWindowsParsing` 不存在、Program Files 與 ProgramData 產品目錄均不存在；Document Manager x64 COM class／runtime 存在，file version=`33.3.0.0092`；授權測試資料具備非空的 SLDPRT／SLDASM／SLDDRW／PDF。另發現 vendor registry 留有舊 `0.1.0-ci.1356` 版本值，與 §11.3 14:00Z 的清除快照不同；此殘值會由新版安裝覆寫，但在新版實機安裝讀回前不得再宣稱現行登錄完全不存在。
+
+上述結果只完成 exact-source build／release／正式入口與安裝前條件。V125-01 維持 `PARTIAL`，V125-03 維持 `FAIL / REMEDIATION_IN_PROGRESS`，V125-04～09 與 V125-12 維持 `PARTIAL / NOT_RUN`；下一步仍是取得 action-time confirmation 後安裝 `0.1.0-ci.1370`，驗證 LocalService、service SID、ACL、程式和功能、重啟／覆蓋／解除安裝與最終重裝，再完成正式裝置註冊／撤權、三格式、A0001 current binding、3D／PDF 預覽及管理員辨識。
