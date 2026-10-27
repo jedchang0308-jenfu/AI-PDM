@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       operationRef:
-        description: Immutable RD permission-state, preview/OpenSWX state, DEV-125 retirement cleanup, or service-state operation with sha256 fragment
+        description: Immutable diagnostic or fixed DEV-125 OpenSWX retirement operation with sha256 fragment
         required: true
         type: string
 
@@ -38,8 +38,14 @@ jobs:
       - id: bind
         env: { OPERATION_REF: "${{ inputs.operationRef }}" }
         run: node scripts/dev117-production-diagnostics.mjs --bind
+      - name: Setup Terraform for exact DEV-125 provider retirement
+        if: steps.bind.outputs.kind == 'openswx-provider-retirement'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.5"
+          terraform_wrapper: false
       - id: deployer_auth
-        if: steps.bind.outputs.kind == 'rd-permission-state' || steps.bind.outputs.kind == 'preview-openswx-runtime-state' || steps.bind.outputs.kind == 'openswx-retirement-cleanup'
+        if: steps.bind.outputs.kind == 'rd-permission-state' || steps.bind.outputs.kind == 'preview-openswx-runtime-state' || steps.bind.outputs.kind == 'openswx-retirement-cleanup' || steps.bind.outputs.kind == 'openswx-provider-retirement'
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -75,4 +81,9 @@ jobs:
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
         run: node scripts/dev125-openswx-retirement-cleanup.mjs --stage cleanup --operation-ref "${{ steps.bind.outputs.operation_uri }}" --operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-OPENSWX-RETIREMENT/${{ steps.bind.outputs.operation_sha256 }}/cleanup.json"
+      - name: Apply exact DEV-125 OpenSWX provider unprotect plan
+        if: steps.bind.outputs.kind == 'openswx-provider-retirement'
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev125-provider-retirement.mjs --stage unprotect --operation-ref "${{ steps.bind.outputs.operation_uri }}" --operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-OPENSWX-PROVIDER-RETIREMENT/${{ steps.bind.outputs.operation_sha256 }}/UNPROTECT.json"
 
