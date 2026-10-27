@@ -100,8 +100,50 @@ async function runPermissionStateReadback({ argv, environment, fetchImpl, Client
   }
 }
 
+async function runRuntimeStateReadback({ argv, environment, fetchImpl, Client }) {
+  const {
+    RUNTIME_STATE_PREFIX,
+    RUNTIME_STATE_RECEIPT_PREFIX,
+    assertRuntimeStateOperation,
+    assertRuntimeStateTarget,
+    buildRuntimeDatabaseReceipt,
+    parseRuntimeStateArgs,
+    readRuntimeDatabaseState,
+  } = await import('./lib/dev122-preview-openswx-runtime-readback.mjs')
+  const args = parseRuntimeStateArgs(argv)
+  assertRunnerTarget(environment, TARGET)
+  assertRuntimeStateTarget(environment)
+  if (environment.PDM_SOURCE_REVISION !== args.sourceRevision) throw new Error('RUNTIME_STATE_SOURCE_REVISION_MISMATCH')
+  const exactDatabaseOutputRef = `gs://${TARGET.releaseBucket}/${RUNTIME_STATE_RECEIPT_PREFIX}/${args.operationSha256}/database.json`
+  if (args.databaseOutputRef !== exactDatabaseOutputRef) throw new Error('RUNTIME_STATE_DATABASE_OUTPUT_REF_INVALID')
+  parseGsUri(args.operationRef, TARGET.releaseBucket, RUNTIME_STATE_PREFIX)
+  parseGsUri(args.databaseOutputRef, TARGET.releaseBucket, RUNTIME_STATE_RECEIPT_PREFIX)
+  const token = await metadataAccessToken(fetchImpl)
+  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: TARGET.releaseBucket,
+    expectedPrefix: RUNTIME_STATE_PREFIX, token, fetchImpl })
+  let raw
+  try { raw = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('RUNTIME_STATE_OPERATION_JSON_INVALID') }
+  const operation = assertRuntimeStateOperation(raw, { bytes: object.bytes,
+    operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
+  const database = new Client(databaseOptions(environment, token))
+  await database.connect()
+  try {
+    const state = await readRuntimeDatabaseState(database, operation)
+    const receipt = buildRuntimeDatabaseReceipt({ operation,
+      operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: object.generation },
+      outputRef: args.databaseOutputRef, observedAt: new Date().toISOString(), state })
+    const publication = await publishGcsJson({ uri: args.databaseOutputRef,
+      expectedBucket: TARGET.releaseBucket, expectedPrefix: RUNTIME_STATE_RECEIPT_PREFIX,
+      value: receipt, token, fetchImpl })
+    return { ...receipt, outputGeneration: publication.generation, outputSha256: publication.sha256 }
+  } finally {
+    await database.end()
+  }
+}
+
 export async function runMain({ argv = process.argv.slice(2), environment = process.env, fetchImpl = fetch, Client = pg.Client } = {}) {
   if (argv[0] === '--permission-operation-ref') return runPermissionStateReadback({ argv, environment, fetchImpl, Client })
+  if (argv[0] === '--runtime-operation-ref') return runRuntimeStateReadback({ argv, environment, fetchImpl, Client })
   const args = parseRunnerArgs(argv)
   assertRunnerTarget(environment, TARGET)
   parseGsUri(args.bundleRef, TARGET.releaseBucket, 'source/migration-bundles')

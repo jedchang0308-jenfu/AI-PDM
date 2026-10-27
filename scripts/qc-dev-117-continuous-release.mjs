@@ -57,6 +57,7 @@ const files = [...new Set([
   '.gitattributes', 'AGENTS.md', 'package.json',
   '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md',
   '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
+  'scripts/lib/dev122-preview-openswx-runtime-readback.mjs', 'scripts/lib/dev122-preview-openswx-runtime-readback.test.mjs', 'scripts/dev122-preview-openswx-runtime-readback.mjs',
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
   '.github/workflows/deploy-ai-pdm-independent-production.yml',

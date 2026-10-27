@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       operationRef:
-        description: Immutable RD permission-state or service-state operation with sha256 fragment
+        description: Immutable RD permission-state, preview/OpenSWX retirement-state, or service-state operation with sha256 fragment
         required: true
         type: string
 
@@ -39,7 +39,7 @@ jobs:
         env: { OPERATION_REF: "${{ inputs.operationRef }}" }
         run: node scripts/dev117-production-diagnostics.mjs --bind
       - id: deployer_auth
-        if: steps.bind.outputs.kind == 'rd-permission-state'
+        if: steps.bind.outputs.kind == 'rd-permission-state' || steps.bind.outputs.kind == 'preview-openswx-runtime-state'
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -65,4 +65,9 @@ jobs:
           OPERATION_REF: "${{ inputs.operationRef }}"
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
         run: node scripts/dev117-production-diagnostics.mjs --service-state
+      - name: Execute fixed read-only preview and OpenSWX runtime-state readback
+        if: steps.bind.outputs.kind == 'preview-openswx-runtime-state'
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev122-preview-openswx-runtime-readback.mjs --stage readback --runtime-operation-ref "${{ steps.bind.outputs.operation_uri }}" --runtime-operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --runtime-output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/diagnostics/DEV122-PREVIEW-OPENSWX-RUNTIME/${{ steps.bind.outputs.operation_sha256 }}/state.json"
 

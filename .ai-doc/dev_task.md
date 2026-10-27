@@ -6,19 +6,19 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED` | 取消修復及恢復排程；原 UNKNOWN 保留。退出盤點與實際拆除統一交 125，未宣稱已移除。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-A_RD_COMPLETE_PENDING_CI` | 125-A source、installer build 與隔離 PostgreSQL 已完成；待 PR CI／實機安裝後進入 125-B，最後由 125-C 完整退出 OpenSWX。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `IMPLEMENTATION_IN_PROGRESS / 125-A_B_SOURCE_MERGED / 125-C_PROVIDER_RETIREMENT_PENDING` | PR #498／#499 已合併裝置管理、單一路徑 Windows worker 與 OpenSWX active source／release dependency 退役；仍待正式實機與 A0001 預覽驗收，以及雲端 provider 資源盤點／退出。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496／#497 已合併並完成架構定案。依序 125-A 安裝／裝置清單、125-B 單一路徑解析與整合、125-C OpenSWX 拆除／結案；不新增平行框架。125-A 已完成 migration 089、管理員與裝置 API、設定頁、NSIS／WinSW／DPAPI 套件、Document Manager runtime probe、隔離 PostgreSQL與發行契約自查，現為 PR／CI 前狀態；V125-02 自動化範圍 PASS，V125-01／03／04 PARTIAL。125-B／C 尚待執行。OrgMaster 無相容程式修改範圍。
+DEV-125：[唯一契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)。PR #496／#497 已完成架構定案；PR #498 已合併 125-A 安裝／裝置清單，PR #499 已合併 125-B 單一路徑 worker 整合及 125-C 的 OpenSWX 產品原始碼／發布依賴退役，required CI run `40460654463` 通過。這不代表使用者畫面已可預覽，也不代表 OpenSWX 雲端資源已刪除：Windows 實機三格式、A0001 3D／PDF、管理員辨識、正式 SSO／裝置及 provider Job／Scheduler／execution／IAM／Secret 退出仍需各自實證。退出前 fixed readback 已本機實作：以 actor-independent readonly transaction 讀指定 preview binding/current-hash 狀態與 OpenSWX DB active state，再讀 serving app 的 dispatch flag；它不讀完整 provider inventory，因此只能指出需排空／停入口或仍待盤點，不能宣稱可刪除。OrgMaster 無相容程式修改範圍。
 
-以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。本次只交付任務文件，沒有刪除程式或雲端服務。
+以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #499 已完成 active OpenSWX 程式／發布依賴退役；本輪 fixed readback 與文件更新沒有刪除雲端服務、IAM、Secret 或正式資料。
 
 ## DEV-122 D122-05 — 移交前 A0001-M01 正式預覽缺口（2026-10-27）
 
 正式公司 Google SSO 下，`A0001-M01` 的 3D `D-0007-MA1.SLDPRT` 回覆 `PREVIEW_FAILED / preview_worker_unavailable`，2D `D-0007-MA1.pdf` 回覆 `PREVIEW_UNSUPPORTED / unsupported_preview_source`。provider readback 已確認目前正式 revision／image 對應 source `ad74f179…`，且該 source 已包含 lease v2 與 PDF viewer／render liveness 修正，所以本案不是「DEV-122 source 尚未部署」。目前 canonical GET 可能 recovery／enqueue 並寫 access audit，不可當唯讀 triage；須先補 `D122-05A` 固定唯讀 readback，再由 `D122-05B` 修正被證明的 metadata／binding／derivative／worker runtime 責任。精確觀察、證據限制與關閉條件見 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-05-production-preview-gap-20261027)及[結構化紀錄](qa/DEV-122-A0001-preview-production-gap-2026-10-27.json)。
 
-本次只更新文件，沒有修改產品、worker、schema／migration、IAM／Secret、正式資料或服務；不得將這個 SolidWorks preview gap 轉列只負責 OpenSWX 鏈的 DEV-124。D122-05／`drawing_preview` 正式驗收為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
+本輪新增的 fixed readback 只修改診斷與發布接線，沒有修改產品、worker、schema／migration、IAM／Secret、正式資料或服務；不得將這個 SolidWorks preview gap 轉回已取消的 DEV-124。D122-05／`drawing_preview` 正式驗收為 `FAIL`，DEV-122 整體維持 `NOT_ACCEPTED`。
 
 ## DEV-122 — 辨識 worker Production dispatch（修正／受保護交付中）
 
@@ -257,6 +257,7 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 - 以下 release-control／RD 恢復點保留歷史語境，不是本次重播指示。
 - release-control 收斂沿用 PR #387：reviewed application source 只由 protected intent revision／canonical source lock 負責；worker artifact 由 input manifest、effective recipe、provider build identity 與 image digest 負責。tar／gzip／GCS object hash 只驗各自傳輸物件，不再跨 app、worker、attempt 或 descriptor 充當 source identity。reader capability、requested revision 的 profile policy 與 executable byte origin 分開判定；舊 receipt 維持 immutable，正式 recovery 仍引用者不刪相容 reader。
 - RD 正式發布恢復點維持可追溯：C67 owner run `39254333670` 在 prepare 以 `DATA_CUTOVER_AUTHORITY_REF_INVALID` 停止，build／migration／candidate／traffic 均未執行；C69 只有 exact-source 輸入準備，未派送。正式 service 仍在既有 revision／traffic，085、catalog v7 與專用測試 RD 帳號正負驗收仍未完成。
+- 2026-10-27 D122-05 歷史 ID／DEV-125 退出盤點：正式 A0001 preview root-cause readback 已由舊 RD permission operation 證明會先卡 catalog；本輪新增 actor-independent fixed diagnostic，綁 exact drawing／files／舊 worker heartbeat、current-hash job／derivative、OpenSWX counts及唯一100% serving revision flag。DB 為 repeatable-read readonly；Cloud Run execution／immutable GCS receipts明列為 evidence side effects。它未讀完整 OpenSWX Job／Scheduler／execution inventory，故零 pending＋flag off 仍只標示「provider inventory required」，不宣稱 no current need／可刪除。Local focused tests通過；PR／required CI／正式 runner rollout／fresh readback 尚未完成，故 D122-05 不改判，DEV-124維持取消，後續責任在DEV-125。
 
 ## DEV-121 現行交付
 
