@@ -4,7 +4,7 @@ import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 
 export const DEV125_CLEANUP_SCHEMA = 'aipdm.dev125.openswx-retirement-cleanup-operation.v1'
 export const DEV125_CLEANUP_RECEIPT_SCHEMA = 'aipdm.dev125.openswx-retirement-cleanup-receipt.v1'
-export const DEV125_CLEANUP_PREFIX = 'source/dev125-openswx-retirement'
+export const DEV125_CLEANUP_PREFIX = 'source/openswx-dispatch-recovery/dev125-retirement-cleanup'
 export const DEV125_CLEANUP_RECEIPT_PREFIX = 'receipts/releases/DEV125-OPENSWX-RETIREMENT'
 export const DEV125_CLEANUP_PGOPTIONS = '-c default_transaction_read_only=off'
 export const DEV125_CLEANUP_TARGET = Object.freeze({

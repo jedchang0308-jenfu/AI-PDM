@@ -64,6 +64,7 @@
     "google_artifact_registry_repository_iam_member.migrator_proof_image_reader[0]",
     "google_storage_bucket_iam_member.migrator_release_source_viewer[0]",
     "google_storage_bucket_iam_member.migrator_rd_permission_readback_viewer[0]",
+    "google_storage_bucket_iam_member.migrator_openswx_dispatch_recovery_viewer[0]",
     "google_project_iam_member.builder_sbom_bucket_viewer[0]",
     "google_project_iam_member.builder_sbom_note_attacher[0]",
     "google_project_iam_member.runtime_firebase_auth_viewer[0]",
@@ -96,6 +97,8 @@
     "google_workflows_workflow.candidate_smoke_v2[0]",
     "google_project_iam_member.verifier_candidate_smoke_execution_invoker[0]",
     "google_project_iam_member.verifier_candidate_smoke_invoker_v2[0]",
+    "google_secret_manager_secret.workload_auth_credentials[0]",
+    "google_secret_manager_secret_iam_member.runtime_workload_credentials_accessor[0]",
     "google_secret_manager_secret.solidworks_document_manager[0]",
     "google_project_iam_custom_role.solidworks_document_manager_runtime[0]",
     "google_secret_manager_secret_iam_member.solidworks_document_manager_runtime[0]"

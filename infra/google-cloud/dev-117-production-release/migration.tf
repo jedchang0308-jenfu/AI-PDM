@@ -39,6 +39,21 @@ resource "google_storage_bucket_iam_member" "migrator_rd_permission_readback_vie
   }
 }
 
+# DEV-125 transition retention only. Reuse this already-applied, read-only
+# prefix for the fixed retirement readback/cleanup operation objects. It is
+# removed after the bounded cleanup receipt exists; no broader source grant is
+# introduced.
+resource "google_storage_bucket_iam_member" "migrator_openswx_dispatch_recovery_viewer" {
+  count  = var.incident_runtime_enabled ? 1 : 0
+  bucket = google_storage_bucket.release.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_service_account.migrator.email}"
+  condition {
+    title      = "aipdm-migrator-openswx-dispatch-recovery-viewer"
+    expression = "resource.name.startsWith('projects/_/buckets/${var.release_bucket_name}/objects/source/openswx-dispatch-recovery/')"
+  }
+}
+
 resource "google_storage_bucket_iam_member" "migrator_receipts_creator" {
   count  = var.incident_runtime_enabled ? 1 : 0
   bucket = google_storage_bucket.release.name

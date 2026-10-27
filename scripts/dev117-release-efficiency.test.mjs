@@ -251,8 +251,8 @@ test('stable diagnostic binder rejects the retired OpenSWX recovery namespace', 
 })
 
 test('stable diagnostic binder routes the fixed preview and OpenSWX runtime namespace', () => {
-  const binding = bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/preview-openswx-runtime-readback/state.json#sha256=${'b'.repeat(64)}`)
-  assert.deepEqual(binding, { operation_uri: 'gs://jenfu-platform-prod-aipdm-release/source/preview-openswx-runtime-readback/state.json', operation_sha256: 'b'.repeat(64), kind: 'preview-openswx-runtime-state' })
+  const binding = bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-preview-runtime-readback/state.json#sha256=${'b'.repeat(64)}`)
+  assert.deepEqual(binding, { operation_uri: 'gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-preview-runtime-readback/state.json', operation_sha256: 'b'.repeat(64), kind: 'preview-openswx-runtime-state' })
 })
 
 test('stable workflow keeps readonly diagnostics approval-free and contains no retired recovery job', () => {

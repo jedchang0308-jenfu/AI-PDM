@@ -75,7 +75,7 @@ class Database {
 }
 
 test('fixed diagnostic namespace admits only the DEV-125 cleanup path', () => {
-  const ref = `gs://jenfu-platform-prod-aipdm-release/source/dev125-openswx-retirement/cleanup.json#sha256=${'e'.repeat(64)}`
+  const ref = `gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-retirement-cleanup/cleanup.json#sha256=${'e'.repeat(64)}`
   assert.deepEqual(bindDiagnosticRef(ref), { operation_uri: ref.split('#')[0], operation_sha256: 'e'.repeat(64), kind: 'openswx-retirement-cleanup' })
   assert.throws(() => bindDiagnosticRef(`gs://jenfu-platform-prod-aipdm-release/source/openswx-recovery/old.json#sha256=${'e'.repeat(64)}`), /REF_INVALID/u)
   const workflow = fs.readFileSync(new URL('../.github/workflows/read-ai-pdm-rd-permission-state-production.yml', import.meta.url), 'utf8')
@@ -147,7 +147,7 @@ test('readback binding and provider inventory refuse truncation, enabled dispatc
 
 test('migration runner executes only the fixed hash-bound cleanup branch and publishes its receipt', async () => {
   const built = operationFor([])
-  const operationRef = 'gs://jenfu-platform-prod-aipdm-release/source/dev125-openswx-retirement/cleanup.json'
+  const operationRef = 'gs://jenfu-platform-prod-aipdm-release/source/openswx-dispatch-recovery/dev125-retirement-cleanup/cleanup.json'
   const outputRef = `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV125-OPENSWX-RETIREMENT/${built.sha256}/cleanup.json`
   const providerState = {
     observedAt: '2026-10-27T00:00:00.000Z',
