@@ -4,7 +4,7 @@
 
 現行規劃從 [DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)開始。Windows 安裝／電腦清單、單一路徑解析、原缺口驗收及 OpenSWX 拆除只在 125 維護。
 
-[DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`，本機成果保留，剩餘責任具名移交；原七項整體仍未驗收。[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED`，取消 OpenSWX 修復，實體退出尚待 125。兩者關閉都不增加功能 PASS。DEV-125 為 `PLANNED / RD Contract Ready / IMPLEMENTATION_NOT_STARTED`。
+[DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`，本機成果保留，剩餘責任具名移交；原七項整體仍未驗收。[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED`，取消 OpenSWX 修復，實體退出尚待 125。兩者關閉都不增加功能 PASS。DEV-125 為 `RD Implementation Ready / Architecture Finalized / IMPLEMENTATION_NOT_STARTED`；§3～8 為安裝、資料／API／撤銷、單一引擎、完整拆除及發布契約，§9 是 12 組驗證，§10 是本次 repository assessment／架構自查；產品案例均 NOT_RUN。
 
 以下 DEV-122／124 入口保留移交前證據用途，不是平行待辦。既有 [Windows ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)與[SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)只維護原生處理邊界與可重用契約，不複製 DEV-125 裝置／安裝規格。
 
@@ -22,7 +22,7 @@ PR #444 exact main的正式續跑在prepare因完整owner proof遞迴進入無�
 
 ## DEV-124 — 已取消修復，拆除移交 DEV-125
 
-取消狀態與歷史失敗見[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)；active DB dispatch／consumer UNKNOWN 原樣保留。後續安全退出讀回、程式／專用資源拆除見 [DEV-125 §4](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#4-openswx-拆除契約)，不再修復／恢復 OpenSWX 或以暫停冒充拆除完成。
+取消狀態與歷史失敗見[封存契約](specs/DEV-124-openswx-worker-independent-repair.md)；active DB dispatch／consumer UNKNOWN 原樣保留。後續安全退出讀回、程式／專用資源拆除見 [DEV-125 §7](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#openswx-retirement)，不再修復／恢復 OpenSWX 或以暫停冒充拆除完成。
 
 ## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
 
@@ -231,7 +231,7 @@ DEV-109 evidence correction (2026-09-01)：historical aggregate=`output/qa/dev-1
 
 | Need | Read |
 |---|---|
-| DEV-125／Windows 解析服務、電腦清單與 OpenSWX 拆除 | [唯一開發契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)。PLANNED／RD Contract Ready，承接舊缺口，實作與拆除尚未開始。 |
+| DEV-125／Windows 解析服務、電腦清單與 OpenSWX 拆除 | [唯一開發契約](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [任務入口](dev_task.md#dev-125-windows-service)。RD Implementation Ready／Architecture Finalized；資料、API、installer、撤銷、發布／完整退出與驗證已定案，實作與拆除尚未開始。 |
 | DEV-122／舊階段結案與成果 | [結案入口](dev_task.md#dev-122-current) → [處置與證據](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) → [機器可讀分母](specs/DEV-122-self-use-acceptance.v1.json)。CLOSED_PARTIAL_HANDOFF；本機成果保留，原七項結果未整體驗收，剩餘移交 125，供應商維持停用延期。 |
 | DEV-124／取消 OpenSWX 修復 | [取消紀錄與歷史證據](specs/DEV-124-openswx-worker-independent-repair.md)。CLOSED_CANCELLED_REPLACED；安全退出與拆除由 125 主責，不恢復舊修復計畫。 |
 | DEV-120／Platform DEV-013 P_BOTH target session expiry修正 | [任務板](dev_task.md) → [DEV-120 QC receipt](qc/qc-dev-120-dev013-target-session-expiry-2026-09-21.md)；程式 `src/lib/jenfu-sso-handoff.ts`、回歸測試 `src/lib/jenfu-sso-handoff.test.ts`。根因為callback誤把短效`handoff.expiresAt`用作target session上限；current修正固定`min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只驗callback freshness。Local=`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build PASS；Production已安全回切`employee-shijie / ai-pdm`至`legacy_authority:5`，新revision deploy／re-switch／完整L4／global logout=`NOT_RUN`。 |
