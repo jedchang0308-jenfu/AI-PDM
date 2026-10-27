@@ -141,9 +141,55 @@ async function runRuntimeStateReadback({ argv, environment, fetchImpl, Client })
   }
 }
 
+async function runDev125OpenSwxRetirementCleanup({ argv, environment, fetchImpl, Client }) {
+  const {
+    DEV125_CLEANUP_PREFIX,
+    DEV125_CLEANUP_RECEIPT_PREFIX,
+    assertCleanupOperation,
+    assertCleanupProviderState,
+    assertCleanupTarget,
+    buildCleanupReceipt,
+    executeCleanup,
+    parseCleanupRunnerArgs,
+  } = await import('./lib/dev125-openswx-retirement-cleanup.mjs')
+  const args = parseCleanupRunnerArgs(argv)
+  assertRunnerTarget(environment, TARGET)
+  assertCleanupTarget(environment)
+  if (environment.PDM_SOURCE_REVISION !== args.sourceRevision) throw new Error('DEV125_CLEANUP_SOURCE_REVISION_MISMATCH')
+  const exactOutputRef = `gs://${TARGET.releaseBucket}/${DEV125_CLEANUP_RECEIPT_PREFIX}/${args.operationSha256}/cleanup.json`
+  if (args.outputRef !== exactOutputRef) throw new Error('DEV125_CLEANUP_OUTPUT_REF_INVALID')
+  parseGsUri(args.operationRef, TARGET.releaseBucket, DEV125_CLEANUP_PREFIX)
+  parseGsUri(args.outputRef, TARGET.releaseBucket, DEV125_CLEANUP_RECEIPT_PREFIX)
+  const token = await metadataAccessToken(fetchImpl)
+  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: TARGET.releaseBucket,
+    expectedPrefix: DEV125_CLEANUP_PREFIX, token, fetchImpl })
+  let raw
+  try { raw = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('DEV125_CLEANUP_OPERATION_JSON_INVALID') }
+  const operation = assertCleanupOperation(raw, { bytes: object.bytes,
+    operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
+  let providerState
+  try { providerState = JSON.parse(Buffer.from(environment.DEV125_OPENSWX_PROVIDER_STATE_BASE64 ?? '', 'base64').toString('utf8')) } catch { throw new Error('DEV125_CLEANUP_PROVIDER_STATE_INVALID') }
+  assertCleanupProviderState(providerState)
+  const database = new Client(databaseOptions(environment, token))
+  await database.connect()
+  try {
+    const state = await executeCleanup(database, operation)
+    const receipt = buildCleanupReceipt({ operation,
+      operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: object.generation },
+      outputRef: args.outputRef, observedAt: new Date().toISOString(), providerState, databaseState: state })
+    const publication = await publishGcsJson({ uri: args.outputRef,
+      expectedBucket: TARGET.releaseBucket, expectedPrefix: DEV125_CLEANUP_RECEIPT_PREFIX,
+      value: receipt, token, fetchImpl })
+    return { ...receipt, outputGeneration: publication.generation, outputSha256: publication.sha256 }
+  } finally {
+    await database.end()
+  }
+}
+
 export async function runMain({ argv = process.argv.slice(2), environment = process.env, fetchImpl = fetch, Client = pg.Client } = {}) {
   if (argv[0] === '--permission-operation-ref') return runPermissionStateReadback({ argv, environment, fetchImpl, Client })
   if (argv[0] === '--runtime-operation-ref') return runRuntimeStateReadback({ argv, environment, fetchImpl, Client })
+  if (argv[0] === '--dev125-openswx-retirement-operation-ref') return runDev125OpenSwxRetirementCleanup({ argv, environment, fetchImpl, Client })
   const args = parseRunnerArgs(argv)
   assertRunnerTarget(environment, TARGET)
   parseGsUri(args.bundleRef, TARGET.releaseBucket, 'source/migration-bundles')
