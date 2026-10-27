@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v1",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T13:15:00.000Z",
+  "recordedAt": "2026-10-27T14:00:33.906Z",
   "status": "PASS_WITH_WINDOWS_ACCEPTANCE_REMEDIATION_IN_PROGRESS",
   "source": {
     "revision": "3720c7cea8f294f086e34a175fdf911283971007",
@@ -78,7 +78,7 @@
     }
   },
   "windowsAcceptance": {
-    "status": "FAIL_REMEDIATION_ARTIFACT_READY_UNINSTALL_PENDING",
+    "status": "FAIL_REMEDIATION_ARTIFACT_READY_REINSTALL_PENDING",
     "initialArtifact": {
       "version": "0.1.0-ci.1356",
       "sourceRevision": "3720c7cea8f294f086e34a175fdf911283971007",
@@ -87,6 +87,7 @@
       "registration": "CANCELLED_BY_USER",
       "credentialCreated": false,
       "deviceIdentityCreated": false,
+      "currentPresence": "ABSENT_AFTER_FAILED_ACCEPTANCE_UNINSTALL",
       "observedServiceAccount": "LocalSystem",
       "requiredServiceAccount": "NT AUTHORITY\\LocalService",
       "programsAndFeaturesEntry": "MISSING"
@@ -110,8 +111,21 @@
     },
     "uninstall": {
       "authorized": true,
-      "uacConfirmed": false,
-      "verifiedAbsent": false
+      "uacConfirmed": true,
+      "completedAt": "2026-10-27T14:00:33.906Z",
+      "verifiedAbsent": true,
+      "serviceAbsent": true,
+      "processCount": 0,
+      "installDirectoryAbsent": true,
+      "dataDirectoryAbsent": true,
+      "vendorRegistryAbsent": true,
+      "programsAndFeaturesRegistryAbsent": true
+    },
+    "productionImageBinding": {
+      "status": "NOT_IMPLEMENTED",
+      "finding": "The required CI publishes the immutable Windows installer artifact, but the owner release source archive and runner image do not currently include worker-downloads/windows-service.",
+      "requiredRemediation": "Bind the exact successful same-source CI artifact into the owner release archive, image, build receipt and image readback without mutable latest or actor-provided URLs.",
+      "minimumAdditionalWorkflowPermission": "actions:read on an isolated same-repository artifact-binding job; approval pending"
     }
   },
   "validationDisposition": {
@@ -124,11 +138,11 @@
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
+    "Bind the exact successful same-source Windows installer artifact into the owner release archive, image and receipt, then verify image readback",
     "Install and enroll the same-source Windows service on an authorized Windows 11 x64 device",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify A0001-M01 native preview, PDF, administrator recognition and normal UI outcomes",
-    "Remove the final historical predecessor compatibility branches after the Windows recovery baseline is proven",
-    "Complete uninstall or retained-install disposition and task-owned temporary-resource cleanup"
+    "Remove the final historical predecessor compatibility branches after the Windows recovery baseline is proven"
   ],
   "safety": {
     "secretsRecorded": false,
