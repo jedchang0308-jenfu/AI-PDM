@@ -222,3 +222,17 @@ R4 之後的 prerequisite 續接另揭露三個 release-adapter 缺口。第一�
 - PR #525 合併後，精確 provider apply 已刪除 OpenSWX Job、Scheduler、reader／dispatch service accounts、reader-token Secret 與五個專用 custom roles，project OpenSWX binding 讀回為 0。worker tfstate lineage `c0d4a392-6333-a452-a390-6eb88a09e91f`／serial 7 為 0 個 managed address；readback tfstate lineage `e23b4b1d-ccce-1d26-e962-7a73ddfeb83a`／serial 5 只保留兩個 shared prebuild readback control。PR #526 合併後又刪除已完成的 Terraform roots、runtime readback／cleanup executor 與 workflow operation，不再保留可重播的 OpenSWX 執行入口。PR #527 因該資源已退出而關閉為 superseded，其 executor 未合併、不重新引入已刪 surface。
 
 依上述 exact receipts、provider readback 與 source 退出，V125-10／V125-11 收斂為 `PASS`；V125-12 僅完成正式發布與 OpenSWX 不回復部分，仍為 `PARTIAL / NOT_ACCEPTED`。V125-01／03～09 仍依現有證據為 `PARTIAL`／`NOT_RUN`；必須完成 Windows 11 x64 服務實機、三格式 Document Manager、正式裝置註冊／停用、A0001 current binding 建立後的 3D／PDF 預覽、管理員辨識及原缺口對照，DEV-125 才能整體結案。
+
+### 11.2 Windows 交付路徑 corrective（合併／正式驗收前狀態）
+
+後續正式畫面檢查發現 `/settings/windows-service` 雖已實作，仍被 `official-numbering-draft` production-slice page gate 改寫成未開放；同時 CI 只保存獨立 Windows installer artifact，owner source archive 與 app image 沒有帶入該產物，下載 API 因此可能回 `INSTALLER_UNAVAILABLE`。這兩項是 DEV-125 交付路徑缺口，不是重新啟動 DEV-122／124。
+
+本 corrective 已在獨立 branch 完成下列 source 收斂，尚待 protected PR／required CI／正式 owner release，故不先改寫 V125-01／03～09 或 V125-12 的產品驗收判定：
+
+- production slice 只開放既有管理頁及 Windows service／preview worker 的 exact command routes；頁面、manager Principal、device credential、company、lease 與撤權 owner guard 維持原樣，未擴張 OrgMaster、IAM 或 Secret。
+- Windows CI artifact 以 release SHA、manifest、build evidence、檔名、size 與 SHA-256 fail closed；所有 `main` push（包含 docs-only source tip）都保留同 SHA artifact，PR 則只在非 docs-only 時建置。
+- owner workflow 只下載同一 `GITHUB_SHA` 的成功 push CI artifact，將唯一 manifest／EXE 加入 immutable source archive；Docker 最終 runner layer 再次驗 source revision、manifest、檔名、size 與 EXE digest。
+- build stage、provenance 與 deployment capsule 都記錄相同 `windowsInstaller={sourceRevision,version,protocolVersion,sha256}`；owner build 回傳不一致或缺少綁定即停止。舊 receipt 沒有此 additive 欄位仍可唯讀相容，不能冒充新 source 的 installer 證據。
+- affected-slice required CI 的 worker group 已納入 artifact verifier 與實際 production-slice middleware Vitest，不只靠 package script 的本機結果。
+
+目前本機證據包含 DEV-125 contract／artifact／route、owner build receipt 正反案例、release runtime／recovery reader、typecheck 及 affected planner／release-core／worker；最終計數、merge SHA、CI run、image digest 與正式頁面／下載結果待實際完成後回填本節，不預填為 PASS。

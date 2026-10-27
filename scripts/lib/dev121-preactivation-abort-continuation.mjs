@@ -1847,6 +1847,7 @@ async function readPreparedUnsealedProviderBuild({ profile, transport, baselineI
     '--target', profile.build?.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`,
     '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z',
     '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.']
+  const installerArgs = [...expectedArgs.slice(0, -3), '--build-arg', 'DEV125_INSTALLER_REQUIRED=true', ...expectedArgs.slice(-3)]
   const expectedStorage = { bucket: storage.bucket, object: storage.object, generation: String(storage.generation) }
   const names = [project, profile.target.projectNumber].map(id => `projects/${id}/locations/${region}/builds/${build.id}`)
   const image = build.results?.images?.filter(row => row?.name === tag)
@@ -1858,11 +1859,11 @@ async function readPreparedUnsealedProviderBuild({ profile, transport, baselineI
     waitFor: step?.waitFor ?? [], id: step?.id ?? '', timeout: step?.timeout ?? null,
     automapSubstitutions: step?.automapSubstitutions ?? false, allowExitCodes: step?.allowExitCodes ?? [],
   }
-  const expectedStepRecipe = {
-    name: profile.build?.dockerBuilderImage, dir: 'source', args: expectedArgs,
+  const expectedStepRecipe = args => ({
+    name: profile.build?.dockerBuilderImage, dir: 'source', args,
     entrypoint: '', env: [], secretEnv: [], volumes: [], script: '', allowFailure: false,
     waitFor: [], id: '', timeout: null, automapSubstitutions: false, allowExitCodes: [],
-  }
+  })
   const buildRecipeExtensions = {
     availableSecrets: build.availableSecrets ?? null, secrets: build.secrets ?? [],
     substitutions: build.substitutions ?? {}, artifacts: build.artifacts ?? { images: build.images },
@@ -1875,7 +1876,7 @@ async function readPreparedUnsealedProviderBuild({ profile, transport, baselineI
     || build.projectId !== project || build.status !== 'SUCCESS'
     || build.serviceAccount !== `projects/${project}/serviceAccounts/${profile.identities.builder}`
     || !same(build.source, { storageSource: expectedStorage }) || !same(build.sourceProvenance?.resolvedStorageSource, expectedStorage)
-    || build.steps?.length !== 1 || !same(stepRecipe, expectedStepRecipe)
+    || build.steps?.length !== 1 || (![expectedArgs, installerArgs].some(args => same(stepRecipe, expectedStepRecipe(args))))
     || !same(buildRecipeExtensions, { availableSecrets: null, secrets: [], substitutions: {}, artifacts: { images: [tag] },
       dependencies: [], gitConfig: null, sourceFetcher: null })
     || !same(build.images, [tag])

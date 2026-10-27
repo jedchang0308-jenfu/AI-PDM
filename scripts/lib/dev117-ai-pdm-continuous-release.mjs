@@ -184,10 +184,17 @@ export function assertDev117WorkflowSource(source) {
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 6 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   const migrationBinding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'
   const preflightBlock = jobBlocks.preflight ?? ''
+  const buildBlock = jobBlocks.build ?? ''
   if (!preflightBlock.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
       !preflightBlock.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       source.includes('test:production-slice:affected')) {
     fail('WORKFLOW_SOURCE_CHECK_DRIFT', 'Owner workflow must read exact required CI results instead of rerunning source tests')
+  }
+  if (!buildBlock.includes('permissions: { actions: read, contents: read, id-token: write }') ||
+      !buildBlock.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success') ||
+      !buildBlock.includes('node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence') ||
+      !buildBlock.includes('DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE')) {
+    fail('WORKFLOW_INSTALLER_ARTIFACT_DRIFT', 'Build must bind the exact-source DEV-125 installer artifact')
   }
   const stagePlan = {
     preflight: [{ stage: 'prepare', auth: 'verifier_auth', proof: true }],

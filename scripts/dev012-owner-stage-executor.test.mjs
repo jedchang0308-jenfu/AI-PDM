@@ -352,6 +352,37 @@ test('production-shaped infra reuse keeps release and migration-runner source id
   await assert.rejects(executeOwnerStage({ ...old.input, stage: 'prepare' }), /APP_INFRA_REUSE_RECEIPT_PROVIDER_READBACK_REQUIRED/u)
 })
 
+test('owner build binds the required DEV-125 installer into build and deployment receipts', async () => {
+  const h = recordedHarness()
+  const { input, intentResult } = await authorizedRecordedInput(h, 'REL-DEV125-INSTALLER')
+  const windowsInstaller = { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1,
+    sha256: 'b'.repeat(64), fileName: 'AI-PDM-Windows-Setup-0.1.0-test.exe', size: 12345 }
+  const receipt = { sourceRevision: windowsInstaller.sourceRevision, version: windowsInstaller.version,
+    protocolVersion: windowsInstaller.protocolVersion, sha256: windowsInstaller.sha256 }
+  const transport = { ...h.transport, async createBuild(args) {
+    assert.deepEqual(args.windowsInstaller, windowsInstaller)
+    const result = await h.transport.createBuild(args)
+    return { ...result, build: { ...result.build, createTime: '2026-09-08T00:00:00.000Z',
+      startTime: '2026-09-08T00:00:01.000Z', finishTime: '2026-09-08T00:00:02.000Z' }, windowsInstaller: receipt }
+  } }
+  const bound = { ...input, transport, windowsInstallerRequired: true,
+    createSourceArchive: async () => ({ bytes: h.sourceArchiveBytes, windowsInstaller }) }
+  await executeOwnerStage({ ...bound, stage: 'prepare' })
+  await executeOwnerStage({ ...bound, stage: 'build' })
+  const intent = (await h.transport.readJson(intentResult.ref)).value
+  const paths = releasePaths(h.profile, intent, intentResult.ref.sha256)
+  for (const location of [paths.build, paths.deployment, paths.provenance]) {
+    const value = JSON.parse(h.objects.get(location).bytes.toString())
+    assert.deepEqual(location === paths.build ? value.facts.windowsInstaller : value.windowsInstaller, receipt)
+  }
+
+  const missing = recordedHarness()
+  const next = await authorizedRecordedInput(missing, 'REL-DEV125-INSTALLER-MISSING')
+  await executeOwnerStage({ ...next.input, stage: 'prepare' })
+  await assert.rejects(executeOwnerStage({ ...next.input, stage: 'build', windowsInstallerRequired: true }),
+    /DEV125_INSTALLER_RECEIPT_REQUIRED/u)
+})
+
 
 test('recorded provider transport executes the ten immutable owner stages without sibling state', async () => {
   const h = recordedHarness()

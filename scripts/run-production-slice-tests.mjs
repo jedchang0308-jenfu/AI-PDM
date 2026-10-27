@@ -32,6 +32,7 @@ const CORE_TESTS = [
   'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev117-release-efficiency.test.mjs',
   'scripts/dev122-applied-continuation-capsule-refresh.test.mjs',
+  'scripts/dev125-windows-installer-evidence.test.mjs',
 ]
 
 const DATABASE_TESTS = [
@@ -53,6 +54,8 @@ const AUTHORIZATION_TESTS = [
 
 const WORKER_TESTS = [
   'scripts/dev125-windows-service-contract.test.mjs',
+  'scripts/dev125-windows-installer-artifact.test.mjs',
+  'scripts/dev125-production-slice-windows-service.test.mjs',
   'scripts/lib/dev121-unlinked-profile-cleanup.test.mjs',
 ]
 

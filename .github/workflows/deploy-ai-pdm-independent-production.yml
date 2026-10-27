@@ -96,7 +96,7 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     environment: production
-    permissions: { contents: read, id-token: write }
+    permissions: { actions: read, contents: read, id-token: write }
     outputs:
       failure_code: ${{ steps.build.outputs.failure_code }}
     steps:
@@ -105,6 +105,20 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
+      - name: Bind exact-source DEV-125 Windows installer
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -euo pipefail
+          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "AI PDM CI" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
+          [[ "${#run_ids[@]}" -eq 1 ]]
+          artifact_name="dev125-windows-installer-$GITHUB_SHA"
+          artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
+          mkdir -p "$artifact_root" "$GITHUB_WORKSPACE/worker-downloads/windows-service"
+          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+          node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
+          cp "$artifact_root/worker-downloads/windows-service/"* "$GITHUB_WORKSPACE/worker-downloads/windows-service/"
+          echo "DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
       - id: builder_auth
         uses: google-github-actions/auth@v3
         with:
