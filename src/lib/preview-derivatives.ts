@@ -1001,7 +1001,7 @@ async function upsertPreviewJob(
               locked_by = NULL,
               locked_at = NULL,
               updated_at = :now,
-              completed_at = CASE WHEN :status = 'skipped' THEN :now ELSE NULL END
+              completed_at = :completedAt
           WHERE id = :id AND status = :previousStatus AND attempt_count = :previousAttempts
             AND updated_at = :previousUpdatedAt
         `,
@@ -1013,7 +1013,8 @@ async function upsertPreviewJob(
           errorCode: input.errorCode,
           errorSummary: input.errorSummary,
           metadataJson: JSON.stringify({ initiator: input.principalInitiator }),
-          now: input.now
+          now: input.now,
+          completedAt: input.status === "skipped" ? input.now : null
         }
       );
       return await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id=:id", { id: existing.id }) ?? existing;
