@@ -166,7 +166,7 @@ export function WindowsServiceSettings() {
       {message ? <div className={`windows-service-message is-${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</div> : null}
 
       {pairingInvalid ? <section className="panel" role="alert">
-        <h2>連結請求無效</h2><p>請回到安裝視窗，按「重新開啟登入頁」。</p>
+        <h2>連結請求無效</h2><p>請回到「AI-PDM 解析服務連結」視窗，按「重新檢查／連結」。</p>
       </section> : null}
 
       {pairing ? <section className="panel windows-service-enrollment-panel">

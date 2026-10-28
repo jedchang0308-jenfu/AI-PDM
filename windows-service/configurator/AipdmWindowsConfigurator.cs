@@ -161,7 +161,7 @@ internal sealed class ConfiguratorForm : Form
         }
         catch (TimeoutException)
         {
-            SetStatus("連結已逾時，請按「重新開啟登入頁」。", true);
+            SetStatus("連結已逾時，請按「重新檢查／連結」。", true);
         }
         catch
         {
