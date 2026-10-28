@@ -126,13 +126,17 @@ describe("full generation fences on actual SQLite SQL (not PostgreSQL proof)", (
     await enqueue();
     database.prepare("UPDATE preview_jobs SET status='failed',error_code='preview_worker_unavailable',attempt_count=3").run();
     const execute = vi.spyOn(client, "execute");
+    const queryOne = vi.spyOn(client, "queryOne");
     await enqueue(true);
     expect(database.prepare("SELECT status,error_code,attempt_count FROM preview_jobs").get())
       .toEqual({ status: "queued", error_code: null, attempt_count: 0 });
     const reset = execute.mock.calls.find(([sql]) => sql.includes("UPDATE preview_jobs"));
+    const lookup = queryOne.mock.calls.find(([sql]) => sql.includes("idempotency_key = :idempotencyKey"));
+    expect(lookup?.[0]).toContain("CAST(updated_at AS TEXT) AS updated_at_token");
     expect(reset?.[0]).toContain("completed_at = :completedAt");
     expect(reset?.[0]).not.toContain("CASE WHEN :status");
-    expect(reset?.[1]).toMatchObject({ status: "queued", completedAt: null, now: basis.lockedAt });
+    expect(reset?.[1]).toMatchObject({ status: "queued", completedAt: null, now: basis.lockedAt,
+      previousUpdatedAt: basis.lockedAt });
     expect((await claim())?.leaseBasis.attemptCount).toBe(1);
   });
   it("keeps success and replay atomic, clears terminal locks, and never auto-retries storage", async () => {

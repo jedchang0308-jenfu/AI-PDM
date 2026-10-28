@@ -94,6 +94,7 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
 
 test("DEV-125A exact-source installer is admitted into the immutable app image", () => {
   const ci = read(".github/workflows/ci.yml");
+  const installerVersion = read("windows-service/installer-version.txt").trim();
   const owner = read(".github/workflows/deploy-ai-pdm-independent-production.yml");
   const principalOwner = read(".github/workflows/deploy-ai-pdm-principal-migrations-production.yml");
   const dockerfile = read("Dockerfile");
@@ -122,6 +123,9 @@ test("DEV-125A exact-source installer is admitted into the immutable app image",
     assert.doesNotMatch(protectedJob, /gh run (?:list|download)/u);
   }
   assert.equal((ci.match(/if: github\.event_name != 'pull_request' \|\| steps\.slice\.outputs\.docs_only != 'true'/gu) ?? []).length, 3);
+  assert.match(installerVersion, /^0\.1\.0-ci\.[0-9]+$/u);
+  assert.match(ci, /Get-Content -LiteralPath "windows-service\/installer-version\.txt" -Raw/u);
+  assert.doesNotMatch(ci, /GITHUB_RUN_NUMBER/u);
   assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/worker-downloads \.\/worker-downloads/u);
   assert.match(dockerfile, /PDM_WINDOWS_INSTALLER_REQUIRED=\$\{DEV125_INSTALLER_REQUIRED\}/u);
   assert.match(dockerfile, /DEV125_INSTALLER_DIGEST_INVALID/u);

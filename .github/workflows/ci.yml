@@ -116,7 +116,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $sourceRevision = (git rev-parse HEAD).Trim()
-          $version = "0.1.0-ci.$env:GITHUB_RUN_NUMBER"
+          # Keep the installer version stable for app-only releases. Advance
+          # this file only when the installed Windows payload changes.
+          $version = (Get-Content -LiteralPath "windows-service/installer-version.txt" -Raw).Trim()
+          if ($version -notmatch '^0\.1\.0-ci\.[0-9]+$') { throw "DEV125_INSTALLER_VERSION_INVALID:$version" }
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-dev125-windows-installer.ps1 -SourceRevision $sourceRevision -Version $version
           $env:DEV125_INSTALLER_ROOT = ".tmp/dev125-windows-installer"
           node --conditions=react-server --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs --input-type=module -e "const m=await import('./src/lib/windows-service-installer.ts'); const r=await m.readWindowsServiceInstaller(process.env.DEV125_INSTALLER_ROOT); if(r.manifest.sourceRevision!==process.env.GITHUB_SHA) process.exit(3); console.log(JSON.stringify({status:'PASS',sha256:r.manifest.sha256,size:r.manifest.size}))"
