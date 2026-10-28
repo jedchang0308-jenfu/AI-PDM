@@ -1,3 +1,14 @@
+<a id="dev-126-frontend-permission-projection"></a>
+
+## DEV-126：AI-PDM 單一前端權限來源與無感換頁
+
+- 狀態：`RD Implementation Ready / Documents Complete / Implementation Not Started`；已固定 1020／12020 local profile、既有 v2 SSO source、provider API、六個 consumer、403 後 invalidation 與 deterministic integration；真實 non-production activation 另開 session。
+- 來源：`JENFU/DEV-021`；AI-PDM 是本 session 第一個具體缺陷切片，但仍以本 repo 的 API、測試及 release gate 獨立驗收。
+- 問題：`SidebarNav`、建立編號 action、workbench、附件與 transfer package 等 consumer 各自取得 `/api/numbering/permissions`；元件 mount 時會重查，建立按鈕並顯示「確認權限中…」，造成換頁等待與畫面閃爍。
+- 目標：在持久 root app shell 建立唯一 app-scoped permission provider／snapshot，頁面只消費投影；登出、換帳號或明確權限失效才刷新。敏感 API 仍逐次在 server 授權。
+- 唯一契約：[DEV-126 前端權限投影契約](specs/DEV-126-app-scoped-frontend-permission-projection.md)。
+- 下一步：在契約指定的專用工作樹先提交文件並更新基線，依 provider tests → endpoint version → 六個 consumer → deterministic SSO／三 route projection 順序實作；真實 IAM／Chrome SSO 保持 `DEFERRED / NOT_RUN`。
+
 ## DEV-122／124／125：現行任務分工（2026-10-27）
 
 依使用者「系統精簡、OpenSWX 不使用就拆掉、不雙系統並行、舊任務盡量結案、新架構移到新任務」指示，以下是唯一現行工作分配。任務結案不等於功能 PASS，舊失敗與未驗證據保留。
