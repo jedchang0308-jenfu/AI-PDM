@@ -17117,7 +17117,7 @@ select.dropdown-select:focus-visible,
 .dev122-pdf-controls output { min-width: 42px; text-align: center; font-size: 13px; }
 .dev122-pdf-controls .icon-button { min-width: 28px; width: 28px; height: 28px; padding: 3px; }
 .dev122-pdf-controls .ghost-button { padding: 4px; font-size: 12px; }
-.dev122-pdf-scroll { min-width: 0; min-height: 0; overflow: auto; padding: 8px; background: #e5e7eb; }
+.dev122-pdf-scroll { min-width: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 8px; background: #e5e7eb; }
 .dev122-pdf-scroll canvas { display: block; margin: 0 auto; max-width: none; background: #fff; }
 .dev122-pdf-render-status { position: absolute; inset: 45px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
 .dev122-pdf-document:not(:has(.dev122-pdf-controls)) { grid-template-rows: minmax(0, 1fr); }
