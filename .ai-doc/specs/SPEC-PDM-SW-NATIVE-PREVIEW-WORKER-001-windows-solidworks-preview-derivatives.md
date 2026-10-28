@@ -4,15 +4,15 @@
 
 Windows 安裝、裝置清單／撤銷、原生解析整合及 OpenSWX 拆除統一交付 [DEV-125](DEV-125-windows-solidworks-service-and-openswx-retirement.md)。每位有效 AI-PDM 使用者在自己的 Windows 電腦安裝並經公司 Google SSO 自助連結；不使用公司共用常開解析主機，也不需要 PDM 管理員逐台核准。本 SPEC 保留既有 queue／derivative／source hash／quality／預覽生命週期契約供重用，不另維護一套裝置資料或產品排程。
 
-DEV-125 現為 `Architecture Finalized / RELEASED_R28 / FORMAL_ACCEPTANCE_IN_PROGRESS`。PR #536～#540 完成 owner-bound self-link、installer、工作授權與 typed HTTP 拒絕修正；R28 發布來源 `6aa76f513cf934eb7e4902bb375a8c5f14af9c2c`（#542 限流時間相容修正） 保留 PR #535 官方 interop。新架構只有 owner-bound Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。PR #533 已關閉未合併並明確撤回；其中匿名 worker、固定 `windows-parser`、共用 API key、任何 caller 可取得 CAD／key／工作及「使用者接受風險」敘述全部無效，使用者從未授權。每次 claim、source download、heartbeat 與 complete 都要重驗裝置 owner 的 active account、Principal mapping、current grant 與來源權限。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer。裝置資料／API、installer、lease、發布與驗證統一見 DEV-125 §3～9、§11.10、QA JSON 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。
+DEV-125 現為 `Architecture Finalized / RELEASED_R29 / FORMAL_ACCEPTANCE_IN_PROGRESS`。PR #536～#540 完成 owner-bound self-link、installer、工作授權與 typed HTTP 拒絕修正；R29 發布來源 `59e2eae8afe57bd19434baa8106cdea6b27174b6`（#542 限流與 #543 安裝／重連修正） 保留 PR #535 官方 interop。新架構只有 owner-bound Windows Document Manager 原生解析路徑；OpenSWX、Shell handler、eDrawings 不作備援或平行 reader。PR #533 已關閉未合併並明確撤回；其中匿名 worker、固定 `windows-parser`、共用 API key、任何 caller 可取得 CAD／key／工作及「使用者接受風險」敘述全部無效，使用者從未授權。每次 claim、source download、heartbeat 與 complete 都要重驗裝置 owner 的 active account、Principal mapping、current grant 與來源權限。Document Manager 擷取已儲存預覽與完整 CAD 轉 PDF 分開，PDF 原檔顯示仍使用既有 viewer。裝置資料／API、installer、lease、發布與驗證統一見 DEV-125 §3～9、§11.11、QA JSON 及 [ADR 定案](../decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)。
 
-後續實機發現 installer 程式目錄漏授普通 Users RX，開始功能表無法重新開啟設定。修正只開放程式讀取／執行，私人憑證／CAD 資料 ACL 不變；新版安裝與 Google 連結仍待正式驗收，狀態見 DEV-125 §11.10。
+後續實機發現 installer 程式目錄漏授普通 Users RX，開始功能表無法重新開啟設定。修正只開放程式讀取／執行，私人憑證／CAD 資料 ACL 不變；`.1400` 已 R29 發布，覆蓋安裝與 Google 連結待正式驗收，狀態見 DEV-125 §11.11。
 
 無授權裝置在線時，native preview job 保持 `queued` 且 `attempt_count` 不增加；裝置上線後自動接續。只有已被領取的 `running` 工作在 heartbeat 逾期後進入有界回收。A 的裝置不得 claim 或下載 B-only 圖檔；帳號停用、角色撤銷、Principal mapping 失效或裝置解除連結後，下一次請求立即拒絕。
 
 R25 正式驗收的 heartbeat admission 缺口與 key 取用順序已由 PR #539 修正並 R26 發布，首敗保留於 DEV-125 §11.7、現況見 §11.8。native key 必須有當前 preview／recognition 工作及來源租約，provider I/O 後重驗裝置及資源；idle 不取 key、不跨工作 cache。非管理員略過管理用 probe，仍可處理自己目前有權的原生工作。R26 的 23 條正式負向請求已拒絕通過；本機安裝／Google 連結／低權限原生正向結果仍待驗收。
 
-R27（§11.9）已補齊 preview 三個 HTTP 入口的 typed 403／503，canonical smoke、23 條未授權拒絕與 provider 唯讀結果通過。`.1393` 現已安裝；正式 enroll 500 的 TEXT 時間欄位比較修正見 §11.10，R28 已發布、現有 `.1393` 重新連結待驗。正式裝置正向解析與角色／生命週期驗收保持未完成。
+R27（§11.9）已補齊 preview 三個 HTTP 入口的 typed 403／503，canonical smoke、23 條未授權拒絕與 provider 唯讀結果通過。`.1393` 現已安裝；正式 enroll 500 的 TEXT 時間欄位比較修正見 §11.10，R28 SQL 修正已包含於 R29；舊 `.1393` 需以 `.1400` 修復捷徑後再驗連結。正式裝置正向解析與角色／生命週期驗收保持未完成。
 
 Windows parser 會接收原始 CAD，因此各工作入口與 key guard 需同時重驗來源作業的 `view` 與 `download`，不能沿歷史 server renderer 的 view-only 邊界。原生 part／assembly 必須包含 model 權限；缺少任一權限時不領取、不交付原檔或 key、不接受結果。後續撤銷立即阻擋下一次請求，領取前拒絕不耗 attempt。
 

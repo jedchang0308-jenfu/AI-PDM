@@ -1,10 +1,10 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R28 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.10 為最新 R28 發布與裝置重新連結驗收邊界，§11.6～11.9 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R29 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.11 為最新 R29 發布與 Windows 覆蓋安裝驗收邊界，§11.6～11.10 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
-目前 `.1393` 已安裝；R27 裝置 enroll 500 已由 #542／R28 正式修正，後續重新開啟解析程式遇到 installer 程式目錄 ACL 拒絕，修正中；根因、首敗及收據見 §11.10。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
+目前 `.1393` 已安裝；R27 裝置 enroll 500 已由 #542／R28 正式修正，後續程式目錄 ACL 拒絕已由 #543／R29 發布修正；需更新 `.1400` 後實測，根因與首敗見 §11.10，最新收據見 §11.11。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -341,4 +341,16 @@ R28 發布內含 same-source installer `.1397`、protocol 1、SHA-256=`0aba8aaca
 
 後續實機重新連結發現：使用者已關閉 configurator／installer，無 pairing listener，一般管理頁不會顯示「連結這台電腦」。開始功能表捷徑存在，但 Explorer 回報無法存取參照項目／權限不足；installer 移除 `$INSTDIR` 繼承後只留 SYSTEM／Administrators／service SID，漏了普通 Users 的 RX。此為安裝程式權限缺陷，影響 `.1393`／`.1397` 的安裝後重新開啟，不撤銷 R28 伺服器修正的發布證據。
 
-本輪修正只在程式目錄給 `BUILTIN\Users:(OI)(CI)(RX)`；不給寫入，credential／CAD 暫存 ProgramData 目錄維持原 ACL，LocalService、service SID、DPAPI 與 configurator requireAdministrator 不變。一般管理頁補開始功能表操作說明，配對頁仍只接受安裝程式產生的 live loopback context。新版 installer 的 required CI、正式發布、覆蓋安裝及普通使用者捷徑啟動仍待完成；不以 source contract 代替 Windows 正向驗收。
+本輪修正只在程式目錄給 `BUILTIN\Users:(OI)(CI)(RX)`；不給寫入，credential／CAD 暫存 ProgramData 目錄維持原 ACL，LocalService、service SID、DPAPI 與 configurator requireAdministrator 不變。一般管理頁補開始功能表操作說明，配對頁仍只接受安裝程式產生的 live loopback context。該 installer 修正已 R29 發布，覆蓋安裝及普通使用者捷徑啟動仍待實測；最新證據見 §11.11，source contract 不代替 Windows 正向驗收。
+
+<a id="dev125-r29-release"></a>
+
+### 11.11 R29 安裝後重新開啟與連結說明修正發布（2026-10-28）
+
+PR #543 source=`59e2eae8afe57bd19434baa8106cdea6b27174b6`；最新 PR CI `40617307298`、exact-main CI `40618075762`、R29 owner `40618668828` 全部成功。程式目錄增加普通 Users RX，私人 ProgramData ACL、LocalService、service SID、DPAPI、requireAdministrator 均不變；一般管理頁增加開始功能表路徑，逾時／無效訊息統一使用實際「重新檢查／連結」名稱。
+
+正式 revision=`ai-pdm-prod-8475b506877a`、image=`sha256:b1a6475d38420015d8ce999dd95299c17418ef450d38bb8a93369c4cc4ab96de`；canonical smoke PASS、migration applied 0／replayed 40／ledger 40、execution=`ai-pdm-prod-migration-runner-8n4rv`、零暫存 tag。固定唯讀 provider `40620458237` 在 `2026-10-28T02:22:47.762Z` 證明 generation 303、最新 Ready／Created 相同、唯一 100% traffic、reconciling=false。沒有新增 IAM、Secret、migration 或 OrgMaster 修改；#535 official interop 保留。
+
+正式 installer=`0.1.0-ci.1400`、protocol 1、SHA-256=`1466c8d03a79241848804cd28bf6b652637b00f5b097c6355784938c24170ce3`、CI artifact `12785902559`，與 owner binding／capsule 一致。R29 正式管理頁已實際載入新說明並保留截圖。最後本機讀回 `2026-10-28T02:23:02.062Z` 仍為 `.1393 / LocalService Running`，無 installer／configurator；尚未觀察 `.1400` 覆蓋安裝與新連結成功。已請使用者在正式頁下載 `.1400`、完成 UAC，再於自動開啟的頁面按一次連結；不能把新包已發布當作本機已修復。
+
+13 個 Node contract、39 個 Vitest contract、4 個 self-link、typecheck／ESLint／doc paths 已通過。臨時 NTFS ACL canary 自查在建立程序前遭自動安全審查拒絕（僅回傳 `blocked by policy`），記 NOT_RUN；沒有建立 scratch 或改權限，也沒有替代執行器繞過。真正覆蓋安裝、普通使用者捷徑、私人資料保護、Google self-link、三角色／生命週期與原生三格式／A0001 正向驗收仍待完成。R27 負向 guard 證據僅在未變動部分重用，未當作 R29 重跑或 Windows PASS；整體 DEV-125 未結案。
