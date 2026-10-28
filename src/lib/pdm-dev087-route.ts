@@ -118,12 +118,29 @@ export async function dev087Json(request: Request) {
   catch { return {}; }
 }
 
-export function dev087RouteError(error: unknown) {
+function diagnosticErrorToken(error: unknown) {
+  const candidate = error && typeof error === "object" && "code" in error
+    ? String(error.code)
+    : error instanceof Error ? error.message : "UNCLASSIFIED";
+  return /^[A-Z][A-Z0-9_.:-]{0,127}$/u.test(candidate) ? candidate : "UNCLASSIFIED";
+}
+
+export function dev087RouteError(error: unknown, diagnostic?: { route: string; stage: string }) {
   if (error instanceof JenfuEntitlementRepositoryError) return principalRequestFailure(error);
   if (error instanceof Error && error.message === "DEV087_IF_MATCH_REQUIRED") {
     return NextResponse.json({ error: { code: "WORKBENCH_BAD_REQUEST", message: "缺少有效的 If-Match", correlationId: crypto.randomUUID() } }, { status: 400 });
   }
   const resolved = canonicalErrorEnvelope(error);
+  if (diagnostic && resolved.status >= 500) {
+    console.error(JSON.stringify({
+      event: "pdm_canonical_route_failure",
+      route: diagnostic.route,
+      stage: diagnostic.stage,
+      correlationId: resolved.body.error.correlationId,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorToken: diagnosticErrorToken(error)
+    }));
+  }
   return NextResponse.json(resolved.body, { status: resolved.status, headers: { "cache-control": "private, no-store" } });
 }
 

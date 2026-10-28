@@ -379,7 +379,9 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         const response = canonicalPreviewJobResponse(job);
         return Response.json(response.body, { status: response.status, headers: response.headers });
       } catch (error) {
-        return dev087RouteError(error);
+        return error instanceof JenfuPrincipalRequestError
+          ? principalRequestFailure(error)
+          : dev087RouteError(error, { route: "pdm_file_asset", stage: "preview_recovery" });
       }
     }
     if (input.wantsPreview && requireDerivative && resolved.record.id === source.id) {
@@ -421,7 +423,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
       || /^(?:GCS_(?:OBJECT_NOT_FOUND|OBJECT_VERSION_NOT_FOUND|OBJECT_READBACK_MISMATCH|OBJECT_CONTENT_MISMATCH|WORKLOAD_IDENTITY_REQUIRED|WORKLOAD_TOKEN_UNAVAILABLE)|STORED_FILE_INTEGRITY_MISMATCH|GCS_OBJECT_READ_FAILED:[45][0-9]{2})$/u.test(message);
     return knownStorageFailure
       ? jsonError("PDM_FILE_UNAVAILABLE", "檔案目前無法讀取，請稍後再試。", 503)
-      : dev087RouteError(error);
+      : dev087RouteError(error, { route: "pdm_file_asset", stage: "file_delivery" });
   }
 }
 
@@ -533,7 +535,8 @@ async function principalFileRead(request: Request, token: string, input: {
     });
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError
-      ? principalRequestFailure(error) : dev087RouteError(error);
+      ? principalRequestFailure(error)
+      : dev087RouteError(error, { route: "pdm_file_asset", stage: "principal_file_read" });
   }
 }
 
