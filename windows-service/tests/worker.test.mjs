@@ -35,11 +35,15 @@ async function exercise(mode) {
         probePolls += 1;
         return new Response(null, { status: 204 });
       }
-      if (url.pathname === '/api/preview-jobs/claim') return Response.json({ job: ['idle','recognition-retry'].includes(mode) ? null : {
+      if (url.pathname === '/api/preview-jobs/claim') {
+        if (mode === 'preview-forbidden') return Response.json({ error: 'WORKLOAD_FORBIDDEN' }, { status: 403 });
+        return Response.json({ job: ['idle','recognition-retry','recognition-forbidden'].includes(mode) ? null : {
         jobId: 'job-one', sourceFileAssetId: 'asset-one', sourceContentHash: leaseBasis.sourceContentHash,
         sourceExtension: 'sldprt', leaseBasis
-      } });
+        } });
+      }
       if (url.pathname === '/api/recognition-jobs/claim') {
+        if (mode === 'recognition-forbidden') { stopped = true; return Response.json({ error: 'WORKLOAD_FORBIDDEN' }, { status: 403 }); }
         if (mode === 'recognition-retry') return Response.json({ sessionId: 'session-one',
           leaseBasis: { companyId: 'company-one', sourceSetFingerprint: 'source-set-one', attemptCount: 1,
             lockedAt: leaseBasis.lockedAt }, sources: [{ id: 'source-one', fileName: 'owned.slddrw', fileExt: 'slddrw' }] });
@@ -115,6 +119,16 @@ test('no active native credential leaves queued business work unclaimed', { time
   assert.equal(calls.some(call => call.path === '/api/preview-jobs/claim' || call.path === '/api/recognition-jobs/claim'), false);
   assert.equal(calls.filter(call => call.path === '/api/preview-workers/solidworks-document-manager-key' && !call.query.has('readiness')).length, 0);
 });
+
+for (const mode of ['preview-forbidden', 'recognition-forbidden']) {
+  test(`${mode} skips only the unavailable capability and keeps the linked device alive`, { timeout: 15000 }, async () => {
+    const { calls, error } = await exercise(mode);
+    assert.equal(error, null);
+    assert.equal(calls.some(call => call.path === '/api/preview-jobs/claim'), true);
+    assert.equal(calls.some(call => call.path === '/api/recognition-jobs/claim'), true);
+    assert.equal(calls.some(call => call.path.endsWith('/complete')), false);
+  });
+}
 
 for (const mode of ['key-missing', 'key-unavailable', 'recognition-retry']) {
   test(`${mode} waits on the same claim instead of failing or consuming another attempt`, { timeout: 20000 }, async () => {

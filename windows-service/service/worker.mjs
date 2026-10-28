@@ -39,6 +39,19 @@ async function api(credentials, workerId, endpoint, init = {}) {
   } finally { clearTimeout(timer); }
 }
 
+async function claimCapability(credentials, workerId, endpoint, body) {
+  try {
+    return await api(credentials, workerId, endpoint, { method: "POST", body });
+  } catch (error) {
+    // A linked device can legitimately have only part of the installed
+    // capability set. Capability-scoped 403 means "skip this queue"; the
+    // independent device heartbeat remains the authority for account/device
+    // revocation and terminates the service on its own 401/403/426 response.
+    if (Number(error?.status) === 403) return null;
+    throw error;
+  }
+}
+
 async function content(credentials, workerId, endpoint, headers, expected) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60_000);
@@ -161,9 +174,9 @@ async function completeWithReadback(credentials, workerId, kind, jobId, endpoint
 }
 
 async function processPreview(credentials, workerId, isStopping) {
-  const claim = await api(credentials, workerId, "/api/preview-jobs/claim", { method: "POST", body: {
+  const claim = await claimCapability(credentials, workerId, "/api/preview-jobs/claim", {
     workerId, leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"],
-    supportedExtensions: ["sldprt", "sldasm", "slddrw"] } });
+    supportedExtensions: ["sldprt", "sldasm", "slddrw"] });
   const job = claim?.job;
   if (!job) return false;
   const pulse = () => api(credentials, workerId, `/api/preview-jobs/${encodeURIComponent(job.jobId)}/heartbeat`, {
@@ -218,8 +231,8 @@ function filenameResult(source) {
 }
 
 async function processRecognition(credentials, workerId, isStopping) {
-  const job = await api(credentials, workerId, "/api/recognition-jobs/claim", { method: "POST", body: {
-    workerId, maxAttempts: 2, allowNativeSources: true } });
+  const job = await claimCapability(credentials, workerId, "/api/recognition-jobs/claim", {
+    workerId, maxAttempts: 2, allowNativeSources: true });
   if (!job) return false;
   const pulse = () => api(credentials, workerId, `/api/recognition-jobs/${encodeURIComponent(job.sessionId)}/heartbeat`, {
     method: "POST", body: { workerId, leaseProtocolVersion: 1, leaseBasis: job.leaseBasis } });
