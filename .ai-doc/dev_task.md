@@ -1,4 +1,4 @@
-## DEV-122／124／125：現行任務分工（2026-10-27）
+## DEV-122／124／125：現行任務分工（2026-10-28）
 
 依使用者「系統精簡、OpenSWX 不使用就拆掉、不雙系統並行、舊任務盡量結案、新架構移到新任務」指示，以下是唯一現行工作分配。任務結案不等於功能 PASS，舊失敗與未驗證據保留。
 
@@ -6,15 +6,15 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `R30 RELEASED / PREVIEW RECOVERY CORRECTIVE RELEASE PENDING / 125-C EXIT COMPLETE` | `.1405` 安裝／Google 連結已由使用者完成；A0001 揭露 PDF dynamic-policy 路徑與歷史 `preview_worker_unavailable` 未恢復。Corrective 已本機實作：PDF bytes 前 fresh download、CAD 原檔禁回、only worker-unavailable 自動重排且 no-worker attempt 歸零；79/79、DEV-125 53 cases、typecheck PASS。required CI／正式發布／A0001 結果尚待完成。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `CLOSED_BY_SCOPE_DECISION / RELEASED_PDF_PREVIEW_PASS / 125-C EXIT COMPLETE` | `.1405` 安裝／Google 連結已由使用者完成；PR #554 corrective 與外部 Chrome PDF 預覽已發布並記錄 PASS。三角色、原生三格式、Windows lifecycle／撤權／離線及 redaction 正式驗證依使用者決定確定不執行，保留 `NOT_EXECUTED_NOT_PASS`，不再形成待辦。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約 §11.14](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R30 程式／CI／正式發布與 provider 讀回已交付；使用者完成 `.1405` 安裝與 Google 連結後發現 A0001 預覽 corrective，現正走 PR／required CI／發布。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.15 結案處置](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev-125-結案處置-2026-10-28)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R30／後續 corrective 程式、CI、正式發布與 provider 讀回已交付；外部 Chrome PDF 預覽 PASS。使用者明確決定其餘正式 Windows／角色／原生 CAD／redaction 驗證確定不執行，DEV-125 以範圍決策結案；未執行項不列 PASS。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
 
-現行 installer：`.1405` 已由 R30 正式發布；#544 修正服務停止／移除／覆寫等待與禁止跳過，#545 移除 DB-free producer 的 eager pg 相依。原 `.1400` 首敗與確切 Win32 原因 UNKNOWN 保留。依最新決定，AI 不再執行實機／三角色驗收，改由使用者在正式環境驗證，未執行項不列 PASS。
+現行 installer：`.1405` 已由 R30 正式發布；#544 修正服務停止／移除／覆寫等待與禁止跳過，#545 移除 DB-free producer 的 eager pg 相依；PR #554 的外部 Chrome PDF 修正已發布。原 `.1400` 首敗與確切 Win32 原因 UNKNOWN 保留。依最新結案決定，AI 不再執行實機／三角色／原生 CAD／redaction 驗收，未執行項明確標為 `NOT_EXECUTED_NOT_PASS`。
 
-R25 heartbeat admission 首敗保留在 §11.7；#539／#540 與 R26／R27 已修正相關入口，最新 23 條正式拒絕通過。171 個 focused、7 個 worker runtime、11 組隔離 PG 與後續 40 個 route 案各依其證據範圍通過；R27 main CI `40589008519`／owner `40589771592`／唯讀 provider `40591599517` 成功。三角色／實機已改由使用者正式驗證，enroll 500 修正與歷史安裝首敗保留；不把本機測試或管理員當成正式角色／低權限原生驗收。舊 #533 worktree `C:/VIBE CODING/.worktrees/d125-infra-20261027/AI_PDM` 的未知 merge 修改保留。
+R25 heartbeat admission 首敗保留在 §11.7；#539／#540 與 R26／R27 已修正相關入口，最新 23 條正式拒絕通過。171 個 focused、7 個 worker runtime、11 組隔離 PG 與後續 40 個 route 案各依其證據範圍通過；R27 main CI `40589008519`／owner `40589771592`／唯讀 provider `40591599517` 成功。三角色／實機／原生 CAD／redaction 依結案範圍決策確定不執行，不以本機測試或管理員結果改判 PASS。舊 #533 worktree `C:/VIBE CODING/.worktrees/d125-infra-20261027/AI_PDM` 的未知 merge 修改保留。
 
 §11.9 typed 403／503 已由 #540 合併並 R27 發布，domain 權限／attempt guard 不變。程式／CI／發布部分完成；前版收據保留，§11.10 已 R28 修正正式 enroll 500；Windows 重新連結／角色驗收等待人類操作及適當帳號後續接，不縮減原驗收分母。
 
