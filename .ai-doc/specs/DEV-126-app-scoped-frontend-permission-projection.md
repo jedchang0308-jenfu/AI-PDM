@@ -252,4 +252,6 @@ git diff --check
 
 Portal B 的兩個入口 no-access，直接 launch 404；Platform 全域登出後 PDM `/me` 與 projection 均 401。初次 503 分別源自測試設定仍為 legacy、隔離 company code 不符，以及缺少 active role-priority；已以 canonical source／既有預設資料補正，不放寬 guard 或角色。Next auth／SSO request URL logging 已排除，canary 未進 stdout／stderr。
 
-launcher 已覆蓋雙棧所有 listener owner，20 個正反情境與 local-entrypoint QC 通過。PR 與 main 的衝突僅來自 DEV-125／126 文件入口，已保留兩者並同步 main；最新 required CI／merge、Principal 撤權及清理仍由主控完成。之前成功 CI 不代表新增 head 已驗證。
+launcher 已覆蓋雙棧所有 listener owner，20 個正反情境與 local-entrypoint QC 通過。PR 與 main 的衝突僅來自 DEV-125／126 文件入口，已保留兩者並同步 main。既有 session 直接開啟 App 與 Portal SSO 取得相同 pages／actions；錯誤 callback 返回登入頁且原 Principal 不變；兩個真實 service-identity／audience 負測均為 broker401。
+
+Principal 撤權依使用者明確決定 `DEFERRED / NOT_RUN`，不以 app-grant withdrawal 或全域登出代替；缺少可走 OrgMaster lifecycle 的非正式 managed identity。其餘本輪 P5 已完成。任務 npm40056 樹、Chrome、另外兩 App 與 PG15432 已按指紋停止，12000／12010／12020／15432 全釋放；runtime registry／capacity lease／session 已結束，隔離資料與私密設定保留供後續、未入 Git。最新 exact-head CI／merge 依 PR #555 provider，之前成功 CI 不代表新增 head 已驗證，沒有 production 變更。
