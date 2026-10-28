@@ -2,7 +2,7 @@
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
 
-- 狀態：`Source Implemented / Final Validation In Progress`；六個consumer已改接唯一provider，12020 runner與7個browser fixture案例通過；固定1020因既有PID27096而 `NOT_RUN`，DEV-126未結案。真實 non-production activation另開session。
+- 狀態：`Source Implemented / Isolated Local Validation Passed / PR Pending`；六個consumer已改接唯一provider，13檔163項、最終isolated build、12020 runner及7個browser fixture案例通過；固定1020因既有PID27096而 `NOT_RUN`，DEV-126未結案。真實non-production activation另開session。
 - 來源：`JENFU/DEV-021`；AI-PDM 是本 session 第一個具體缺陷切片，但仍以本 repo 的 API、測試及 release gate 獨立驗收。
 - 問題：`SidebarNav`、建立編號 action、workbench、附件與 transfer package 等 consumer 各自取得 `/api/numbering/permissions`；元件 mount 時會重查，建立按鈕並顯示「確認權限中…」，造成換頁等待與畫面閃爍。
 - 目標：在持久 root app shell 建立唯一 app-scoped permission provider／snapshot，頁面只消費投影；登出、換帳號或明確權限失效才刷新。敏感 API 仍逐次在 server 授權。
