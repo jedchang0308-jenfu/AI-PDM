@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-27T22:07:41.935Z",
+  "recordedAt": "2026-10-28T00:46:19.415Z",
   "status": "RELEASED_R27_FORMAL_ACCEPTANCE_IN_PROGRESS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
@@ -293,8 +293,8 @@
     }
   },
   "currentWindowsAcceptance": {
-    "status": "AWAITING_USER_WINDOWS_INSTALL_AND_ROLE_ACTORS",
-    "uacObservation": "No .1393 install attempt; the earlier .1391 elevation did not complete. Current installed version remains .1370; browser download review and Windows UAC require the user.",
+    "status": "INSTALLED_R27_FORMAL_ENROLL_500_FIX_PENDING",
+    "uacObservation": "User completed .1393 installation; registry and downloaded installer hash match R27. LocalService is running. Browser reached loopback failure after server enroll returned 500.",
     "installerVersion": "0.1.0-ci.1393",
     "installedVersionBeforeUpgrade": "0.1.0-ci.1370",
     "observedServiceAccount": "NT AUTHORITY\\LocalService",
@@ -308,8 +308,8 @@
       "sha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
       "status": "LOCATED_NOT_FORMAL_PARSE_PROOF"
     },
-    "installedVersionReadback": "0.1.0-ci.1370",
-    "installerProcessCount": 0,
+    "installedVersionReadback": "0.1.0-ci.1393",
+    "installerProcessCount": 1,
     "productionUi": {
       "sourceRevision": "c7ede379f011250e51da65dcba509ed67b5c1a0b",
       "actorScope": "EXISTING_COMPANY_GOOGLE_ADMIN_ONLY_NOT_THREE_ROLE_PROOF",
@@ -317,17 +317,19 @@
       "installerLink": "PASS",
       "emptyDeviceList": "PASS",
       "manualRegistrationCodeFields": "ABSENT",
-      "formalGooglePairing": "NOT_RUN",
+      "formalGooglePairing": "FAIL_SERVER_ENROLL_500_AFTER_ENROLLMENT_201",
       "reuseBasis": "WINDOWS_SERVICE_UI_SOURCE_UNCHANGED_C7EDE379_TO_3B6B3820"
     },
     "productionInstallerDownload": {
-      "status": "NOT_RUN_PENDING_USER_BROWSER_DOWNLOAD_REVIEW",
+      "status": "DOWNLOADED_BYTES_VERIFIED_USER_INSTALLED",
       "version": "0.1.0-ci.1393",
       "size": 29267890,
       "expectedSha256": "04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c",
-      "actualDownloadedBytesVerified": false
+      "actualDownloadedBytesVerified": true,
+      "sha256": "04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c",
+      "downloadObservedByAgent": false
     },
-    "latestInstallerLaunch": "NOT_RUN_PENDING_USER",
+    "latestInstallerLaunch": "USER_INSTALLED_1393_CONFIGURATOR_OPEN",
     "r26ElevationAttempt": {
       "status": "ELEVATION_NOT_COMPLETED_INSTALL_NOT_EXECUTED",
       "observation": "Launcher returned InvalidOperationException; no installer process remains; installed version is still .1370. Cause not inferred; a new UAC handoff requires the user.",
@@ -344,7 +346,34 @@
       "bypassAttempted": false,
       "userHandoff": "CHECK_CHROME_DOWNLOAD_INDICATOR_AND_COMPLETE_WINDOWS_UAC"
     },
-    "roleActorInventory": "NOT_RUN_BROWSER_NAVIGATION_TIMEOUT_NO_ASSIGNMENT_CHANGE"
+    "roleActorInventory": "READ_ONLY_FIVE_ACTIVE_ACCOUNTS_VISIBLE_PUBLISHED_ROLES_NOT_SHOWN"
+  },
+  "enrollmentTimestampCorrective": {
+    "status": "LOCAL_FIXED_REQUIRED_CI_AND_PRODUCTION_RELEASE_PENDING",
+    "foundInSourceRevision": "3b6b38208fdb2787740bb28388026702b182566f",
+    "observedAt": "2026-10-28T00:36:24.334787Z",
+    "endpoint": "/api/windows-service/enroll",
+    "httpStatus": 500,
+    "revision": "ai-pdm-prod-2767a0101c8f",
+    "requestLogInsertId": "6ae1438800055a31180e06b1",
+    "databaseError": {
+      "code": "42883",
+      "safeMessage": "operator does not exist: text > timestamp with time zone",
+      "position": 610
+    },
+    "cause": "RATE_LIMIT_UPSERT compares applied migration 001 blocked_until TEXT with inferred timestamptz; isolated fixture incorrectly used timestamptz",
+    "firstFailure": "MATCHING_42883_POSITION_610_WITH_TEXT_FIXTURE",
+    "correction": "CAST both comparison operands to timestamptz; keep deployed column and migration unchanged",
+    "isolatedPostgres": "PASS_11_GROUPS_INCLUDING_TEXT_ACTIVE_LOCK_AND_EXPIRED_WINDOW_RESET",
+    "nodeContractCases": 13,
+    "vitestContractCases": 39,
+    "typecheckApp": "PASS",
+    "dbBoundary": "PASS",
+    "changedEslint": "PASS",
+    "existing1393Compatible": true,
+    "migrationChanged": false,
+    "iamSecretOrgMasterChanged": false,
+    "formalRelink": "PENDING"
   },
   "previewHeartbeatCorrective": {
     "pullRequest": 539,
@@ -610,12 +639,12 @@
     "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "PARTIAL_R27_RELEASE_CHAIN_AND_NEGATIVE_AUTH_PASS_FORMAL_WINDOWS_AND_UI_PENDING",
+    "V125-12": "PARTIAL_R27_RELEASED_FORMAL_ENROLL_FAILED_500_LOCAL_FIX_RELEASE_PENDING",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
   "remaining": [
-    "Complete browser download review, Windows UAC and installation of verified R27 .1393; current machine remains .1370",
+    "Publish enrollment TEXT timestamp comparison fix and retry linking the already installed R27 .1393; user installation and original package hash verified",
     "Google-self-link under authorized RD, procurement-production-control and production users; existing role-specific accounts are awaiting user identification",
     "Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
     "Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",

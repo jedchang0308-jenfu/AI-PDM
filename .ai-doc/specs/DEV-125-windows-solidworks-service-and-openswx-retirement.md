@@ -4,6 +4,8 @@
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
+目前實機驗收已前進至 `.1393` 安裝完成，但 R27 裝置 enroll 遇到正式 500；根因、首敗與修正進度見 §11.10。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
+
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
 最新發布來源的 main CI run `40523534853` 已對 exact main `ef8a7b9ebddc8e820e44874e34cf17c52a670d33` 完成 `DEV-012 Isolated PostgreSQL Cutover`與 `Production Slice QC`，兩者均 `SUCCESS`；這是 source／build／contract 證據，不代替下列 Windows 實機驗收。
@@ -324,3 +326,11 @@ canonical SSO／session smoke 通過，另 23 條正式未授權請求全為 `40
 最新 same-source installer=`0.1.0-ci.1393`、29,267,890 bytes、SHA-256=`04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c`；CI、build evidence 與 deployment capsule 一致。`.1393` 尚未在本機啟動安裝，最後讀回仍為 `.1370 / Running / LocalService`，無安裝程序。`.1391` 的 Chrome 暫存／UAC 狀態只保留為前版紀錄，不能當作 `.1393` 已安裝或完成正式下載。使用者仍需處理實際下載提示／UAC，並指定 RD、採購／生管、生產的既有公司 Google 驗收帳號；帳號頁唯讀盤點因瀏覽器導覽逾時未完成，沒有變更角色。
 
 後續仍是 §11.8 所列 Windows／Google 自助連結、三角色、撤權／隔離、離線／生命週期／多電腦、低權限原生三格式，以及 A0001 預覽／PDF／辨識的正式正向驗收。R27 發布已完成，整體 DEV-125 未結案。QA JSON 保存當次收據、前版 immutable refs 與各未驗項目；本輪文件變更不改 app/build/test inputs，不因更新驗收狀態另行部署。
+
+### 11.10 R27 正式裝置連結 500 修正（2026-10-28）
+
+使用者已安裝 `.1393`；登錄版本、LocalService Running、下載檔 SHA-256 `04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c` 相符。2026-10-28 08:36:24（Asia/Taipei），建立 enrollment 回 201，但 native `/api/windows-service/enroll` 回 500；同時 Cloud SQL 記錄 `operator does not exist: text > timestamp with time zone`、SQL position 610，對應限流 upsert 的 `blocked_until > :now`。這是伺服器端失敗，非 UAC、Google 登入或 callback state 驗證失敗。
+
+已套用 migration 001 的 `employee_login_rate_limits.blocked_until` 是 TEXT；既有隔離 PG fixture 卻定義為 timestamptz，掩蓋真實型別差異。將 fixture 校正為 TEXT 後，原程式重現相同 `42883 / position 610`；修正僅對比較的兩側明確 cast 為 timestamptz，不改既有欄位、不改 migration 089／090、不改 IAM／Secret／OrgMaster。11 組隔離 PG 通過，包含 active 文字封鎖時間保留、期限到期後重設、錯誤碼拒絕、角色與裝置撤權；13 個 Node contract、39 個 Vitest、typecheck、DB boundary、changed ESLint 通過。暫存 cluster 及 port 均由 runner 清理，首敗保留。
+
+required CI、正式發布及既有 `.1393` 的實機重新連結仍待完成；不以隔離重現／修正結果冒充正式成功，也不要求使用者為此伺服器端修正先重裝。

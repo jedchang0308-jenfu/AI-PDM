@@ -124,7 +124,8 @@ const RATE_LIMIT_UPSERT = `
     attempt_count=CASE WHEN employee_login_rate_limits.window_started_at<=:windowCutoff
       THEN 1 ELSE employee_login_rate_limits.attempt_count+1 END,
     blocked_until=CASE
-      WHEN employee_login_rate_limits.blocked_until>:now THEN employee_login_rate_limits.blocked_until
+      WHEN CAST(employee_login_rate_limits.blocked_until AS timestamptz)>CAST(:now AS timestamptz)
+        THEN employee_login_rate_limits.blocked_until
       WHEN employee_login_rate_limits.window_started_at<=:windowCutoff THEN NULL
       WHEN employee_login_rate_limits.attempt_count+1>:maxAttempts THEN :blockedUntil ELSE NULL END,
     updated_at=excluded.updated_at
