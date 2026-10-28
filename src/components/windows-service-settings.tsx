@@ -155,6 +155,7 @@ export function WindowsServiceSettings() {
         <div>
           <h1>Windows 解析程式</h1>
           <p>每位使用者在自己的 Windows 電腦安裝；登入公司 Google 帳號後即可自行連結。</p>
+          {!pairing ? <p>已安裝時，請從 Windows 開始功能表開啟「AI-PDM → 解析服務設定」，再於自動開啟的網頁按「連結這台電腦」。</p> : null}
         </div>
         {!pairing ? <a className="primary-button" href="/api/settings/windows-service/installer">
           <Download size={17} aria-hidden="true" />下載安裝程式
@@ -165,7 +166,7 @@ export function WindowsServiceSettings() {
       {message ? <div className={`windows-service-message is-${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</div> : null}
 
       {pairingInvalid ? <section className="panel" role="alert">
-        <h2>連結請求無效</h2><p>請回到安裝視窗，按「重新開啟登入頁」。</p>
+        <h2>連結請求無效</h2><p>請回到「AI-PDM 解析服務連結」視窗，按「重新檢查／連結」。</p>
       </section> : null}
 
       {pairing ? <section className="panel windows-service-enrollment-panel">

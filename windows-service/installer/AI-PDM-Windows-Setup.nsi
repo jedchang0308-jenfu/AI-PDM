@@ -77,7 +77,7 @@ Section "AI-PDM Windows Parsing Service" SEC_MAIN
     MessageBox MB_ICONSTOP|MB_OK "Windows 服務 SID 設定失敗（代碼 $ServiceResult）。安裝已停止。"
     Abort
   ${EndIf}
-  nsExec::ExecToLog '"$SYSDIR\icacls.exe" "$INSTDIR" /inheritance:r /grant:r "SYSTEM:(OI)(CI)(F)" "BUILTIN\Administrators:(OI)(CI)(F)" "NT SERVICE\AipdmWindowsParsing:(OI)(CI)(RX)"'
+  nsExec::ExecToLog '"$SYSDIR\icacls.exe" "$INSTDIR" /inheritance:r /grant:r "SYSTEM:(OI)(CI)(F)" "BUILTIN\Administrators:(OI)(CI)(F)" "BUILTIN\Users:(OI)(CI)(RX)" "NT SERVICE\AipdmWindowsParsing:(OI)(CI)(RX)"'
   Pop $ServiceResult
   ${If} $ServiceResult != 0
     MessageBox MB_ICONSTOP|MB_OK "程式目錄權限設定失敗（代碼 $ServiceResult）。安裝已停止。"

@@ -1,10 +1,10 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.9 為最新 R27 發布與驗收邊界，§11.6～11.8 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R28 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.10 為最新 R28 發布與裝置重新連結驗收邊界，§11.6～11.9 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
-目前實機驗收已前進至 `.1393` 安裝完成，但 R27 裝置 enroll 遇到正式 500；根因、首敗與修正進度見 §11.10。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
+目前 `.1393` 已安裝；R27 裝置 enroll 500 已由 #542／R28 正式修正，後續重新開啟解析程式遇到 installer 程式目錄 ACL 拒絕，修正中；根因、首敗及收據見 §11.10。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -327,10 +327,18 @@ canonical SSO／session smoke 通過，另 23 條正式未授權請求全為 `40
 
 後續仍是 §11.8 所列 Windows／Google 自助連結、三角色、撤權／隔離、離線／生命週期／多電腦、低權限原生三格式，以及 A0001 預覽／PDF／辨識的正式正向驗收。R27 發布已完成，整體 DEV-125 未結案。QA JSON 保存當次收據、前版 immutable refs 與各未驗項目；本輪文件變更不改 app/build/test inputs，不因更新驗收狀態另行部署。
 
-### 11.10 R27 正式裝置連結 500 修正（2026-10-28）
+<a id="dev125-r28-release"></a>
+
+### 11.10 R28 正式裝置連結 500 修正與發布（2026-10-28）
 
 使用者已安裝 `.1393`；登錄版本、LocalService Running、下載檔 SHA-256 `04f61c44369daa1ff55a94dc71f522bf6e781d4f07040ee78f2625a8a8209b9c` 相符。2026-10-28 08:36:24（Asia/Taipei），建立 enrollment 回 201，但 native `/api/windows-service/enroll` 回 500；同時 Cloud SQL 記錄 `operator does not exist: text > timestamp with time zone`、SQL position 610，對應限流 upsert 的 `blocked_until > :now`。這是伺服器端失敗，非 UAC、Google 登入或 callback state 驗證失敗。
 
 已套用 migration 001 的 `employee_login_rate_limits.blocked_until` 是 TEXT；既有隔離 PG fixture 卻定義為 timestamptz，掩蓋真實型別差異。將 fixture 校正為 TEXT 後，原程式重現相同 `42883 / position 610`；修正僅對比較的兩側明確 cast 為 timestamptz，不改既有欄位、不改 migration 089／090、不改 IAM／Secret／OrgMaster。11 組隔離 PG 通過，包含 active 文字封鎖時間保留、期限到期後重設、錯誤碼拒絕、角色與裝置撤權；13 個 Node contract、39 個 Vitest、typecheck、DB boundary、changed ESLint 通過。暫存 cluster 及 port 均由 runner 清理，首敗保留。
 
-required CI、正式發布及既有 `.1393` 的實機重新連結仍待完成；不以隔離重現／修正結果冒充正式成功，也不要求使用者為此伺服器端修正先重裝。
+PR #542 已合併，source=`6aa76f513cf934eb7e4902bb375a8c5f14af9c2c`；required CI `40610944167`、exact-main CI `40611639879`、R28 owner `40612591796` 均成功。正式 revision=`ai-pdm-prod-6266adc6de6c`、image=`sha256:37e45d6c7f3055a844d2dca78b5d8be09dff16b933b38fbd112b6d97e88e6246`；canonical smoke PASS、migration applied 0／replayed 40／ledger 40、execution=`ai-pdm-prod-migration-runner-czpff`、零暫存 tag。固定唯讀 diagnostics `40614149665` 在 `2026-10-28T01:18:29.517Z` 證明 generation 299、reconciling=false、最新 Ready／Created 相同與唯一 100% traffic。
+
+R28 發布內含 same-source installer `.1397`、protocol 1、SHA-256=`0aba8aaca3ba03182340a63581c011af6ee055aeac95864d5a61ed13ca0e66f4`，CI artifact `12782439302` 與 owner binding／capsule 相符；本輪未另下載或安裝 `.1397`。現有已安裝 `.1393` 的 protocol 相容，這次伺服器端修正不需重裝。已請使用者按現有連結視窗的「重新檢查／連結」；UI 工具只有標題且影像未正確指向該視窗，沒有盲點按。實機重新連結、三角色與原生正向結果仍待驗收。R27 的 23 條未授權拒絕只重用於未變動的 device/key/source guard，不冒稱 R28 重跑。QA JSON 保存新收據及前版 immutable refs，整體未結案。
+
+後續實機重新連結發現：使用者已關閉 configurator／installer，無 pairing listener，一般管理頁不會顯示「連結這台電腦」。開始功能表捷徑存在，但 Explorer 回報無法存取參照項目／權限不足；installer 移除 `$INSTDIR` 繼承後只留 SYSTEM／Administrators／service SID，漏了普通 Users 的 RX。此為安裝程式權限缺陷，影響 `.1393`／`.1397` 的安裝後重新開啟，不撤銷 R28 伺服器修正的發布證據。
+
+本輪修正只在程式目錄給 `BUILTIN\Users:(OI)(CI)(RX)`；不給寫入，credential／CAD 暫存 ProgramData 目錄維持原 ACL，LocalService、service SID、DPAPI 與 configurator requireAdministrator 不變。一般管理頁補開始功能表操作說明，配對頁仍只接受安裝程式產生的 live loopback context。新版 installer 的 required CI、正式發布、覆蓋安裝及普通使用者捷徑啟動仍待完成；不以 source contract 代替 Windows 正向驗收。

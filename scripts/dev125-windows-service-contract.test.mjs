@@ -43,6 +43,17 @@ test("DEV-125A installer is pinned, low-privilege, DPAPI-protected, and does not
   assert.match(installer, /SwDocumentMgr\.SwDMClassFactory\\CLSID/u);
   assert.match(installer, /sc\.exe" sidtype AipdmWindowsParsing unrestricted/u);
   assert.match(installer, /NT SERVICE\\AipdmWindowsParsing:\(OI\)\(CI\)\(M\)/u);
+  const programDirectoryAcl = installer.match(/nsExec::ExecToLog '[^\r\n]*icacls\.exe" "\$INSTDIR" ([^'\r\n]*)'/u)?.[1] ?? "";
+  assert.ok(programDirectoryAcl, "the installed program directory has an explicit ACL contract");
+  assert.match(programDirectoryAcl, /\/inheritance:r/u);
+  const programUsersGrants = [...programDirectoryAcl.matchAll(/"(?:BUILTIN\\)?Users:([^"]+)"/giu)];
+  assert.equal(programUsersGrants.length, 1);
+  assert.equal(programUsersGrants[0][1], "(OI)(CI)(RX)");
+  assert.doesNotMatch(programDirectoryAcl, /Everyone:/iu);
+  const credentialDataDirectoryAcl = installer.match(/nsExec::ExecToLog '[^\r\n]*icacls\.exe" "\$APPDATA\\AI-PDM Windows Service" ([^'\r\n]*)'/u)?.[1] ?? "";
+  assert.ok(credentialDataDirectoryAcl, "the credential/data directory has a separate ACL contract");
+  assert.match(credentialDataDirectoryAcl, /\/inheritance:r/u);
+  assert.doesNotMatch(credentialDataDirectoryAcl, /(?:BUILTIN\\)?Users:|Everyone:/iu);
   assert.match(installer, /WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service" "DisplayName"/u);
   assert.match(installer, /WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service" "UninstallString"/u);
   assert.match(installer, /DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\AI-PDM Windows Parsing Service"/u);
