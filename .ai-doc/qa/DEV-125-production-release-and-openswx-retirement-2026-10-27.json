@@ -2,7 +2,7 @@
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
   "recordedAt": "2026-10-28T04:06:00.000Z",
-  "status": "R30_RELEASED_PREVIEW_RECOVERY_CORRECTIVE_RELEASE_PENDING",
+  "status": "CLOSED_BY_SCOPE_DECISION_RELEASED_PDF_PREVIEW_PASS",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -105,19 +105,19 @@
       "id": "SELF-LINK-RD",
       "actor": "RD",
       "expected": "Google SSO self-link without PDM manager approval",
-      "status": "PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_POSTGRES_REPOSITORY_CLOSED_BY_SCOPE"
     },
     {
       "id": "SELF-LINK-PPC",
       "actor": "採購／生管",
       "expected": "Google SSO self-link without PDM manager approval",
-      "status": "PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_POSTGRES_REPOSITORY_CLOSED_BY_SCOPE"
     },
     {
       "id": "SELF-LINK-PRODUCTION",
       "actor": "生產人員",
       "expected": "Google SSO self-link without PDM manager approval",
-      "status": "PASS_POSTGRES_REPOSITORY_FORMAL_GOOGLE_INSTALL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_POSTGRES_REPOSITORY_CLOSED_BY_SCOPE"
     },
     {
       "id": "NO-MANUAL-CODE",
@@ -127,37 +127,37 @@
     {
       "id": "OWNER-ISOLATION",
       "expected": "Device A cannot obtain B-only job or CAD bytes",
-      "status": "PASS_FOCUSED_AND_POSTGRES"
+      "status": "NOT_EXECUTED_FORMAL_PASS_FOCUSED_AND_POSTGRES_CLOSED_BY_SCOPE"
     },
     {
       "id": "VIEW-AND-DOWNLOAD",
       "expected": "Windows job claim, source, heartbeat, complete and key require both current view and download, including model permission for native parts and assemblies",
-      "status": "PASS_FOCUSED_FORMAL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_FOCUSED_CLOSED_BY_SCOPE"
     },
     {
       "id": "IMMEDIATE-REVOCATION",
       "expected": "Role, account, Principal mapping or device revoke denies next request",
-      "status": "PASS_POSTGRES_FORMAL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_POSTGRES_CLOSED_BY_SCOPE"
     },
     {
       "id": "WINDOWS-LIFECYCLE",
       "expected": "shutdown, restart, overwrite install, reinstall and multiple computers",
-      "status": "PLANNED_FORMAL"
+      "status": "NOT_EXECUTED_CLOSED_BY_SCOPE"
     },
     {
       "id": "OFFLINE-QUEUE",
       "expected": "queued work remains and does not consume attempt while no device is online",
-      "status": "PASS_FOCUSED_FORMAL_PENDING"
+      "status": "NOT_EXECUTED_FORMAL_PASS_FOCUSED_CLOSED_BY_SCOPE"
     },
     {
       "id": "REAL-CAD-THREE-FORMAT",
       "expected": "SLDPRT, SLDASM and SLDDRW real Document Manager parse",
-      "status": "PLANNED_FORMAL"
+      "status": "NOT_EXECUTED_CLOSED_BY_SCOPE"
     },
     {
       "id": "SECRET-BYTES-REDACTION",
       "expected": "No Document Manager key, device token or CAD bytes in UI, API logs or evidence",
-      "status": "PLANNED_FORMAL"
+      "status": "NOT_EXECUTED_CLOSED_BY_SCOPE"
     }
   ],
   "previousReleasedSource": {
@@ -819,31 +819,65 @@
       "nativeThreeFormatAcceptance": "NOT_RUN"
     }
   },
+  "externalChromePdfPreviewAcceptance": {
+    "status": "PASS",
+    "scope": "R37 external Chrome PDF preview regression only",
+    "releaseId": "DEV125-PDF-CHROME-20261028-R38",
+    "ownerRun": 40667257139,
+    "sourceRevision": "6e06ea12a2a4552b5b563f942f87249270b0c4ce",
+    "productionRevision": "ai-pdm-prod-d9de8e77f4a0",
+    "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+    "browser": "External Chrome / profile JED-鉦富",
+    "renderState": "ready",
+    "cssContract": {
+      "scrollbarGutter": "stable",
+      "overflow": "auto"
+    },
+    "sampleCount": 6,
+    "sampleIntervalMs": 500,
+    "stableCanvas": {
+      "width": 1002,
+      "height": 708,
+      "cssWidth": 802
+    },
+    "result": "PDF_RENDERED_WITHOUT_WIDTH_OSCILLATION_OR_FLICKER",
+    "acceptanceBoundary": "This closes only the external Chrome PDF preview regression; native CAD, role/lifecycle and redaction acceptance remain separate."
+  },
   "validationDisposition": {
-    "V125-01": "PARTIAL_SELF_LINK_FORMAL_PENDING",
-    "V125-02": "PASS_SOURCE_CONTRACT_FORMAL_PENDING",
-    "V125-03": "PARTIAL_WINDOWS_LIFECYCLE_PENDING",
-    "V125-04": "PASS_LOCAL_OWNER_ISOLATION_FORMAL_PENDING",
-    "V125-05": "PASS_LOCAL_OFFLINE_QUEUE_FORMAL_PENDING",
-    "V125-06": "NOT_RUN",
-    "V125-07": "PARTIAL_REAL_READER_NOT_RUN",
-    "V125-08": "NOT_RUN",
-    "V125-09": "PARTIAL_FORMAL_UI_NOT_RUN",
+    "V125-01": "NOT_EXECUTED_CLOSED_BY_SCOPE",
+    "V125-02": "NOT_EXECUTED_FORMAL_PASS_SOURCE_CONTRACT_CLOSED_BY_SCOPE",
+    "V125-03": "NOT_EXECUTED_CLOSED_BY_SCOPE",
+    "V125-04": "NOT_EXECUTED_FORMAL_PASS_LOCAL_OWNER_ISOLATION_CLOSED_BY_SCOPE",
+    "V125-05": "NOT_EXECUTED_FORMAL_PASS_LOCAL_OFFLINE_QUEUE_CLOSED_BY_SCOPE",
+    "V125-06": "NOT_EXECUTED_CLOSED_BY_SCOPE",
+    "V125-07": "NOT_EXECUTED_CLOSED_BY_SCOPE",
+    "V125-08": "NOT_EXECUTED_CLOSED_BY_SCOPE",
+    "V125-09": "NOT_EXECUTED_CLOSED_BY_SCOPE_PDF_EXTERNAL_CHROME_PASS",
     "V125-10": "PASS",
     "V125-11": "PASS",
-    "V125-12": "R30_RELEASE_PASS_AGENT_ACTUAL_ACCEPTANCE_CANCELED_BY_USER",
+    "V125-12": "PASS_RELEASE_BOUNDARY_NOT_PRODUCT_ACCEPTANCE_CLOSED_BY_SCOPE",
+    "R37PdfPreview": "PASS_EXTERNAL_CHROME_STABLE_RENDER",
     "dev122Overall": "NOT_ACCEPTED_UNCHANGED",
     "dev124": "CLOSED_CANCELLED_REPLACED_UNCHANGED"
   },
-  "remaining": [
-    "[USER_OWNED_PRODUCTION_VALIDATION] Install released .1405; verify Windows overwrite, ordinary-user shortcut, private data and Google self-link. Last .1400 attempt failed/aborted; no corrected-package real install was executed by agent",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Google-self-link under authorized RD, procurement-production-control and production users; existing role-specific accounts are awaiting user identification",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Verify real Document Manager SLDPRT, SLDASM and SLDDRW processing and original-file hashes",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Verify shutdown, restart, overwrite install, reinstall, multi-computer, immediate revoke and offline queue resume",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Verify A0001-M01 native preview, PDF, role-scoped recognition and normal UI outcomes",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Run redaction checks for Document Manager key, device token and CAD bytes",
-    "[USER_OWNED_PRODUCTION_VALIDATION] Bind the device, native-file and UI evidence to one source, installer and production release chain"
-  ],
+  "remaining": [],
+  "closedByScopeDecision": {
+    "status": "CLOSED_NOT_EXECUTED_NOT_PASS",
+    "decision": "USER_REQUESTED_FORMAL_VALIDATION_NOT_TO_BE_EXECUTED",
+    "recordedAt": "2026-10-28",
+    "notExecuted": [
+      "RD、採購／生管、生產人員各自自助連結與權限隔離",
+      "SLDPRT、SLDASM、SLDDRW 真實 Document Manager 解析與原檔 hash",
+      "撤權、停權、解除連結、關機重啟、覆蓋安裝、重裝、多電腦及離線續作",
+      "Document Manager key、device token、CAD bytes redaction",
+      "A0001-M01 native 3D preview、role-scoped recognition 及其正式 UI 對照"
+    ],
+    "userReportedContext": [
+      "使用者已回報 .1405 安裝及裝置連結完成",
+      "外部 Chrome PDF 預覽結果已另以 externalChromePdfPreviewAcceptance 記錄 PASS"
+    ],
+    "boundary": "本結案是工作範圍結案，不將未執行的正式驗證改判為 PASS；OpenSWX 退役與 PDF 預覽修正的既有證據仍有效。"
+  },
   "safety": {
     "secretsRecorded": false,
     "businessCadModified": false,
@@ -990,7 +1024,7 @@
       "native SLDPRT/SLDASM/SLDDRW and A0001 UI/recognition/PDF",
       "formal key/token/CAD redaction"
     ],
-    "notExecutedVerdict": "USER_OWNED_PRODUCTION_VALIDATION_NOT_PASS",
+    "notExecutedVerdict": "CLOSED_BY_SCOPE_DECISION_NOT_PASS",
     "acceptanceDenominatorRetained": true
   }
 }

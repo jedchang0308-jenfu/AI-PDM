@@ -1,10 +1,10 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R30 / PREVIEW_RECOVERY_CORRECTIVE_IMPLEMENTED_RELEASE_PENDING / 125-C_OPENSWX_EXIT_COMPLETE`。`.1405` 安裝與 Google 自助連結已由使用者在正式環境完成；其後發現受控 PDF 被 dynamic policy 誤送衍生流程，且歷史 `preview_worker_unavailable` 被保留為終局。§11.14 是現行 corrective，required CI／正式發布／A0001 結果尚待本切片完成；未完成前不列預覽 PASS。§3～9 保留資料／API／架構契約，§11.6～11.13 保留歷史收據及首敗。
+狀態：`CLOSED_BY_SCOPE_DECISION / RELEASED_PDF_PREVIEW_PASS / 125-C_OPENSWX_EXIT_COMPLETE`。`.1405` 安裝與 Google 自助連結已由使用者在正式環境完成；外部 Chrome PDF 預覽 corrective 已發布並記錄 PASS。使用者明確決定不再執行三角色、原生三格式、Windows lifecycle／撤權／離線及 redaction 正式驗證，這些維持 `NOT_EXECUTED_NOT_PASS`，不阻擋本任務結案。§3～9 保留資料／API／架構契約，§11.6～11.14 保留歷史收據及首敗，最新結案處置見 §11.15。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
-前次 `.1400` 覆蓋安裝失敗並由使用者中止；當次最後讀回 registry `.1393`、舊服務已移除，設定／資料保留。R30 已發布等待服務停止與覆寫失敗處理修正；目前正式安裝包為 `.1405`。後續安裝、Google 連結與原生結果由使用者自行驗證，見 §11.13。
+前次 `.1400` 覆蓋安裝失敗並由使用者中止；當次最後讀回 registry `.1393`、舊服務已移除，設定／資料保留。R30 已發布等待服務停止與覆寫失敗處理修正；目前正式安裝包為 `.1405`。使用者已回報安裝／Google 連結完成；外部 Chrome PDF 預覽 corrective 已另行發布並記錄 PASS。其餘正式角色／原生 CAD／lifecycle／redaction 驗證依 §11.15 確定不執行，不再形成待辦。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -393,3 +393,9 @@ revision=`ai-pdm-prod-0184712662fa`，image=`sha256:ef2d895f2a454705899b5dbc41b1
 - Canonical drawer 對上述可恢復狀態提供 protected media endpoint；前端收到 202 時沿現有有界 polling 等待，成功後同卡顯示，不新增人工註冊碼或管理員逐筆核准。
 
 本機證據：新增／相關預覽 79/79、DEV-125 service contract 14 Node＋39 Vitest、`typecheck:app`、affected ESLint 0 errors（1 則未觸及既有 warning）與 planner `AFFECTED_SLICES(application, authorization, preview)` 通過。本機 isolated build 因資源治理預檢 `BLOCKED` 未執行，不冒稱 PASS；required CI 必須在乾淨 runner 完成 build。正式發布、A0001 PDF 200／3D current-hash derivative 及 mounted UI 仍為 `PENDING`。
+
+### 11.15 DEV-125 結案處置（2026-10-28）
+
+PR #554 已合併並完成 required CI／正式發布；外部 Chrome PDF 預覽在正式 revision `ai-pdm-prod-d9de8e77f4a0` 讀回 `ready`，6 次 500 ms 取樣的 canvas 尺寸穩定，無寬度震盪或閃爍。此結果只關閉 PDF 預覽 corrective，不延伸為原生 CAD 或角色驗收 PASS。
+
+使用者明確要求將下列正式驗證改為「確定不執行」：三角色自助連結與權限隔離、SLDPRT／SLDASM／SLDDRW 真實解析與原檔 hash、撤權／停權／解除連結／關機重啟／覆蓋安裝／重裝／多電腦／離線續作，以及 Document Manager key／device token／CAD bytes redaction。上述項目在 QA JSON 以 `NOT_EXECUTED_CLOSED_BY_SCOPE` 記錄，不標 PASS；DEV-125 以範圍決策結案，並保留未執行事實與既有 OpenSWX 退役證據。
