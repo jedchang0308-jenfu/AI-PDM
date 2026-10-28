@@ -539,58 +539,86 @@ export async function claimPreviewJobAsync(
   await recoverStalePreviewJobsAsync(client, { companyId: input.companyId, supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
   const kindClause = buildNamedInClause("kind", input.supportedKinds);
   const extensionClause = buildNamedInClause("extension", input.supportedExtensions.map(normalizeExtension));
+  let claimMissStage = "no_selection";
   const result = await client.transaction(async (transactionClient) => {
-    const selected = await transactionClient.queryOne<PreviewJobRow>(
-      `
-        SELECT *
-        FROM preview_jobs job
-        WHERE status = 'queued'
-          AND company_id = :companyId
-          AND attempt_count < :maxAttempts
-          AND requested_kind IN (${kindClause.sql})
-          AND source_extension IN (${extensionClause.sql})
-          AND ${previewOwnerPredicate(transactionClient)}
-          AND ${recoverablePreviewSourcePredicate()}
-        ORDER BY priority ASC, created_at ASC
-        LIMIT 1
-        ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
-      `,
-      { ...kindClause.params, ...extensionClause.params, companyId: input.companyId,
-        ownerPrincipalId: input.ownerPrincipalId ?? null, maxAttempts: previewMaxAttempts }
-    );
-    if (!selected) return null;
-    const source = await readPreviewSource(transactionClient, selected.source_file_asset_id, selected.company_id, true);
-    if (!source || source.content_hash !== selected.source_content_hash) return null;
-    if (transactionClient.kind === "postgres") {
-      const initiator = previewJobInitiatorFromMetadata(selected.metadata_json);
-      if (!initiator || initiator.principalId !== input.ownerPrincipalId) return null;
-      await requireCurrentPrincipalJobAuthority(transactionClient, initiator, {
-        action: "view_and_download",
-        linkedEntityType: source.linked_entity_type,
-        documentCategory: source.document_category,
-        capabilityRole: previewSourceCapabilityRole(source)
-      });
+    // A legacy/malformed queue row must not permanently block every later
+    // valid job for the same device owner. Keep the row unchanged, exclude it
+    // from this bounded claim attempt, and continue to the next candidate.
+    const excludedJobIds: string[] = [];
+    for (let scan = 0; scan < 16; scan += 1) {
+      const excludedClause = excludedJobIds.length ? buildNamedInClause("excludedJob", excludedJobIds) : null;
+      const selected = await transactionClient.queryOne<PreviewJobRow>(
+        `
+          SELECT *
+          FROM preview_jobs job
+          WHERE status = 'queued'
+            AND company_id = :companyId
+            AND attempt_count < :maxAttempts
+            AND requested_kind IN (${kindClause.sql})
+            AND source_extension IN (${extensionClause.sql})
+            AND ${previewOwnerPredicate(transactionClient)}
+            AND ${recoverablePreviewSourcePredicate()}
+            ${excludedClause ? `AND job.id NOT IN (${excludedClause.sql})` : ""}
+          ORDER BY priority ASC, created_at ASC
+          LIMIT 1
+          ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
+        `,
+        { ...kindClause.params, ...extensionClause.params, ...(excludedClause?.params ?? {}), companyId: input.companyId,
+          ownerPrincipalId: input.ownerPrincipalId ?? null, maxAttempts: previewMaxAttempts }
+      );
+      if (!selected) {
+        claimMissStage = excludedJobIds.length ? "eligible_candidates_exhausted" : "no_selection";
+        return null;
+      }
+      const skipCandidate = (stage: string) => {
+        claimMissStage = stage;
+        excludedJobIds.push(selected.id);
+      };
+      const source = await readPreviewSource(transactionClient, selected.source_file_asset_id, selected.company_id, true);
+      if (!source || source.content_hash !== selected.source_content_hash) {
+        skipCandidate("source_lock_invalid");
+        continue;
+      }
+      if (transactionClient.kind === "postgres") {
+        const initiator = previewJobInitiatorFromMetadata(selected.metadata_json);
+        if (!initiator || initiator.principalId !== input.ownerPrincipalId) {
+          skipCandidate("initiator_invalid");
+          continue;
+        }
+        await requireCurrentPrincipalJobAuthority(transactionClient, initiator, {
+          action: "view_and_download",
+          linkedEntityType: source.linked_entity_type,
+          documentCategory: source.document_category,
+          capabilityRole: previewSourceCapabilityRole(source)
+        });
+      }
+      const now = (await previewClock(transactionClient)).iso;
+      if (!parsePreviewLeaseBasis({ companyId: selected.company_id, sourceFileAssetId: selected.source_file_asset_id,
+        sourceContentHash: selected.source_content_hash, attemptCount: Number(selected.attempt_count) + 1, lockedAt: now })) {
+        skipCandidate("lease_basis_invalid");
+        continue;
+      }
+      const claimed = await transactionClient.queryOne<PreviewJobRow & { lease_locked_at: string }>(
+        `
+          UPDATE preview_jobs AS job
+          SET status = 'running',
+              locked_by = :workerId,
+              locked_at = :now,
+              attempt_count = attempt_count + 1,
+              worker_completion_json = NULL,
+              updated_at = :now
+          WHERE id = :id AND status = 'queued' AND attempt_count < :maxAttempts
+            AND ${recoverablePreviewSourcePredicate()}
+            ${previewWriteFreshnessPredicate(transactionClient)}
+          RETURNING *, CAST(locked_at AS TEXT) AS lease_locked_at
+        `,
+        { id: selected.id, workerId: input.workerId, now, maxAttempts: previewMaxAttempts }
+      );
+      if (claimed) return { row: claimed, source };
+      skipCandidate("claim_cas_miss");
     }
-    const now = (await previewClock(transactionClient)).iso;
-    if (!parsePreviewLeaseBasis({ companyId: selected.company_id, sourceFileAssetId: selected.source_file_asset_id,
-      sourceContentHash: selected.source_content_hash, attemptCount: Number(selected.attempt_count) + 1, lockedAt: now })) return null;
-    const claimed = await transactionClient.queryOne<PreviewJobRow & { lease_locked_at: string }>(
-      `
-        UPDATE preview_jobs AS job
-        SET status = 'running',
-            locked_by = :workerId,
-            locked_at = :now,
-            attempt_count = attempt_count + 1,
-            worker_completion_json = NULL,
-            updated_at = :now
-        WHERE id = :id AND status = 'queued' AND attempt_count < :maxAttempts
-          AND ${recoverablePreviewSourcePredicate()}
-          ${previewWriteFreshnessPredicate(transactionClient)}
-        RETURNING *, CAST(locked_at AS TEXT) AS lease_locked_at
-      `,
-      { id: selected.id, workerId: input.workerId, now, maxAttempts: previewMaxAttempts }
-    );
-    return claimed ? { row: claimed, source } : null;
+    claimMissStage = "candidate_scan_limit";
+    return null;
   }, { isolationLevel: "repeatable_read", readOnly: false });
   if (!result) {
     if (client.kind === "postgres" && Date.now() - lastEmptyPreviewClaimDiagnosticAt >= 60_000) {
@@ -625,9 +653,10 @@ export async function claimPreviewJobAsync(
           AND job.generator_profile <> 'fake_preview_worker'
       `, { ...kindClause.params, ...extensionClause.params, companyId: input.companyId,
         ownerPrincipalId: input.ownerPrincipalId ?? null, maxAttempts: previewMaxAttempts });
-      console.warn("PREVIEW_CLAIM_EMPTY", Object.fromEntries(Object.entries(diagnostic ?? {}).map(
-        ([key, value]) => [key, Number(value)]
-      )));
+      console.warn("PREVIEW_CLAIM_EMPTY", {
+        claim_stage: claimMissStage,
+        ...Object.fromEntries(Object.entries(diagnostic ?? {}).map(([key, value]) => [key, Number(value)]))
+      });
     }
     return null;
   }
