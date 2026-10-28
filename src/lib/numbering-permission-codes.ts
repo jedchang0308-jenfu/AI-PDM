@@ -61,6 +61,15 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
 ] as const;
 
 export type NumberingPermissionRequirement = { kind: "page" | "action"; code: string };
+export type NumberingPagePermissionCode = typeof NUMBERING_PAGE_PERMISSION_CODES[number];
+export type NumberingActionPermissionCode = typeof NUMBERING_ACTION_PERMISSION_CODES[number];
+export type PdmPermissionProjectionV1 = {
+  contractVersion: "ai-pdm.frontend-permission-projection.v1";
+  applicationId: "ai-pdm";
+  generatedAt: string;
+  pages: Record<NumberingPagePermissionCode, boolean>;
+  actions: Record<NumberingActionPermissionCode, boolean>;
+};
 export type NumberingPermissionResponse = { pages: Record<string, boolean>; actions: Record<string, boolean> };
 
 export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, NumberingPermissionRequirement> = {

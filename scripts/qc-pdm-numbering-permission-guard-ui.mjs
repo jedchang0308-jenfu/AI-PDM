@@ -1,187 +1,141 @@
 #!/usr/bin/env node
-
+// DEV-126: real application rendering + browser-owned deterministic API fixtures.
+// No demo login, real credentials, SQL mutation or production identity is used here.
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
-const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
-const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-permission-guard-ui" });
+assertNumberingQcRuntimeIsIsolated({ scriptName: "DEV-126 permission projection UI" });
+const base = new URL(process.env.PDM_BASE_URL || "http://localhost:12020");
+assert.ok(["localhost", "127.0.0.1"].includes(base.hostname) && ["1020", "12020"].includes(base.port), "Task-owned loopback runtime required");
+const source = fs.readFileSync(path.resolve("src/lib/numbering-permission-codes.ts"), "utf8");
+const codes = name => [...source.match(new RegExp("export const " + name + " = \\[([\\s\\S]*?)\\] as const"))[1].matchAll(/"([^"]+)"/gu)].map(match => match[1]);
+const pages = codes("NUMBERING_PAGE_PERMISSION_CODES");
+const actions = codes("NUMBERING_ACTION_PERMISSION_CODES");
+const output = path.resolve("output/playwright/dev126");
+fs.mkdirSync(output, { recursive: true });
+const git = args => execFileSync("git", args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+const digest = value => crypto.createHash("sha256").update(value).digest("hex");
+const untracked = git(["ls-files", "--others", "--exclude-standard", "-z", "--", "src", "scripts"]).split("\0").filter(Boolean);
+const sourceEvidence = { commit: git(["rev-parse", "HEAD"]).trim(),
+  trackedDiffSha256: digest(git(["diff", "--binary", "HEAD", "--", "."])),
+  untrackedSourceSha256: digest(untracked.map(file => `${file}:${digest(fs.readFileSync(file))}`).join("\n")) };
 const results = [];
-
-function record(name, passed, detail = "") {
-  results.push({ name, passed, detail });
-  if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-async function login(email) {
-  const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
-  record(`${email} login succeeds`, response.ok, `HTTP ${response.status}`);
-  const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
-  record(`${email} login returns session cookie`, Boolean(cookie), cookie);
-  return cookie;
-}
-
-async function addCookie(context, cookie) {
-  const [name, ...valueParts] = cookie.split("=");
-  const url = new URL(apiBaseUrl);
-  await context.addCookies([
-    {
-      name,
-      value: valueParts.join("="),
-      domain: url.hostname,
-      path: "/",
-      httpOnly: true,
-      sameSite: "Lax"
-    }
-  ]);
-}
-
-async function apiGet(path, cookie) {
-  return fetch(`${apiBaseUrl}${path}`, { headers: { cookie } });
-}
-
-async function apiPatchMatrix(cookie, body) {
-  const response = await fetch(`${apiBaseUrl}/api/numbering/admin/matrix`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify(body)
-  });
-  record(`Matrix PATCH ${body.permissionCode ?? body.permission_code ?? body.operation} succeeds`, response.ok, `HTTP ${response.status}`);
-  return response.json();
-}
-
-async function fetchMatrix(cookie) {
-  const response = await apiGet("/api/numbering/admin/matrix", cookie);
-  record("Admin matrix API can be read", response.ok, `HTTP ${response.status}`);
-  return response.json();
-}
-
-async function fetchPermissions(cookie) {
-  const response = await apiGet("/api/numbering/permissions", cookie);
-  record("Permission API can be read", response.ok, `HTTP ${response.status}`);
-  return response.json();
-}
-
-function rolePermissionEnabled(matrix, roleId, permissionKind, permissionCode) {
-  return matrix.rolePermissions.some(
-    (permission) => permission.roleId === roleId && permission.permissionKind === permissionKind && permission.permissionCode === permissionCode && permission.allowed
-  );
-}
-
-async function setRolePermission(cookie, role, permissionKind, permissionCode, allowed) {
-  await apiPatchMatrix(cookie, {
-    operation: "role_permission",
-    roleId: role.id,
-    permissionKind,
-    permissionCode,
-    allowed
-  });
-}
-
-async function waitForPermission(cookie, role, permissionKind, permissionCode, allowed) {
-  let latest = null;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    latest = await fetchMatrix(cookie);
-    if (rolePermissionEnabled(latest, role.id, permissionKind, permissionCode) === allowed) return latest;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`Timed out waiting for ${role.roleCode} ${permissionKind} ${permissionCode}=${allowed}`);
-}
-
-async function assertEngineerRecordCreate(cookie, expectedStatus) {
-  const response = await fetch(`${apiBaseUrl}/api/numbering/records`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({
-      coreName: "QC permission denied probe",
-      partName: "QC permission denied probe",
-      itemKind: "purchased",
-      drawingRequested: false
-    })
-  });
-  record(`Engineer record create returns ${expectedStatus}`, response.status === expectedStatus, `HTTP ${response.status}`);
-}
-
-async function verifySidebar(browser, cookie, viewportName, viewport) {
-  const context = await browser.newContext({ viewport });
-  const consoleErrors = [];
-  const page = await context.newPage();
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
-  page.on("pageerror", (error) => consoleErrors.push(error.message));
-  await addCookie(context, cookie);
-  await page.goto(`${apiBaseUrl}/`, { waitUntil: "networkidle" });
-  await page.locator(".sidebar").waitFor({ timeout: 10_000 });
-  const requestLinkCount = await page.locator('.sidebar a[href="/numbering/request"]').count();
-  record(
-    `${viewportName} sidebar keeps retired request link absent`,
-    requestLinkCount === 0,
-    String(requestLinkCount)
-  );
-  const draftLinkCount = await page.locator('.sidebar a[href="/numbering/part-drafts"]').count();
-  record(`${viewportName} sidebar keeps retired draft link absent`, draftLinkCount === 0, String(draftLinkCount));
-  record(`${viewportName} sidebar keeps owner modules reachable`, (await page.locator('.sidebar a[href="/numbering/search"]').count()) > 0 && (await page.locator('.sidebar a[href="/parts"]').count()) > 0);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  record(`${viewportName} sidebar has no page-level horizontal overflow`, overflow <= 2, `${overflow}px`);
-  record(`${viewportName} sidebar has no console errors`, consoleErrors.length === 0, consoleErrors.join("\n"));
-  await context.close();
-}
-
-const adminCookie = await login("admin@example.com");
-const engineerCookie = await login("engineer@example.com");
-let matrix = await fetchMatrix(adminCookie);
-const rdRole = matrix.roles.find((role) => role.roleCode === "rd");
-record("RD role exists in admin matrix", Boolean(rdRole), "rd");
-
-const originalPageAllowed = rolePermissionEnabled(matrix, rdRole.id, "page", "numbering.request");
-const originalActionAllowed = rolePermissionEnabled(matrix, rdRole.id, "action", "numbering.create");
-
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: process.env.PDM_BROWSER_HEADED !== "true" });
 try {
-  await setRolePermission(adminCookie, rdRole, "page", "numbering.request", true);
-  await setRolePermission(adminCookie, rdRole, "action", "numbering.create", true);
-  await waitForPermission(adminCookie, rdRole, "page", "numbering.request", true);
-  await waitForPermission(adminCookie, rdRole, "action", "numbering.create", true);
-  let permissions = await fetchPermissions(engineerCookie);
-  record("Engineer request page permission can be enabled", permissions.pages["numbering.request"] === true, JSON.stringify(permissions.pages));
-  record("Engineer create action permission can be enabled", permissions.actions["numbering.create"] === true, JSON.stringify(permissions.actions));
-  await verifySidebar(browser, engineerCookie, "desktop enabled", { width: 1440, height: 1100 });
-
-  await setRolePermission(adminCookie, rdRole, "page", "numbering.request", false);
-  await setRolePermission(adminCookie, rdRole, "action", "numbering.create", false);
-  await waitForPermission(adminCookie, rdRole, "page", "numbering.request", false);
-  await waitForPermission(adminCookie, rdRole, "action", "numbering.create", false);
-  permissions = await fetchPermissions(engineerCookie);
-  record("Engineer request page permission can be disabled", permissions.pages["numbering.request"] === false, JSON.stringify(permissions.pages));
-  record("Engineer create action permission can be disabled", permissions.actions["numbering.create"] === false, JSON.stringify(permissions.actions));
-  await assertEngineerRecordCreate(engineerCookie, 403);
-  await verifySidebar(browser, engineerCookie, "desktop disabled", { width: 1440, height: 1100 });
-  await verifySidebar(browser, engineerCookie, "mobile disabled", { width: 390, height: 920 });
+  for (const scenario of ["loading-navigation", "allow-navigation", "denied", "unavailable-retry", "unauthenticated", "transfer-denied", "transfer-403"]) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    let permissionRequests = 0, mutationRequests = 0, mutationRejected = false, unavailable = scenario === "unavailable-retry";
+    let releaseProjection;
+    const projectionReady = new Promise(resolve => { releaseProjection = resolve; });
+    const exchanges = [], routeSequence = [];
+    page.on("framenavigated", frame => { if (frame === page.mainFrame()) routeSequence.push(new URL(frame.url()).pathname); });
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/api/**", async route => {
+      const url = new URL(route.request().url());
+      let status = 200, body;
+      if (url.pathname === "/api/numbering/permissions") {
+        permissionRequests++;
+        if (scenario === "loading-navigation" && permissionRequests === 1) await projectionReady;
+        status = scenario === "unauthenticated" ? 401 : unavailable ? 503 : 200;
+        const allowed = !scenario.includes("denied") && !mutationRejected;
+        body = status === 200 ? {
+          contractVersion: "ai-pdm.frontend-permission-projection.v1", applicationId: "ai-pdm",
+          generatedAt: new Date().toISOString(),
+          pages: Object.fromEntries(pages.map(code => [code, allowed])),
+          actions: Object.fromEntries(actions.map(code => [code, allowed]))
+        } : { code: status === 401 ? "auth_session_invalid" : "principal_dependency_unavailable" };
+      } else if (url.pathname === "/api/transfer-packages" && route.request().method() === "POST") {
+        mutationRequests++; mutationRejected = true; status = 403;
+        body = { code: "permission_not_granted", message: "DEV-126 fixture: operation denied" };
+      } else if (url.pathname === "/api/transfer-packages/workbench-context") body = {
+        context: { mode: "unsaved", caseType: "development_case", sourceItem: null, sourceRequested: false, sourceResolved: false }
+      };
+      else if (url.pathname === "/api/auth/me") body = { user: { display_name: "DEV-126 fixture A" } };
+      else if (url.pathname === "/api/production-slice/status") body = { configured: false, active: false, openPagePaths: [] };
+      else if (url.pathname === "/api/numbering/series-codes") body = { seriesCodeOptions: [] };
+      else body = {
+        data: { groups: [], rows: [], items: [], previewByRowKey: {}, nextCursor: null, previousCursor: null, filters: {} },
+        meta: { contractToken: "dev126-test-fixture" }, groups: [], rows: [], items: [], summary: { pending: 0 }, filters: {}
+      };
+      const correlationId = `dev126-${scenario}-${exchanges.length + 1}`;
+      exchanges.push({ path: url.pathname, method: route.request().method(), status, code: body.code ?? null, correlationId });
+      await route.fulfill({ status, contentType: "application/json", headers: { "x-correlation-id": correlationId }, body: JSON.stringify(body) });
+    });
+    try {
+      await page.goto(new URL(scenario.startsWith("transfer-") ? "/transfer-packages/new" : "/parts", base).href,
+        { waitUntil: scenario === "loading-navigation" ? "domcontentloaded" : "networkidle" });
+      if (scenario === "loading-navigation") {
+        const placeholder = page.locator('[data-permission-placeholder="/parts"]');
+        await placeholder.waitFor();
+        assert.equal(await page.locator('a[href="/parts"]').count(), 0);
+        const action = page.locator('[data-canonical-numbering-create-loading="true"]');
+        await action.waitFor(); await page.evaluate(() => document.fonts.ready);
+        const before = await action.boundingBox();
+        releaseProjection();
+        const ready = page.locator('[data-canonical-numbering-create="true"]');
+        await ready.waitFor(); const after = await ready.boundingBox();
+        assert.ok(before && after && Math.abs(before.height - after.height) < 1 && Math.abs(before.width - after.width) < 1, "Create action keeps its dimensions while loading");
+        assert.equal(permissionRequests, 1);
+      } else if (scenario === "allow-navigation") {
+        await page.locator("[data-canonical-numbering-create=true]").waitFor();
+        for (const route of ["/numbering/drawings", "/approvals", "/parts"]) {
+          await page.locator('a[href="' + route + '"]').first().click();
+          await page.waitForURL(url => url.pathname === route);
+          await page.waitForLoadState("networkidle");
+        }
+        assert.equal(permissionRequests, 1, "Route navigation must reuse the shell projection");
+        assert.equal(await page.getByText("確認權限中…", { exact: true }).count(), 0);
+        await page.screenshot({ path: path.join(output, "allow-navigation.png"), fullPage: true });
+      } else if (scenario === "denied") {
+        await page.locator("[data-canonical-numbering-create-denied=true]").waitFor();
+        assert.equal(await page.locator("[data-canonical-numbering-create=true]").count(), 0);
+      } else if (scenario === "unavailable-retry") {
+        await page.getByRole("alert").filter({ hasText: "無法確認" }).first().waitFor();
+        assert.equal(await page.locator("[data-canonical-numbering-create-denied=true]").count(), 0);
+        unavailable = false;
+        await page.getByRole("button", { name: "重試權限", exact: true }).first().click();
+        await page.locator("[data-canonical-numbering-create=true]").waitFor();
+        assert.equal(permissionRequests, 2);
+      } else if (scenario === "unauthenticated") {
+        await page.getByRole("alert").filter({ hasText: "登入已失效" }).waitFor();
+        assert.equal(await page.locator("[data-canonical-numbering-create=true]").count(), 0);
+      } else {
+        const create = page.getByRole("button", { name: "建立技轉包", exact: true });
+        await create.waitFor();
+        if (scenario === "transfer-403") {
+          await page.getByLabel("技轉包名稱", { exact: true }).fill("DEV-126 fixture");
+          await page.getByLabel("案件或變更原因", { exact: true }).fill("DEV-126 fixture reason");
+          await page.getByLabel("無來源編號原因", { exact: true }).fill("DEV-126 fixture reference");
+          const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === "/api/numbering/permissions");
+          await create.click(); await refreshed;
+          await page.getByText("DEV-126 fixture: operation denied", { exact: true }).waitFor();
+          await page.waitForLoadState("networkidle");
+          assert.equal(mutationRequests, 1, "A denied mutation is never replayed");
+          assert.equal(permissionRequests, 2, "A stale grant is invalidated after the actual consumer receives 403");
+        }
+        assert.equal(await create.isDisabled(), true);
+        assert.equal(await create.getAttribute("title"), "目前帳號沒有建立技轉包權限");
+      }
+      assert.deepEqual(errors, [], "Unexpected browser runtime errors");
+      await page.screenshot({ path: path.join(output, scenario + ".png"), fullPage: true });
+      results.push({ scenario, fixture: `dev126-${scenario}`, result: "PASS", permissionRequests, mutationRequests, routeSequence, exchanges });
+    } catch (error) {
+      results.push({ scenario, fixture: `dev126-${scenario}`, result: "FAIL", permissionRequests, mutationRequests, routeSequence, exchanges, error: String(error.message), pageErrors: errors });
+      process.exitCode = 1;
+      await page.screenshot({ path: path.join(output, scenario + "-failure.png"), fullPage: true }).catch(() => {});
+    } finally { releaseProjection(); await context.close(); }
+  }
 } finally {
-  await setRolePermission(adminCookie, rdRole, "page", "numbering.request", originalPageAllowed);
-  await setRolePermission(adminCookie, rdRole, "action", "numbering.create", originalActionAllowed);
   await browser.close();
+  const result = { environment: "local-browser-api-fixtures", realSso: "DEFERRED", serverAuthorization: "NOT_EXERCISED_BY_BROWSER_FIXTURES", sourceEvidence, baseUrl: base.origin, results };
+  fs.writeFileSync(path.join(output, "result.json"), JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(result));
 }
-
-const restoredPermissions = await fetchPermissions(engineerCookie);
-record("Engineer request page permission restored", restoredPermissions.pages["numbering.request"] === originalPageAllowed, JSON.stringify(restoredPermissions.pages));
-record("Engineer create action permission restored", restoredPermissions.actions["numbering.create"] === originalActionAllowed, JSON.stringify(restoredPermissions.actions));
-
-console.log(
-  JSON.stringify(
-    {
-      checkedAt: new Date().toISOString(),
-      total: results.length,
-      passed: results.filter((result) => result.passed).length,
-      failed: results.filter((result) => !result.passed).length,
-      results
-    },
-    null,
-    2
-  )
-);

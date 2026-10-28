@@ -1,7 +1,7 @@
 # DEV-126：AI-PDM 地端 SSO、單一前端權限來源與無感換頁
 
 - 文件成熟度：RD Implementation Ready。
-- 執行狀態：Documents Complete / Implementation Not Started。
+- 執行狀態：Source Implemented / Final Validation In Progress；固定 1020 實際啟動尚未驗收，DEV-126 未結案。
 - Native task：AIPDM/DEV-126#frontend-permission-projection。
 - 跨專案主控：JENFU/DEV-021。
 - 建立日期：2026-10-28（Asia/Taipei）。
@@ -187,7 +187,23 @@ SSO callback 建立 AI-PDM local session 後，permission projection 不應依�
 
 ## 10. RD 驗證與證據
 
-本文件建立回合未執行測試。實作回合至少執行：
+文件建立回合沒有測試；2026-10-28 實作結果如下，後續仍須保留未完成項：
+
+- 主線同步：已合併 `origin/main=6e06ea12a2a4552b5b563f942f87249270b0c4ce`，同步 commit `a1879fde1a3b27a2ab1ced965bafe460887d7f09`；同步前29個未提交檔案的內容雜湊全部保留。
+- Provider／endpoint／consumer／SSO／Principal guard：13檔155項通過；追加 saved transfer、change workspace與attachment manager 的8項狀態一致性案例亦通過。最新完整組合在 source checkpoint 後重綁。
+- `typecheck:app`、變更 TS/TSX lint（0 error／3個既有 warning）、local-entrypoint QC、DEV-079 contract與 `git diff --check` 通過。Planner 為 AFFECTED_SLICES；release-core／authorization／planner 共305項已通過，沒有選取 database／worker／infrastructure。
+- 首次有效失敗保留：local-entrypoint 舊 workspace tsconfig 的3項檢查失敗；調整至實際 app／Next config後通過。另以回歸測試重現首次403沒有取代舊 in-flight projection，再修正為只合併 forbidden refresh，舊 late response不可恢復 grant。
+- 首次隔離 build 通過，artifact=true、primary database absent且 invariant不變、暫存清理通過；追加 loading affordance 修正後需要刷新 build結果。
+- `http://localhost:12020` runner health：`/`=200、`/login`=200、`/api/auth/me`=401（正常未登入）。實際 browser fixture 7/7通過，包含三頁換頁 projection僅1次、loading尺寸、denied、401、503明確retry、transfer mutation403僅1次且projection重取。證據為 `output/playwright/dev126/result.json`與同目錄7張截圖，綁 source commit + dirty-source hashes；不代表 server guard／真實SSO。
+- 12020驗證暫存程序已停止，port已釋放、容量lease已釋放；1020原有PID27096完整保留，預設埠實際啟動為 `NOT_RUN (foreign owner)`，只讀 check-only 已證明會拒絕未知owner。不得為完成驗收停止它。
+- 依賴先重用已比對的工作樹，該來源後來已不存在；目前 junction改接 `C:\VIBE CODING\.worktrees\d125-infra-20261027\AI_PDM\node_modules`，710個manifest與lock integrity零差異，未執行安裝。Junction 模式以已安裝Next版本支援的 `--webpack`啟動，避免Turbopack外部root限制。
+- 真實 non-production IAM／ADC／外部Chrome SSO維持 `DEFERRED / NOT_RUN`；protected PR與required CI仍待交付，不以本機結果宣告正式驗收。
+
+實作回合至少執行：
+
+實作盤點補正：既有 qc:pdm-numbering-permission-guard-ui 仍透過已退休的 demo login／admin matrix 寫入測試，且會記錄 session cookie，不適用 Principal-only。沿原命令改成真實 App rendering + browser route fixtures，驗證三 route 只讀一次 projection、denied／401／503與 retry；server guard／SSO 拒絕由既有 Principal focused tests承接。沒有新增產品 fake-login path。Local runner／.env.example 在 slice planner 精確列入 application，其他未知路徑仍走 FULL fallback。
+
+qc:local-dev-entrypoint 的型別範圍檢查以實際 daily typecheck 使用的 tsconfig.app.json 與 Next 使用的 tsconfig.next.json 為準；禁止包含非 App／臨時路徑，不再以舊 workspace tsconfig 的700個檔案上限判斷啟動契約。歷史 workspace include 不因本切片被改寫。
 
 ~~~powershell
 npx vitest run src/app/api/numbering/permissions/principal-permissions.test.ts src/components/pdm-permission-provider.test.tsx src/components/canonical-numbering-create-action.test.tsx src/components/canonical-workspace-error-feedback.test.tsx

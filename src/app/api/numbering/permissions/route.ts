@@ -32,7 +32,8 @@ export async function GET(request: Request) {
     const offset = NUMBERING_PAGE_PERMISSION_CODES.length;
     const actions = Object.fromEntries(NUMBERING_ACTION_PERMISSION_CODES.map((permissionCode, index) =>
       [permissionCode, results[offset + index]?.allowed === true]));
-    return numberStateFlowJson({ generatedAt: new Date().toISOString(), pages, actions });
+    return numberStateFlowJson({ contractVersion: "ai-pdm.frontend-permission-projection.v1",
+      applicationId: "ai-pdm", generatedAt: new Date().toISOString(), pages, actions });
   } catch (error) {
     return principalRequestFailure(error);
   }

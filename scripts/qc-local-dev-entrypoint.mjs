@@ -31,16 +31,15 @@ const launcher = read("scripts/start-localhost-3000.ps1");
 const stateFlowStatusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
 const cleanNext = read("scripts/clean-next.mjs");
 const nextConfig = read("next.config.mjs");
-const workspaceTsconfig = JSON.parse(read("tsconfig.json"));
 const appTsconfig = JSON.parse(read("tsconfig.app.json"));
 const nextTsconfig = JSON.parse(read("tsconfig.next.json"));
-const parsedWorkspaceTsconfig = ts.getParsedCommandLineOfConfigFile(path.join(root, "tsconfig.json"), {}, ts.sys);
+const parsedAppTsconfig = ts.getParsedCommandLineOfConfigFile(path.join(root, "tsconfig.app.json"), {}, ts.sys);
 
-if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 3000") {
-  failures.push("package.json scripts.dev:server must keep the raw Next server command");
+if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 1020") {
+  failures.push("package.json scripts.dev:server must default Next to port 1020");
 }
 if (scripts["dev"] !== "npm run dev:local") {
-  failures.push("package.json scripts.dev must route daily startup through the managed localhost:3000 entrypoint");
+  failures.push("package.json scripts.dev must route daily startup through the managed launcher");
 }
 if (!String(scripts["dev:local"] ?? "").includes("scripts/start-localhost-3000.ps1")) {
   failures.push("package.json scripts.dev:local must route through scripts/start-localhost-3000.ps1");
@@ -64,7 +63,6 @@ assertIncludes("Next config watch scope", nextConfig, [
 ]);
 
 for (const [label, config] of [
-  ["workspace tsconfig", workspaceTsconfig],
   ["app tsconfig", appTsconfig],
   ["Next tsconfig", nextTsconfig]
 ]) {
@@ -74,13 +72,17 @@ for (const [label, config] of [
   }
 }
 
-if ((workspaceTsconfig.include ?? []).some((entry) => String(entry).startsWith("**/"))) {
-  failures.push("workspace tsconfig must use a bounded src include instead of a repository-wide wildcard");
-}
-if (!parsedWorkspaceTsconfig) {
-  failures.push("workspace tsconfig must be parseable");
-} else if (parsedWorkspaceTsconfig.fileNames.length > 700) {
-  failures.push(`workspace tsconfig scope is too broad: ${parsedWorkspaceTsconfig.fileNames.length} files (limit 700)`);
+// Daily typecheck uses tsconfig.app.json; Next uses tsconfig.next.json.
+// Check those actual boundaries rather than a historical repository-wide config
+// or an arbitrary file count that changes whenever legitimate source is added.
+if (!parsedAppTsconfig || parsedAppTsconfig.errors.length) {
+  failures.push("app typecheck configuration must be parseable");
+} else {
+  const escaped = parsedAppTsconfig.fileNames.filter(filename => {
+    const relative = path.relative(root, filename).replaceAll("\\", "/");
+    return relative !== "next-env.d.ts" && !relative.startsWith("src/");
+  });
+  if (escaped.length) failures.push(`app typecheck includes non-app paths: ${escaped.join(", ")}`);
 }
 assertIncludes("Next tsconfig", JSON.stringify(nextTsconfig), [
   '"extends":"./tsconfig.app.json"',
@@ -91,6 +93,8 @@ assertIncludes("Next tsconfig", JSON.stringify(nextTsconfig), [
 assertIncludes("managed launcher", launcher, [
   "Test-LocalHttpHealth",
   '$env:PDM_PART_PREVIEW_V1 = "true"',
+  "[int]$Port = 1020",
+  "Port -notin @(1020, 12020)",
   '$BindHost = "127.0.0.1"',
   '$PublicHost = "localhost"',
   '$Url = "http://${PublicHost}:$Port/"',
@@ -99,21 +103,13 @@ assertIncludes("managed launcher", launcher, [
   "@{ Path = \"/\"; Expected = @(200, 301, 302, 307, 308) }",
   "@{ Path = \"/login\"; Expected = @(200, 301, 302, 307, 308) }",
   "@{ Path = \"/api/auth/me\"; Expected = @(200, 401) }",
-  "RequirePartPreview = $true",
-  "$featureStatus.partPreview.enabled -ne $true",
-  "DEV-065 Part preview is not enabled on the fixed local runtime.",
   "Invoke-WebRequest",
   "Write-Host \"Local URL: $Url\"",
   "RedirectStandardOutput",
   "RedirectStandardError",
   "$PidFile",
-  "$PortOwnerPidFile",
   "$StatusFile",
   "Write-RuntimeStatus",
-  "Get-RecognitionWorkerProcessInfo",
-  "Website and 3D worker are healthy, but the recognition worker is not running.",
-  "Recognition worker is running.",
-  "-RecognitionWorkerProcessId $recognitionWorker.ProcessId",
   "Get-CurrentPortOwner",
   "launcherProcessId",
   "portOwnerProcessId",
@@ -123,11 +119,28 @@ assertIncludes("managed launcher", launcher, [
   "blocked_foreign_process",
   "startup_timeout",
   "tmp\\local-dev",
+  '([string]$Port)',
+  '"ai-pdm-$Port.pid"',
+  '"ai-pdm-$Port.status.json"',
+  '"ai-pdm-$Port.out.log"',
+  '"ai-pdm-$Port.err.log"',
+  'Join-Path $RuntimeDir "data"',
+  'Join-Path $RuntimeDir "repository"',
   "Run npm run dev:local:restart",
-  "Stop-Process -Id $ownerProcessId -Force",
+  "Stop-Process -Id $OwnerProcessId -Force",
   "$RestartProjectProcess",
   "$StopForeignProcess",
-  "npm.cmd",
+  'if ($StopForeignProcess)',
+  'The launcher never terminates an unknown port owner.',
+  "Stop-VerifiedProjectOwner",
+  "node.exe",
+  "npm-cli.js",
+  '"$quotedNpmCli run dev:server"',
+  '" -- --port $Port"',
+  '" --webpack"',
+  '.LinkType',
+  "Start-Process -FilePath $NodeExe -ArgumentList $npmArguments",
+  'not launched or stopped by dev:local',
   "dev:server"
 ]);
 
@@ -141,7 +154,13 @@ assertNotIncludes("managed launcher", launcher, [
   "Test-LegacySingleRouteHealth",
   "Test-LocalPortOpen",
   "AI_PDM is already running at $Url",
-  "-SkipHttpErrorCheck"
+  "-SkipHttpErrorCheck",
+  'Start-Process -FilePath "npm.cmd"',
+  'Start-Process -FilePath "cmd.exe"',
+  "Start-Service",
+  "Stop-Service",
+  "Stop-VerifiedOwner",
+  'if ($CheckOnly -or -not $StopForeignProcess)'
 ]);
 
 assertIncludes("clean-next guard", cleanNext, [
@@ -163,11 +182,16 @@ if (cleanGuardIndex === -1 || cleanRmIndex === -1 || cleanGuardIndex > cleanRmIn
   failures.push("clean-next guard must run before removing .next");
 }
 
-const stopProcessIndex = launcher.indexOf("Stop-Process -Id $ownerProcessId -Force");
+const stopProcessIndex = launcher.indexOf("Stop-Process -Id $OwnerProcessId -Force");
 const restartGateIndex = launcher.indexOf("if (-not $RestartProjectProcess)");
-const foreignGateIndex = launcher.indexOf("if ($StopForeignProcess)");
-if (stopProcessIndex === -1 || restartGateIndex === -1 || foreignGateIndex === -1) {
-  failures.push("managed launcher must gate Stop-Process behind explicit restart/foreign-process switches");
+const foreignRejectIndex = launcher.indexOf("if ($StopForeignProcess)");
+const foreignOwnerBranch = launcher.match(/if \(-not \$isProject\) \{([\s\S]*?)\n  \}\s*else \{/);
+const setupIndex = launcher.search(/Ensure-TaskDirectories\r?\n\$owner =/);
+if (stopProcessIndex === -1 || restartGateIndex === -1 || foreignRejectIndex === -1 || foreignRejectIndex > setupIndex) {
+  failures.push("managed launcher must gate project termination behind restart and reject foreign-stop requests before side effects");
+}
+if (!foreignOwnerBranch || foreignOwnerBranch[1].includes("Stop-VerifiedProjectOwner")) {
+  failures.push("managed launcher must never terminate a foreign port owner");
 }
 
 if (failures.length > 0) {

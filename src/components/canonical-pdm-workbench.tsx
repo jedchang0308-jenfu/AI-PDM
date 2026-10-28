@@ -1,5 +1,8 @@
 "use client";
 
+import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
+
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
@@ -335,6 +338,13 @@ function DrawingHistoryRevision({ drawingId, revisionId, onBack }: { drawingId: 
   </section>;
 }
 
+function AttachmentManagementAction({ allowed, onClick }: { allowed: boolean; onClick: () => void }) {
+  const { state } = usePdmPermissions();
+  if (!allowed && state.kind !== "loading" && state.kind !== "unavailable") return null;
+  return <button type="button" className="secondary-button" disabled={!allowed}
+    aria-busy={state.kind === "loading" ? true : undefined} onClick={onClick}>管理附件</button>;
+}
+
 function Drawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart }: {
   detail: Detail | null; loading: boolean; error: string; onClose: () => void;
   width: number; onStartResize: (clientX: number) => void;
@@ -396,7 +406,7 @@ function Drawer({ detail, loading, error, width, canManageAttachments, historyRe
         mode="readonly"
         onCommitted={(result) => onPartPreviewCommitted(detail.data.row, result)}
       /> : null}
-      {presentation.kind === "part" ? <section data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3>{canManageAttachments ? <button type="button" className="secondary-button" onClick={() => onManageAttachments(detail.data.row)}>管理附件</button> : null}</div>{presentation.files.length ? <ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul> : <p className="canonical-empty">尚無附件</p>}</section> : presentation.files.length ? <section><h3>圖面檔案</h3><ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul></section> : null}
+      {presentation.kind === "part" ? <section data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3><AttachmentManagementAction allowed={canManageAttachments} onClick={() => onManageAttachments(detail.data.row)} /></div>{presentation.files.length ? <ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul> : <p className="canonical-empty">尚無附件</p>}</section> : presentation.files.length ? <section><h3>圖面檔案</h3><ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul></section> : null}
       {presentation.kind === "drawing" || presentation.kind === "part" ? <>
         <CanonicalRelationMatrixSection
         matrix={presentation.relationMatrix}
@@ -484,7 +494,8 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const [layout, setLayout] = useState<CanonicalWorkbenchLayout>("list");
   const [previewByRowKey, setPreviewByRowKey] = useState<Record<string, CanonicalPreviewProjection>>({});
   const [previewCapability, setPreviewCapability] = useState(false);
-  const [canManageAttachments, setCanManageAttachments] = useState(false);
+  const { allowsAction } = usePdmPermissions();
+  const canManageAttachments = entityType === "part" && allowsAction("numbering.attachments.manage");
   const [previewPollingStopped, setPreviewPollingStopped] = useState(false);
   const [previewPollGeneration, setPreviewPollGeneration] = useState(0);
   const previewPollRef = useRef({ starts: 0, generation: 0, timer: null as number | null });
@@ -569,15 +580,6 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     return () => { active = false; controller.abort(); };
   }, []);
 
-  useEffect(() => {
-    if (entityType !== "part") { setCanManageAttachments(false); return; }
-    let active = true;
-    void fetch("/api/numbering/permissions", { cache: "no-store" })
-      .then(async (response) => response.ok ? await response.json() as { actions?: Record<string, boolean> } : null)
-      .then((body) => { if (active) setCanManageAttachments(body?.actions?.["numbering.attachments.manage"] === true); })
-      .catch(() => { if (active) setCanManageAttachments(false); });
-    return () => { active = false; };
-  }, [entityType]);
 
   useEffect(() => {
     if (!candidateRow) return;

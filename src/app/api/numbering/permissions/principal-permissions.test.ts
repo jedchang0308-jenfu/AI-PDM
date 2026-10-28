@@ -53,6 +53,9 @@ describe("principal-keyed numbering permission projection", () => {
     const response = await GET(request());
     const body = await response.json();
     expect(response.status).toBe(200);
+    expect(body.contractVersion).toBe("ai-pdm.frontend-permission-projection.v1");
+    expect(body.applicationId).toBe("ai-pdm");
+    expect(response.headers.get("cache-control")).toContain("no-store");
     expect(body.pages[NUMBERING_PAGE_PERMISSION_CODES[0]]).toBe(true);
     expect(body.actions[NUMBERING_ACTION_PERMISSION_CODES[0]]).toBe(true);
     expect(body.actions[NUMBERING_ACTION_PERMISSION_CODES[1]]).toBe(false);

@@ -11,6 +11,8 @@ import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-co
 import type { PartMaintenanceTab } from "@/lib/part-number-matrix-contract";
 import { CANONICAL_NUMBERING_ITEM_KIND_OPTIONS, projectCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 import styles from "./canonical-change-workspace.module.css";
+import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 
 type Option = { id: string; code: string; name?: string };
 export type WorkspacePayload = {
@@ -60,7 +62,9 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [canManageAttachments, setCanManageAttachments] = useState(false);
+  const { allowsAction, state: permissionState } = usePdmPermissions();
+  const permissionPending = permissionState.kind === "loading" || permissionState.kind === "unavailable";
+  const canManageAttachments = data?.entityType === "part" && !data.readonly && allowsAction("numbering.attachments.manage");
   const [recognitionTransfer, setRecognitionTransfer] = useState<PartRecognitionTransfer | null>(null);
   const domain = data?.entityType ?? entityType;
   const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : "/parts");
@@ -87,15 +91,6 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
     setData(result.data); setPayload(nextPayload); setSavedPayload(nextPayload); setToken(result.meta.contractToken); setStatus("ready");
   }, [endpoint, initialData]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    if (data?.entityType !== "part" || data.readonly) { setCanManageAttachments(false); return; }
-    let active = true;
-    void fetch("/api/numbering/permissions", { cache: "no-store" })
-      .then(async (response) => response.ok ? await response.json() as { actions?: Record<string, boolean> } : null)
-      .then((body) => { if (active) setCanManageAttachments(body?.actions?.["numbering.attachments.manage"] === true); })
-      .catch(() => { if (active) setCanManageAttachments(false); });
-    return () => { active = false; };
-  }, [data?.entityType, data?.readonly]);
   useEffect(() => {
     if (data?.entityType !== "part" || data.readonly) { setRecognitionTransfer(null); return; }
     let active = true;
@@ -175,7 +170,7 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
         </div>
         {extraFormalAttributes.length > 0 ? <div className={styles.formalAttributes}><h3>其他已確認屬性</h3><dl>{extraFormalAttributes.map((attribute) => <div key={attribute.key}><dt>{attribute.label}</dt><dd>{attribute.applicabilityState === "not_applicable" ? "無" : attribute.value || "—"}</dd></div>)}</dl></div> : null}
       </section>
-      <section className="pdm-edit-page-card"><div className="pdm-edit-page-card-heading"><div><h2>附件</h2>{data.readonly && fileReadContext !== "review_package" ? <p className="canonical-note">附件獨立維護，不屬於本次資料核准；此處顯示目前最新附件。</p> : null}</div>{!data.readonly && canManageAttachments && data.identity?.code ? <button className="secondary-button" type="button" onClick={manageAttachments}>管理附件</button> : null}</div><SimpleFiles records={data.attachments} attachmentContext={{ entityId: data.entityId, reviewRequestId }} context={fileReadContext} /></section>
+      <section className="pdm-edit-page-card"><div className="pdm-edit-page-card-heading"><div><h2>附件</h2>{data.readonly && fileReadContext !== "review_package" ? <p className="canonical-note">附件獨立維護，不屬於本次資料核准；此處顯示目前最新附件。</p> : null}</div>{!data.readonly && (canManageAttachments || permissionPending) && data.identity?.code ? <button className="secondary-button" type="button" disabled={!canManageAttachments} aria-busy={permissionState.kind === "loading" ? true : undefined} onClick={manageAttachments}>管理附件</button> : null}</div><SimpleFiles records={data.attachments} attachmentContext={{ entityId: data.entityId, reviewRequestId }} context={fileReadContext} /></section>
     </> : null}
   </PdmEditPageFrame>;
 }

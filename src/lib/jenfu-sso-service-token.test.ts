@@ -42,7 +42,7 @@ describe("development SSO service identity", () => {
     expect(google.impersonated).not.toHaveBeenCalled();
   });
 
-  it.each([audience, "https://localhost:11000"])("uses existing IAM credentials for the exact loopback audience %s", async (localAudience) => {
+  it.each([audience, "https://localhost:11000", "http://localhost:1000", "http://localhost:12000"])("uses injected IAM credentials for the exact loopback audience %s", async (localAudience) => {
     await expect(jenfuSsoServiceToken(localAudience, local)).resolves.toBe("unit-service-token");
     expect(google.impersonated).toHaveBeenCalledWith({ sourceClient: google.source, targetPrincipal,
       targetScopes: ["https://www.googleapis.com/auth/cloud-platform"], lifetime: 300 });

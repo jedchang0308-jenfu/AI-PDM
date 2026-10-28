@@ -2830,7 +2830,8 @@ body.sidebar-collapsed .app-shell {
   min-width: 0;
 }
 
-.nav a {
+.nav a,
+.nav .nav-permission-placeholder {
   position: relative;
   display: flex;
   align-items: center;
@@ -2847,7 +2848,8 @@ body.sidebar-collapsed .app-shell {
     transform 150ms ease;
 }
 
-.nav a svg {
+.nav a svg,
+.nav .nav-permission-placeholder svg {
   color: #64748b;
   transition:
     color 150ms ease,
@@ -2873,7 +2875,8 @@ body.sidebar-collapsed .app-shell {
     transform 150ms ease;
 }
 
-.nav a .nav-link-label {
+.nav a .nav-link-label,
+.nav .nav-permission-placeholder .nav-link-label {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -3050,7 +3053,8 @@ body.sidebar-collapsed .nav a {
   padding: 10px;
 }
 
-body.sidebar-collapsed .nav a .nav-link-label {
+body.sidebar-collapsed .nav a .nav-link-label,
+body.sidebar-collapsed .nav .nav-permission-placeholder .nav-link-label {
   display: none;
 }
 

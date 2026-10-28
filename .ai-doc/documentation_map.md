@@ -1,8 +1,8 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
-## DEV-126 地端 SSO 與前端權限投影（RD Implementation Ready）
+## DEV-126 地端 SSO 與前端權限投影（Source Implemented／最終驗證中）
 
-[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [RD Implementation Ready 唯一開發契約](specs/DEV-126-app-scoped-frontend-permission-projection.md)。本切片固定 1020／12020 local runtime、既有 v2 SSO source 與 root app-shell projection，處理六個 consumer 重複取得及「確認權限中…」閃爍；真實 non-production IAM／外部 Chrome activation 另案。文件完成不代表產品已實作、測試或發布。
+[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [唯一開發契約與實際驗證結果§10](specs/DEV-126-app-scoped-frontend-permission-projection.md)。六個consumer已共用root projection；12020 runner與7個browser fixture案例通過。1020有既有owner而未啟動，最終build／PR／required CI仍待收斂；真實 non-production IAM／外部Chrome SSO另案，本任務未結案。
 
 ## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-28）
 

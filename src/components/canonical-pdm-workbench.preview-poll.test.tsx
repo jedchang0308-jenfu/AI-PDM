@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // Captures the imported component's hooks and invokes its own load/effects.
 // This is a component lifetime unit test, not a mounted DOM/HTTP/production test.
 const runtime = vi.hoisted(() => ({ current: null as any }));
+vi.mock("@/components/pdm-permission-provider", () => ({
+  usePdmPermissions: () => ({ allowsAction: () => false })
+}));
 vi.mock("react", () => ({
   useState: (initial: unknown) => runtime.current.state(initial),
   useRef: (initial: unknown) => runtime.current.ref(initial),

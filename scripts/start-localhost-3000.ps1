@@ -1,4 +1,5 @@
 param(
+  [int]$Port = 1020,
   [switch]$NoBrowser,
   [switch]$RestartProjectProcess,
   [switch]$StopForeignProcess,
@@ -12,13 +13,14 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ProjectRootLower = $ProjectRoot.ToLowerInvariant()
 $BindHost = "127.0.0.1"
-$Port = 3000
-$Url = "http://localhost:$Port/"
-$RuntimeDir = Join-Path $ProjectRoot "tmp\local-dev"
-$PidFile = Join-Path $RuntimeDir "ai-pdm-3000.pid"
-$StatusFile = Join-Path $RuntimeDir "ai-pdm-3000.status.json"
-$StdoutLog = Join-Path $RuntimeDir "ai-pdm-3000.out.log"
-$StderrLog = Join-Path $RuntimeDir "ai-pdm-3000.err.log"
+$PublicHost = "localhost"
+$Url = "http://${PublicHost}:$Port/"
+$RuntimeRoot = Join-Path $ProjectRoot "tmp\local-dev"
+$RuntimeDir = Join-Path $RuntimeRoot ([string]$Port)
+$PidFile = Join-Path $RuntimeDir "ai-pdm-$Port.pid"
+$StatusFile = Join-Path $RuntimeDir "ai-pdm-$Port.status.json"
+$StdoutLog = Join-Path $RuntimeDir "ai-pdm-$Port.out.log"
+$StderrLog = Join-Path $RuntimeDir "ai-pdm-$Port.err.log"
 $DataDir = Join-Path $RuntimeDir "data"
 $RepositoryDir = Join-Path $RuntimeDir "repository"
 $HealthChecks = @(
@@ -26,6 +28,13 @@ $HealthChecks = @(
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/api/auth/me"; Expected = @(200, 401) }
 )
+
+if ($Port -notin @(1020, 12020)) {
+  throw "DEV-126 local port must be 1020 or 12020."
+}
+if ($StopForeignProcess) {
+  throw "-StopForeignProcess is prohibited. The launcher never terminates an unknown port owner."
+}
 
 function Ensure-TaskDirectories {
   foreach ($path in @($RuntimeDir, $DataDir, $RepositoryDir)) {
@@ -98,11 +107,10 @@ function Write-RuntimeStatus {
     launcherProcessId = $LauncherProcessId
     portOwnerProcessId = $PortOwnerProcessId
     portOwnerProcessName = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.Name } else { "" }
-    portOwnerCommandLine = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.CommandLine } else { "" }
     dataDir = $DataDir
     repositoryDir = $RepositoryDir
     mutationScope = "task-owned local runtime directories"
-    windowsService = "external installed DEV-125 service; not launched by dev:local"
+    windowsService = "external installed DEV-125 service; not launched or stopped by dev:local"
     health = $Health
     message = $Message
     updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -113,7 +121,7 @@ function Open-LocalPage {
   if (-not $NoBrowser) { Start-Process $Url }
 }
 
-function Stop-VerifiedOwner {
+function Stop-VerifiedProjectOwner {
   param([int]$OwnerProcessId)
   Stop-Process -Id $OwnerProcessId -Force
   if (-not (Wait-PortReleased)) { throw "Port $Port did not release after stopping verified PID $OwnerProcessId." }
@@ -123,14 +131,11 @@ Ensure-TaskDirectories
 $owner = Get-CurrentPortOwner
 if ($owner.ProcessId -gt 0) {
   $isProject = Test-IsProjectProcess -ProcessInfo $owner.ProcessInfo
-  Write-Host "Port $Port owner: PID $($owner.ProcessId) ($($owner.ProcessInfo.Name))"
-  Write-Host "Command: $($owner.ProcessInfo.CommandLine)"
+  $ownerName = if ($owner.ProcessInfo) { $owner.ProcessInfo.Name } else { "unknown" }
+  Write-Host "Port $Port owner: PID $($owner.ProcessId) ($ownerName)"
   if (-not $isProject) {
-    if ($CheckOnly -or -not $StopForeignProcess) {
-      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "Port is owned by another process."
-      throw "Port $Port is occupied by a non-project process. Use -StopForeignProcess only after verifying its impact."
-    }
-    Stop-VerifiedOwner -OwnerProcessId $owner.ProcessId
+    Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "Port is owned by another process."
+    throw "Port $Port is occupied by a process outside this worktree; foreign process termination is prohibited."
   }
   else {
     $health = Test-LocalHttpHealth
@@ -146,10 +151,11 @@ if ($owner.ProcessId -gt 0) {
       throw "AI_PDM is listening but unhealthy."
     }
     if (-not $RestartProjectProcess) { throw "Run npm run dev:local:restart to restart the verified AI_PDM process." }
-    Stop-VerifiedOwner -OwnerProcessId $owner.ProcessId
+    Stop-VerifiedProjectOwner -OwnerProcessId $owner.ProcessId
   }
 }
 elseif ($CheckOnly) {
+  Write-RuntimeStatus -State "not_running" -Message "No process is listening on port $Port."
   throw "No local server is listening on $Url."
 }
 
@@ -171,8 +177,24 @@ $env:PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true"
 Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile, $StatusFile -ErrorAction SilentlyContinue
 
 Write-Host "Starting AI_PDM local web server."
-Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start a fallback worker."
-$process = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev:server") -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start or stop a fallback worker."
+$NodeExe = (Get-Command node.exe -ErrorAction Stop).Source
+$NpmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
+$NpmCli = Join-Path (Split-Path $NpmCommand -Parent) "node_modules\npm\bin\npm-cli.js"
+if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
+  throw "Could not resolve npm's JavaScript CLI next to npm.cmd."
+}
+$quotedNpmCli = '"' + $NpmCli.Replace('"', '\"') + '"'
+$npmArguments = "$quotedNpmCli run dev:server"
+if ($Port -ne 1020) {
+  $npmArguments += " -- --port $Port"
+}
+# Turbopack cannot follow an externally reused node_modules junction outside its root.
+if ((Get-Item -LiteralPath (Join-Path $ProjectRoot "node_modules") -ErrorAction Stop).LinkType) {
+  if ($Port -eq 1020) { $npmArguments += " --" }
+  $npmArguments += " --webpack"
+}
+$process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
 Set-Content -LiteralPath $PidFile -Value ([string]$process.Id) -Encoding ascii
 Write-RuntimeStatus -State "starting" -LauncherProcessId $process.Id -Message "Waiting for local HTTP health."
 

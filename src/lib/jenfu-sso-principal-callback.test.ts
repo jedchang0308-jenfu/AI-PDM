@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
@@ -65,6 +66,7 @@ function principalProof(now = Date.now()) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
   vi.restoreAllMocks();
   mocks.producerConfig = null;
@@ -72,6 +74,35 @@ afterEach(() => {
 });
 
 describe("principal-first SSO callback routing", () => {
+  it.each([[1000, 1020], [12000, 12020]])("routes deterministic principals A and B from local broker %i into app %i", async (brokerPort, appPort) => {
+    const broker = `http://localhost:${brokerPort}`, base = `http://localhost:${appPort}`;
+    mocks.producerConfig = { broker, base, issuer: `${broker}/api/sso`, callback: `${base}/api/auth/jenfu-sso/callback` };
+    vi.stubEnv("NODE_ENV", "test"); vi.stubEnv("PDM_PUBLIC_BASE_URL", base); vi.stubEnv("K_SERVICE", undefined);
+    for (const actor of ["A", "B"]) {
+      const proof = principalProof(); proof.issuer = `${broker}/api/sso`;
+      proof.identity.principalId = `fixture-principal-${actor}`;
+      proof.identity.identitySubject = `fixture-subject-${actor}`;
+      const start = await jenfuSsoStart(new Request(`${base}/api/auth/jenfu-sso/start?returnTo=%2Fparts`));
+      const authorize = new URL(start.headers.get("location")!);
+      const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify(proof)));
+      vi.stubGlobal("fetch", exchange);
+      mocks.issuePrincipal.mockResolvedValueOnce({ token: `fixture-session-${actor}` });
+      const callback = new URL(mocks.producerConfig.callback);
+      callback.search = new URLSearchParams({ code: `fixture-code-${actor}`, state: authorize.searchParams.get("state")!, iss: proof.issuer }).toString();
+      const result = await jenfuSsoCallback(new Request(callback, { headers: { cookie: start.headers.get("set-cookie")!.split(";")[0] } }));
+      expect(result.headers.get("location")).toBe(`${base}/parts`);
+      expect(result.headers.get("set-cookie")).toContain(`fixture-session-${actor}`);
+      expect(authorize.searchParams.get("redirect_uri")).toBe(mocks.producerConfig.callback);
+      const [url, init] = exchange.mock.calls[0];
+      expect(url).toBe(`${broker}/api/sso/token`);
+      const body = new URLSearchParams(init?.body as URLSearchParams);
+      expect(body.get("client_id")).toBe("ai-pdm");
+      expect(body.get("redirect_uri")).toBe(mocks.producerConfig.callback);
+      expect(createHash("sha256").update(body.get("code_verifier")!, "ascii").digest("base64url")).toBe(authorize.searchParams.get("code_challenge"));
+      expect(mocks.issuePrincipal).toHaveBeenLastCalledWith(expect.objectContaining({ handoff: expect.objectContaining({ identity: expect.objectContaining({ principalId: `fixture-principal-${actor}` }) }) }));
+    }
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
   it.each([
     [401, "sso_reauthentication_required"],
     [403, "sso_access_denied"],
