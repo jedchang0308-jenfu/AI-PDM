@@ -189,6 +189,7 @@ const realPreviewGeneratorProfile = "windows_solidworks_preview_worker";
 export const previewHeartbeatStaleAfterMs = 30_000;
 export const previewQueuedUnclaimedAfterMs = 120_000;
 export const previewMaxAttempts = 3;
+let lastEmptyPreviewClaimDiagnosticAt = 0;
 
 /** A worker that did not exist must not make the source permanently terminal.
  * Deterministic Document Manager/parser failures stay terminal so opening a
@@ -591,7 +592,45 @@ export async function claimPreviewJobAsync(
     );
     return claimed ? { row: claimed, source } : null;
   }, { isolationLevel: "repeatable_read", readOnly: false });
-  if (!result) return null;
+  if (!result) {
+    if (client.kind === "postgres" && Date.now() - lastEmptyPreviewClaimDiagnosticAt >= 60_000) {
+      lastEmptyPreviewClaimDiagnosticAt = Date.now();
+      const diagnostic = await client.queryOne<{
+        queued_in_company: number | string;
+        attempt_eligible: number | string;
+        kind_eligible: number | string;
+        extension_eligible: number | string;
+        owner_eligible: number | string;
+        source_eligible: number | string;
+      }>(`
+        SELECT
+          COUNT(*) AS queued_in_company,
+          COUNT(*) FILTER (WHERE attempt_count < :maxAttempts) AS attempt_eligible,
+          COUNT(*) FILTER (WHERE attempt_count < :maxAttempts
+            AND requested_kind IN (${kindClause.sql})) AS kind_eligible,
+          COUNT(*) FILTER (WHERE attempt_count < :maxAttempts
+            AND requested_kind IN (${kindClause.sql})
+            AND source_extension IN (${extensionClause.sql})) AS extension_eligible,
+          COUNT(*) FILTER (WHERE attempt_count < :maxAttempts
+            AND requested_kind IN (${kindClause.sql})
+            AND source_extension IN (${extensionClause.sql})
+            AND ${previewOwnerPredicate(client)}) AS owner_eligible,
+          COUNT(*) FILTER (WHERE attempt_count < :maxAttempts
+            AND requested_kind IN (${kindClause.sql})
+            AND source_extension IN (${extensionClause.sql})
+            AND ${previewOwnerPredicate(client)}
+            AND ${recoverablePreviewSourcePredicate()}) AS source_eligible
+        FROM preview_jobs job
+        WHERE job.status='queued' AND job.company_id=:companyId
+          AND job.generator_profile <> 'fake_preview_worker'
+      `, { ...kindClause.params, ...extensionClause.params, companyId: input.companyId,
+        ownerPrincipalId: input.ownerPrincipalId ?? null, maxAttempts: previewMaxAttempts });
+      console.warn("PREVIEW_CLAIM_EMPTY", Object.fromEntries(Object.entries(diagnostic ?? {}).map(
+        ([key, value]) => [key, Number(value)]
+      )));
+    }
+    return null;
+  }
   const { row, source } = result;
 
   return {
