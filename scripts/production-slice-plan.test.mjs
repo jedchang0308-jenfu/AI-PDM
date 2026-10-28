@@ -12,7 +12,7 @@ test('normalizes Windows paths before classification', () => {
 })
 
 test('DEV-126 known local runtime inputs select app checks without inventing database work', () => {
-  const plan = createProductionSlicePlan(['.env.example', 'scripts/start-localhost-3000.ps1', 'scripts/qc-local-dev-entrypoint.mjs'])
+  const plan = createProductionSlicePlan(['.env.example', 'scripts/start-localhost-3000.ps1', 'scripts/qc-local-dev-entrypoint.mjs', 'vitest.config.ts'])
   assert.equal(plan.classification, 'AFFECTED_SLICES')
   assert.equal(plan.gates.application, true)
   assert.equal(plan.gates.isolatedBuild, true)
