@@ -6,7 +6,7 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   test: {
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.worktrees/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.worktrees/**', '**/.tmp/**', '**/tmp/**'],
   },
   resolve: {
     alias: {

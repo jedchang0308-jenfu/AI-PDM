@@ -1,5 +1,7 @@
 'use client'
 
+import { pdmPermissionFetch as fetch, invalidatePdmPermissions } from "@/lib/pdm-permission-client";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ArrowLeft, History, LoaderCircle, Plus, RefreshCw, Save } from 'lucide-react'
 
@@ -344,6 +346,7 @@ export function RoleCapabilitySettings() {
     setBusy(true); setError(null)
     try {
       await mutation('/api/settings/access/role-policies/applications', { confirmation: preview.confirmation, reason }, 'apply', preview.confirmation.draftId)
+      invalidatePdmPermissions("permissions-changed")
       setReason(''); await load(); confirmButton.current?.focus()
     } catch (failure) { setError(failure instanceof Error ? failure.message : '套用結果待確認。') }
     finally { setBusy(false) }
@@ -375,6 +378,7 @@ export function RoleCapabilitySettings() {
     setBusy(true); setError(null)
     try {
       await requestData('/api/settings/access/role-policies/commands/' + attempt.requestId, undefined, attempt.actorPrincipalId)
+      invalidatePdmPermissions("permissions-changed")
       remember(null); await load()
       setRecoveryMessage('已讀回伺服器套用結果，目前生效版本已重新載入。')
     } catch (failure) {

@@ -28,25 +28,32 @@ PowerShell 可能會攔截 `npm.ps1`，本專案建議使用 `npm.cmd`。
 ## 快速啟動
 
 ```powershell
-npm.cmd install
+$runtime = Join-Path (Get-Location) "tmp/local-dev/1020"
+$env:PDM_DATA_DIR = Join-Path $runtime "data"
+$env:PDM_REPOSITORY_DIR = Join-Path $runtime "repository"
+npm.cmd ci
 npm.cmd run db:init
 npm.cmd run db:seed
 npm.cmd run dev:local
 ```
 
+資料初始化和本機 server 都使用 `tmp/local-dev/1020/` 下的 task-owned data/repository。換用其他埠時，先把上述路徑中的 `1020` 改成同一個埠。
+
 開啟：
 
 ```text
-http://localhost:3000
+http://localhost:1020
 ```
 
-`dev:local` 是受控本機啟動入口，會檢查 `http://localhost:3000/login` 是否真的回應成功，不只檢查 port 是否 listen。若 3000 已被本專案舊 process 佔用但健康檢查失敗，使用：
+`dev:local` 是受控本機啟動入口，預設使用 1020，並檢查 login 與 auth API 的 HTTP 健康狀態。需要在同一 session 使用 12020 時：
+
+再次執行入口或 `-CheckOnly` 會重用已驗證的同一伺服器。入口以啟動 PID 與建立時間辨識程序；共用依賴目錄時會追溯本工作樹的 npm 祖先程序。
 
 ```powershell
-npm.cmd run dev:local:restart
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-localhost-3000.ps1 -Port 12020 -NoBrowser
 ```
 
-此指令會停止本專案 stale process、清理 `.next`、重新啟動 3000，並把 log 寫到 `tmp/local-dev/`。若 3000 被非本專案 process 佔用，請先確認該 process 可停止，不要直接清 port。
+可用 `-CheckOnly -NoBrowser` 只檢查指定埠的 listener；未知或非本專案 process 會阻擋啟動，不會被停止。PID、狀態、log、`PDM_DATA_DIR` 與 `PDM_REPOSITORY_DIR` 都依指定埠隔離在 `tmp/local-dev/<port>/`。這個入口不啟動或停止已安裝的 DEV-125 Windows service。
 
 ## 帳號模式
 

@@ -64,6 +64,8 @@ const nextConfig = {
   devIndicators: false,
   output: "standalone",
   poweredByHeader: false,
+  // Keep SSO codes and transaction state out of automatic development request logs.
+  logging: { incomingRequests: { ignore: [/^\/api\/(?:auth|sso)(?:\/|\?|$)/] } },
   async headers() {
     return [
       {

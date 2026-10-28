@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { pdmPermissionFetch as fetch, invalidatePdmPermissions } from "@/lib/pdm-permission-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -117,7 +119,9 @@ export function SidebarNav() {
   const pathname = usePathname() || "/";
   const router = useRouter();
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/");
-  const [permissions, setPermissions] = useState<NumberingPermissionResponse | null>(null);
+  const { state: permissionState } = usePdmPermissions();
+  const permissions = permissionState.kind === "ready" ? permissionState.projection : null;
+  const permissionPending = permissionState.kind === "loading" || permissionState.kind === "unavailable";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -187,24 +191,6 @@ export function SidebarNav() {
     };
   }, [permissions, publicAuthPage]);
 
-  useEffect(() => {
-    if (publicAuthPage) {
-      setPermissions(null);
-      return;
-    }
-    let cancelled = false;
-    fetch("/api/numbering/permissions")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: NumberingPermissionResponse | null) => {
-        if (!cancelled && body?.pages && body?.actions) setPermissions(body);
-      })
-      .catch(() => {
-        if (!cancelled) setPermissions(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [publicAuthPage]);
 
   useEffect(() => {
     if (publicAuthPage) {
@@ -250,6 +236,7 @@ export function SidebarNav() {
         setLogoutState("failed");
         return;
       }
+      invalidatePdmPermissions("logout");
       router.replace("/login?reason=local-logout");
       router.refresh();
     } catch {
@@ -299,7 +286,7 @@ export function SidebarNav() {
       ) : null}
       <nav id="primary-navigation" className={mobileNavOpen ? "nav mobile-open" : "nav"} aria-label="主導覽">
         {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => isVisibleItem(item, permissions, productionSlice));
+          const visibleItems = section.items.filter((item) => permissionPending || isVisibleItem(item, permissions, productionSlice));
           if (visibleItems.length === 0) return null;
 
           return (
@@ -308,6 +295,15 @@ export function SidebarNav() {
               <div className="nav-section-items">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
+                  if (permissionPending && NUMBERING_NAV_PERMISSION_BY_PATH[item.href]) {
+                    return <span className="nav-permission-placeholder" role="link" aria-disabled="true"
+                      aria-busy={permissionState.kind === "loading" ? true : undefined}
+                      title={permissionState.kind === "loading" ? "正在載入操作權限" : "暫時無法確認操作權限"}
+                      data-permission-placeholder={item.href} key={item.href}>
+                      {item.navGlyph ? <span className="nav-item-glyph" aria-hidden="true">{item.navGlyph}</span> : <Icon size={18} aria-hidden="true" />}
+                      <span className="nav-link-label">{item.label}</span>
+                    </span>;
+                  }
                   const signedInEntry = item.href === "/login" && currentUser;
                   const EntryIcon = signedInEntry ? LogOut : Icon;
                   const label = signedInEntry ? currentUser.display_name : item.label;

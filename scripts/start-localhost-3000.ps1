@@ -1,4 +1,5 @@
 param(
+  [int]$Port = 1020,
   [switch]$NoBrowser,
   [switch]$RestartProjectProcess,
   [switch]$StopForeignProcess,
@@ -12,13 +13,14 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ProjectRootLower = $ProjectRoot.ToLowerInvariant()
 $BindHost = "127.0.0.1"
-$Port = 3000
-$Url = "http://localhost:$Port/"
-$RuntimeDir = Join-Path $ProjectRoot "tmp\local-dev"
-$PidFile = Join-Path $RuntimeDir "ai-pdm-3000.pid"
-$StatusFile = Join-Path $RuntimeDir "ai-pdm-3000.status.json"
-$StdoutLog = Join-Path $RuntimeDir "ai-pdm-3000.out.log"
-$StderrLog = Join-Path $RuntimeDir "ai-pdm-3000.err.log"
+$PublicHost = "localhost"
+$Url = "http://${PublicHost}:$Port/"
+$RuntimeRoot = Join-Path $ProjectRoot "tmp\local-dev"
+$RuntimeDir = Join-Path $RuntimeRoot ([string]$Port)
+$PidFile = Join-Path $RuntimeDir "ai-pdm-$Port.pid"
+$StatusFile = Join-Path $RuntimeDir "ai-pdm-$Port.status.json"
+$StdoutLog = Join-Path $RuntimeDir "ai-pdm-$Port.out.log"
+$StderrLog = Join-Path $RuntimeDir "ai-pdm-$Port.err.log"
 $DataDir = Join-Path $RuntimeDir "data"
 $RepositoryDir = Join-Path $RuntimeDir "repository"
 $HealthChecks = @(
@@ -26,6 +28,13 @@ $HealthChecks = @(
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/api/auth/me"; Expected = @(200, 401) }
 )
+
+if ($Port -notin @(1020, 12020)) {
+  throw "DEV-126 local port must be 1020 or 12020."
+}
+if ($StopForeignProcess) {
+  throw "-StopForeignProcess is prohibited. The launcher never terminates an unknown port owner."
+}
 
 function Ensure-TaskDirectories {
   foreach ($path in @($RuntimeDir, $DataDir, $RepositoryDir)) {
@@ -42,18 +51,67 @@ function Get-OwnerProcessInfo {
   Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerProcessId" -ErrorAction SilentlyContinue
 }
 
+function Get-NativeProcessStartToken {
+  param([int]$OwnerProcessId)
+  try { return (Get-Process -Id $OwnerProcessId -ErrorAction Stop).StartTime.ToUniversalTime().ToFileTimeUtc().ToString() }
+  catch { return "" }
+}
+
+function Test-ProcessCommandOwnsProject {
+  param($ProcessInfo)
+  if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe' -or -not $ProcessInfo.CommandLine -or -not $ProcessInfo.ExecutablePath) { return $false }
+  if ([IO.Path]::GetFullPath($ProcessInfo.ExecutablePath) -ne $NodeExe) { return $false }
+  # Match the complete invocation emitted below. An incidental root argument,
+  # path traversal, or a different --prefix must never prove ownership.
+  $expected = @(( '"' + $NodeExe + '" ' + $npmArguments ), ( $NodeExe + ' ' + $npmArguments ))
+  return $expected -contains ([string]$ProcessInfo.CommandLine).Trim()
+}
+
+function Read-RecordedLauncherProof {
+  try {
+    if (-not (Test-Path -LiteralPath $StatusFile -PathType Leaf)) { return $null }
+    $record = Get-Content -LiteralPath $StatusFile -Raw | ConvertFrom-Json
+    if ($record.app -ne 'AI_PDM' -or [int]$record.port -ne $Port -or [int]$record.launcherProcessId -le 0 -or -not $record.launcherStartToken -or -not $record.launcherExecutablePath) { return $null }
+    if ([IO.Path]::GetFullPath([string]$record.launcherExecutablePath) -ne $NodeExe) { return $null }
+    if ([IO.Path]::GetFullPath([string]$record.worktree).TrimEnd('\') -ne $ProjectRoot.TrimEnd('\')) { return $null }
+    if ((Get-NativeProcessStartToken -OwnerProcessId $record.launcherProcessId) -ne [string]$record.launcherStartToken) { return $null }
+    return $record
+  } catch { return $null }
+}
+
 function Test-IsProjectProcess {
   param($ProcessInfo)
-  if (-not $ProcessInfo -or -not $ProcessInfo.CommandLine) { return $false }
-  $commandLine = $ProcessInfo.CommandLine.ToLowerInvariant()
-  return $commandLine.Contains($ProjectRootLower) -and ($commandLine.Contains("next") -or $commandLine.Contains("npm"))
+  $proof = Read-RecordedLauncherProof
+  if (-not $proof) { return $false }
+  $seen = @{}
+  $current = $ProcessInfo
+  for ($depth = 0; $depth -lt 8 -and $current; $depth++) {
+    $currentId = [int]$current.ProcessId
+    if ($currentId -le 0 -or $seen.ContainsKey($currentId)) { return $false }
+    $seen[$currentId] = $true
+    if ($currentId -eq [int]$proof.launcherProcessId) { return (Test-ProcessCommandOwnsProject -ProcessInfo $current) }
+    $parent = Get-OwnerProcessInfo -OwnerProcessId ([int]$current.ParentProcessId)
+    if (-not $parent -or -not $current.CreationDate -or -not $parent.CreationDate -or $parent.CreationDate -ge $current.CreationDate) { return $false }
+    $current = $parent
+  }
+  return $false
 }
 
 function Get-CurrentPortOwner {
-  $listener = Get-PortListeners | Select-Object -First 1
-  if (-not $listener) { return @{ ProcessId = 0; ProcessInfo = $null } }
-  $ownerPid = [int]$listener.OwningProcess
-  return @{ ProcessId = $ownerPid; ProcessInfo = Get-OwnerProcessInfo -OwnerProcessId $ownerPid }
+  $ownerPids = @(Get-PortListeners | ForEach-Object { [int]$_.OwningProcess } | Sort-Object -Unique)
+  foreach ($ownerPid in $ownerPids) {
+    $processInfo = Get-OwnerProcessInfo -OwnerProcessId $ownerPid
+    [pscustomobject]@{
+      ProcessId = $ownerPid
+      ProcessInfo = $processInfo
+      IsProject = [bool](Test-IsProjectProcess -ProcessInfo $processInfo)
+    }
+  }
+}
+
+function Get-UnverifiedPortOwners {
+  param([object[]]$Owners)
+  @($Owners | Where-Object { -not $_.IsProject })
 }
 
 function Wait-PortReleased {
@@ -91,18 +149,20 @@ function Write-RuntimeStatus {
   param([string]$State, [int]$LauncherProcessId = 0, [int]$PortOwnerProcessId = 0, $PortOwnerProcessInfo = $null, $Health = $null, [string]$Message = "")
   [ordered]@{
     app = "AI_PDM"
+    worktree = $ProjectRoot
     purpose = "local web development"
     port = $Port
     url = $Url
     state = $State
     launcherProcessId = $LauncherProcessId
+    launcherStartToken = if ($LauncherProcessId -gt 0) { Get-NativeProcessStartToken -OwnerProcessId $LauncherProcessId } else { "" }
+    launcherExecutablePath = if ($LauncherProcessId -gt 0) { $NodeExe } else { "" }
     portOwnerProcessId = $PortOwnerProcessId
     portOwnerProcessName = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.Name } else { "" }
-    portOwnerCommandLine = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.CommandLine } else { "" }
     dataDir = $DataDir
     repositoryDir = $RepositoryDir
     mutationScope = "task-owned local runtime directories"
-    windowsService = "external installed DEV-125 service; not launched by dev:local"
+    windowsService = "external installed DEV-125 service; not launched or stopped by dev:local"
     health = $Health
     message = $Message
     updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -110,32 +170,75 @@ function Write-RuntimeStatus {
 }
 
 function Open-LocalPage {
-  if (-not $NoBrowser) { Start-Process $Url }
+  if (-not $NoBrowser) {
+    $owners = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $owners)
+    if ($unverifiedOwners.Count -gt 0) {
+      $owner = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; refusing to open localhost."
+    }
+    if ($owners.Count -eq 0) {
+      Write-RuntimeStatus -State "unhealthy_existing" -Message "No port listener remained before opening localhost."
+      throw "Port $Port has no listener before opening localhost."
+    }
+    Start-Process $Url
+  }
 }
 
-function Stop-VerifiedOwner {
+function Stop-VerifiedProjectOwner {
   param([int]$OwnerProcessId)
   Stop-Process -Id $OwnerProcessId -Force
   if (-not (Wait-PortReleased)) { throw "Port $Port did not release after stopping verified PID $OwnerProcessId." }
 }
 
+# Resolve one exact invocation for both startup and subsequent ownership checks.
+$NodeExe = [IO.Path]::GetFullPath((Get-Command node.exe -ErrorAction Stop).Source)
+$NpmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
+$NpmCli = Join-Path (Split-Path $NpmCommand -Parent) "node_modules\npm\bin\npm-cli.js"
+if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
+  throw "Could not resolve npm's JavaScript CLI next to npm.cmd."
+}
+$quotedNpmCli = '"' + $NpmCli.Replace('"', '\"') + '"'
+$quotedProjectRoot = '"' + $ProjectRoot.Replace('"', '\"') + '"'
+$npmArguments = "$quotedNpmCli --prefix $quotedProjectRoot run dev:server"
+if ($Port -ne 1020) { $npmArguments += " -- --port $Port" }
+# Turbopack cannot follow an externally reused node_modules junction outside its root.
+if ((Get-Item -LiteralPath (Join-Path $ProjectRoot "node_modules") -ErrorAction Stop).LinkType) {
+  if ($Port -eq 1020) { $npmArguments += " --" }
+  $npmArguments += " --webpack"
+}
+
 Ensure-TaskDirectories
-$owner = Get-CurrentPortOwner
-if ($owner.ProcessId -gt 0) {
-  $isProject = Test-IsProjectProcess -ProcessInfo $owner.ProcessInfo
-  Write-Host "Port $Port owner: PID $($owner.ProcessId) ($($owner.ProcessInfo.Name))"
-  Write-Host "Command: $($owner.ProcessInfo.CommandLine)"
+$owners = @(Get-CurrentPortOwner)
+if ($owners.Count -gt 0) {
+  $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $owners)
+  $owner = if ($unverifiedOwners.Count -gt 0) { $unverifiedOwners[0] } else { $owners[0] }
+  $isProject = [bool]$owner.IsProject
+  $ownerName = if ($owner.ProcessInfo) { $owner.ProcessInfo.Name } else { "unknown" }
+  Write-Host "Port $Port owner: PID $($owner.ProcessId) ($ownerName)"
   if (-not $isProject) {
-    if ($CheckOnly -or -not $StopForeignProcess) {
-      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "Port is owned by another process."
-      throw "Port $Port is occupied by a non-project process. Use -StopForeignProcess only after verifying its impact."
-    }
-    Stop-VerifiedOwner -OwnerProcessId $owner.ProcessId
+    Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "At least one listener on this port is not owned by this worktree."
+    throw "Port $Port has a listener outside this worktree; foreign process termination is prohibited."
   }
   else {
     $health = Test-LocalHttpHealth
+    $ownersAfterHealth = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $ownersAfterHealth)
+    if ($unverifiedOwners.Count -gt 0) {
+      $owner = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; foreign process termination is prohibited."
+    }
+    $owner = $ownersAfterHealth | Select-Object -First 1
+    if (-not $owner) {
+      Write-RuntimeStatus -State "unhealthy_existing" -Health $health -Message "No port listener remained after the health check."
+      throw "Port $Port has no listener after the health check."
+    }
     if ($health.Healthy -and -not $RestartProjectProcess) {
-      Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "Existing AI_PDM web server is healthy."
+      $proof = Read-RecordedLauncherProof
+      $existingLauncherId = if ($proof) { [int]$proof.launcherProcessId } else { 0 }
+      Write-RuntimeStatus -State "healthy_existing" -LauncherProcessId $existingLauncherId -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "Existing AI_PDM web server is healthy."
       Write-Host "AI_PDM is healthy."
       Write-Host "Local URL: $Url"
       if (-not $CheckOnly) { Open-LocalPage }
@@ -146,10 +249,11 @@ if ($owner.ProcessId -gt 0) {
       throw "AI_PDM is listening but unhealthy."
     }
     if (-not $RestartProjectProcess) { throw "Run npm run dev:local:restart to restart the verified AI_PDM process." }
-    Stop-VerifiedOwner -OwnerProcessId $owner.ProcessId
+    Stop-VerifiedProjectOwner -OwnerProcessId $owner.ProcessId
   }
 }
 elseif ($CheckOnly) {
+  Write-RuntimeStatus -State "not_running" -Message "No process is listening on port $Port."
   throw "No local server is listening on $Url."
 }
 
@@ -171,8 +275,8 @@ $env:PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true"
 Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile, $StatusFile -ErrorAction SilentlyContinue
 
 Write-Host "Starting AI_PDM local web server."
-Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start a fallback worker."
-$process = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev:server") -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start or stop a fallback worker."
+$process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
 Set-Content -LiteralPath $PidFile -Value ([string]$process.Id) -Encoding ascii
 Write-RuntimeStatus -State "starting" -LauncherProcessId $process.Id -Message "Waiting for local HTTP health."
 
@@ -185,7 +289,18 @@ do {
   }
   $health = Test-LocalHttpHealth
   if ($health.Healthy) {
-    $current = Get-CurrentPortOwner
+    $currentOwners = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $currentOwners)
+    if ($unverifiedOwners.Count -gt 0) {
+      $current = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; refusing to open localhost."
+    }
+    $current = $currentOwners | Select-Object -First 1
+    if (-not $current) {
+      Write-RuntimeStatus -State "unhealthy_existing" -LauncherProcessId $process.Id -Health $health -Message "No port listener remained after the health check."
+      throw "Port $Port has no listener after the health check."
+    }
     Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "AI_PDM web server is healthy."
     Write-Host "AI_PDM is healthy."
     Write-Host "Local URL: $Url"
@@ -195,7 +310,8 @@ do {
   Start-Sleep -Milliseconds 500
 } while ([DateTime]::UtcNow -lt $deadline)
 
-$current = Get-CurrentPortOwner
+$currentOwners = @(Get-CurrentPortOwner)
+$current = $currentOwners | Select-Object -First 1
 Write-RuntimeStatus -State "startup_timeout" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "AI_PDM did not become healthy within the timeout."
 Get-Content -LiteralPath $StdoutLog -ErrorAction SilentlyContinue | Select-Object -Last 80
 Get-Content -LiteralPath $StderrLog -ErrorAction SilentlyContinue | Select-Object -Last 80

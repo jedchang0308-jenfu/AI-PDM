@@ -1,5 +1,9 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
+## DEV-126 地端 SSO 與前端權限投影（Source／Local＋Live SSO Acceptance Complete）
+
+[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [契約§12 真實 SSO／權限／登出與收尾](specs/DEV-126-app-scoped-frontend-permission-projection.md) → [PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。既有 source／local 證據保留，新增真實 service identity／SSO、三頁一次 projection、直接入口等效及全域登出驗證。Principal 撤權依使用者決定待補；合併／CI 依 provider，未正式發布，自有 runtime／lease 已釋放。
+
 ## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-28）
 
 現行規劃從 [DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) → [Windows worker ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md) → [Native preview SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md) → [QA／驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json) → [任務入口](dev_task.md#dev-125-windows-service)。最新權威是每位 active AI-PDM 使用者在自己的 Windows 電腦安裝並經公司 Google SSO 自助連結；無人工註冊碼、無管理員逐台核准、無匿名／固定／共用 worker 身分。

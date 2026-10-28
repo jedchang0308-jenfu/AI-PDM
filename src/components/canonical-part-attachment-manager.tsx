@@ -1,5 +1,8 @@
 "use client";
 
+import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Eye, RotateCcw, Trash2, Upload } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
@@ -30,7 +33,6 @@ type DeletedAttachment = {
 
 type AttachmentResponse = { attachments?: PartAttachment[]; error?: unknown };
 type DeletedAttachmentResponse = { attachments?: DeletedAttachment[]; error?: unknown };
-type PermissionResponse = { pages?: Record<string, boolean>; actions?: Record<string, boolean>; error?: unknown };
 
 function responseMessage(body: unknown, fallback: string) {
   if (!body || typeof body !== "object") return fallback;
@@ -86,8 +88,9 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
   const [deletedAttachments, setDeletedAttachments] = useState<DeletedAttachment[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const [canManageAttachments, setCanManageAttachments] = useState(false);
-  const [canReadAttachments, setCanReadAttachments] = useState(false);
+  const { state: permissionState, allowsAction, allowsPage, retry } = usePdmPermissions();
+  const canManageAttachments = allowsAction("numbering.attachments.manage");
+  const canReadAttachments = allowsPage("numbering.search");
   const uploadKeys = useRef(new WeakMap<File, string>());
   const mutationKeys = useRef(new Map<string, string>());
   const [previewAttachment, setPreviewAttachment] = useState<PartAttachment | null>(null);
@@ -116,19 +119,12 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
   }, [endpoint]);
 
   const load = useCallback(async () => {
+    if (permissionState.kind !== "ready") return;
     const requestId = ++loadRequestRef.current;
     setStatus("loading");
     setError("");
     try {
-      const permissionResponse = await fetch("/api/numbering/permissions", { cache: "no-store" });
-      const permissionBody = await permissionResponse.json().catch(() => null) as PermissionResponse | null;
-      if (!permissionResponse.ok) throw new Error(responseMessage(permissionBody, "無法確認附件管理權限。"));
-      const canManage = permissionBody?.actions?.["numbering.attachments.manage"] === true;
-      const canRead = permissionBody?.pages?.["numbering.search"] === true;
-      if (requestId !== loadRequestRef.current) return;
-      setCanManageAttachments(canManage);
-      setCanReadAttachments(canRead);
-      await refreshAttachments(canManage, canRead);
+      await refreshAttachments(canManageAttachments, canReadAttachments);
       if (requestId !== loadRequestRef.current) return;
       setStatus("ready");
     } catch (loadError) {
@@ -139,7 +135,7 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
         setStatus("error");
       }
     }
-  }, [refreshAttachments]);
+  }, [refreshAttachments, permissionState.kind, canManageAttachments, canReadAttachments]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -271,11 +267,11 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
     title="管理附件"
     subtitle={`料號 ${partNumber}`}
     headingLayout="breadcrumb"
-    status={status}
-    error={error}
+    status={permissionState.kind === "loading" ? "loading" : permissionState.kind === "ready" ? status : "error"}
+    error={permissionState.kind === "unavailable" ? "目前無法確認附件操作權限，請重試。" : permissionState.kind === "unauthenticated" ? "登入已失效，請重新登入。" : error}
     notice={notice}
     isDirty={selectedFiles.length > 0}
-    onRetry={() => void load()}
+    onRetry={() => permissionState.kind === "unavailable" ? retry() : void load()}
     embedded={embedded}
   >
     {canManageAttachments ? <section className="pdm-edit-page-card part-attachment-upload-card" aria-label="附件上傳">

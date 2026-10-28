@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React, { act } from "react";
+import { PdmPermissionProvider } from "./pdm-permission-provider";
+import { NUMBERING_PAGE_PERMISSION_CODES, NUMBERING_ACTION_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewPackageTarget } from "@/lib/pdm-review-package-contract";
@@ -24,7 +26,11 @@ import { CanonicalPartAttachmentManager } from "./canonical-part-attachment-mana
 let container: HTMLDivElement;
 let root: Root;
 const fetchMock = vi.fn<typeof fetch>();
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body && typeof body === "object" && "pages" in body && "actions" in body ? {
+  ...body, contractVersion: "ai-pdm.frontend-permission-projection.v1", applicationId: "ai-pdm", generatedAt: new Date().toISOString(),
+  pages: { ...Object.fromEntries(NUMBERING_PAGE_PERMISSION_CODES.map(code => [code, false])), ...(body as { pages: object }).pages },
+  actions: { ...Object.fromEntries(NUMBERING_ACTION_PERMISSION_CODES.map(code => [code, false])), ...(body as { actions: object }).actions }
+} : body), {
   status, headers: { "content-type": "application/json" }
 });
 const markers = { submitted: true, change: null, risk: null };
@@ -116,7 +122,7 @@ describe("accepted attachment lifecycle commands followed by list refresh", () =
         : command === "restore" ? [deleted] : [] });
       return json({ attachments: accepted ? command === "delete" ? [] : [attachment("old"), attachment("restore")] : [attachment("old")] });
     });
-    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => root.render(<PdmPermissionProvider><CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded /></PdmPermissionProvider>));
     await act(async () => button(command === "delete" ? "刪除" : "還原").click());
     if (outcome === "denied") {
       expect(container.querySelector('[role="alert"]')?.textContent).toContain("command denied");
@@ -150,7 +156,7 @@ describe("accepted attachment lifecycle commands followed by list refresh", () =
       if (accepted && failReload && command === "delete") throw new Error("list connection interrupted");
       return json({ attachments: accepted ? command === "delete" ? [] : [attachment("old"), attachment("restore")] : [attachment("old")] });
     });
-    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => root.render(<PdmPermissionProvider><CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded /></PdmPermissionProvider>));
     await act(async () => button("預覽").click());
     await act(async () => button(command === "delete" ? "刪除" : "還原").click());
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(command === "delete" ? "刪除已完成，但附件清單重新載入失敗" : "還原已完成，但附件清單重新載入失敗");
@@ -180,7 +186,7 @@ describe("attachment upload followed by list refresh", () => {
       if (String(input).endsWith("?surface=deleted_data")) return json({ attachments: [] });
       throw new Error("Active list must not be requested without its page permission");
     });
-    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => root.render(<PdmPermissionProvider><CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded /></PdmPermissionProvider>));
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["bytes"], "new.png", { type: "image/png" })] });
     await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
@@ -208,7 +214,7 @@ describe("attachment upload followed by list refresh", () => {
       if (posted && outcome === "delayed-success") await refreshGate;
       return json({ attachments: posted ? [attachment("old"), attachment("new")] : [attachment("old")] });
     });
-    await act(async () => root.render(<CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded />));
+    await act(async () => root.render(<PdmPermissionProvider><CanonicalPartAttachmentManager partNumber="A0002-P01" returnTo="/numbering/parts" embedded /></PdmPermissionProvider>));
     expect(container.querySelector(".part-attachment-list")?.textContent).toContain("old.png");
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["bytes"], "new.png", { type: "image/png" })] });

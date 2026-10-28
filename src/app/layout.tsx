@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PdmPermissionProvider } from "@/components/pdm-permission-provider";
 import "./styles/tokens.css";
 import "./globals.css";
 import "./styles/responsive.css";
@@ -19,10 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant">
       <body>
-        <div className="app-shell">
+        <PdmPermissionProvider><div className="app-shell">
           <SidebarNav />
           <main className="main">{children}</main>
-        </div>
+        </div></PdmPermissionProvider>
       </body>
     </html>
   );

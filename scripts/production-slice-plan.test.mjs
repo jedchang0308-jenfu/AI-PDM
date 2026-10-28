@@ -11,6 +11,16 @@ test('normalizes Windows paths before classification', () => {
   assert.equal(normalizeChangedPath('.\\src\\lib\\permissions.ts'), 'src/lib/permissions.ts')
 })
 
+test('DEV-126 known local runtime inputs select app checks without inventing database work', () => {
+  const plan = createProductionSlicePlan(['.env.example', 'scripts/start-localhost-3000.ps1', 'scripts/qc-local-dev-entrypoint.mjs', 'scripts/dev-local-process-ownership.test.mjs', 'vitest.config.ts'])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.equal(plan.gates.application, true)
+  assert.equal(plan.gates.isolatedBuild, true)
+  assert.equal(plan.gates.database, false)
+  assert.equal(plan.gates.worker, false)
+  assert.equal(createProductionSlicePlan(['scripts/start-unreviewed-runtime.ps1']).classification, 'FULL')
+})
+
 test('documentation-only changes keep product gates closed', () => {
   const plan = createProductionSlicePlan(['AGENTS.md', '.ai-doc/documentation_map.md'])
   assert.equal(plan.classification, 'DOCUMENTATION_ONLY')

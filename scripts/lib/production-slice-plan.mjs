@@ -99,6 +99,11 @@ const INFRASTRUCTURE = [
 ]
 
 const APPLICATION = [
+  /^vitest\.config\.ts$/u,
+  // DEV-126 local runtime inputs change app startup/configuration, not schema,
+  // workers or cloud infrastructure. Unknown startup scripts remain FULL.
+  /^\.env\.example$/u,
+  /^scripts\/(?:start-localhost-3000\.ps1|qc-local-dev-entrypoint\.mjs|dev-local-process-ownership\.test\.mjs)$/u,
   /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,
   /^src\//u,
   /^public\//u,

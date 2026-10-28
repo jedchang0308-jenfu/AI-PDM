@@ -4,6 +4,14 @@ import { resolveJenfuAssurance } from "@/lib/jenfu-platform-identity-contract";
 import { resolveJenfuTargetSessionExpiry, safeJenfuSsoReturnTo } from "@/lib/jenfu-sso-handoff";
 
 describe("DEV-013 target handoff guards", () => {
+  it.each([[1000, 1020], [12000, 12020]])("binds local broker %i to AI-PDM %i without capabilities in the SSO config", (brokerPort, appPort) => {
+    const broker = `http://localhost:${brokerPort}`, base = `http://localhost:${appPort}`;
+    expect(getJenfuSsoHandoffConfig({ NODE_ENV: "test", PDM_AUTH_MODE: "firebase_bff",
+      PDM_JENFU_PLATFORM_AUTH_MODE: "on", PDM_JENFU_SSO_HANDOFF_MODE: "on",
+      PDM_JENFU_SSO_BROKER_ORIGIN: broker, PDM_PUBLIC_BASE_URL: base })).toEqual({
+      broker, base, issuer: `${broker}/api/sso`, callback: `${base}/api/auth/jenfu-sso/callback`
+    });
+  });
   it("keeps return paths local and prevents auth-loop paths", () => {
     expect(safeJenfuSsoReturnTo("/drawings?tab=recent")).toBe("/drawings?tab=recent");
     expect(safeJenfuSsoReturnTo("//evil.example")).toBe("/");

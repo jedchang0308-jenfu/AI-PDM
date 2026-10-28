@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 import type { PdmWorkbenchListResponse } from "@/lib/pdm-workbench-contract";
 
 export type PdmWorkbenchLocationState<QueryState> = {

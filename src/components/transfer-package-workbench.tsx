@@ -1,5 +1,8 @@
 "use client";
 
+import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -86,7 +89,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
   const [scopeValue, setScopeValue] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [readiness, setReadiness] = useState<Phase1DReadiness | null>(null);
-  const [actionPermissions, setActionPermissions] = useState<Record<string, boolean>>({});
+  const { state: permissionState } = usePdmPermissions();
+  const actionPermissions: Record<string, boolean> = permissionState.kind === "ready" ? permissionState.projection.actions : {};
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -129,13 +133,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
           ...(props.sourceId ? { sourceId: props.sourceId } : {}),
           ...(props.initialCaseType ? { caseType: props.initialCaseType } : {})
         }).toString()}`;
-    const [response, permissionsResponse] = await Promise.all([
-      fetch(url, { cache: "no-store" }),
-      fetch("/api/numbering/permissions", { cache: "no-store" })
-    ]);
+    const response = await fetch(url, { cache: "no-store" });
     const body = await response.json().catch(() => ({}));
-    const permissionsBody = await permissionsResponse.json().catch(() => ({}));
-    setActionPermissions(permissionsResponse.ok && permissionsBody.actions ? permissionsBody.actions : {});
     if (response.status === 401) return setState("unauthorized");
     if (response.status === 403) return setState("forbidden");
     if (response.status === 404) return setState("not_found");
@@ -176,7 +175,15 @@ export function TransferPackageWorkbenchShell(props: Props) {
   const canSubmit = actionPermissions["transfer.package.review.submit"] === true;
   const canWithdraw = actionPermissions["transfer.package.review.withdraw"] === true;
   const canPublish = actionPermissions["transfer.package.publish"] === true;
+  function permissionTitle(allowed: boolean, label: string, denied: string) {
+    if (permissionState.kind === "loading") return "正在載入操作權限";
+    if (permissionState.kind === "unavailable") return "暫時無法確認操作權限";
+    if (permissionState.kind === "unauthenticated") return "請重新登入";
+    return allowed ? label : denied;
+  }
   const editable = Boolean(workbench && canUpdate && ["Draft", "NeedsInfo", "ReleaseFailed"].includes(workbench.status));
+  const showEditControls = editable || Boolean(workbench && ["Draft", "NeedsInfo", "ReleaseFailed"].includes(workbench.status)
+    && (permissionState.kind === "loading" || permissionState.kind === "unavailable"));
   const headerDirty = Boolean(
     workbench &&
       (title !== workbench.title ||
@@ -408,7 +415,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
               className="primary-button"
               type="button"
               disabled={!canCreate || !formValid || Boolean(busy) || Boolean(context?.sourceRequested && !context.sourceResolved)}
-              title={canCreate ? "建立技轉包" : "目前帳號沒有建立技轉包權限"}
+              title={permissionTitle(canCreate, "建立技轉包", "目前帳號沒有建立技轉包權限")}
+              aria-busy={permissionState.kind === "loading" ? true : undefined}
               onClick={() => void createPackage()}
             >
               {busy === "create" ? <Loader2 className="spin" size={16} /> : <PackagePlus size={16} />}
@@ -433,8 +441,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
               <RefreshCw size={16} />
               重新整理
             </button>
-            {editable ? (
-              <button className="secondary-button danger-button" type="button" onClick={() => setCancelOpen(true)} disabled={Boolean(busy)}>
+            {showEditControls ? (
+              <button className="secondary-button danger-button" type="button" onClick={() => setCancelOpen(true)} disabled={!editable || Boolean(busy)}>
                 <Ban size={16} />
                 取消技轉包
               </button>
@@ -460,8 +468,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
             <h2>案件資料</h2>
             <p>案件名稱、類型、原因與來源依據。</p>
           </div>
-          {editable ? (
-            <button className="primary-button" type="button" disabled={!headerDirty || !formValid || Boolean(busy)} onClick={() => void saveHeader()}>
+          {showEditControls ? (
+            <button className="primary-button" type="button" disabled={!editable || !headerDirty || !formValid || Boolean(busy)} onClick={() => void saveHeader()}>
               {busy === "save" ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
               儲存
             </button>
@@ -492,26 +500,26 @@ export function TransferPackageWorkbenchShell(props: Props) {
           </div>
           <span className="section-label">{workbench.items.length + workbench.draftItems.length} 項</span>
         </div>
-        {editable ? (
+        {showEditControls ? (
           <div className="transfer-scope-add">
             <label>
               <span>類型</span>
-              <select value={scopeType} onChange={(event) => setScopeType(event.target.value as TransferPackageEntityType)} disabled={Boolean(busy)}>
+              <select value={scopeType} onChange={(event) => setScopeType(event.target.value as TransferPackageEntityType)} disabled={!editable || Boolean(busy)}>
                 <option value="drawing_number">圖號</option>
                 <option value="part_number">料號</option>
               </select>
             </label>
             <label>
               <span>{scopeType === "drawing_number" ? "圖號" : "料號"}</span>
-              <input value={scopeValue} onChange={(event) => setScopeValue(event.target.value)} placeholder="輸入完整編號" disabled={Boolean(busy)} />
+              <input value={scopeValue} onChange={(event) => setScopeValue(event.target.value)} placeholder="輸入完整編號" disabled={!editable || Boolean(busy)} />
             </label>
-            <button className="primary-button" type="button" disabled={!scopeValue.trim() || Boolean(busy)} onClick={() => void addScope()}>
+            <button className="primary-button" type="button" disabled={!editable || !scopeValue.trim() || Boolean(busy)} onClick={() => void addScope()}>
               {busy === "add-scope" ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
               加入範圍
             </button>
           </div>
         ) : null}
-        {editable ? (
+        {showEditControls ? (
           <div className="transfer-scope-add">
             <label className="transfer-field-wide">
               <span>草稿工作區 ID</span>
@@ -519,10 +527,10 @@ export function TransferPackageWorkbenchShell(props: Props) {
                 value={workspaceId}
                 onChange={(event) => setWorkspaceId(event.target.value)}
                 placeholder="貼上完整 workspace ID"
-                disabled={Boolean(busy)}
+                disabled={!editable || Boolean(busy)}
               />
             </label>
-            <button className="secondary-button" type="button" disabled={!workspaceId.trim() || Boolean(busy)} onClick={() => void addDraftWorkspace()}>
+            <button className="secondary-button" type="button" disabled={!editable || !workspaceId.trim() || Boolean(busy)} onClick={() => void addDraftWorkspace()}>
               {busy === "add-workspace" ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
               加入草稿
             </button>
@@ -542,8 +550,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
                     <td>{item.displayLabel}<small>{item.rootCode ? `圖料根號 ${item.rootCode}` : ""}</small></td>
                     <td>{item.recordStatus ?? "-"}</td>
                     <td>
-                      {editable ? (
-                        <button className="icon-button" type="button" title="移除範圍項目" aria-label={`移除 ${item.entityCode}`} disabled={Boolean(busy)} onClick={() => void removeScope(item.id)}>
+                      {showEditControls ? (
+                        <button className="icon-button" type="button" title="移除範圍項目" aria-label={`移除 ${item.entityCode}`} disabled={!editable || Boolean(busy)} onClick={() => void removeScope(item.id)}>
                           {busy === `remove:${item.id}` ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
                         </button>
                       ) : null}
@@ -567,8 +575,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
                     <td><strong>{item.workspaceId}</strong><small>加入時 v{item.capturedWorkspaceVersion} · 目前 v{item.workspaceVersion}</small></td>
                     <td>{item.requiredness === "required" ? "必要" : "選用"}</td>
                     <td>{item.workspaceLifecycle === "published" ? "已發布" : item.workspaceLifecycle === "cancelled" ? "已取消" : "準備中"}</td>
-                    <td>{editable ? (
-                      <button className="icon-button" type="button" title="移除草稿工作區" aria-label={`移除 ${item.workspaceId}`} disabled={Boolean(busy)} onClick={() => void removeDraftWorkspace(item.id)}>
+                    <td>{showEditControls ? (
+                      <button className="icon-button" type="button" title="移除草稿工作區" aria-label={`移除 ${item.workspaceId}`} disabled={!editable || Boolean(busy)} onClick={() => void removeDraftWorkspace(item.id)}>
                         {busy === `remove-workspace:${item.id}` ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
                       </button>
                     ) : null}</td>
@@ -594,23 +602,23 @@ export function TransferPackageWorkbenchShell(props: Props) {
         ) : null}
         <div className="transfer-primary-actions">
           {["Draft", "NeedsInfo"].includes(workbench.status) ? (
-            <button className="primary-button" type="button" title={canSubmit ? "送交整包審核" : "目前帳號沒有送審權限"} disabled={!canSubmit || !readiness?.ready || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
+            <button className="primary-button" type="button" title={permissionTitle(canSubmit, "送交整包審核", "目前帳號沒有送審權限")} disabled={!canSubmit || !readiness?.ready || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
               {busy === "submit-review" ? <Loader2 className="spin" size={16} /> : <Send size={16} />}送交整包審核
             </button>
           ) : null}
           {workbench.status === "InReview" ? <>
             <Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>前往審核工作台</Link>
-            <button className="secondary-button" type="button" title={canWithdraw ? "撤回審核" : "目前帳號沒有撤回權限"} disabled={!canWithdraw || Boolean(busy)} onClick={() => void lifecycleAction("withdraw-review")}>
+            <button className="secondary-button" type="button" title={permissionTitle(canWithdraw, "撤回審核", "目前帳號沒有撤回權限")} disabled={!canWithdraw || Boolean(busy)} onClick={() => void lifecycleAction("withdraw-review")}>
               {busy === "withdraw-review" ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}撤回審核
             </button>
           </> : null}
           {["ReleaseFailed", "ApprovedPendingPublish"].includes(workbench.status) && readiness?.stale ? (
-            <button className="primary-button" type="button" title={canSubmit ? "重建快照並重新送審" : "目前帳號沒有送審權限"} disabled={!canSubmit || readiness.blockers.some((item) => item.code !== "approval_snapshot_stale") || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
+            <button className="primary-button" type="button" title={permissionTitle(canSubmit, "重建快照並重新送審", "目前帳號沒有送審權限")} disabled={!canSubmit || readiness.blockers.some((item) => item.code !== "approval_snapshot_stale") || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
               {busy === "submit-review" ? <Loader2 className="spin" size={16} /> : <Send size={16} />}重建快照並重新送審
             </button>
           ) : null}
           {(workbench.status === "ApprovedPendingPublish" && !readiness?.stale) || (workbench.status === "ReleaseFailed" && !readiness?.stale) ? (
-            <button className="primary-button" type="button" title={canPublish ? "發布整包" : "目前帳號沒有發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
+            <button className="primary-button" type="button" title={permissionTitle(canPublish, "發布整包", "目前帳號沒有發布權限")} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
               {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "發布整包"}
             </button>
           ) : null}
