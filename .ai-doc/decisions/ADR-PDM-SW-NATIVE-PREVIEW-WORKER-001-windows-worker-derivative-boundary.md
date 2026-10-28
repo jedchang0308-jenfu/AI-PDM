@@ -6,6 +6,8 @@
 
 使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 
+實機 `.1393` 已安裝，R27 enroll 遇到 legacy TEXT 限流時間與 timestamptz 比較的正式 500；相同錯誤已隔離重現並修正，發布／重新連結待驗，見 DEV-125 §11.10。此為 SQL 相容修正，架構與授權邊界不變。
+
 使用者確認以可安裝的 Windows 解析服務及電腦清單管理原生 CAD 處理，拒絕 OpenSWX／Document Manager 長期雙軌。[DEV-125](../specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) 是唯一後續開發入口；DEV-122 以部分成果移交結案，DEV-124 取消修復。
 
 沿用雲端 auth／queue／source-hash 與 Windows native execution 邊界，重用現有 Document Manager reader／preview／broker。每位有效 AI-PDM 使用者在自己的 Windows 電腦安裝；不設共用常開解析主機，不需 PDM 管理員逐台核准。多台電腦各有可撤銷身分並只領 owner 目前有權的工作；不新增第二套佇列或 parser provider 選擇器。

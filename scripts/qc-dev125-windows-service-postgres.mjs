@@ -110,10 +110,11 @@ try {
       expires_at timestamptz NOT NULL, revoked_at timestamptz, assurance_level text NOT NULL,
       PRIMARY KEY(principal_id,session_id_hash)
     );
+    -- Match applied migration 001: blocked_until is TEXT, unlike the other timestamps.
     CREATE TABLE ai_pdm_core.employee_login_rate_limits (
       company_id text NOT NULL REFERENCES ai_pdm_core.companies(id), identifier_hash text NOT NULL,
       window_started_at timestamptz NOT NULL, attempt_count integer NOT NULL,
-      blocked_until timestamptz, updated_at timestamptz NOT NULL,
+      blocked_until text, updated_at timestamptz NOT NULL,
       PRIMARY KEY(company_id,identifier_hash)
     );
     CREATE TABLE ai_pdm_core.audit_logs (
@@ -268,6 +269,19 @@ try {
     await expectCode(() => repository.enroll(wrong), "WINDOWS_SERVICE_RATE_LIMITED");
     const row = await admin.query("SELECT max(attempt_count)::int AS attempts FROM ai_pdm_core.employee_login_rate_limits WHERE blocked_until IS NOT NULL");
     assert.equal(row.rows[0].attempts, 11);
+    const limiterHashes = [hash(`dev125:source:${wrong.sourceKey}`), hash(`dev125:enrollment:${wrong.enrollmentId}`)];
+    const blockedBefore = await admin.query("SELECT blocked_until FROM ai_pdm_core.employee_login_rate_limits WHERE identifier_hash=$1", [limiterHashes[0]]);
+    assert.equal(typeof blockedBefore.rows[0].blocked_until, "string");
+    await expectCode(() => repository.enroll(wrong), "WINDOWS_SERVICE_RATE_LIMITED");
+    const blockedAfter = await admin.query("SELECT blocked_until FROM ai_pdm_core.employee_login_rate_limits WHERE identifier_hash=$1", [limiterHashes[0]]);
+    assert.equal(blockedAfter.rows[0].blocked_until, blockedBefore.rows[0].blocked_until);
+    await admin.query(`UPDATE ai_pdm_core.employee_login_rate_limits
+      SET window_started_at=now()-interval '2 minutes',blocked_until=(now()-interval '1 second')::text
+      WHERE identifier_hash=ANY($1::text[])`, [limiterHashes]);
+    await expectCode(() => repository.enroll(wrong), "WINDOWS_SERVICE_ENROLLMENT_INVALID");
+    const reset = await admin.query("SELECT attempt_count,blocked_until FROM ai_pdm_core.employee_login_rate_limits WHERE identifier_hash=ANY($1::text[])", [limiterHashes]);
+    assert.equal(reset.rows.length, 2);
+    assert.equal(reset.rows.every((item) => item.attempt_count === 1 && item.blocked_until === null), true);
   });
 
   await check("expired enrollment and revoked creator session are rejected without a device row", async () => {

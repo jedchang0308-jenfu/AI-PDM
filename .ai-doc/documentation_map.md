@@ -6,11 +6,11 @@
 
 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md#dev122-closure-handoff-20261027) 為 `CLOSED_PARTIAL_HANDOFF`；[DEV-124](specs/DEV-124-openswx-worker-independent-repair.md) 為 `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125`。DEV-125 為 `RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE`。#535 official interop 保留，#533 已撤回、關閉未合併，#536～#540 交付 owner-bound self-link、覆蓋安裝、工作授權與 typed HTTP 修正。089 immutable、090 已套用；OrgMaster 無裝置 writer／安裝管理責任。
 
-最新發布來源為 `3b6b38208fdb2787740bb28388026702b182566f`；PR CI `40587727379`、main CI `40589008519` 與 R27 owner `40589771592` 全成功。唯讀 provider `40591599517` 證明 revision `ai-pdm-prod-2767a0101c8f` 唯一 100% traffic、Ready 相符，finalize 零 tag；migration applied 0／replayed 40／ledger 40。最新 `.1393` CI／capsule hash 已核對、未安裝；本機仍 `.1370`，Chrome／UAC 待使用者處理。現行證據與缺口見 [DEV-125 §11.9](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r27-release)／QA JSON。
+最新發布來源為 `3b6b38208fdb2787740bb28388026702b182566f`；PR CI `40587727379`、main CI `40589008519` 與 R27 owner `40589771592` 全成功。唯讀 provider `40591599517` 證明 revision `ai-pdm-prod-2767a0101c8f` 唯一 100% traffic、Ready 相符，finalize 零 tag；migration applied 0／replayed 40／ledger 40。`.1393` 已安裝、下載 hash 與 R27 相符；§11.10 的正式 enroll 500 已重現並修正，待 CI／發布／重新連結。現行證據與缺口見 [DEV-125 §11.9](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r27-release)／QA JSON。
 
 R25 首敗保留於 §11.7；#539 已修正 exact admission、非管理員 probe、view＋download、首次 SSO 與工作租約 key。171 個 focused、7 個 worker runtime、11 組隔離 PG 通過，R26 的 23 條正式未授權請求全部由 device guard 拒絕。實機自助連結／三角色／Windows lifecycle／三格式／正式正向 UI 仍待驗收，不能以發布或負向 smoke 代替。
 
-§11.9 的 preview claim／heartbeat／complete typed 403／503 已由 #540／R27 發布；40 個 route 案、required CI 與正式發布通過，授權決策／schema／worker／installer 邏輯不變。正式角色撤權分支、Windows 安裝與原生工作仍待人類操作／適當帳號，沒有取消或冒充 PASS。
+§11.9 的 preview claim／heartbeat／complete typed 403／503 已由 #540／R27 發布；40 個 route 案、required CI 與正式發布通過，授權決策／schema／worker／installer 邏輯不變。Windows 安裝已完成；正式角色撤權分支、裝置重新連結與原生工作仍待後續驗收。§11.10 的 TEXT 時間比較修正不改 schema 或授權邊界。
 
 以下 DEV-122／124 入口保留移交前證據用途，不是平行待辦。既有 [Windows ADR](decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md)與[SPEC](specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md)只維護原生處理邊界與可重用契約，不複製 DEV-125 裝置／安裝規格。
 

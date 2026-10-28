@@ -10,7 +10,7 @@ DEV-125 現為 `Architecture Finalized / RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PRO
 
 R25 正式驗收的 heartbeat admission 缺口與 key 取用順序已由 PR #539 修正並 R26 發布，首敗保留於 DEV-125 §11.7、現況見 §11.8。native key 必須有當前 preview／recognition 工作及來源租約，provider I/O 後重驗裝置及資源；idle 不取 key、不跨工作 cache。非管理員略過管理用 probe，仍可處理自己目前有權的原生工作。R26 的 23 條正式負向請求已拒絕通過；本機安裝／Google 連結／低權限原生正向結果仍待驗收。
 
-R27（§11.9）已補齊 preview 三個 HTTP 入口的 typed 403／503，資料及 worker 邏輯不變；canonical smoke、23 條未授權拒絕與 provider 唯讀結果均通過。最新 installer `.1393` 尚未安裝，本機仍 `.1370`，正式裝置正向解析與角色／生命週期驗收保持未完成。
+R27（§11.9）已補齊 preview 三個 HTTP 入口的 typed 403／503，canonical smoke、23 條未授權拒絕與 provider 唯讀結果通過。`.1393` 現已安裝；正式 enroll 500 的 TEXT 時間欄位比較修正見 §11.10，發布與重新連結待驗。正式裝置正向解析與角色／生命週期驗收保持未完成。
 
 Windows parser 會接收原始 CAD，因此各工作入口與 key guard 需同時重驗來源作業的 `view` 與 `download`，不能沿歷史 server renderer 的 view-only 邊界。原生 part／assembly 必須包含 model 權限；缺少任一權限時不領取、不交付原檔或 key、不接受結果。後續撤銷立即阻擋下一次請求，領取前拒絕不耗 attempt。
 
