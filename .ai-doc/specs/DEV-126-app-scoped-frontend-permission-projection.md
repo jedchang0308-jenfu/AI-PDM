@@ -1,7 +1,7 @@
 # DEV-126：AI-PDM 地端 SSO、單一前端權限來源與無感換頁
 
 - 文件成熟度：RD Implementation Ready。
-- 執行狀態：Source Implemented / Isolated Local Validation Passed / PR Pending；固定1020實際啟動尚未驗收，DEV-126未結案。
+- 執行狀態：Source Implemented / Isolated Local Validation Passed / Draft PR Open；固定1020實際啟動尚未驗收，DEV-126未結案。
 - Native task：AIPDM/DEV-126#frontend-permission-projection。
 - 跨專案主控：JENFU/DEV-021。
 - 建立日期：2026-10-28（Asia/Taipei）。
@@ -191,14 +191,14 @@ SSO callback 建立 AI-PDM local session 後，permission projection 不應依�
 
 - 主線同步：已合併 `origin/main=6e06ea12a2a4552b5b563f942f87249270b0c4ce`，同步 commit `a1879fde1a3b27a2ab1ced965bafe460887d7f09`；同步前29個未提交檔案的內容雜湊全部保留。
 - Provider／endpoint／consumer／SSO／Principal guard：最新完整組合13檔163項通過，包含saved transfer、change workspace與attachment manager的8項狀態一致性案例。Source checkpoint為`c8b040c8c8d551ff263211f31ef9790788c263b6`；測試範圍修正為`8ac490b06215bb073dd7dc1b8cf2c92962e0ec92`。
-- `typecheck:app`、變更 TS/TSX lint（0 error／3個既有 warning）、local-entrypoint QC、DEV-079 contract與 `git diff --check` 通過。Planner 為 AFFECTED_SLICES；release-core／authorization／planner 共305項已通過，沒有選取 database／worker／infrastructure。
+- `typecheck:app`、變更TS/TSX lint（0 error／3個既有warning）、local-entrypoint QC、DEV-079 contract、`audit:production`（0 vulnerabilities）與`git diff --check`通過。Planner為AFFECTED_SLICES；release-core／authorization／planner共305項已通過，沒有選取database／worker／infrastructure。
 - 首次有效失敗保留：local-entrypoint 舊 workspace tsconfig 的3項檢查失敗；調整至實際 app／Next config後通過。另以回歸測試重現首次403沒有取代舊 in-flight projection，再修正為只合併 forbidden refresh，舊 late response不可恢復 grant。
 - 追加loading affordance修正後的最終isolated build已通過，綁`c8b040c8c`的完整App source：artifact=true、primary database absent且invariant不變、暫存清理通過。後續`8ac490b06`只改Vitest／planner選測，不改App artifact inputs。
 - 並行build曾讓Vitest把`.tmp`內複本一併選入，出現26檔326項中的12個Context錯配；第一個失敗保留於工具紀錄。將task-owned `.tmp`／`tmp`排除後，只執行原定13檔，163項通過；沒有排除產品source案例。曾在generated next-env差異存在時觸發FULL fallback，既有30個legacy script group加planner均通過；恢復自動產生的next-env差異後，最終planner回到AFFECTED_SLICES且沒有unknown paths。
 - `http://localhost:12020` runner health：`/`=200、`/login`=200、`/api/auth/me`=401（正常未登入）。最終browser fixture重跑7/7通過，包含三頁換頁projection僅1次、loading尺寸、denied、401、503明確retry、transfer mutation403僅1次且projection重取。證據為`output/playwright/dev126/result.json`與同目錄7張截圖，綁source `8ac490b06215bb073dd7dc1b8cf2c92962e0ec92`及僅含Next自動產生metadata的dirty hash；該metadata已還原。不代表server guard／真實SSO。
 - 12020驗證暫存程序已停止，port已釋放、容量lease已釋放；1020原有PID27096完整保留，預設埠實際啟動為 `NOT_RUN (foreign owner)`，只讀 check-only 已證明會拒絕未知owner。不得為完成驗收停止它。
 - 依賴先重用已比對的工作樹，該來源後來已不存在；目前 junction改接 `C:\VIBE CODING\.worktrees\d125-infra-20261027\AI_PDM\node_modules`，710個manifest與lock integrity零差異，未執行安裝。Junction 模式以已安裝Next版本支援的 `--webpack`啟動，避免Turbopack外部root限制。
-- 真實 non-production IAM／ADC／外部Chrome SSO維持 `DEFERRED / NOT_RUN`；protected PR與required CI仍待交付，不以本機結果宣告正式驗收。
+- 已建立[Draft PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)，沒有merge／release；required CI以該PR的provider狀態為準，本機結果不等於required CI通過。真實non-production IAM／ADC／外部Chrome SSO維持`DEFERRED / NOT_RUN`。
 
 實作回合至少執行：
 

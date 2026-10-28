@@ -2,7 +2,7 @@
 
 ## DEV-126 地端 SSO 與前端權限投影（Source Implemented／隔離本機驗證通過）
 
-[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [唯一開發契約與實際驗證結果§10](specs/DEV-126-app-scoped-frontend-permission-projection.md)。六個consumer共用root projection；13檔163項、最終isolated build、12020 runner與7個browser fixture案例通過。1020有既有owner而未啟動，PR／required CI待收斂；真實non-production IAM／外部Chrome SSO另案，本任務未結案。
+[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [唯一開發契約與實際驗證結果§10](specs/DEV-126-app-scoped-frontend-permission-projection.md) → [Draft PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。13檔163項、最終isolated build、12020 runner與browser7/7通過。1020有既有owner而未啟動，required CI／review待收斂；真實non-production activation另案，本任務未結案。
 
 ## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-28）
 
