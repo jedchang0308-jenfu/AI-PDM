@@ -2,12 +2,12 @@
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
 
-- 狀態：`Source Implemented / Isolated Local Validation Passed / Draft PR Open`；[PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。六個consumer共用provider，13檔163項、最終isolated build、12020 runner及7個browser fixture案例通過；固定1020因既有PID27096而`NOT_RUN`，DEV-126未結案。真實non-production activation另案。
+- 狀態：`Source / Local Acceptance Complete / PR Review Pending`；[PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。六個consumer共用provider，13檔163項、程序歸屬10個正反情境、最終isolated build、1020與12020各7個browser案例通過。使用者授權停止原1020後已補完固定埠；所有驗證程序與lease已清理。真實non-production activation另案。
 - 來源：`JENFU/DEV-021`；AI-PDM 是本 session 第一個具體缺陷切片，但仍以本 repo 的 API、測試及 release gate 獨立驗收。
 - 問題：`SidebarNav`、建立編號 action、workbench、附件與 transfer package 等 consumer 各自取得 `/api/numbering/permissions`；元件 mount 時會重查，建立按鈕並顯示「確認權限中…」，造成換頁等待與畫面閃爍。
 - 目標：在持久 root app shell 建立唯一 app-scoped permission provider／snapshot，頁面只消費投影；登出、換帳號或明確權限失效才刷新。敏感 API 仍逐次在 server 授權。
 - 唯一契約：[DEV-126 前端權限投影契約](specs/DEV-126-app-scoped-frontend-permission-projection.md)。
-- 下一步：收斂Draft PR #555的required CI與review，保留1020未驗收；不停止既有runtime。真實IAM／Chrome SSO保持`DEFERRED / NOT_RUN`。
+- 下一步：依PR #555的required CI與review走原保護流程；本次未merge／部署。真實IAM／Chrome SSO保持`DEFERRED / NOT_RUN`。
 
 ## DEV-122／124／125：現行任務分工（2026-10-27）
 

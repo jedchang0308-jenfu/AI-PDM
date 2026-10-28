@@ -1,8 +1,8 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
-## DEV-126 地端 SSO 與前端權限投影（Source Implemented／隔離本機驗證通過）
+## DEV-126 地端 SSO 與前端權限投影（Source／Local Acceptance Complete）
 
-[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [唯一開發契約與實際驗證結果§10](specs/DEV-126-app-scoped-frontend-permission-projection.md) → [Draft PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。13檔163項、最終isolated build、12020 runner與browser7/7通過。1020有既有owner而未啟動，required CI／review待收斂；真實non-production activation另案，本任務未結案。
+[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [唯一開發契約與實際驗證結果§10](specs/DEV-126-app-scoped-frontend-permission-projection.md) → [PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。163項、最終isolated build、1020／12020各7個browser案例與程序歸屬10個情境通過；驗證程序及lease已釋放。PR依原required CI／review流程，未merge／發布；真實non-production activation另案。
 
 ## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-28）
 
