@@ -14,7 +14,7 @@ import { isDrawingWorkbenchPreviewGalleryV1Enabled, isPartWorkbenchPreviewGaller
 import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
-import { ensureAutomaticPreviewJobsForSourceAssetsAsync } from "@/lib/preview-derivatives";
+import { ensureAutomaticPreviewJobsForSourceAssetsAsync, isRecoverableUnavailablePreviewJob } from "@/lib/preview-derivatives";
 import { normalizeMediaType } from "@/lib/media-type";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
@@ -36,6 +36,7 @@ type CanonicalPreviewJob = {
   sourceContentHash: string;
   status: string;
   lastHeartbeatAt: string;
+  errorCode?: string | null;
 };
 
 export class PdmCanonicalWorkbenchService {
@@ -261,7 +262,7 @@ export class PdmCanonicalWorkbenchService {
 
   private async previewJobs(companyId: string, assetIds: string[]): Promise<CanonicalPreviewJob[]> {
     const list = namedSqlList("previewJobAsset", assetIds);
-    const rows = await this.client.query<Record<string, unknown>>(`SELECT source_file_asset_id, source_content_hash, status,
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT source_file_asset_id, source_content_hash, status, error_code,
         COALESCE(locked_at, updated_at) AS last_heartbeat_at
       FROM preview_jobs WHERE company_id = :companyId AND source_file_asset_id IN (${list.sql})
       ORDER BY updated_at DESC, created_at DESC`, { companyId, ...list.params });
@@ -271,7 +272,7 @@ export class PdmCanonicalWorkbenchService {
       if (seen.has(id)) return false;
       seen.add(id);
       return true;
-    }).map((row) => ({ sourceFileAssetId: String(row.source_file_asset_id), sourceContentHash: textValue(row.source_content_hash), status: textValue(row.status), lastHeartbeatAt: textValue(row.last_heartbeat_at) }));
+    }).map((row) => ({ sourceFileAssetId: String(row.source_file_asset_id), sourceContentHash: textValue(row.source_content_hash), status: textValue(row.status), lastHeartbeatAt: textValue(row.last_heartbeat_at), errorCode: textValue(row.error_code) || null }));
   }
 
   private async fields(entityType: WorkbenchEntityType, companyId: string, entityId: string): Promise<CanonicalDetailField[]> {
@@ -571,6 +572,14 @@ export function canonicalPreviewSlot(
       ]
     });
     const state = resolved.state === "pending" ? "queued" : resolved.state;
+    const recoverableJob = jobs.find((item) => item.sourceFileAssetId === source.assetId
+      && item.sourceContentHash === source.contentHash
+      && isRecoverableUnavailablePreviewJob({ status: item.status, errorCode: item.errorCode }));
+    if (state === "failed" && recoverableJob) {
+      return { kind, title, fileName: source.displayName || source.fileName, state: "queued",
+        stateTitle: "等待已連結的解析電腦", stateText: "舊的服務未連線紀錄將自動重新排入佇列。",
+        mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
+    }
     const text = state === "ready" ? "可直接開啟預覽。" : state === "queued" ? "工作已排入佇列。" : state === "delayed" ? "請稍後重新整理或確認預覽服務。" : state === "failed" ? "可先下載原始檔查看。" : state === "missing" ? "3D 原檔已存在，預覽工作尚未建立。" : "3D 原檔已存在，但目前沒有可看的預覽。";
     return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "預覽尚未建立" : "預覽暫時無法顯示", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
   }
@@ -583,6 +592,11 @@ export function canonicalPreviewSlot(
     return { kind, title, fileName: displayName, state: "ready", stateTitle: "預覽已就緒", stateText: "可直接開啟預覽。", mediaHref: appendQuery(readHref, "previewDerivative", derivative.id), mediaMimeType: derivative.mimeType, downloadHref: readHref, retryCommandRef: null };
   }
   const job = jobs.find((item) => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash);
+  if (isRecoverableUnavailablePreviewJob({ status: job?.status ?? "", errorCode: job?.errorCode ?? null })) {
+    return { kind, title, fileName: displayName, state: "queued", stateTitle: "等待已連結的解析電腦",
+      stateText: "舊的服務未連線紀錄將自動重新排入佇列。", mediaHref: appendQuery(readHref, "preview", "1"),
+      downloadHref: readHref, retryCommandRef: null };
+  }
   if (job?.status === "running") {
     const heartbeat = Date.parse(job.lastHeartbeatAt);
     const delayed = !Number.isFinite(heartbeat) || Date.now() - heartbeat > 30_000;

@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   getApprovalDetail: vi.fn(), queryOne: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
   readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn(),
-  dynamic: vi.fn(), dynamicAuthorize: vi.fn()
+  dynamic: vi.fn(), dynamicAuthorize: vi.fn(), recoverPreview: vi.fn(),
+  readLatestPreview: vi.fn(), enqueuePreview: vi.fn()
 }));
 const tx = { kind: "postgres", transactionScope: "postgres", queryOne: mocks.queryOne };
 vi.mock("@/lib/db-async-provider", async (importOriginal) => ({
@@ -54,6 +55,12 @@ vi.mock('@/lib/principal-resource-capability', async importOriginal => ({
   isDynamicRolePolicyInSnapshot: mocks.dynamic,
   authorizeDynamicResourceCapabilityInSnapshot: mocks.dynamicAuthorize
 }));
+vi.mock("@/lib/preview-derivatives", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/preview-derivatives")>(),
+  recoverStalePreviewJobsAsync: mocks.recoverPreview,
+  readLatestPreviewJobForSourceAsync: mocks.readLatestPreview,
+  enqueuePreviewJobForSourceAsync: mocks.enqueuePreview
+}));
 import { GET } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
 
 function request(context = "review_package") {
@@ -69,6 +76,11 @@ function request(context = "review_package") {
     headers: { cookie: `__session=${header}.payload.signature` }
   });
 }
+function previewRequest(context = "drawing_attachment") {
+  const url = new URL(request(context).url);
+  url.searchParams.set("preview", "1");
+  return new Request(url, { headers: request(context).headers });
+}
 const params = { params: Promise.resolve({ fileAssetId: "asset-one" }) };
 const source = { id: "asset-one", company_id: "company-one",
   linked_entity_id: "drawing-one", linked_entity_type: 'drawing_revision', content_hash: createHash("sha256").update("review-file").digest("hex"),
@@ -79,6 +91,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.dynamic.mockResolvedValue(false);
   mocks.dynamicAuthorize.mockResolvedValue(null);
+  mocks.recoverPreview.mockResolvedValue(undefined);
+  mocks.readLatestPreview.mockResolvedValue(null);
+  mocks.enqueuePreview.mockResolvedValue(undefined);
   mocks.audit.mockResolvedValue(undefined);
   mocks.createDownload.mockResolvedValue({ provider:"local_repository", bucket:null, key:"object-one",
     mode:"server_stream", url:null, expiresAt:null, expiresInSeconds:0,
@@ -349,4 +364,55 @@ it("requires model download as well as drawing download for canonical CAD member
   mocks.queryOne.mockResolvedValue({ ...source, capability_role: 'cad_3d' });
   expect((await GET(request('drawing_revision'), params)).status).toBe(200);
   expect(mocks.dynamicAuthorize).toHaveBeenLastCalledWith(tx, expect.any(Object), ['drawing', 'model'], 'download');
+});
+
+it("renders a controlled PDF inline only after a fresh dynamic download decision", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  const response = await GET(previewRequest(), params);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("application/pdf");
+  expect(await response.text()).toBe("review-file");
+  expect(mocks.dynamicAuthorize.mock.calls.map((call) => call[3])).toEqual(["view", "download"]);
+  expect(mocks.readLatestPreview).not.toHaveBeenCalled();
+  expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+});
+
+it("does not read or queue a PDF preview when the fresh download decision is denied", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.dynamicAuthorize.mockImplementation(async (_tx, _verified, _groups, action) =>
+    action === "download" ? Response.json({ code: "permission_not_granted" }, { status: 403 }) : null);
+  expect((await GET(previewRequest(), params)).status).toBe(403);
+  expect(mocks.readObject).not.toHaveBeenCalled();
+  expect(mocks.readLatestPreview).not.toHaveBeenCalled();
+  expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+});
+
+it("requeues only a legacy worker-unavailable CAD preview after fresh download authorization", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.queryOne.mockResolvedValue({ ...source, file_name: "model.sldprt", file_ext: "sldprt",
+    mime_type: "application/octet-stream", capability_role: "cad_3d" });
+  mocks.readLatestPreview
+    .mockResolvedValueOnce({ status: "failed", errorCode: "preview_worker_unavailable" })
+    .mockResolvedValueOnce({ status: "queued", errorCode: null });
+  const response = await GET(previewRequest("drawing_revision"), params);
+  expect(response.status).toBe(202);
+  expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_NOT_READY", retryable: true } });
+  expect(mocks.dynamicAuthorize.mock.calls.map((call) => call[3])).toEqual(["view", "download"]);
+  expect(mocks.enqueuePreview).toHaveBeenCalledWith(tx, expect.objectContaining({
+    actorUserId: "profile-one", forceRegenerate: true, requestedKind: "native_thumbnail_png"
+  }));
+  expect(mocks.readObject).not.toHaveBeenCalled();
+});
+
+it("keeps a deterministic Document Manager CAD failure terminal", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.queryOne.mockResolvedValue({ ...source, file_name: "model.sldprt", file_ext: "sldprt",
+    mime_type: "application/octet-stream", capability_role: "cad_3d" });
+  mocks.readLatestPreview.mockResolvedValue({ status: "failed", errorCode: "document_manager_preview_failed" });
+  const response = await GET(previewRequest("drawing_revision"), params);
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_FAILED", retryable: false,
+    jobErrorCode: "document_manager_preview_failed" } });
+  expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+  expect(mocks.readObject).not.toHaveBeenCalled();
 });

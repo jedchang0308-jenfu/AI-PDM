@@ -1,6 +1,6 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R30 / USER_PRODUCTION_VALIDATION / 125-C_OPENSWX_EXIT_COMPLETE`。程式修正、required CI、正式發布與 provider 讀回已完成；使用者取消由 AI 執行實機驗收，改由自己在正式環境驗證。§3～9 保留現行資料／API／架構契約，§11.13 為最新交付與驗證分工，§11.6～11.12 保留歷史收據及首敗。實機未執行項目不記 PASS，原始驗收分母保留。
+狀態：`RELEASED_R30 / PREVIEW_RECOVERY_CORRECTIVE_IMPLEMENTED_RELEASE_PENDING / 125-C_OPENSWX_EXIT_COMPLETE`。`.1405` 安裝與 Google 自助連結已由使用者在正式環境完成；其後發現受控 PDF 被 dynamic policy 誤送衍生流程，且歷史 `preview_worker_unavailable` 被保留為終局。§11.14 是現行 corrective，required CI／正式發布／A0001 結果尚待本切片完成；未完成前不列預覽 PASS。§3～9 保留資料／API／架構契約，§11.6～11.13 保留歷史收據及首敗。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
@@ -380,3 +380,16 @@ revision=`ai-pdm-prod-0184712662fa`，image=`sha256:ef2d895f2a454705899b5dbc41b1
 使用者最新決定取消 AI 實機驗收，改由自己直接在正式環境驗證。Windows 覆蓋安裝／捷徑、Google 自助連結、三角色／隔離撤權、關機重啟／重裝／多電腦／離線接續、原生三格式／A0001／PDF／辨識及正式 redaction 均交由使用者；未執行項目標為 USER_OWNED_PRODUCTION_VALIDATION，不列 PASS、不刪原驗收項目，也不再以提供三角色帳號作為 AI 發布阻塞。AI 本輪交付範圍為程式、測試、受保護發布、provider 讀回與文件交接，已完成。
 
 使用者從正式 AI-PDM「Windows 解析程式」頁下載 `.1405`、執行安裝／UAC，再由自動開啟的公司 Google 頁面完成連結；無人工註冊碼或逐台管理員核准。若安裝仍無法覆寫，新版會停止並顯示 Windows 代碼，供下一次修正使用。原設定／credential 資料不因本次覆蓋流程刪除。
+
+### 11.14 正式連結後 A0001 預覽恢復 corrective（2026-10-28）
+
+使用者已完成 `.1405` 安裝及 Google 自助連結；設定頁正式讀回 `NB-RD-JED / 0.1.0-ci.1405 / 在線`，能力為 2D 預覽、3D 預覽與原生屬性。A0001-M01 同時讀回：PDF detail model 為 ready，但 protected media 回 `PREVIEW_UNSUPPORTED / unsupported_preview_source`；3D 回 `PREVIEW_FAILED / preview_worker_unavailable`。後者是新 Windows 服務上線前留下的歷史終局，不是 `.1405` 的 Document Manager 新解析失敗。
+
+本 corrective 維持單一 Windows 架構，不增加另一套 worker、API key、IAM、Secret、schema 或 OrgMaster 責任：
+
+- PDF／image 受控原檔可直接 inline，但每次 bytes 送出前仍在新的 Principal snapshot 重驗 `download`；只有 view、沒有 download 時不讀 storage、不排工作。CAD 不得走原檔 inline。
+- native preview 在排工作前重驗 current download／model capability；只有 exact `failed + preview_worker_unavailable` 可自動 force regenerate。真正 `document_manager_preview_failed`、取消、不支援及其他終局維持終局，不因開抽屜無限重試。
+- 歷史 no-worker 狀態不算真實解析 attempt；即使舊 attempt 已達上限，重排時歸零，再由已連結裝置取得 attempt 1。無裝置在線仍留 queued，不消耗 attempt。
+- Canonical drawer 對上述可恢復狀態提供 protected media endpoint；前端收到 202 時沿現有有界 polling 等待，成功後同卡顯示，不新增人工註冊碼或管理員逐筆核准。
+
+本機證據：新增／相關預覽 79/79、DEV-125 service contract 14 Node＋39 Vitest、`typecheck:app`、affected ESLint 0 errors（1 則未觸及既有 warning）與 planner `AFFECTED_SLICES(application, authorization, preview)` 通過。本機 isolated build 因資源治理預檢 `BLOCKED` 未執行，不冒稱 PASS；required CI 必須在乾淨 runner 完成 build。正式發布、A0001 PDF 200／3D current-hash derivative 及 mounted UI 仍為 `PENDING`。

@@ -90,7 +90,9 @@ export function CanonicalPreviewPanel({
     </div> : null}
     <div className={`drawing-preview-grid${tabbed ? " is-tabbed" : ""}`}>
       {visibleCards.map((card) => {
-        const ready = card.state === "ready" && (card.content || card.media);
+        // Pending cards may carry a protected endpoint that queues once and
+        // then returns 202 until a linked Windows parser completes the work.
+        const ready = Boolean(card.content || card.media);
         return <article className={`drawing-preview-card ${card.key}${showCardHeader ? "" : " no-header"}`} key={card.key} role={tabbed ? "tabpanel" : undefined}>
           {showCardHeader ? <div className="drawing-preview-card-header"><div><strong>{card.title}</strong></div></div> : null}
           <div className={`drawing-preview-frame${ready ? "" : " placeholder-frame"}`}>

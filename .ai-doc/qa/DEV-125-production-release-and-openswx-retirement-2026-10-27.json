@@ -1,8 +1,8 @@
 {
   "schemaVersion": "ai-pdm.dev125.production-release-and-openswx-retirement.v2",
   "taskId": "DEV-125",
-  "recordedAt": "2026-10-28T03:41:30.571Z",
-  "status": "RELEASED_R30_USER_PRODUCTION_VALIDATION",
+  "recordedAt": "2026-10-28T04:06:00.000Z",
+  "status": "R30_RELEASED_PREVIEW_RECOVERY_CORRECTIVE_RELEASE_PENDING",
   "supersedingArchitecture": {
     "effectiveDate": "2026-10-28",
     "decision": "USER_OWNED_WINDOWS_DEVICE_WITH_GOOGLE_SELF_LINK",
@@ -938,6 +938,39 @@
     "dependencyInstallPerformed": false,
     "capacityPolicyChanged": false,
     "cleanupPerformed": false
+  },
+  "previewRecoveryCorrective": {
+    "trigger": "USER_INSTALLED_AND_LINKED_1405_BUT_A0001_PREVIEWS_STILL_UNAVAILABLE",
+    "productionObservations": {
+      "device": "NB-RD-JED / 0.1.0-ci.1405 / ONLINE",
+      "pdf": "DETAIL_READY_BUT_PREVIEW_UNSUPPORTED_UNSUPPORTED_PREVIEW_SOURCE",
+      "threeD": "PREVIEW_FAILED_PREVIEW_WORKER_UNAVAILABLE",
+      "documentManagerFailureObserved": false
+    },
+    "rootCause": [
+      "Dynamic role policy required a derivative even for a controlled PDF, so the protected media route enqueued an unsupported PDF preview job instead of performing a fresh download decision and streaming the source PDF inline",
+      "A historical preview_worker_unavailable terminal job was not recoverable when the new owner-bound Windows device came online, and the canonical drawer exposed no media request that could requeue it"
+    ],
+    "correction": [
+      "Allow normalized PDF/image source inline only after a fresh dynamic download authorization; CAD remains derivative-only",
+      "Authorize download/model before native enqueue or recovery",
+      "Automatically regenerate only failed preview_worker_unavailable and keep deterministic parser failures terminal",
+      "Reset retired no-worker attempt count before the first real parser claim",
+      "Render the protected media endpoint for the recoverable queued state and retain bounded 202 polling"
+    ],
+    "localVerification": {
+      "previewFocused": "PASS_79_OF_79",
+      "dev125Contract": "PASS_14_NODE_PLUS_39_VITEST",
+      "typecheckApp": "PASS",
+      "affectedLint": "PASS_0_ERRORS_1_PREEXISTING_WARNING",
+      "slicePlanner": "AFFECTED_SLICES_APPLICATION_AUTHORIZATION_PREVIEW",
+      "isolatedBuild": "NOT_RUN_CAPACITY_PREFLIGHT_BLOCKED_PROVIDER_REQUIRED_CI"
+    },
+    "schemaMigrationIamSecretOrgMasterChanges": false,
+    "requiredCi": "PENDING",
+    "productionRelease": "PENDING",
+    "a0001PdfReadback": "PENDING",
+    "a0001ThreeDReadback": "PENDING"
   },
   "acceptanceHandoff": {
     "recordedAt": "2026-10-28T03:21:47.986Z",

@@ -2,12 +2,13 @@ import { auditStorageAccess } from "@/lib/storage-access-audit";
 import { readApprovalEvidenceFileSource } from "@/lib/pdm-approval-evidence-file-source";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
+import { normalizeMediaType } from "@/lib/media-type";
 import { protectedFileResponseHeaders } from "@/lib/file-response";
 import { assertStoredFileIntegrity, createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { isPdmFileReadContext, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
-import { canonicalPreviewJobResponse, enqueuePreviewJobForSourceAsync, readLatestPreviewJobForSourceAsync, recoverStalePreviewJobsAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
+import { canonicalPreviewJobResponse, enqueuePreviewJobForSourceAsync, isRecoverableUnavailablePreviewJob, readLatestPreviewJobForSourceAsync, recoverStalePreviewJobsAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { resolveJenfuRouteAuthorization, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
@@ -336,10 +337,13 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
     context: PdmFileReadContext; contextId: string; bindingId: string; requireSafePreview: boolean;
     beforeRead: (original: boolean) => Promise<Response | null> }) {
   try {
+    const sourceMimeType = normalizeMediaType(source.mime_type);
+    const originalCanRenderInline = sourceMimeType === "application/pdf" || sourceMimeType.startsWith("image/");
+    const requireDerivative = input.requireSafePreview && !originalCanRenderInline;
     const resolved = input.wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, {
           derivativeId: input.derivativeId,
-          requireDerivative: input.requireSafePreview
+          requireDerivative
         })
       : {
           record: source,
@@ -348,24 +352,29 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         };
     if (!resolved) {
       try {
+        // A native preview causes a worker to retrieve controlled source CAD.
+        // Recheck download capability before creating or recovering that work.
+        const authorizationFailure = await input.beforeRead(true);
+        if (authorizationFailure) return authorizationFailure;
         const scope = { companyId: source.company_id, sourceFileAssetId: source.id,
           sourceContentHash: source.content_hash ?? "", requestedKind: requestedPreviewKindForSource(source.file_ext) };
         await recoverStalePreviewJobsAsync(client, { companyId: source.company_id, sourceFileAssetIds: [source.id] });
         let job = await readLatestPreviewJobForSourceAsync(client, scope);
-        if (!job) {
-        await enqueuePreviewJobForSourceAsync(client, {
-          source: {
-            ...source,
-            storage_provider: source.storage_provider ?? "local_repository",
-            linked_entity_type: source.linked_entity_type,
-            linked_entity_id: source.linked_entity_id
-          },
-          actorUserId: input.actorId,
-          principalInitiator: input.principalInitiator,
-          requestedKind: requestedPreviewKindForSource(source.file_ext)
-        });
-        job = await readLatestPreviewJobForSourceAsync(client, scope);
-        if (!job) throw new Error("PREVIEW_ENQUEUE_READBACK_MISSING");
+        if (!job || isRecoverableUnavailablePreviewJob(job)) {
+          await enqueuePreviewJobForSourceAsync(client, {
+            source: {
+              ...source,
+              storage_provider: source.storage_provider ?? "local_repository",
+              linked_entity_type: source.linked_entity_type,
+              linked_entity_id: source.linked_entity_id
+            },
+            actorUserId: input.actorId,
+            principalInitiator: input.principalInitiator,
+            requestedKind: requestedPreviewKindForSource(source.file_ext),
+            forceRegenerate: Boolean(job)
+          });
+          job = await readLatestPreviewJobForSourceAsync(client, scope);
+          if (!job) throw new Error("PREVIEW_ENQUEUE_READBACK_MISSING");
         }
         const response = canonicalPreviewJobResponse(job);
         return Response.json(response.body, { status: response.status, headers: response.headers });
@@ -373,7 +382,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         return dev087RouteError(error);
       }
     }
-    if (input.wantsPreview && input.requireSafePreview && resolved.record.id === source.id) {
+    if (input.wantsPreview && requireDerivative && resolved.record.id === source.id) {
       return jsonError("SAFE_PREVIEW_UNAVAILABLE", "無可用預覽。", 404);
     }
     const authorizationFailure = await input.beforeRead(!input.wantsPreview || resolved.record.id === source.id);

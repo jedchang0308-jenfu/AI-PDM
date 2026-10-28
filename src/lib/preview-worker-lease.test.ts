@@ -122,6 +122,14 @@ describe("full generation fences on actual SQLite SQL (not PostgreSQL proof)", (
     const before = snapshot(); await expect(enqueue(true)).rejects.toThrow("PREVIEW_ATTEMPTS_EXHAUSTED");
     expect(snapshot()).toBe(before); expect(await claim()).toBeNull();
   });
+  it("does not count the retired no-worker state against real parser attempts", async () => {
+    await enqueue();
+    database.prepare("UPDATE preview_jobs SET status='failed',error_code='preview_worker_unavailable',attempt_count=3").run();
+    await enqueue(true);
+    expect(database.prepare("SELECT status,error_code,attempt_count FROM preview_jobs").get())
+      .toEqual({ status: "queued", error_code: null, attempt_count: 0 });
+    expect((await claim())?.leaseBasis.attemptCount).toBe(1);
+  });
   it("keeps success and replay atomic, clears terminal locks, and never auto-retries storage", async () => {
     await enqueue(); const current = (await claim())!;
     const input = { jobId: current.jobId, workerId: "worker-one", leaseBasis: current.leaseBasis,
