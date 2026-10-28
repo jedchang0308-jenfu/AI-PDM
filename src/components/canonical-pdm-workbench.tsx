@@ -301,7 +301,7 @@ export function DrawingCanonicalPreview({ previews }: { previews: [DrawingPrevie
     stateTitle: preview.stateTitle,
     stateText: preview.stateText,
     actions: preview.downloadHref ? <a className="secondary-button" href={preview.downloadHref} download aria-label={`下載原檔 ${preview.fileName ?? preview.title}`}>下載原檔</a> : undefined,
-    media: preview.state === "ready" && preview.mediaHref ? {
+    media: preview.mediaHref ? {
       href: preview.mediaHref,
       mode: preview.kind === "three-d" ? "image" : "document",
       title: preview.title,

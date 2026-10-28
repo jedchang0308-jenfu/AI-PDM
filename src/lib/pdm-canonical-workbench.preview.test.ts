@@ -28,4 +28,18 @@ describe("canonical 2D preview projection", () => {
   it("does not treat a PDF-like prefix as PDF", () => {
     expect(canonicalPreviewSlot("two-d", "2D 圖面", { ...source, fileExt: "pdf", mimeType: "application/pdfx" }, [], [], "candidate_revision", null).state).not.toBe("ready");
   });
+  it("projects only the historical worker-unavailable failure as an automatically recoverable queue", () => {
+    const recoverable = canonicalPreviewSlot("three-d", "3D 模型", { ...source, role: "cad_3d", fileExt: "sldprt" }, [], [{
+      sourceFileAssetId: source.assetId, sourceContentHash: source.contentHash, status: "failed",
+      errorCode: "preview_worker_unavailable", lastHeartbeatAt: new Date().toISOString()
+    }], "candidate_revision", null);
+    expect(recoverable).toMatchObject({ state: "queued", stateTitle: "等待已連結的解析電腦" });
+    expect(recoverable.mediaHref).toContain("preview=1");
+
+    const deterministic = canonicalPreviewSlot("three-d", "3D 模型", { ...source, role: "cad_3d", fileExt: "sldprt" }, [], [{
+      sourceFileAssetId: source.assetId, sourceContentHash: source.contentHash, status: "failed",
+      errorCode: "document_manager_preview_failed", lastHeartbeatAt: new Date().toISOString()
+    }], "candidate_revision", null);
+    expect(deterministic).toMatchObject({ state: "failed", mediaHref: null });
+  });
 });

@@ -190,6 +190,13 @@ export const previewHeartbeatStaleAfterMs = 30_000;
 export const previewQueuedUnclaimedAfterMs = 120_000;
 export const previewMaxAttempts = 3;
 
+/** A worker that did not exist must not make the source permanently terminal.
+ * Deterministic Document Manager/parser failures stay terminal so opening a
+ * drawer cannot consume every attempt in a retry loop. */
+export function isRecoverableUnavailablePreviewJob(job: { status?: string | null; errorCode?: string | null } | null) {
+  return job?.status === "failed" && job.errorCode === "preview_worker_unavailable";
+}
+
 export function isNativeSolidWorksPreviewSource(extension: string) {
   return nativeSolidWorksExtensions.has(extension.trim().toLowerCase());
 }
@@ -976,11 +983,18 @@ async function upsertPreviewJob(
     const forceResetStatuses = new Set(["succeeded", "failed", "skipped", "cancelled"]);
     const shouldResetExisting = input.forceRegenerate && forceResetStatuses.has(existing.status);
     if (shouldResetExisting) {
-      if (Number(existing.attempt_count) >= previewMaxAttempts) throw new Error("PREVIEW_ATTEMPTS_EXHAUSTED");
+      const availabilityRecovery = isRecoverableUnavailablePreviewJob({
+        status: existing.status,
+        errorCode: existing.error_code
+      });
+      if (Number(existing.attempt_count) >= previewMaxAttempts && !availabilityRecovery) {
+        throw new Error("PREVIEW_ATTEMPTS_EXHAUSTED");
+      }
       await client.execute(
         `
           UPDATE preview_jobs
           SET status = :status,
+              attempt_count = :attemptCount,
               error_code = :errorCode,
               error_summary = :errorSummary,
               metadata_json = :metadataJson,
@@ -995,6 +1009,7 @@ async function upsertPreviewJob(
           id: existing.id, previousStatus: existing.status, previousAttempts: existing.attempt_count,
           previousUpdatedAt: existing.updated_at,
           status: input.status,
+          attemptCount: availabilityRecovery ? 0 : existing.attempt_count,
           errorCode: input.errorCode,
           errorSummary: input.errorSummary,
           metadataJson: JSON.stringify({ initiator: input.principalInitiator }),

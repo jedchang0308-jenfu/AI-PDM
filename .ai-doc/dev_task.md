@@ -6,11 +6,11 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R30 / USER_PRODUCTION_VALIDATION / 125-C EXIT COMPLETE` | source `638403b4…`、#544／#545、PR/main CI／owner `40626190128`／provider `40627703440` 成功；revision `ai-pdm-prod-0184712662fa` 唯一 100%、零 tag、ledger 40，installer `.1405`。實機／三角色／原生功能由使用者自行驗證，原項目與首敗保留，不列全驗收 PASS。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `R30 RELEASED / PREVIEW RECOVERY CORRECTIVE RELEASE PENDING / 125-C EXIT COMPLETE` | `.1405` 安裝／Google 連結已由使用者完成；A0001 揭露 PDF dynamic-policy 路徑與歷史 `preview_worker_unavailable` 未恢復。Corrective 已本機實作：PDF bytes 前 fresh download、CAD 原檔禁回、only worker-unavailable 自動重排且 no-worker attempt 歸零；79/79、DEV-125 53 cases、typecheck PASS。required CI／正式發布／A0001 結果尚待完成。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約 §11.13](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r30-release)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。程式、CI、正式發布與 provider 讀回已交付；使用者取消 AI 實機驗收，直接在正式環境驗證。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.14](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R30 程式／CI／正式發布與 provider 讀回已交付；使用者完成 `.1405` 安裝與 Google 連結後發現 A0001 預覽 corrective，現正走 PR／required CI／發布。OrgMaster 仍只做人員角色指派，無裝置 writer／安裝管理修改。
 
 現行 installer：`.1405` 已由 R30 正式發布；#544 修正服務停止／移除／覆寫等待與禁止跳過，#545 移除 DB-free producer 的 eager pg 相依。原 `.1400` 首敗與確切 Win32 原因 UNKNOWN 保留。依最新決定，AI 不再執行實機／三角色驗收，改由使用者在正式環境驗證，未執行項不列 PASS。
 
