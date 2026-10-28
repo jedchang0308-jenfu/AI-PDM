@@ -10,7 +10,7 @@ describe("canonical file preview terminal contract", () => {
   });
   it.each([
     ["skipped", 422, "PREVIEW_UNSUPPORTED", "unsupported"], ["failed", 409, "PREVIEW_FAILED", "failed"],
-    ["cancelled", 409, "PREVIEW_CANCELLED", "failed"], ["succeeded", 409, "PREVIEW_OUTPUT_MISSING", "failed"]
+    ["cancelled", 409, "PREVIEW_CANCELLED", "cancelled"], ["succeeded", 409, "PREVIEW_OUTPUT_MISSING", "failed"]
   ] as const)("%s stops retries", (status, http, code, state) => {
     const response = canonicalPreviewJobResponse({ status, errorCode: "unsupported_preview_source" } as MasterAttachmentPreviewJob);
     expect(response).toMatchObject({ status: http, headers: { "x-pdm-preview-state": state, "cache-control": "private, no-store" },

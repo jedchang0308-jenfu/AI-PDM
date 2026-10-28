@@ -62,6 +62,7 @@ vi.mock("@/lib/preview-derivatives", async (importOriginal) => ({
   enqueuePreviewJobForSourceAsync: mocks.enqueuePreview
 }));
 import { GET } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
+import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
 
 function request(context = "review_package") {
   const header = Buffer.from(JSON.stringify({
@@ -385,6 +386,23 @@ it("does not read or queue a PDF preview when the fresh download decision is den
   expect(mocks.readObject).not.toHaveBeenCalled();
   expect(mocks.readLatestPreview).not.toHaveBeenCalled();
   expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+});
+
+it("preserves a typed dependency failure from the fresh preview authorization", async () => {
+  mocks.dynamic.mockResolvedValue(true);
+  mocks.queryOne.mockResolvedValue({ ...source, file_name: "model.sldprt", file_ext: "sldprt",
+    mime_type: "application/octet-stream", capability_role: "cad_3d" });
+  mocks.withVerified
+    .mockImplementationOnce(async (_input, evaluate) => evaluate(tx, {
+      profile: { pdmUserId: "profile-one", companyId: "company-one" },
+      session: { principalId: "principal-one", assuranceLevel: "aal1" }
+    }))
+    .mockRejectedValueOnce(new JenfuPrincipalRequestError("principal_dependency_unavailable"));
+  const response = await GET(previewRequest("drawing_revision"), params);
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ code: "principal_dependency_unavailable" });
+  expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+  expect(mocks.readObject).not.toHaveBeenCalled();
 });
 
 it("requeues only a legacy worker-unavailable CAD preview after fresh download authorization", async () => {
