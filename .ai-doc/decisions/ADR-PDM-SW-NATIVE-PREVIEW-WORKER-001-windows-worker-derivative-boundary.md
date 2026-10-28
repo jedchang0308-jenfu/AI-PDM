@@ -2,11 +2,13 @@
 
 ## 2026-10-28 最新架構定案：使用者自有 Windows 裝置、Google 自助連結與 OpenSWX 退役
 
-現行狀態：`Accepted / Architecture Finalized / RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#540 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download、工作租約 key guard 與 typed HTTP 拒絕；R27 正式來源為 `3b6b38208fdb2787740bb28388026702b182566f`。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.9／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
+現行狀態：`Accepted / Architecture Finalized / RELEASED_R28 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#540 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download、工作租約 key guard 與 typed HTTP 拒絕；R28 正式來源為 `6aa76f513cf934eb7e4902bb375a8c5f14af9c2c`，#542 已修正 enroll TEXT 時間比較。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.10／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
+
+後續實機發現 installer 程式目錄漏授普通 Users RX，開始功能表無法重新開啟設定。修正只開放程式讀取／執行，私人憑證／CAD 資料 ACL 不變；新版安裝與 Google 連結仍待正式驗收，狀態見 DEV-125 §11.10。
 
 使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 
-實機 `.1393` 已安裝，R27 enroll 遇到 legacy TEXT 限流時間與 timestamptz 比較的正式 500；相同錯誤已隔離重現並修正，發布／重新連結待驗，見 DEV-125 §11.10。此為 SQL 相容修正，架構與授權邊界不變。
+實機 `.1393` 已安裝，R27 enroll 遇到 legacy TEXT 限流時間與 timestamptz 比較的正式 500；相同錯誤已隔離重現並修正，R28 已發布、重新連結待驗，見 DEV-125 §11.10。此為 SQL 相容修正，架構與授權邊界不變。
 
 使用者確認以可安裝的 Windows 解析服務及電腦清單管理原生 CAD 處理，拒絕 OpenSWX／Document Manager 長期雙軌。[DEV-125](../specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md) 是唯一後續開發入口；DEV-122 以部分成果移交結案，DEV-124 取消修復。
 

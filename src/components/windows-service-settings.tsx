@@ -155,6 +155,7 @@ export function WindowsServiceSettings() {
         <div>
           <h1>Windows 解析程式</h1>
           <p>每位使用者在自己的 Windows 電腦安裝；登入公司 Google 帳號後即可自行連結。</p>
+          {!pairing ? <p>已安裝時，請從 Windows 開始功能表開啟「AI-PDM → 解析服務設定」，再於自動開啟的網頁按「連結這台電腦」。</p> : null}
         </div>
         {!pairing ? <a className="primary-button" href="/api/settings/windows-service/installer">
           <Download size={17} aria-hidden="true" />下載安裝程式

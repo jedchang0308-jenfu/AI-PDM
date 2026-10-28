@@ -6,15 +6,17 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R27 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE` | #533 撤回、關閉未合併；#536～#540 完成 Google 自助連結、永久 owner、逐請求 view＋download、工作租約 key、覆蓋安裝與 typed HTTP 拒絕，#535 official interop 保留。089 immutable、090 已套用；PR／main CI 與 R27 `40589771592` 全成功，source `3b6b382…`，revision `ai-pdm-prod-2767a0101c8f` 唯一 100%、零 tag、ledger 40。23 條正式未授權請求由 device guard 拒絕。`.1393` 已安裝、下載 hash 相符；正式 enroll 500 已定位為 TEXT 限流時間比較，隔離重現與修正通過，待 CI／發布／重新連結。三角色／原生正向驗收仍待。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R28 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE` | #533 撤回未合併、#535 interop 保留、089 immutable／090 已套用。#542 修正真實 TEXT 限流時間比較 500，source `6aa76f513…`；PR/main CI 與 R28 owner `40612591796` 通過。revision `ai-pdm-prod-6266adc6de6c` 唯一 100%、零 tag、ledger 40。`.1393` 已安裝，相容 R28，等待重新連結及三角色／原生正向驗收。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約 §11.9](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r27-release)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。OpenSWX 已退出，#535 修復保留，#533 已關閉未合併並明確撤回匿名草案。#536～#540、required CI、main CI 與 R27 正式發布完成，installer=`0.1.0-ci.1393`；發布完成不等於整體結案。目前 `.1393` 安裝已完成；§11.10 的 enroll 500 修正待 CI／發布／重新連結，再接續實機自助連結、RD／採購生管／生產既有帳號、隔離／撤權、Windows lifecycle／多電腦、離線接續、低權限三格式／A0001 預覽／PDF／辨識與 redaction。OrgMaster 只做人員角色指派，沒有裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.10](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r28-release)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R28 已正式發布並由唯讀 provider `40614149665` 確認。使用者已安裝 `.1393`；按現有解析程式「重新檢查／連結」後接續三角色、隔離／撤權、Windows lifecycle／多電腦、離線接續、低權限三格式／A0001 預覽／PDF／辨識與 redaction。最新正式下載為 `.1397`，本次修正不需既有 `.1393` 重裝。OrgMaster 只做人員角色指派，沒有裝置 writer／安裝管理修改。
 
-R25 heartbeat admission 首敗保留在 §11.7；#539／#540 與 R26／R27 已修正相關入口，最新 23 條正式拒絕通過。171 個 focused、7 個 worker runtime、11 組隔離 PG 與後續 40 個 route 案各依其證據範圍通過；R27 main CI `40589008519`／owner `40589771592`／唯讀 provider `40591599517` 成功。三角色帳號仍待指定、`.1393` 已安裝而 enroll 500 修正待發布；不把本機測試或管理員當成正式角色／低權限原生驗收。舊 #533 worktree `C:/VIBE CODING/.worktrees/d125-infra-20261027/AI_PDM` 的未知 merge 修改保留。
+現行 installer 修正：`.1393`／`.1397` 的程式目錄 ACL 漏普通 Users RX，使用者從開始功能表重開收到存取拒絕。已修正 NSIS 並補私人資料 ACL 防回歸與重連說明；待 CI／發布／覆蓋安裝及正式重新連結。R28 伺服器修正與其收據保持有效，未增加 IAM／Secret／OrgMaster 責任。
 
-§11.9 typed 403／503 已由 #540 合併並 R27 發布，domain 權限／attempt guard 不變。程式／CI／發布部分完成；前版收據保留，正式 Windows／角色驗收等待人類操作及適當帳號後續接，不縮減原驗收分母。
+R25 heartbeat admission 首敗保留在 §11.7；#539／#540 與 R26／R27 已修正相關入口，最新 23 條正式拒絕通過。171 個 focused、7 個 worker runtime、11 組隔離 PG 與後續 40 個 route 案各依其證據範圍通過；R27 main CI `40589008519`／owner `40589771592`／唯讀 provider `40591599517` 成功。三角色帳號仍待指定、`.1393` 已安裝，enroll 500 修正已 R28 發布、重新連結待驗；不把本機測試或管理員當成正式角色／低權限原生驗收。舊 #533 worktree `C:/VIBE CODING/.worktrees/d125-infra-20261027/AI_PDM` 的未知 merge 修改保留。
+
+§11.9 typed 403／503 已由 #540 合併並 R27 發布，domain 權限／attempt guard 不變。程式／CI／發布部分完成；前版收據保留，§11.10 已 R28 修正正式 enroll 500；Windows 重新連結／角色驗收等待人類操作及適當帳號後續接，不縮減原驗收分母。
 
 以下 DEV-122／124 段落是移交前狀態與來源，不再作 active 待辦；其他 DEV 的責任與狀態不受本次整理改動。PR #500 fixed readback 已於 run `40498277520` 完成 R15；PR #525／#526 其後完成 provider／active source 退出，不需要再次擴張 IAM、重建 OpenSWX 或重放已刪 executor。
 
