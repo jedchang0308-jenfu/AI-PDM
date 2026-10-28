@@ -6,13 +6,13 @@
 |---|---|---|
 | DEV-122 舊缺陷整治 | `CLOSED_PARTIAL_HANDOFF` | 01～04、06 本機成果保留；05／管理員辨識／完整 CAD 及必要未驗結果依[承接表](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#legacy-outcome-handoff)移交 125。原七項整體仍 NOT_ACCEPTED；07 維持停用延期。 |
 | DEV-124 OpenSWX 修復 | `CLOSED_CANCELLED_REPLACED / RETIREMENT_COMPLETED_BY_DEV-125` | 取消修復及恢復排程；原 UNKNOWN 作為歷史保留。DEV-125 已完成 DB 排空、專用 provider 資源及 active source 退出，不將退役完成回寫成 124 功能 PASS。 |
-| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R29 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE` | #533 撤回未合併、#535 interop 保留、089 immutable／090 已套用。#542／#543 修正 enroll TEXT 時間比較、程式目錄 Users RX 與重連提示，source `59e2eae8…`；PR/main CI、R29 owner `40618668828`、provider `40620458237` 通過。revision `ai-pdm-prod-8475b506877a` 唯一 100%、零 tag、ledger 40。`.1400` 已正式發布，本機最後讀回仍 `.1393`；待覆蓋安裝／Google 自助連結及原生正向驗收。 |
+| DEV-125 Windows SolidWorks 解析服務與 OpenSWX 退役 | `RELEASED_R29 / INSTALLER_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C EXIT COMPLETE` | #533 撤回未合併、#535 interop 保留、089 immutable／090 已套用。#542／#543 修正 enroll TEXT 時間比較、程式目錄 Users RX 與重連提示，source `59e2eae8…`；PR/main CI、R29 owner `40618668828`、provider `40620458237` 通過。revision `ai-pdm-prod-8475b506877a` 唯一 100%、零 tag、ledger 40。`.1400` 已發布但實機覆蓋安裝失敗並中止；舊服務已移除，PR #544 修正中，Google 連結與原生正向驗收未完成。 |
 
 <a id="dev-125-windows-service"></a>
 
-DEV-125：[唯一契約 §11.11](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r29-release)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R29 已正式發布並由 provider 確認；`.1400` 修復開始功能表捷徑，已請使用者從正式頁覆蓋安裝／確認 UAC，再於自動開啟的頁面連結。後續三角色、隔離／撤權、Windows lifecycle／多電腦、離線接續、低權限三格式／A0001 預覽／PDF／辨識與 redaction 尚未整體通過。OrgMaster 只做人員角色指派，沒有裝置 writer／安裝管理修改。
+DEV-125：[唯一契約 §11.11](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r29-release)／[驗收 JSON](qa/DEV-125-production-release-and-openswx-retirement-2026-10-27.json)。R29 已正式發布並由 provider 確認；`.1400` 覆蓋安裝失敗並中止，現由 PR #544 修正停止／覆寫流程；Google 自助連結仍未完成。後續三角色、隔離／撤權、Windows lifecycle／多電腦、離線接續、低權限三格式／A0001 預覽／PDF／辨識與 redaction 尚未整體通過。OrgMaster 只做人員角色指派，沒有裝置 writer／安裝管理修改。
 
-現行 installer：#543 的 NSIS 程式目錄 RX／私人資料保護契約及重連說明已 CI／R29 發布，`.1400` 覆蓋安裝與普通使用者啟動仍待實測。臨時 NTFS ACL canary 自查遭自動政策拒絕，記 NOT_RUN、沒有改權限或替代執行器；不冒稱 Windows PASS。R28 伺服器修正與前版收據保留，未增加 IAM／Secret／OrgMaster 責任。
+現行 installer：`.1400` 實機覆寫 wrapper 失敗並由使用者中止；舊服務已移除、registry 仍 `.1393`，資料保留。PR #544 修正 WinSW 同步停止、SCM／檔案有界等待與禁止跳過，待 CI／發布／實機驗證；本次 Win32 原因仍未知。詳見 [DEV-125 §11.12](specs/DEV-125-windows-solidworks-service-and-openswx-retirement.md#dev125-r29-upgrade-failure)。未增加 IAM／Secret／OrgMaster 責任。
 
 R25 heartbeat admission 首敗保留在 §11.7；#539／#540 與 R26／R27 已修正相關入口，最新 23 條正式拒絕通過。171 個 focused、7 個 worker runtime、11 組隔離 PG 與後續 40 個 route 案各依其證據範圍通過；R27 main CI `40589008519`／owner `40589771592`／唯讀 provider `40591599517` 成功。三角色帳號仍待指定、`.1393` 已安裝，enroll 500 修正已 R28 發布、重新連結待驗；不把本機測試或管理員當成正式角色／低權限原生驗收。舊 #533 worktree `C:/VIBE CODING/.worktrees/d125-infra-20261027/AI_PDM` 的未知 merge 修改保留。
 

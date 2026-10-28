@@ -2,9 +2,9 @@
 
 ## 2026-10-28 最新架構定案：使用者自有 Windows 裝置、Google 自助連結與 OpenSWX 退役
 
-現行狀態：`Accepted / Architecture Finalized / RELEASED_R29 / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#540 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download、工作租約 key guard 與 typed HTTP 拒絕；R29 正式來源為 `59e2eae8afe57bd19434baa8106cdea6b27174b6`，#542／#543 已修正 enroll TEXT 時間比較及程式目錄 RX／重連說明。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.11／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
+現行狀態：`Accepted / Architecture Finalized / RELEASED_R29 / INSTALLER_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS`。本段取代 2026-10-27 管理員貼碼架構及 PR #533 匿名 worker 草案；#533 已關閉未合併且標示撤回，PR #535 官方 interop 執行來源原樣保留。PR #536～#540 完成 owner-bound self-link、冪等覆蓋安裝、逐請求 view＋download、工作租約 key guard 與 typed HTTP 拒絕；R29 正式來源為 `59e2eae8afe57bd19434baa8106cdea6b27174b6`，#542／#543 已修正 enroll TEXT 時間比較及程式目錄 RX／重連說明。資料、API、發布／唯讀 provider 收據與剩餘實機驗收以 DEV-125 §11.11／QA JSON 為唯一權威；正式 23 條未授權請求拒絕通過不代替 Windows 正向解析驗收。
 
-後續實機發現 installer 程式目錄漏授普通 Users RX，開始功能表無法重新開啟設定。修正只開放程式讀取／執行，私人憑證／CAD 資料 ACL 不變；`.1400` 已 R29 發布，覆蓋安裝與 Google 連結待正式驗收，狀態見 DEV-125 §11.11。
+程式目錄 Users RX 修正已 R29 發布，私人憑證／CAD ACL 不變。但 `.1400` 實機覆寫 wrapper 失敗，使用者已中止；PR #544 修正已確認的 WinSW 非同步停止競態及覆寫失敗處理，本次 Win32 原因仍未知。正式裝置連結／原生解析仍未通過，最新狀態見 DEV-125 §11.12。
 
 使用者從未授權匿名開放。禁止匿名 worker、固定 `windows-parser` 身分、共用 API key，亦禁止只因 caller 可連線就提供 CAD bytes、Document Manager key、claim 或 complete。每個 Windows 程序必須持有 Google SSO 自助連結後建立的獨立裝置憑證，永久綁定 company、Principal、電腦與 active account；每個 workload request 都重新驗證 current account、Principal mapping、grant 及工作／來源權限。
 

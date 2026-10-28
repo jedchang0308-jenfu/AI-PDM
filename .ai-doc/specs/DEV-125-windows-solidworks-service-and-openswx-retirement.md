@@ -1,10 +1,10 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R29 / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.11 為最新 R29 發布與 Windows 覆蓋安裝驗收邊界，§11.6～11.10 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R29 / INSTALLER_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.11 為 R29 發布證據，§11.12 為最新覆蓋安裝首敗與修正進度，§11.6～11.10 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
-目前 `.1393` 已安裝；R27 裝置 enroll 500 已由 #542／R28 正式修正，後續程式目錄 ACL 拒絕已由 #543／R29 發布修正；需更新 `.1400` 後實測，根因與首敗見 §11.10，最新收據見 §11.11。這取代 §11.9 當次「尚未安裝」的狀態，尚未將連結或原生正向驗收判為通過。
+`.1400` 實機覆蓋安裝失敗，使用者已中止；目前 registry 仍 `.1393`，舊服務已移除，設定／資料保留。R27 enroll 500 與程式目錄 RX 修正已 R28／R29 發布，但不能據此宣稱本機修復；最新處置見 §11.12。尚未將連結或原生正向驗收判為通過。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -354,3 +354,15 @@ PR #543 source=`59e2eae8afe57bd19434baa8106cdea6b27174b6`；最新 PR CI `406173
 正式 installer=`0.1.0-ci.1400`、protocol 1、SHA-256=`1466c8d03a79241848804cd28bf6b652637b00f5b097c6355784938c24170ce3`、CI artifact `12785902559`，與 owner binding／capsule 一致。R29 正式管理頁已實際載入新說明並保留截圖。最後本機讀回 `2026-10-28T02:23:02.062Z` 仍為 `.1393 / LocalService Running`，無 installer／configurator；尚未觀察 `.1400` 覆蓋安裝與新連結成功。已請使用者在正式頁下載 `.1400`、完成 UAC，再於自動開啟的頁面按一次連結；不能把新包已發布當作本機已修復。
 
 13 個 Node contract、39 個 Vitest contract、4 個 self-link、typecheck／ESLint／doc paths 已通過。臨時 NTFS ACL canary 自查在建立程序前遭自動安全審查拒絕（僅回傳 `blocked by policy`），記 NOT_RUN；沒有建立 scratch 或改權限，也沒有替代執行器繞過。真正覆蓋安裝、普通使用者捷徑、私人資料保護、Google self-link、三角色／生命週期與原生三格式／A0001 正向驗收仍待完成。R27 負向 guard 證據僅在未變動部分重用，未當作 R29 重跑或 Windows PASS；整體 DEV-125 未結案。
+
+<a id="dev125-r29-upgrade-failure"></a>
+
+### 11.12 `.1400` 覆蓋安裝首敗與同片修正（2026-10-28）
+
+使用者下載的 `.1400` 已實檔核對：29,263,805 bytes、SHA-256 與 §11.11 相同；執行至 NSIS 覆寫 `AipdmWindowsParsing.exe` 時，出現「無法開啟要寫入的檔案」。使用者已按中止，沒有按忽略或解除安裝。`2026-10-28T02:50:04.5775142Z` 唯讀讀回 registry 仍 `.1393`、服務不存在、installer／configurator／wrapper process 皆無；這是失敗後的狀態，不證明複製瞬間沒有占用。
+
+已確認程式缺陷：pinned WinSW 2.12 的 `stop` 不等待停止完成，現行 NSIS 也未檢查 stop／uninstall 結果就進入 `File /r`。本次實機 Win32 原因仍未知，不能排除 ACL／唯讀屬性或其他占用；標準 token 的 Restart Manager 查詢回 5，holder 記 UNKNOWN。管理員唯讀 PowerShell 診斷未執行：使用者未見 UAC，程序結束但未產生 JSON；直接核對顯示 Windows PowerShell 指令碼政策拒絕。沒有改政策、ACL 或改走其他執行器。
+
+PR #544 在同一切片修正：使用 `stopwait` 並檢查 stop／uninstall 結果；服務移除只接受 SCM 1060，對 0／1072 有界等待；覆寫前對既有 wrapper 以 OPEN_EXISTING 檢查可寫、不寫入 bytes，最長 40 次／250ms 並保留實際 Windows 錯誤碼；禁止跳過檔案，payload 不完整或服務啟動失敗即中止。解除安裝共用同一停止／移除檢查，不強殺未知程序、不放寬 ACL、不改 credential／CAD 資料。
+
+現有 11 個 source contract 與 NSIS 3.11 語法編譯通過，setup 未執行；組合本機測試的 artifact suite 因缺 `pg` 前置依賴未執行，不能宣稱整組通過。focused RD source review 無 P0／P1，指出的 SCM 刪除等待已修正。修正仍待 required CI、正式發布及實機覆蓋安裝驗證；R29 發布收據保留，完整驗收分母不變。

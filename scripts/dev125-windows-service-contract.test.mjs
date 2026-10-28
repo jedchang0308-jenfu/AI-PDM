@@ -138,6 +138,25 @@ test("DEV-125A exact-source installer is admitted into the immutable app image",
   assert.match(affected, /dev125-production-slice-windows-service\.test\.mjs/u);
 });
 
+test("DEV-125 installer waits for teardown and refuses an incomplete overwrite", () => {
+  const installer = read("windows-service/installer/AI-PDM-Windows-Setup.nsi");
+  const teardown = installer.match(/!macro DefineRemoveExistingService Prefix([\s\S]*?)!macroend/u)?.[1] ?? "";
+  assert.match(teardown, /stopwait --no-elevate'\s+Pop \$ServiceResult\s+\$\{If\} \$ServiceResult != 0[\s\S]+Abort/u);
+  assert.doesNotMatch(installer, / stop --no-elevate/u);
+  assert.match(teardown, /uninstall --no-elevate'\s+Pop \$ServiceResult\s+\$\{If\} \$ServiceResult != 0[\s\S]+Abort/u);
+  assert.match(teardown, /\$ServiceResult != 1060[\s\S]+Abort/u);
+  assert.match(teardown, /\$ServiceResult == 1072[\s\S]+\$ServiceRemoveAttempts < 40[\s\S]+Sleep 250[\s\S]+Goto service_remove_wait/u);
+  assert.match(teardown, /CreateFileW\(w "\$INSTDIR\\AipdmWindowsParsing\.exe", i 0x40000000, i 7, p 0, i 3, i 0, p 0\)/u);
+  assert.match(teardown, /Pop \$WrapperOpenError[\s\S]+CloseHandle/u);
+  assert.match(teardown, /StrCmp \$0 "-1" wrapper_busy/u);
+  assert.match(teardown, /\$WrapperOpenAttempts >= 40[\s\S]+DEV125_WRAPPER_NOT_WRITABLE[\s\S]+Abort[\s\S]+Sleep 250/u);
+  assert.match(installer, /Call RemoveExistingService[\s\S]+ClearErrors\s+File \/r[\s\S]+IfErrors 0 payload_ready[\s\S]+Abort/u);
+  assert.match(installer, /Section "Uninstall"[\s\S]+Call un\.RemoveExistingService/u);
+  assert.match(installer, /^AllowSkipFiles off$/mu);
+  assert.match(installer, / start --no-elevate'\s+Pop \$ServiceResult\s+\$\{If\} \$ServiceResult != 0[\s\S]+Abort[\s\S]+ExecShell/u);
+  assert.doesNotMatch(teardown, /taskkill|SetFileAttributes|icacls|RMDir/u);
+});
+
 test("DEV-125A service has one fixed device protocol and no legacy worker credential fallback", () => {
   const service = read("windows-service/service/service.mjs");
   const auth = read("src/lib/windows-service-device-auth.ts");
