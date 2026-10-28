@@ -240,4 +240,3 @@ git diff --check
 - Planner 或 focused test 出現與本切片相關失敗；不得以 UI snapshot 繞過 required gate。
 
 本地 RD PASS 不等於正式角色驗收、獨立 QC 或 production acceptance；發布仍走 AI-PDM protected PR、required CI 與現行 release gate。
-
