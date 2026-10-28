@@ -975,9 +975,14 @@ async function upsertPreviewJob(
   }
 ) {
   const idempotencyKey = buildPreviewJobIdempotencyKey(input);
-  const existing = await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE idempotency_key = :idempotencyKey", {
+  // Keep the database timestamp as text for the CAS token. PostgreSQL can
+  // retain microseconds that a JavaScript Date truncates, which would make an
+  // otherwise valid availability recovery update affect zero rows forever.
+  const existing = await client.queryOne<PreviewJobRow & { updated_at_token: string }>(
+    "SELECT *, CAST(updated_at AS TEXT) AS updated_at_token FROM preview_jobs WHERE idempotency_key = :idempotencyKey", {
     idempotencyKey
-  });
+    }
+  );
   if (existing) {
     if (existing.company_id !== input.companyId) throw new Error("PREVIEW_JOB_COMPANY_CONFLICT");
     const forceResetStatuses = new Set(["succeeded", "failed", "skipped", "cancelled"]);
@@ -1007,7 +1012,7 @@ async function upsertPreviewJob(
         `,
         {
           id: existing.id, previousStatus: existing.status, previousAttempts: existing.attempt_count,
-          previousUpdatedAt: existing.updated_at,
+          previousUpdatedAt: existing.updated_at_token,
           status: input.status,
           attemptCount: availabilityRecovery ? 0 : existing.attempt_count,
           errorCode: input.errorCode,
