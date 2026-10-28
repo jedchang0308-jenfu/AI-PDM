@@ -1,10 +1,10 @@
 # DEV-125：Windows SolidWorks 解析服務與 OpenSWX 退役
 
-狀態：`RELEASED_R29 / INSTALLER_CORRECTIVE_IN_PROGRESS / FORMAL_ACCEPTANCE_IN_PROGRESS / 125-C_OPENSWX_EXIT_COMPLETE`。本文件是 DEV-122／124 移交後唯一後續開發入口；§3～9 為現行 RD 實作、資料、API、發布與驗證契約，§11.11 為 R29 發布證據，§11.12 為最新覆蓋安裝首敗與修正進度，§11.6～11.10 保留前版發布及首敗修正紀錄。OpenSWX 已退出；Windows 自助連結、生命週期與正式原生結果仍須完成驗收，不能因發布成功直接結案。
+狀態：`RELEASED_R30 / USER_PRODUCTION_VALIDATION / 125-C_OPENSWX_EXIT_COMPLETE`。程式修正、required CI、正式發布與 provider 讀回已完成；使用者取消由 AI 執行實機驗收，改由自己在正式環境驗證。§3～9 保留現行資料／API／架構契約，§11.13 為最新交付與驗證分工，§11.6～11.12 保留歷史收據及首敗。實機未執行項目不記 PASS，原始驗收分母保留。
 
 > **2026-10-28 取代聲明：**本次使用者定案完整取代 PR #533 草案的匿名 worker、固定 `windows-parser` 身分、共用 API key、任何可連線 caller 可下載 CAD／取得 Document Manager key／claim／complete，以及「使用者已接受匿名風險」等敘述。使用者從未授權匿名開放。所有 Windows 解析請求必須來自公司 Google SSO 自助連結後建立的單機、單一 Principal、可撤銷裝置身分；無此身分一律拒絕。PR #533 未完成 merge 不得成為實作或發布來源。
 
-`.1400` 實機覆蓋安裝失敗，使用者已中止；目前 registry 仍 `.1393`，舊服務已移除，設定／資料保留。R27 enroll 500 與程式目錄 RX 修正已 R28／R29 發布，但不能據此宣稱本機修復；最新處置見 §11.12。尚未將連結或原生正向驗收判為通過。
+前次 `.1400` 覆蓋安裝失敗並由使用者中止；當次最後讀回 registry `.1393`、舊服務已移除，設定／資料保留。R30 已發布等待服務停止與覆寫失敗處理修正；目前正式安裝包為 `.1405`。後續安裝、Google 連結與原生結果由使用者自行驗證，見 §11.13。
 
 決策來源：2026-10-27 使用者確認直接提供電腦清單、OpenSWX 完整拆除、不雙系統並行；PR #496～#509 完成架構、Windows 裝置／worker source、OpenSWX active source 退役、fixed readback 與受保護發布續接。正式 owner run `40473862392` 已將 exact source `606c5aff0af85c88749f571018a5204417d521b8` 發布並切換 100% traffic；其後完成 OpenSWX DB 排空、provider 資源刪除及 readback。PR #525 合併已刪 provider declarations，PR #526 合併退役 source／diagnostic executors 移除。PR #529～#531 已完成 Windows 安裝修正、same-source installer 發布綁定、artifact 權限隔離及既有 v1 infra receipt 相容修正；現行已發布 source 為 `ef8a7b9ebddc8e820e44874e34cf17c52a670d33`。後續結果須以各切片 exact source／CI／發布讀回為準。
 
@@ -366,3 +366,17 @@ PR #543 source=`59e2eae8afe57bd19434baa8106cdea6b27174b6`；最新 PR CI `406173
 PR #544 在同一切片修正：使用 `stopwait` 並檢查 stop／uninstall 結果；服務移除只接受 SCM 1060，對 0／1072 有界等待；覆寫前對既有 wrapper 以 OPEN_EXISTING 檢查可寫、不寫入 bytes，最長 40 次／250ms 並保留實際 Windows 錯誤碼；禁止跳過檔案，payload 不完整或服務啟動失敗即中止。解除安裝共用同一停止／移除檢查，不強殺未知程序、不放寬 ACL、不改 credential／CAD 資料。
 
 現有 11 個 source contract 與 NSIS 3.11 語法編譯通過，setup 未執行；組合本機測試的 artifact suite 因缺 `pg` 前置依賴未執行，不能宣稱整組通過。focused RD source review 無 P0／P1，指出的 SCM 刪除等待已修正。修正仍待 required CI、正式發布及實機覆蓋安裝驗證；R29 發布收據保留，完整驗收分母不變。
+
+<a id="dev125-r30-release"></a>
+
+### 11.13 R30 正式交付與使用者自行驗證（2026-10-28）
+
+正式來源 `638403b4099bc86245278394d0f01219be235605` 包含 PR #544 的安裝／解除安裝同步停止、有界 SCM／檔案等待與禁止跳過，以及 PR #545 的 DB-free 發布工具載入修正。#545 required PR CI `40624288002`、exact-main CI `40625310026` 與 owner `40626190128` 全成功；#535 official interop 原樣保留，089／090 SQL 未變。沒有新增 IAM、Secret、OrgMaster 或跨專案責任。
+
+revision=`ai-pdm-prod-0184712662fa`，image=`sha256:ef2d895f2a454705899b5dbc41b1e7bebcc928211c8d494ae14c7c09dbdc8e76`。canonical smoke PASS，migration applied 0／replayed 40／ledger 40，execution=`ai-pdm-prod-migration-runner-rswls`，零暫時 tag。固定唯讀 provider `40627703440` 在 `2026-10-28T03:37:56.821Z` 確認 generation 307、Ready／Created 相同、唯一 100% traffic、reconciling=false。完整 immutable refs／hash 見 QA JSON；發布成功與實機功能通過分開記錄。
+
+正式 installer=`0.1.0-ci.1405`、protocol 1、SHA-256=`b0f23fc2fa6430cd7c003fb8b00255f2a8ad143dd5338799a4e46275bebb7156`、main CI artifact `12789196769`，已由 owner 綁入正式映像。正式下載頁已讀取並保留交接截圖。AI 未執行 `.1405` 實機安裝，不推論前次寫檔失敗的確切 Win32 原因；§11.12 的首敗與 UNKNOWN 原樣保留。
+
+使用者最新決定取消 AI 實機驗收，改由自己直接在正式環境驗證。Windows 覆蓋安裝／捷徑、Google 自助連結、三角色／隔離撤權、關機重啟／重裝／多電腦／離線接續、原生三格式／A0001／PDF／辨識及正式 redaction 均交由使用者；未執行項目標為 USER_OWNED_PRODUCTION_VALIDATION，不列 PASS、不刪原驗收項目，也不再以提供三角色帳號作為 AI 發布阻塞。AI 本輪交付範圍為程式、測試、受保護發布、provider 讀回與文件交接，已完成。
+
+使用者從正式 AI-PDM「Windows 解析程式」頁下載 `.1405`、執行安裝／UAC，再由自動開啟的公司 Google 頁面完成連結；無人工註冊碼或逐台管理員核准。若安裝仍無法覆寫，新版會停止並顯示 Windows 代碼，供下一次修正使用。原設定／credential 資料不因本次覆蓋流程刪除。
