@@ -243,3 +243,13 @@ git diff --check
 - Planner 或 focused test 出現與本切片相關失敗；不得以 UI snapshot 繞過 required gate。
 
 本地 RD PASS 不等於正式角色驗收、獨立 QC 或 production acceptance；發布仍走 AI-PDM protected PR、required CI 與現行 release gate。
+
+## 12. P5 續授權 checkpoint（2026-10-28）
+
+使用者已指示續做三 repo 審查合併及真實 non-production SSO，接受本次整鏈 10 GiB 容量風險，並完成 ADC 重新授權；前文 deferred 為上一階段快照，現行主控紀錄在 Platform DEV-021 §12。沒有正式發布／資料／IAM／Secret 操作。
+
+實際使用 non-production Firebase A／B、獨立 AI-PDM service identity、localhost 12020 與 task-owned PostgreSQL 15432 真實 owner migrations。PDM 設為 `firebase_bff`、Platform auth／SSO `on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`，runtime 為非 owner／migrator。Portal 真實 SSO 已首次建立 A 的 PDM profile，`/me` 與 permission projection 200；RD create 為 true，review-decide／settings-admin 為 false。reload 加 `/numbering/search`、`/numbering/drawings`、`/parts` 實際換頁只有 1 次 permission request，無「確認權限中」。本節不宣稱這些空 fixture 頁面的完整業務資料功能通過。
+
+Portal B 的兩個入口 no-access，直接 launch 404；Platform 全域登出後 PDM `/me` 與 projection 均 401。初次 503 分別源自測試設定仍為 legacy、隔離 company code 不符，以及缺少 active role-priority；已以 canonical source／既有預設資料補正，不放寬 guard 或角色。Next auth／SSO request URL logging 已排除，canary 未進 stdout／stderr。
+
+launcher 已覆蓋雙棧所有 listener owner，20 個正反情境與 local-entrypoint QC 通過。PR 與 main 的衝突僅來自 DEV-125／126 文件入口，已保留兩者並同步 main；最新 required CI／merge、Principal 撤權及清理仍由主控完成。之前成功 CI 不代表新增 head 已驗證。
