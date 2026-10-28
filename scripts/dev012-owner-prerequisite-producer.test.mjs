@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import assert from 'node:assert/strict'
@@ -12,6 +13,25 @@ import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-t
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
 const NOW = '2026-09-08T00:00:00.000Z'
+
+test('database-free producer and installer verification load without a PostgreSQL driver', () => {
+  const script = `
+    import { registerHooks } from 'node:module';
+    registerHooks({ resolve(specifier, context, nextResolve) {
+      if (specifier === 'pg') throw new Error('UNEXPECTED_DATABASE_DRIVER_IMPORT');
+      return nextResolve(specifier, context);
+    }});
+    await import('./scripts/dev117-ai-pdm-prerequisite-producer.mjs');
+    await import('./scripts/lib/dev125-windows-installer-artifact.mjs');
+    console.log('PASS_DB_FREE_IMPORTS');
+  `
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: path.resolve(import.meta.dirname, '..'), encoding: 'utf8', windowsHide: true,
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /PASS_DB_FREE_IMPORTS/u)
+})
+
 const profile = {
   application: { id: 'platform', repository: 'owner/platform', branch: 'main' },
   target: { projectId: 'project', runtimeServiceAccount: 'runtime@project.iam.gserviceaccount.com', region: 'region' },

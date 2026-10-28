@@ -4,7 +4,6 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import pg from 'pg'
 
 import { canonicalize, sha256, sourceSha256 } from './lib/dev010-n2-manifest.mjs'
 
@@ -141,6 +140,8 @@ async function executePackage(value, config) {
   if (process.env.DEV010_N1C_EXECUTION_ACK !== 'AI_PDM_STAGING_MIGRATION') fail('DEV010_N1C_AI_PDM_EXECUTION_ACK_REQUIRED')
   const sourceRevision = process.env.DEV010_N1C_SOURCE_REVISION ?? ''
   if (!/^[0-9a-f]{40}$/u.test(sourceRevision)) fail('DEV010_N1C_AI_PDM_SOURCE_REVISION_REQUIRED')
+  // Pure package/release producers do not open a database or need its driver.
+  const { default: pg } = await import('pg')
   const client = new pg.Client({
     host: process.env.PDM_CLOUD_SQL_HOST ?? '127.0.0.1',
     port: Number(process.env.PDM_CLOUD_SQL_PORT ?? 5432),
