@@ -16,7 +16,7 @@ const source = fs.readFileSync(path.resolve("src/lib/numbering-permission-codes.
 const codes = name => [...source.match(new RegExp("export const " + name + " = \\[([\\s\\S]*?)\\] as const"))[1].matchAll(/"([^"]+)"/gu)].map(match => match[1]);
 const pages = codes("NUMBERING_PAGE_PERMISSION_CODES");
 const actions = codes("NUMBERING_ACTION_PERMISSION_CODES");
-const output = path.resolve("output/playwright/dev126");
+const output = path.resolve("output/playwright/dev126", base.port);
 fs.mkdirSync(output, { recursive: true });
 const git = args => execFileSync("git", args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");

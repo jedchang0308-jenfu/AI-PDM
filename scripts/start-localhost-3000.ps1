@@ -51,11 +51,48 @@ function Get-OwnerProcessInfo {
   Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerProcessId" -ErrorAction SilentlyContinue
 }
 
+function Get-NativeProcessStartToken {
+  param([int]$OwnerProcessId)
+  try { return (Get-Process -Id $OwnerProcessId -ErrorAction Stop).StartTime.ToUniversalTime().ToFileTimeUtc().ToString() }
+  catch { return "" }
+}
+
+function Test-ProcessCommandOwnsProject {
+  param($ProcessInfo)
+  if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe' -or -not $ProcessInfo.CommandLine) { return $false }
+  $commandLine = $ProcessInfo.CommandLine.ToLowerInvariant().Replace('/', '\')
+  $rootMatches = $commandLine.Contains('"' + $ProjectRootLower + '"') -or $commandLine.Contains($ProjectRootLower + '\')
+  return $rootMatches -and ($commandLine.Contains("next") -or $commandLine.Contains("npm"))
+}
+
+function Read-RecordedLauncherProof {
+  try {
+    if (-not (Test-Path -LiteralPath $StatusFile -PathType Leaf)) { return $null }
+    $record = Get-Content -LiteralPath $StatusFile -Raw | ConvertFrom-Json
+    if ($record.app -ne 'AI_PDM' -or [int]$record.port -ne $Port -or [int]$record.launcherProcessId -le 0 -or -not $record.launcherStartToken) { return $null }
+    if ([IO.Path]::GetFullPath([string]$record.worktree).TrimEnd('\') -ne $ProjectRoot.TrimEnd('\')) { return $null }
+    if ((Get-NativeProcessStartToken -OwnerProcessId $record.launcherProcessId) -ne [string]$record.launcherStartToken) { return $null }
+    return $record
+  } catch { return $null }
+}
+
 function Test-IsProjectProcess {
   param($ProcessInfo)
-  if (-not $ProcessInfo -or -not $ProcessInfo.CommandLine) { return $false }
-  $commandLine = $ProcessInfo.CommandLine.ToLowerInvariant()
-  return $commandLine.Contains($ProjectRootLower) -and ($commandLine.Contains("next") -or $commandLine.Contains("npm"))
+  if (Test-ProcessCommandOwnsProject -ProcessInfo $ProcessInfo) { return $true }
+  $proof = Read-RecordedLauncherProof
+  if (-not $proof) { return $false }
+  $seen = @{}
+  $current = $ProcessInfo
+  for ($depth = 0; $depth -lt 8 -and $current; $depth++) {
+    $currentId = [int]$current.ProcessId
+    if ($currentId -le 0 -or $seen.ContainsKey($currentId)) { return $false }
+    $seen[$currentId] = $true
+    if ($currentId -eq [int]$proof.launcherProcessId) { return (Test-ProcessCommandOwnsProject -ProcessInfo $current) }
+    $parent = Get-OwnerProcessInfo -OwnerProcessId ([int]$current.ParentProcessId)
+    if (-not $parent -or -not $current.CreationDate -or -not $parent.CreationDate -or $parent.CreationDate -gt $current.CreationDate) { return $false }
+    $current = $parent
+  }
+  return $false
 }
 
 function Get-CurrentPortOwner {
@@ -100,11 +137,13 @@ function Write-RuntimeStatus {
   param([string]$State, [int]$LauncherProcessId = 0, [int]$PortOwnerProcessId = 0, $PortOwnerProcessInfo = $null, $Health = $null, [string]$Message = "")
   [ordered]@{
     app = "AI_PDM"
+    worktree = $ProjectRoot
     purpose = "local web development"
     port = $Port
     url = $Url
     state = $State
     launcherProcessId = $LauncherProcessId
+    launcherStartToken = if ($LauncherProcessId -gt 0) { Get-NativeProcessStartToken -OwnerProcessId $LauncherProcessId } else { "" }
     portOwnerProcessId = $PortOwnerProcessId
     portOwnerProcessName = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.Name } else { "" }
     dataDir = $DataDir
@@ -140,7 +179,9 @@ if ($owner.ProcessId -gt 0) {
   else {
     $health = Test-LocalHttpHealth
     if ($health.Healthy -and -not $RestartProjectProcess) {
-      Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "Existing AI_PDM web server is healthy."
+      $proof = Read-RecordedLauncherProof
+      $existingLauncherId = if ($proof) { [int]$proof.launcherProcessId } else { 0 }
+      Write-RuntimeStatus -State "healthy_existing" -LauncherProcessId $existingLauncherId -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "Existing AI_PDM web server is healthy."
       Write-Host "AI_PDM is healthy."
       Write-Host "Local URL: $Url"
       if (-not $CheckOnly) { Open-LocalPage }
@@ -185,7 +226,8 @@ if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
   throw "Could not resolve npm's JavaScript CLI next to npm.cmd."
 }
 $quotedNpmCli = '"' + $NpmCli.Replace('"', '\"') + '"'
-$npmArguments = "$quotedNpmCli run dev:server"
+$quotedProjectRoot = '"' + $ProjectRoot.Replace('"', '\"') + '"'
+$npmArguments = "$quotedNpmCli --prefix $quotedProjectRoot run dev:server"
 if ($Port -ne 1020) {
   $npmArguments += " -- --port $Port"
 }
