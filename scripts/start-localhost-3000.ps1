@@ -59,17 +59,20 @@ function Get-NativeProcessStartToken {
 
 function Test-ProcessCommandOwnsProject {
   param($ProcessInfo)
-  if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe' -or -not $ProcessInfo.CommandLine) { return $false }
-  $commandLine = $ProcessInfo.CommandLine.ToLowerInvariant().Replace('/', '\')
-  $rootMatches = $commandLine.Contains('"' + $ProjectRootLower + '"') -or $commandLine.Contains($ProjectRootLower + '\')
-  return $rootMatches -and ($commandLine.Contains("next") -or $commandLine.Contains("npm"))
+  if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe' -or -not $ProcessInfo.CommandLine -or -not $ProcessInfo.ExecutablePath) { return $false }
+  if ([IO.Path]::GetFullPath($ProcessInfo.ExecutablePath) -ne $NodeExe) { return $false }
+  # Match the complete invocation emitted below. An incidental root argument,
+  # path traversal, or a different --prefix must never prove ownership.
+  $expected = @(( '"' + $NodeExe + '" ' + $npmArguments ), ( $NodeExe + ' ' + $npmArguments ))
+  return $expected -contains ([string]$ProcessInfo.CommandLine).Trim()
 }
 
 function Read-RecordedLauncherProof {
   try {
     if (-not (Test-Path -LiteralPath $StatusFile -PathType Leaf)) { return $null }
     $record = Get-Content -LiteralPath $StatusFile -Raw | ConvertFrom-Json
-    if ($record.app -ne 'AI_PDM' -or [int]$record.port -ne $Port -or [int]$record.launcherProcessId -le 0 -or -not $record.launcherStartToken) { return $null }
+    if ($record.app -ne 'AI_PDM' -or [int]$record.port -ne $Port -or [int]$record.launcherProcessId -le 0 -or -not $record.launcherStartToken -or -not $record.launcherExecutablePath) { return $null }
+    if ([IO.Path]::GetFullPath([string]$record.launcherExecutablePath) -ne $NodeExe) { return $null }
     if ([IO.Path]::GetFullPath([string]$record.worktree).TrimEnd('\') -ne $ProjectRoot.TrimEnd('\')) { return $null }
     if ((Get-NativeProcessStartToken -OwnerProcessId $record.launcherProcessId) -ne [string]$record.launcherStartToken) { return $null }
     return $record
@@ -78,7 +81,6 @@ function Read-RecordedLauncherProof {
 
 function Test-IsProjectProcess {
   param($ProcessInfo)
-  if (Test-ProcessCommandOwnsProject -ProcessInfo $ProcessInfo) { return $true }
   $proof = Read-RecordedLauncherProof
   if (-not $proof) { return $false }
   $seen = @{}
@@ -89,7 +91,7 @@ function Test-IsProjectProcess {
     $seen[$currentId] = $true
     if ($currentId -eq [int]$proof.launcherProcessId) { return (Test-ProcessCommandOwnsProject -ProcessInfo $current) }
     $parent = Get-OwnerProcessInfo -OwnerProcessId ([int]$current.ParentProcessId)
-    if (-not $parent -or -not $current.CreationDate -or -not $parent.CreationDate -or $parent.CreationDate -gt $current.CreationDate) { return $false }
+    if (-not $parent -or -not $current.CreationDate -or -not $parent.CreationDate -or $parent.CreationDate -ge $current.CreationDate) { return $false }
     $current = $parent
   }
   return $false
@@ -144,6 +146,7 @@ function Write-RuntimeStatus {
     state = $State
     launcherProcessId = $LauncherProcessId
     launcherStartToken = if ($LauncherProcessId -gt 0) { Get-NativeProcessStartToken -OwnerProcessId $LauncherProcessId } else { "" }
+    launcherExecutablePath = if ($LauncherProcessId -gt 0) { $NodeExe } else { "" }
     portOwnerProcessId = $PortOwnerProcessId
     portOwnerProcessName = if ($PortOwnerProcessInfo) { $PortOwnerProcessInfo.Name } else { "" }
     dataDir = $DataDir
@@ -164,6 +167,23 @@ function Stop-VerifiedProjectOwner {
   param([int]$OwnerProcessId)
   Stop-Process -Id $OwnerProcessId -Force
   if (-not (Wait-PortReleased)) { throw "Port $Port did not release after stopping verified PID $OwnerProcessId." }
+}
+
+# Resolve one exact invocation for both startup and subsequent ownership checks.
+$NodeExe = [IO.Path]::GetFullPath((Get-Command node.exe -ErrorAction Stop).Source)
+$NpmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
+$NpmCli = Join-Path (Split-Path $NpmCommand -Parent) "node_modules\npm\bin\npm-cli.js"
+if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
+  throw "Could not resolve npm's JavaScript CLI next to npm.cmd."
+}
+$quotedNpmCli = '"' + $NpmCli.Replace('"', '\"') + '"'
+$quotedProjectRoot = '"' + $ProjectRoot.Replace('"', '\"') + '"'
+$npmArguments = "$quotedNpmCli --prefix $quotedProjectRoot run dev:server"
+if ($Port -ne 1020) { $npmArguments += " -- --port $Port" }
+# Turbopack cannot follow an externally reused node_modules junction outside its root.
+if ((Get-Item -LiteralPath (Join-Path $ProjectRoot "node_modules") -ErrorAction Stop).LinkType) {
+  if ($Port -eq 1020) { $npmArguments += " --" }
+  $npmArguments += " --webpack"
 }
 
 Ensure-TaskDirectories
@@ -219,23 +239,6 @@ Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile, $StatusFile -ErrorAct
 
 Write-Host "Starting AI_PDM local web server."
 Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start or stop a fallback worker."
-$NodeExe = (Get-Command node.exe -ErrorAction Stop).Source
-$NpmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
-$NpmCli = Join-Path (Split-Path $NpmCommand -Parent) "node_modules\npm\bin\npm-cli.js"
-if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
-  throw "Could not resolve npm's JavaScript CLI next to npm.cmd."
-}
-$quotedNpmCli = '"' + $NpmCli.Replace('"', '\"') + '"'
-$quotedProjectRoot = '"' + $ProjectRoot.Replace('"', '\"') + '"'
-$npmArguments = "$quotedNpmCli --prefix $quotedProjectRoot run dev:server"
-if ($Port -ne 1020) {
-  $npmArguments += " -- --port $Port"
-}
-# Turbopack cannot follow an externally reused node_modules junction outside its root.
-if ((Get-Item -LiteralPath (Join-Path $ProjectRoot "node_modules") -ErrorAction Stop).LinkType) {
-  if ($Port -eq 1020) { $npmArguments += " --" }
-  $npmArguments += " --webpack"
-}
 $process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
 Set-Content -LiteralPath $PidFile -Value ([string]$process.Id) -Encoding ascii
 Write-RuntimeStatus -State "starting" -LauncherProcessId $process.Id -Message "Waiting for local HTTP health."
