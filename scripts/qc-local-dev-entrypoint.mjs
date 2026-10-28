@@ -188,7 +188,7 @@ const stopProcessIndex = launcher.indexOf("Stop-Process -Id $OwnerProcessId -For
 const restartGateIndex = launcher.indexOf("if (-not $RestartProjectProcess)");
 const foreignRejectIndex = launcher.indexOf("if ($StopForeignProcess)");
 const foreignOwnerBranch = launcher.match(/if \(-not \$isProject\) \{([\s\S]*?)\n  \}\s*else \{/);
-const setupIndex = launcher.search(/Ensure-TaskDirectories\r?\n\$owner =/);
+const setupIndex = launcher.search(/Ensure-TaskDirectories\r?\n\$(?:owner|owners)\s*=/);
 if (stopProcessIndex === -1 || restartGateIndex === -1 || foreignRejectIndex === -1 || foreignRejectIndex > setupIndex) {
   failures.push("managed launcher must gate project termination behind restart and reject foreign-stop requests before side effects");
 }

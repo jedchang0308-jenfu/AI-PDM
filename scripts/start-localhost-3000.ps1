@@ -98,10 +98,20 @@ function Test-IsProjectProcess {
 }
 
 function Get-CurrentPortOwner {
-  $listener = Get-PortListeners | Select-Object -First 1
-  if (-not $listener) { return @{ ProcessId = 0; ProcessInfo = $null } }
-  $ownerPid = [int]$listener.OwningProcess
-  return @{ ProcessId = $ownerPid; ProcessInfo = Get-OwnerProcessInfo -OwnerProcessId $ownerPid }
+  $ownerPids = @(Get-PortListeners | ForEach-Object { [int]$_.OwningProcess } | Sort-Object -Unique)
+  foreach ($ownerPid in $ownerPids) {
+    $processInfo = Get-OwnerProcessInfo -OwnerProcessId $ownerPid
+    [pscustomobject]@{
+      ProcessId = $ownerPid
+      ProcessInfo = $processInfo
+      IsProject = [bool](Test-IsProjectProcess -ProcessInfo $processInfo)
+    }
+  }
+}
+
+function Get-UnverifiedPortOwners {
+  param([object[]]$Owners)
+  @($Owners | Where-Object { -not $_.IsProject })
 }
 
 function Wait-PortReleased {
@@ -160,7 +170,20 @@ function Write-RuntimeStatus {
 }
 
 function Open-LocalPage {
-  if (-not $NoBrowser) { Start-Process $Url }
+  if (-not $NoBrowser) {
+    $owners = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $owners)
+    if ($unverifiedOwners.Count -gt 0) {
+      $owner = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; refusing to open localhost."
+    }
+    if ($owners.Count -eq 0) {
+      Write-RuntimeStatus -State "unhealthy_existing" -Message "No port listener remained before opening localhost."
+      throw "Port $Port has no listener before opening localhost."
+    }
+    Start-Process $Url
+  }
 }
 
 function Stop-VerifiedProjectOwner {
@@ -187,17 +210,31 @@ if ((Get-Item -LiteralPath (Join-Path $ProjectRoot "node_modules") -ErrorAction 
 }
 
 Ensure-TaskDirectories
-$owner = Get-CurrentPortOwner
-if ($owner.ProcessId -gt 0) {
-  $isProject = Test-IsProjectProcess -ProcessInfo $owner.ProcessInfo
+$owners = @(Get-CurrentPortOwner)
+if ($owners.Count -gt 0) {
+  $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $owners)
+  $owner = if ($unverifiedOwners.Count -gt 0) { $unverifiedOwners[0] } else { $owners[0] }
+  $isProject = [bool]$owner.IsProject
   $ownerName = if ($owner.ProcessInfo) { $owner.ProcessInfo.Name } else { "unknown" }
   Write-Host "Port $Port owner: PID $($owner.ProcessId) ($ownerName)"
   if (-not $isProject) {
-    Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "Port is owned by another process."
-    throw "Port $Port is occupied by a process outside this worktree; foreign process termination is prohibited."
+    Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Message "At least one listener on this port is not owned by this worktree."
+    throw "Port $Port has a listener outside this worktree; foreign process termination is prohibited."
   }
   else {
     $health = Test-LocalHttpHealth
+    $ownersAfterHealth = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $ownersAfterHealth)
+    if ($unverifiedOwners.Count -gt 0) {
+      $owner = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; foreign process termination is prohibited."
+    }
+    $owner = $ownersAfterHealth | Select-Object -First 1
+    if (-not $owner) {
+      Write-RuntimeStatus -State "unhealthy_existing" -Health $health -Message "No port listener remained after the health check."
+      throw "Port $Port has no listener after the health check."
+    }
     if ($health.Healthy -and -not $RestartProjectProcess) {
       $proof = Read-RecordedLauncherProof
       $existingLauncherId = if ($proof) { [int]$proof.launcherProcessId } else { 0 }
@@ -252,7 +289,18 @@ do {
   }
   $health = Test-LocalHttpHealth
   if ($health.Healthy) {
-    $current = Get-CurrentPortOwner
+    $currentOwners = @(Get-CurrentPortOwner)
+    $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $currentOwners)
+    if ($unverifiedOwners.Count -gt 0) {
+      $current = $unverifiedOwners[0]
+      Write-RuntimeStatus -State "blocked_foreign_process" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "At least one listener on this port is not owned by this worktree."
+      throw "Port $Port has a listener outside this worktree; refusing to open localhost."
+    }
+    $current = $currentOwners | Select-Object -First 1
+    if (-not $current) {
+      Write-RuntimeStatus -State "unhealthy_existing" -LauncherProcessId $process.Id -Health $health -Message "No port listener remained after the health check."
+      throw "Port $Port has no listener after the health check."
+    }
     Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "AI_PDM web server is healthy."
     Write-Host "AI_PDM is healthy."
     Write-Host "Local URL: $Url"
@@ -262,7 +310,8 @@ do {
   Start-Sleep -Milliseconds 500
 } while ([DateTime]::UtcNow -lt $deadline)
 
-$current = Get-CurrentPortOwner
+$currentOwners = @(Get-CurrentPortOwner)
+$current = $currentOwners | Select-Object -First 1
 Write-RuntimeStatus -State "startup_timeout" -LauncherProcessId $process.Id -PortOwnerProcessId $current.ProcessId -PortOwnerProcessInfo $current.ProcessInfo -Health $health -Message "AI_PDM did not become healthy within the timeout."
 Get-Content -LiteralPath $StdoutLog -ErrorAction SilentlyContinue | Select-Object -Last 80
 Get-Content -LiteralPath $StderrLog -ErrorAction SilentlyContinue | Select-Object -Last 80
