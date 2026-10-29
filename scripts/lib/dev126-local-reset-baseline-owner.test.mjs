@@ -27,6 +27,7 @@ const AUTHORITY = Object.freeze({
 const CONTROL_RELATIONS = DEV126_LOCAL_RESET_BASELINE_POLICY.controlRelations
 const POINTER_SOURCES = DEV126_LOCAL_RESET_BASELINE_POLICY.pointerSources
 const PDM_OWNER_ROLE = DEV126_LOCAL_RESET_BASELINE_POLICY.ownerRole
+const SCOPED_OWNER_LOGIN = 'local_pdm_seed_0123456789abcdef'
 
 function hash(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
@@ -89,7 +90,7 @@ async function setup(t) {
     connection: {
       databaseName: DATABASE_NAME,
       currentUser: 'jenfu_ai_pdm_migrator',
-      sessionUser: 'jenfu_ai_pdm_migrator',
+      sessionUser: SCOPED_OWNER_LOGIN,
       serverAddress: '127.0.0.1',
       serverPort: 5432,
     },
@@ -192,6 +193,12 @@ test('captures, verifies, and reuses an immutable semantic snapshot under sandbo
   assert.equal(storedManifest.databaseDump.file, 'ai-pdm-core.data.dump')
   assert.deepEqual(storedManifest.database.excludedRelations, CONTROL_RELATIONS)
   assert.deepEqual(storedManifest.database.includedRelations, ['companies', 'file_assets', 'parts'])
+  assert.equal(storedManifest.database.ownerConnection.currentUser, PDM_OWNER_ROLE)
+  assert.equal(storedManifest.database.ownerConnection.sessionUser, SCOPED_OWNER_LOGIN)
+  assert.match(storedManifest.database.ownerConnection.sessionUser, /^local_pdm_seed_[a-f0-9]{16}$/u)
+  assert.equal(storedManifest.database.runtimeTargetObservation.connection.currentUser, 'local_runtime')
+  assert.notEqual(storedManifest.database.ownerConnection.currentUser,
+    storedManifest.database.runtimeTargetObservation.connection.currentUser)
   assert.deepEqual(storedManifest.repository.pointers.map(({ sourceTable, sourceId, key }) => ({ sourceTable, sourceId, key })), [
     { sourceTable: 'file_assets', sourceId: 'asset-1', key: input.storageKey },
   ])
@@ -247,6 +254,34 @@ test('rejects fixture/profile or actual database target drift', async (t) => {
   }), { code: 'dev126_reset_baseline_target_mismatch' })
   input.snapshot.connection.currentUser = 'postgres'
   await assert.rejects(capture(input), { code: 'dev126_reset_baseline_target_mismatch' })
+})
+
+test('rejects unscoped owner login provenance in live snapshot and stored manifest', async (t) => {
+  const input = await setup(t)
+  input.snapshot.connection.sessionUser = PDM_OWNER_ROLE
+  await assert.rejects(capture(input), { code: 'dev126_reset_baseline_target_mismatch' })
+
+  input.snapshot.connection.sessionUser = SCOPED_OWNER_LOGIN
+  const captured = await capture(input)
+  const manifestPath = path.join(captured.directory, 'manifest.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+  manifest.database.ownerConnection.sessionUser = 'jenfu_ai_pdm_migrator'
+  manifest.stateDigest = contractDigest({
+    formatVersion: manifest.formatVersion,
+    baselineId: manifest.baselineId,
+    sourceRevision: manifest.sourceRevision,
+    target: manifest.target,
+    database: manifest.database,
+    repository: { pointers: manifest.repository.pointers, objects: manifest.repository.objects },
+  })
+  await writeFile(manifestPath, JSON.stringify(manifest))
+  await assert.rejects(verifyDev126LocalResetBaseline({
+    targetInput: input.targetInput,
+    runtimeTargetReader: input.runtimeTargetReader,
+    baselineId: 'dev126-initial',
+    sourceRevision: SOURCE_REVISION,
+    owner: input.owner,
+  }), { code: 'dev126_reset_baseline_corrupt' })
 })
 
 test('requires the configured loopback endpoint and empty local principal registries', async (t) => {

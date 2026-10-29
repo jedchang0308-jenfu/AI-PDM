@@ -10,6 +10,7 @@ const SCHEMA = baselinePolicy.schema
 const CONTROL_RELATIONS = baselinePolicy.controlRelations
 const POINTER_SOURCES = baselinePolicy.pointerSources
 const SNAPSHOT_ID = /^[0-9a-f]+-[0-9a-f]+-[0-9]+$/iu
+const SCOPED_LOGIN_ROLE = /^local_pdm_seed_[a-f0-9]{16}$/u
 const HASH = /^[a-f0-9]{64}$/u
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/u
 const OWNER_CONNECTION_SQL = `
@@ -203,12 +204,24 @@ async function rows(client, sql, values = []) {
   return result.rows
 }
 
-function validateConnection(connection, expected) {
+function validateConnectionEndpoint(connection, expected) {
   if (!connection || connection.database_name !== expected.databaseName ||
-    connection.current_user !== OWNER_ROLE || connection.session_user !== OWNER_ROLE ||
-    !isLoopbackHost(connection.server_address) ||
-    !sameHost(expected.databaseHost, connection.server_address) ||
+    !isLoopbackHost(connection.server_address) || !sameHost(expected.databaseHost, connection.server_address) ||
     Number(connection.server_port) !== expected.databasePort) fail('local_reset_owner_connection_mismatch')
+}
+
+function validateLoginConnection(connection, expected, ownerLogin) {
+  validateConnectionEndpoint(connection, expected)
+  if (connection.current_user !== ownerLogin || connection.session_user !== ownerLogin) {
+    fail('local_reset_owner_login_connection_mismatch')
+  }
+}
+
+function validateOwnerConnection(connection, expected, ownerLogin) {
+  validateConnectionEndpoint(connection, expected)
+  if (!connection || connection.database_name !== expected.databaseName ||
+    connection.current_user !== OWNER_ROLE || connection.session_user !== ownerLogin ||
+    !SCOPED_LOGIN_ROLE.test(connection.session_user ?? '')) fail('local_reset_owner_role_switch_mismatch')
   return Object.freeze({
     databaseName: connection.database_name,
     currentUser: connection.current_user,
@@ -280,13 +293,14 @@ function buildDumpArguments(expected, snapshotId) {
     '--no-owner',
     '--no-privileges',
     '--schema=ai_pdm_core',
+    `--role=${OWNER_ROLE}`,
     `--snapshot=${snapshotId}`,
     '--lock-wait-timeout=5000',
     ...CONTROL_RELATIONS.map((name) => `--exclude-table-data=ai_pdm_core.${name}`),
   ])
 }
 
-function dumpEnvironment(environment, expected) {
+function dumpEnvironment(environment, expected, ownerLogin) {
   const childEnvironment = {}
   for (const name of [
     'PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'APPDATA',
@@ -295,7 +309,7 @@ function dumpEnvironment(environment, expected) {
     const key = Object.keys(environment).find((candidate) => candidate.toLowerCase() === name.toLowerCase())
     if (key && typeof environment[key] === 'string') childEnvironment[name] = environment[key]
   }
-  childEnvironment.PGUSER = OWNER_ROLE
+  childEnvironment.PGUSER = ownerLogin
   childEnvironment.PGHOST = expected.databaseHost
   childEnvironment.PGPORT = String(expected.databasePort)
   childEnvironment.PGDATABASE = expected.databaseName
@@ -355,7 +369,9 @@ function credentialSourceAvailable(environment) {
 
 /**
  * Build the PDM-only offline owner snapshot adapter. The runtime observation
- * remains separate; this connection authenticates as the fixed migrator owner.
+ * remains separate; this connection authenticates as a task-scoped LOGIN and
+ * uses SET LOCAL ROLE for the fixed migrator owner. environment.PGUSER must
+ * match local_pdm_seed_[a-f0-9]{16}; credentials come from PGPASSWORD or PGPASSFILE.
  * Neither Pool nor pg_dump is invoked until captureAiPdmCoreSnapshot is called.
  */
 export function createDev126LocalPostgresSnapshotOwner({
@@ -370,12 +386,16 @@ export function createDev126LocalPostgresSnapshotOwner({
   return Object.freeze({
     async captureAiPdmCoreSnapshot(input) {
       const { target, expected, runtimeTargetObservation } = validateInput(input)
+      const ownerLogin = environment.PGUSER
+      if (typeof ownerLogin !== 'string' || !SCOPED_LOGIN_ROLE.test(ownerLogin)) {
+        fail('local_reset_owner_login_role_invalid')
+      }
       if (!credentialSourceAvailable(environment)) fail('local_reset_owner_credentials_unavailable')
       const poolOptions = {
         host: expected.databaseHost,
         port: expected.databasePort,
         database: expected.databaseName,
-        user: OWNER_ROLE,
+        user: ownerLogin,
         max: 1,
         connectionTimeoutMillis: 5000,
         statement_timeout: 120000,
@@ -389,11 +409,15 @@ export function createDev126LocalPostgresSnapshotOwner({
         pool = new Pool(poolOptions)
         client = await pool.connect()
         await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
-        const connection = validateConnection(oneRow(await client.query(OWNER_CONNECTION_SQL),
-          'local_reset_owner_connection_readback_invalid'), expected)
+        const loginConnection = oneRow(await client.query(OWNER_CONNECTION_SQL),
+          'local_reset_owner_connection_readback_invalid')
+        validateLoginConnection(loginConnection, expected, ownerLogin)
         const txReadOnly = oneRow(await client.query('SHOW transaction_read_only'),
           'local_reset_owner_transaction_mode_invalid')
         if (txReadOnly.transaction_read_only !== 'on') fail('local_reset_owner_transaction_mode_invalid')
+        await client.query(`SET LOCAL ROLE ${OWNER_ROLE}`)
+        const connection = validateOwnerConnection(oneRow(await client.query(OWNER_CONNECTION_SQL),
+          'local_reset_owner_connection_readback_invalid'), expected, ownerLogin)
         const exportedSnapshot = oneRow(await client.query('SELECT pg_catalog.pg_export_snapshot() AS snapshot_id'),
           'local_reset_owner_snapshot_unavailable')
         const snapshotId = String(exportedSnapshot.snapshot_id ?? '')
@@ -439,7 +463,7 @@ export function createDev126LocalPostgresSnapshotOwner({
         const pointers = await collectPointers(client, target.repositoryDirectory)
         const dataDump = await runPgDump(spawn,
           process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump',
-          buildDumpArguments(expected, snapshotId), dumpEnvironment(environment, expected))
+          buildDumpArguments(expected, snapshotId), dumpEnvironment(environment, expected, ownerLogin))
         const includedRelations = relations.map((relation) => relation.name)
           .filter((name) => !CONTROL_RELATIONS.includes(name)).sort()
         await client.query('COMMIT')
@@ -470,6 +494,8 @@ export function createDev126LocalPostgresSnapshotOwner({
 export const DEV126_LOCAL_POSTGRES_SNAPSHOT_OWNER_POLICY = Object.freeze({
   schema: SCHEMA,
   ownerRole: OWNER_ROLE,
+  scopedLoginPattern: 'local_pdm_seed_[a-f0-9]{16}',
+  roleSwitch: `SET LOCAL ROLE ${OWNER_ROLE}`,
   controlRelations: CONTROL_RELATIONS,
   pointerSources: POINTER_SOURCES,
   dumpExecutable: process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump',

@@ -11,6 +11,7 @@ const MANIFEST_FILE = 'manifest.json'
 const CONTROL_ROOT_PARTS = ['control', 'dev126-reset-baselines']
 const SCHEMA = 'ai_pdm_core'
 const PDM_OWNER_ROLE = 'jenfu_ai_pdm_migrator'
+const SCOPED_OWNER_LOGIN_ROLE = /^local_pdm_seed_[a-f0-9]{16}$/u
 const HASH = /^[a-f0-9]{64}$/u
 const REVISION = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/u
@@ -291,6 +292,14 @@ function validateAuthority(authority) {
   return Object.freeze({ ...authority })
 }
 
+function validOwnerConnection(connection, expectedDatabaseName) {
+  return exactKeys(connection, ['databaseName', 'currentUser', 'sessionUser', 'serverAddress', 'serverPort']) &&
+    connection.databaseName === expectedDatabaseName && connection.currentUser === PDM_OWNER_ROLE &&
+    SCOPED_OWNER_LOGIN_ROLE.test(connection.sessionUser ?? '') && connection.sessionUser !== connection.currentUser &&
+    isLoopbackHost(connection.serverAddress) && Number.isSafeInteger(connection.serverPort) &&
+    connection.serverPort >= 1 && connection.serverPort <= 65535
+}
+
 function validateSnapshot(snapshot, target, expected, expectedProfile, runtimeTargetObservation) {
   if (!exactKeys(snapshot, [
     'snapshotId', 'connection', 'targetMetadata', 'schemaOwner', 'authority',
@@ -298,10 +307,7 @@ function validateSnapshot(snapshot, target, expected, expectedProfile, runtimeTa
   ])) fail('dev126_reset_baseline_unavailable')
 
   if (typeof snapshot.snapshotId !== 'string' || snapshot.snapshotId.length === 0 || snapshot.snapshotId.length > 256 ||
-    !exactKeys(snapshot.connection, ['databaseName', 'currentUser', 'sessionUser', 'serverAddress', 'serverPort']) ||
-    snapshot.connection.databaseName !== expected.databaseName ||
-    snapshot.connection.currentUser !== PDM_OWNER_ROLE || snapshot.connection.sessionUser !== PDM_OWNER_ROLE ||
-    !isLoopbackHost(snapshot.connection.serverAddress) ||
+    !validOwnerConnection(snapshot.connection, expected.databaseName) ||
     !databaseHostMatches(expected.databaseHost, snapshot.connection.serverAddress) ||
     snapshot.connection.serverPort !== expected.databasePort ||
     snapshot.schemaOwner !== PDM_OWNER_ROLE ||
@@ -541,6 +547,7 @@ function validateManifest(manifest, baselineId) {
     !HASH.test(manifest.databaseDump.sha256 ?? '') || !Number.isSafeInteger(manifest.databaseDump.bytes) ||
     manifest.databaseDump.bytes <= 0 || !isRecord(manifest.target) || !isRecord(manifest.database) ||
     !exactKeys(manifest.repository, ['pointers', 'objects', 'contentObjects']) ||
+    !validOwnerConnection(manifest.database?.ownerConnection, manifest.target?.databaseName) ||
     !Array.isArray(manifest.repository.pointers) || !Array.isArray(manifest.repository.objects) ||
     !Array.isArray(manifest.repository.contentObjects)) fail('dev126_reset_baseline_corrupt')
 

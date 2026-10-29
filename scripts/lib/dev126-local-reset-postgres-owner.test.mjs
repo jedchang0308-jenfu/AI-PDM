@@ -11,6 +11,7 @@ import {
 } from './dev126-local-reset-postgres-owner.mjs'
 
 const OWNER = DEV126_LOCAL_RESET_BASELINE_POLICY.ownerRole
+const SCOPED_LOGIN = 'local_pdm_seed_0123456789abcdef'
 const RUNTIME = 'jenfu_ai_pdm_runtime'
 const DATABASE = 'jenfu_local_dev126_owner_test'
 const SANDBOX = 'dev126-owner-test'
@@ -84,20 +85,35 @@ function makeHarness(options = {}) {
     source_id: 'asset-1', provider: 'local_repository', key: 'assets/sample.pdf',
     legacy_path: null, sha256: 'b'.repeat(64), bytes: '17',
   }] : [])
+  let connectionReadCount = 0
 
   const client = {
     async query(sql, values = []) {
       const normalized = sql.trim()
       queries.push({ sql: normalized, values })
       if (normalized.startsWith('BEGIN ')) return { rows: [] }
+      if (normalized === `SET LOCAL ROLE ${OWNER}`) {
+        events.push('role-switch')
+        return { rows: [] }
+      }
       if (normalized === 'COMMIT' || normalized === 'ROLLBACK') {
         events.push(normalized)
         return { rows: [] }
       }
-      if (normalized.includes('current_database()')) return { rows: [options.connection ?? {
-        database_name: DATABASE, current_user: OWNER, session_user: OWNER,
-        server_address: '127.0.0.1', server_port: 15432,
-      }] }
+      if (normalized.includes('current_database()')) {
+        connectionReadCount += 1
+        const defaultConnection = connectionReadCount === 1 ? {
+          database_name: DATABASE, current_user: SCOPED_LOGIN, session_user: SCOPED_LOGIN,
+          server_address: '127.0.0.1', server_port: 15432,
+        } : {
+          database_name: DATABASE, current_user: OWNER, session_user: SCOPED_LOGIN,
+          server_address: '127.0.0.1', server_port: 15432,
+        }
+        const connection = connectionReadCount === 1
+          ? (options.loginConnection ?? defaultConnection)
+          : (options.ownerConnection ?? defaultConnection)
+        return { rows: [connection] }
+      }
       if (normalized === 'SHOW transaction_read_only') return { rows: [{ transaction_read_only: 'on' }] }
       if (normalized.includes('pg_export_snapshot')) return { rows: [{ snapshot_id: '00000003-00000001-1' }] }
       if (normalized.includes('FROM pg_catalog.pg_namespace')) {
@@ -153,7 +169,7 @@ function makeHarness(options = {}) {
 
   const environment = {
     PATH: 'C:\\fake\\postgres\\bin', SystemRoot: 'C:\\Windows',
-    PGHOST: 'stale-host', PGPORT: '1', PGDATABASE: 'stale-db', PGUSER: 'stale-user',
+    PGHOST: 'stale-host', PGPORT: '1', PGDATABASE: 'stale-db', PGUSER: SCOPED_LOGIN,
     PGSERVICE: 'stale-service', PGSERVICEFILE: 'C:\\private\\service.conf', PGOPTIONS: '-c search_path=public',
     PGTARGETSESSIONATTRS: 'read-write', PGSSLMODE: 'verify-full', PGPASSFILE: 'C:\\private\\pgpass',
     PGPASSWORD: PASSWORD,
@@ -163,12 +179,13 @@ function makeHarness(options = {}) {
   return { input, owner, events, queries, pools, spawns, environment }
 }
 
-test('captures only ai_pdm_core through the migrator owner on one exported snapshot', async () => {
+test('uses a scoped LOGIN, switches to the migrator role, then captures one exported snapshot', async () => {
   const harness = makeHarness()
   const snapshot = await harness.owner.captureAiPdmCoreSnapshot(harness.input)
 
   assert.equal(snapshot.connection.currentUser, OWNER)
-  assert.equal(snapshot.connection.sessionUser, OWNER)
+  assert.equal(snapshot.connection.sessionUser, SCOPED_LOGIN)
+  assert.notEqual(snapshot.connection.currentUser, snapshot.connection.sessionUser)
   assert.equal(snapshot.targetMetadata.generation, GENERATION)
   assert.equal(snapshot.schemaOwner, OWNER)
   assert.equal(snapshot.principalSessionCount, 0)
@@ -181,7 +198,7 @@ test('captures only ai_pdm_core through the migrator owner on one exported snaps
   }])
 
   assert.equal(harness.pools.length, 1)
-  assert.equal(harness.pools[0].user, OWNER)
+  assert.equal(harness.pools[0].user, SCOPED_LOGIN)
   assert.equal(harness.pools[0].database, DATABASE)
   assert.equal(harness.pools[0].host, '127.0.0.1')
   assert.equal(harness.pools[0].port, 15432)
@@ -190,7 +207,10 @@ test('captures only ai_pdm_core through the migrator owner on one exported snaps
   assert.ok(harness.events.indexOf('spawn') < harness.events.indexOf('COMMIT'))
   assert.ok(harness.events.includes('release'))
   assert.ok(harness.events.includes('pool-end'))
+  assert.ok(harness.events.includes('role-switch'))
   assert.ok(harness.queries.some(({ sql }) => sql.startsWith('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')))
+  assert.deepEqual(harness.queries.filter(({ sql }) => sql.startsWith('SET ')).map(({ sql }) => sql),
+    [`SET LOCAL ROLE ${OWNER}`])
   assert.ok(harness.queries.some(({ sql }) => sql.includes('pg_export_snapshot')))
   assert.ok(harness.queries.every(({ sql }) => !/\b(INSERT|UPDATE|DELETE|TRUNCATE|CREATE|ALTER|DROP)\b/iu.test(sql)))
   assert.ok(harness.queries.every(({ sql }) => !sql.includes('ai_pdm_contract') && !sql.includes('public.')))
@@ -201,12 +221,12 @@ test('captures only ai_pdm_core through the migrator owner on one exported snaps
   assert.deepEqual(dump.args, [
     '--no-password', '--host', '127.0.0.1', '--port', '15432', '--dbname', DATABASE,
     '--format=custom', '--data-only', '--no-owner', '--no-privileges', '--schema=ai_pdm_core',
-    '--snapshot=00000003-00000001-1', '--lock-wait-timeout=5000',
+    `--role=${OWNER}`, '--snapshot=00000003-00000001-1', '--lock-wait-timeout=5000',
     ...CONTROL.map((name) => `--exclude-table-data=ai_pdm_core.${name}`),
   ])
   assert.equal(dump.options.shell, false)
   assert.equal(dump.options.windowsHide, true)
-  assert.equal(dump.options.env.PGUSER, OWNER)
+  assert.equal(dump.options.env.PGUSER, SCOPED_LOGIN)
   assert.equal(dump.options.env.PGHOST, '127.0.0.1')
   assert.equal(dump.options.env.PGPORT, '15432')
   assert.equal(dump.options.env.PGDATABASE, DATABASE)
@@ -247,14 +267,47 @@ test('rejects runtime-owner conflation and absent owner credentials before openi
 })
 
 test('rejects incorrect offline owner connection provenance before pg_dump', async () => {
-  const harness = makeHarness({ connection: {
+  const harness = makeHarness({ ownerConnection: {
     database_name: DATABASE, current_user: OWNER, session_user: 'unexpected_login',
     server_address: '127.0.0.1', server_port: 15432,
   } })
   await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
-    { code: 'local_reset_owner_connection_mismatch' })
+    { code: 'local_reset_owner_role_switch_mismatch' })
   assert.equal(harness.spawns.length, 0)
   assert.ok(harness.events.includes('ROLLBACK'))
+})
+
+test('requires the scoped LOGIN pattern and verifies the real login before SET ROLE', async (t) => {
+  await t.test('rejects an owner role as PGUSER', async () => {
+    const harness = makeHarness()
+    harness.environment.PGUSER = OWNER
+    const owner = createDev126LocalPostgresSnapshotOwner({
+      Pool: function () { assert.fail('pool must not open for the NOLOGIN migrator') },
+      spawn: () => assert.fail('dump must not start for the NOLOGIN migrator'),
+      environment: harness.environment,
+    })
+    await assert.rejects(owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_login_role_invalid' })
+  })
+  await t.test('rejects a different authenticated login before role switch', async () => {
+    const harness = makeHarness({ loginConnection: {
+      database_name: DATABASE, current_user: 'some_other_login', session_user: SCOPED_LOGIN,
+      server_address: '127.0.0.1', server_port: 15432,
+    } })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_login_connection_mismatch' })
+    assert.equal(harness.spawns.length, 0)
+    assert.equal(harness.events.includes('role-switch'), false)
+  })
+  await t.test('rejects capture if the connection stayed as the LOGIN', async () => {
+    const harness = makeHarness({ ownerConnection: {
+      database_name: DATABASE, current_user: SCOPED_LOGIN, session_user: SCOPED_LOGIN,
+      server_address: '127.0.0.1', server_port: 15432,
+    } })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_role_switch_mismatch' })
+    assert.equal(harness.spawns.length, 0)
+  })
 })
 
 test('requires an empty principal registry and complete owned-table inventory before dump', async (t) => {
