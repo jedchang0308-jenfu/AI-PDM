@@ -15,6 +15,7 @@ vi.mock("react", () => ({
   useEffect: (fn: unknown, deps: unknown[]) => runtime.current.effects.push({ fn, deps }),
   useId: () => "dev122-poll-fixture",
 }));
+vi.mock("next/dynamic", () => ({ default: () => () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: runtime.current.push }) }));
 vi.mock("@/components/pdm-detail-drawer", () => ({ useRememberedDrawerWidth: () => ({ drawerWidth: 480, startDrawerResize: vi.fn() }) }));
 vi.mock("@/components/use-list-keyboard-shortcuts", () => ({ useListKeyboardShortcuts: () => ({ shortcuts: "", handleKeyDown: vi.fn() }) }));

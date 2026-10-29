@@ -6,6 +6,11 @@ import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } fr
 import { invalidatePdmPermissions } from "@/lib/pdm-permission-client";
 import type { CanonicalWorkbenchListDto } from "@/lib/pdm-canonical-workbench-contract";
 
+const lazyLoads = vi.hoisted(() => ({ drawer: 0 }));
+vi.mock("./canonical-workbench-drawer", () => {
+  lazyLoads.drawer++;
+  return { CanonicalWorkbenchDrawer: () => <div role="complementary" aria-label="按需載入的明細">明細模組已載入</div> };
+});
 vi.mock("next/navigation", () => ({ usePathname: () => "/parts", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/pdm-detail-drawer", () => ({ useRememberedDrawerWidth: () => ({ drawerWidth: 480, startDrawerResize: vi.fn() }) }));
 vi.mock("@/components/drawing-detail-preview", () => ({ DrawingDetailPreview: () => null }));
@@ -94,4 +99,17 @@ it("clears visible cached rows at logout and rejects an older pending response",
   expect(container.textContent).not.toContain("原先的清單");
   await act(async () => finish(json(list("上一位使用者的遲到資料"))));
   expect(container.textContent).not.toContain("上一位使用者的遲到資料");
+});
+
+it("keeps the detail module out of initial list rendering and loads it when a row opens", async () => {
+  setupFetch();
+  await render();
+  expect(lazyLoads.drawer).toBe(0);
+  expect(container.querySelector('[role="complementary"]')).toBeNull();
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>(".canonical-row-open")!.click();
+    await vi.dynamicImportSettled();
+  });
+  expect(lazyLoads.drawer).toBe(1);
+  expect(container.querySelector('[role="complementary"]')?.textContent).toContain("明細模組已載入");
 });

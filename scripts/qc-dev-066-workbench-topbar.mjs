@@ -23,6 +23,7 @@ const retiredSources = [
 for (const file of retiredSources) record(`legacy source retired: ${file}`, !exists(file));
 
 const canonicalWorkbench = read("src/components/canonical-pdm-workbench.tsx");
+const canonicalDrawer = read("src/components/canonical-workbench-drawer.tsx");
 const canonicalRelation = read("src/components/canonical-relation-matrix-section.tsx");
 const pagination = read("src/components/pdm-workbench-pagination.tsx");
 const layoutSwitch = read("src/components/pdm-workbench-layout-switch.tsx");
@@ -36,12 +37,14 @@ record("canonical workbench owns search/filter/result/pagination mechanics", [
   "PdmWorkbenchPagination",
   "pdm-workbench-multi-select-filter"
 ].every((token) => canonicalWorkbench.includes(token)));
-record("canonical workbench owns history and URL recovery", [
+record("canonical workbench owns URL recovery and delegates history to its lazy drawer", [
   "historyRevision",
-  "historyMode",
+  "historyMode"
+].every((token) => canonicalWorkbench.includes(token)) && [
   "canonical-history-open",
   "DrawingHistoryRevision"
-].every((token) => canonicalWorkbench.includes(token)));
+].every((token) => canonicalDrawer.includes(token)) &&
+  canonicalWorkbench.includes('import("./canonical-workbench-drawer")'));
 record("current Drawing/Part display modes are delegated to DEV-112", [
   "PdmWorkbenchLayoutSwitch",
   "data-canonical-result-display-bar",
@@ -51,7 +54,7 @@ record("current Relation matrix is delegated to DEV-090", [
   "CanonicalRelationMatrixSection",
   "data-canonical-relation-edit",
   "editing"
-].every((token) => canonicalWorkbench.includes(token) || canonicalRelation.includes(token)));
+].every((token) => canonicalDrawer.includes(token) || canonicalRelation.includes(token)));
 record("shared pagination remains an accessible current primitive", [
   'aria-label="工作台分頁"',
   "上一頁",

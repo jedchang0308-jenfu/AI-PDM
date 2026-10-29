@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
-import { DrawingCanonicalPreview } from "./canonical-pdm-workbench";
+import { DrawingCanonicalPreview } from "./canonical-workbench-drawer";
 import { fileRoleLabel } from "./canonical-drawing-change-workspace";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 
