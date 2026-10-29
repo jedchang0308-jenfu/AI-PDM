@@ -133,10 +133,10 @@ function NativeMetadataHealthBanner({
   onRetry?: () => void;
   retryDisabled?: boolean;
 }) {
-  if (!health || health.state === "ready") return null;
+  if (!health || health.state === "ready" || health.state === "unavailable") return null;
   const isError = health.state === "failed";
   const affected = health.affectedSources.map((source) => source.fileName).filter(Boolean);
-  const showRetry = Boolean(onRetry && ["partial", "unavailable", "failed"].includes(health.state));
+  const showRetry = Boolean(onRetry && ["partial", "failed"].includes(health.state));
   return (
     <div className={`dev079-recognition-adapter-health is-${health.state}`} role={isError ? "alert" : "status"}>
       {isError ? <AlertTriangle size={15} aria-hidden="true" /> : <ScanSearch size={15} aria-hidden="true" />}
@@ -818,6 +818,7 @@ export function DrawingRecognitionWorkspacePanel({
       {session && !recognitionProcessing ? (
         <>
           {session.errorSummary ? <div className="dev079-recognition-alert is-error" role="alert"><AlertTriangle size={15} />{session.errorSummary}</div> : null}
+          {session.adapterHealth?.nativeMetadata?.state === "unavailable" && !disabled ? <button type="button" className="link-button" disabled={busy || hasDraftChanges} title={busy || hasDraftChanges ? "請先儲存或還原目前修改" : undefined} onClick={() => void rerunNativeMetadata()}><RefreshCcw size={14} />重新辨識</button> : null}
           <NativeMetadataHealthBanner
             health={session.adapterHealth?.nativeMetadata}
             onRetry={disabled ? undefined : () => void rerunNativeMetadata()}

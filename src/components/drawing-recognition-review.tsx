@@ -37,10 +37,10 @@ type NativeMetadataHealth = {
 };
 
 function NativeMetadataHealthBanner({ health, onRetry, retryDisabled = false }: { health: NativeMetadataHealth | null | undefined; onRetry?: () => void; retryDisabled?: boolean }) {
-  if (!health || health.state === "ready") return null;
+  if (!health || health.state === "ready" || health.state === "unavailable") return null;
   const isError = health.state === "failed";
   const affected = health.affectedSources.map((source) => source.fileName).filter(Boolean);
-  const showRetry = Boolean(onRetry && ["partial", "unavailable", "failed"].includes(health.state));
+  const showRetry = Boolean(onRetry && ["partial", "failed"].includes(health.state));
   return <div className={`drawing-recognition-adapter-health is-${health.state}`} role={isError ? "alert" : "status"}>
     {isError ? <AlertTriangle size={16} aria-hidden="true" /> : <RefreshCcw size={16} aria-hidden="true" />}
     <div><strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "此批未使用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong><span>{health.message}</span>{affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}{showRetry ? <button type="button" className="link-button" disabled={retryDisabled} onClick={onRetry}><RefreshCcw size={14} />重新辨識</button> : null}</div>
@@ -158,7 +158,7 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
     onNotice: setNotice
   });
   const hasPdfOcrSources = (session?.pdfOcrSources?.length ?? 0) > 0;
-  const nativeRecoveryAvailable = ["partial", "unavailable", "failed"].includes(session?.adapterHealth?.nativeMetadata?.state ?? "");
+  const nativeRecoveryAvailable = ["partial", "failed"].includes(session?.adapterHealth?.nativeMetadata?.state ?? "");
 
   const load = useCallback(async () => {
     setError("");
