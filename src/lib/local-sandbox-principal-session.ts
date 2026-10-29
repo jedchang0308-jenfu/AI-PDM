@@ -399,7 +399,8 @@ export async function issueLocalSandboxPrincipalSession(input: IssueLocalSandbox
   // Only the already signature-verified, target-bound assertion reaches this
   // owner function. PostgreSQL independently reads OrgMaster's versioned local
   // contract; it never accepts a caller-supplied lifecycle transition.
-  const projected = await input.database.queryOne<{ changed: boolean }>(`
+  const synchronizeLocalAccountLifecycle = async (snapshot: AsyncDatabaseClient) => {
+    const projected = await snapshot.queryOne<{ changed: boolean }>(`
     SELECT ai_pdm_core.project_local_principal_lifecycle_v1(
       :sandboxId,:generation::uuid,:fixtureVersion,:fixtureHash,
       :principalId,:employeeId,:lifecycleVersion,:profileVersion
@@ -408,7 +409,8 @@ export async function issueLocalSandboxPrincipalSession(input: IssueLocalSandbox
     fixtureVersion: assertion.fixtureVersion, fixtureHash: assertion.fixtureHash,
     principalId: assertion.principalId, employeeId: assertion.employeeId,
     lifecycleVersion: assertion.accountLifecycleVersion, profileVersion: assertion.profileVersion });
-  if (!projected || typeof projected.changed !== 'boolean') fail('LOCAL_SANDBOX_LIFECYCLE_READBACK_FAILED')
+    if (!projected || typeof projected.changed !== 'boolean') fail('LOCAL_SANDBOX_LIFECYCLE_READBACK_FAILED')
+  }
 
   const handoff: JenfuPrincipalHandoff = {
     contractVersion: 'jenfu.sso-handoff.v2',
@@ -440,6 +442,7 @@ export async function issueLocalSandboxPrincipalSession(input: IssueLocalSandbox
     keyRing: input.keyRing,
     trustPolicy: LOCAL_SANDBOX_PRINCIPAL_TRUST_POLICY,
     nowMs,
+    synchronizeLocalAccountLifecycle,
   })
   assertNativeClaims(issued.claims, assertion, canonicalTarget.targetFingerprint, nowMs)
   const sessionIsActive = await input.ports.nativeSessionReadback.isActive(input.database, issued.claims, nowMs)

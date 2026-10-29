@@ -355,6 +355,7 @@ function harness(options: {
     centralIntrospection: platformClient,
     resolvePlatformResponseKey: async (clientId) => clientId === 'ai-pdm' ? RESPONSE_KEY : null,
     issueSessionForPrincipalHandoff: async (input) => {
+      await input.synchronizeLocalAccountLifecycle?.(database)
       events.push('native_issue')
       assert.equal(input.expectedIdentityIssuer, LOCAL_IDENTITY_ISSUER)
       assert.equal(input.handoff.authentication.email, 'local-rd-user@local.invalid')

@@ -489,9 +489,11 @@ export function createDev126LocalPostgresSnapshotOwner({
       }
       let pool
       let client
+      let stage = 'owner_connect'
       try {
         pool = new Pool(poolOptions)
         client = await pool.connect()
+        stage = 'owner_identity'
         await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
         const loginConnection = oneRow(await client.query(OWNER_CONNECTION_SQL),
           'local_reset_owner_connection_readback_invalid')
@@ -507,18 +509,22 @@ export function createDev126LocalPostgresSnapshotOwner({
         const snapshotId = String(exportedSnapshot.snapshot_id ?? '')
         if (!SNAPSHOT_ID.test(snapshotId)) fail('local_reset_owner_snapshot_unavailable')
 
+        stage = 'schema_owner'
         const schemaRows = await rows(client, SCHEMA_OWNER_SQL, [SCHEMA])
         if (schemaRows.length !== 1 || schemaRows[0].schema_owner !== OWNER_ROLE) {
           fail('local_reset_owner_schema_mismatch')
         }
+        stage = 'target_metadata'
         const metadata = validateMetadata(oneRow(await client.query(TARGET_METADATA_SQL, [expected.sandboxId]),
           'local_reset_owner_target_mismatch'), target, expected, runtimeTargetObservation)
+        stage = 'workbench_authority'
         const authorityRow = oneRow(await client.query(AUTHORITY_SQL), 'local_reset_owner_authority_invalid')
         const authority = Object.freeze({
           mode: String(authorityRow.mode), expectedCommit: String(authorityRow.expected_commit),
           schemaHash: String(authorityRow.schema_hash), rowVersion: Number(authorityRow.row_version),
           switchedAt: new Date(authorityRow.switched_at).toISOString(),
         })
+        stage = 'native_registry'
         const counts = oneRow(await client.query(SESSION_COUNTS_SQL), 'local_reset_owner_registry_readback_invalid')
         const principalSessionCount = Number(counts.principal_session_count)
         const principalBindingCount = Number(counts.principal_binding_count)
@@ -527,6 +533,7 @@ export function createDev126LocalPostgresSnapshotOwner({
           fail('local_reset_owner_registry_not_empty')
         }
 
+        stage = 'relation_inventory'
         const catalog = await rows(client, RELATIONS_SQL, [SCHEMA])
         if (catalog.length === 0 || catalog.some((relation) => relation.kind === 'f')) {
           fail('local_reset_owner_relation_invalid')
@@ -536,6 +543,7 @@ export function createDev126LocalPostgresSnapshotOwner({
           !catalog.some((relation) => !CONTROL_RELATIONS.includes(relation.name))) {
           fail('local_reset_owner_relation_invalid')
         }
+        stage = 'relation_rows'
         const relations = []
         for (const relation of catalog) {
           if (!IDENTIFIER.test(relation.name) || !['r', 'p', 'm'].includes(relation.kind) ||
@@ -544,7 +552,9 @@ export function createDev126LocalPostgresSnapshotOwner({
             name: relation.name, kind: relation.kind, owner: relation.owner,
           })))
         }
+        stage = 'storage_pointers'
         const pointers = await collectPointers(client, target.repositoryDirectory)
+        stage = 'pg_dump'
         const dataDump = await runPgDump(spawn,
           process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump',
           buildDumpArguments(expected, snapshotId), dumpEnvironment(environment, expected, ownerLogin, ownerPassword))
@@ -566,7 +576,10 @@ export function createDev126LocalPostgresSnapshotOwner({
       } catch (error) {
         try { await client?.query('ROLLBACK') } catch {}
         if (error instanceof LocalSandboxError) throw error
-        fail('local_reset_owner_capture_failed')
+        const failure = new LocalSandboxError('local_reset_owner_capture_failed', 503)
+        Object.defineProperty(failure, 'cause', { value: error })
+        Object.defineProperty(failure, 'stage', { value: stage })
+        throw failure
       } finally {
         try { client?.release?.() } catch {}
         try { await pool?.end?.() } catch {}
