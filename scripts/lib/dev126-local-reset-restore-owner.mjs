@@ -20,6 +20,21 @@ const SESSION_RELATION = 'principal_session_records'
 const PRESERVED_CONTROL_RELATIONS = Object.freeze([
   'local_native_bootstrap_receipts', 'pdm_workbench_state_authority_control', 'schema_migrations',
 ])
+const FIXED_RESTORE_TIMEOUT_LINES = new Set([
+  'SET statement_timeout = 0;',
+  'SET lock_timeout = 0;',
+  'SET idle_in_transaction_session_timeout = 0;',
+  'SET transaction_timeout = 0;',
+])
+const FIXED_RESTORE_HEADER_LINES = new Set([
+  "SET client_encoding = 'UTF8';",
+  'SET standard_conforming_strings = on;',
+  "SELECT pg_catalog.set_config('search_path', '', false);",
+  'SET check_function_bodies = false;',
+  'SET xmloption = content;',
+  'SET client_min_messages = warning;',
+  'SET row_security = off;',
+])
 const BUSINESS_RELATION_COUNT = 167
 const TOTAL_RELATION_COUNT = BUSINESS_RELATION_COUNT + CONTROL_RELATIONS.length
 const SCOPED_LOGIN_ROLE = /^local_pdm_seed_[a-f0-9]{16}$/u
@@ -254,9 +269,11 @@ function validateOwnerState(state, context, scope, manifest, { allowMaintenance 
     state.roles.scopedLogin?.memberOfOwner !== true || state.roles.owner?.canLogin !== false ||
     state.roles.owner?.isSuperuser !== false || state.roles.owner?.canCreateDb !== false ||
     state.roles.owner?.canCreateRole !== false || state.roles.owner?.bypassRls !== false ||
+    state.roles.owner?.memberOfOwner !== true ||
     state.roles.runtime?.name !== context.expected.runtimeRole || state.roles.runtime?.canLogin !== true ||
     state.roles.runtime?.isSuperuser !== false || state.roles.runtime?.canCreateDb !== false ||
     state.roles.runtime?.canCreateRole !== false || state.roles.runtime?.bypassRls !== false ||
+    state.roles.runtime?.memberOfOwner !== false ||
     state.schemaOwner !== OWNER_ROLE || state.databaseMarker !== generationMarker(scope) ||
     !sameAuthority(state.authority, manifest.database.authority) ||
     !exactKeys(state.targetMetadata, ['applicationId', 'sandboxId', 'databaseName', 'sandboxRoot', 'dataDirectory',
@@ -341,37 +358,69 @@ function validateArchiveToc(text, businessRelations, sequences) {
 }
 
 function buildRestoreSql({ restoreSql, businessRelations, sequences, scope }) {
-  if (typeof restoreSql !== 'string' || restoreSql.length === 0 || /(^|\r?\n)\\(?!\.)/mu.test(restoreSql)) {
-    fail('dev126_reset_restore_sql_invalid')
-  }
+  if (typeof restoreSql !== 'string' || restoreSql.length === 0) fail('dev126_reset_restore_sql_invalid')
   const tableSet = new Set(businessRelations)
   const copyTargets = []
   const sequenceTargets = []
+  const bodyLines = []
+  const seenHeaderLines = new Set()
   let inCopy = false
+  let sawRestoreData = false
+  let restrictKey
+  let unrestrictSeen = false
   for (const line of restoreSql.split(/\r?\n/u)) {
     if (inCopy) {
+      bodyLines.push(line)
       if (line === '\\.') inCopy = false
       continue
     }
+    if (!line.trim() || line.startsWith('--')) {
+      bodyLines.push(line)
+      continue
+    }
+    const restrict = line.match(/^\\restrict ([A-Za-z0-9_-]{1,128})$/u)
+    if (restrict) {
+      if (restrictKey || unrestrictSeen || seenHeaderLines.size || copyTargets.length || sequenceTargets.length) {
+        fail('dev126_reset_restore_sql_invalid')
+      }
+      restrictKey = restrict[1]
+      continue
+    }
+    const unrestrict = line.match(/^\\unrestrict ([A-Za-z0-9_-]{1,128})$/u)
+    if (unrestrict) {
+      if (!restrictKey || unrestrictSeen || unrestrict[1] !== restrictKey) {
+        fail('dev126_reset_restore_sql_invalid')
+      }
+      unrestrictSeen = true
+      continue
+    }
+    if (unrestrictSeen || line.startsWith('\\')) fail('dev126_reset_restore_sql_invalid')
     const copy = line.match(/^COPY\s+ai_pdm_core\.([a-z][a-z0-9_]*)\s+\(.+\)\s+FROM stdin;\s*$/u)
     if (copy) {
       if (!tableSet.has(copy[1])) fail('dev126_reset_restore_sql_closed_set_violation')
       copyTargets.push(copy[1])
+      bodyLines.push(line)
+      sawRestoreData = true
       inCopy = true
       continue
     }
     if (/^SELECT\s+pg_catalog\.setval\('ai_pdm_core\.([a-z][a-z0-9_]*)',\s*\d+,\s*(?:true|false)\);\s*$/u.test(line)) {
       const match = line.match(/^SELECT\s+pg_catalog\.setval\('ai_pdm_core\.([a-z][a-z0-9_]*)',/u)
       sequenceTargets.push(match[1])
+      bodyLines.push(line)
+      sawRestoreData = true
       continue
     }
-    if (!line.trim() || line.startsWith('--') || /^SET (?:statement_timeout|lock_timeout|idle_in_transaction_session_timeout) = \d+;$/u.test(line) ||
-      /^SET (?:client_encoding|standard_conforming_strings) = ['A-Za-z0-9_]+;$/u.test(line) ||
-      /^SELECT pg_catalog\.set_config\('[a-z_]+',\s*'[^']*',\s*(?:true|false)\);$/u.test(line)) continue
+    if (FIXED_RESTORE_TIMEOUT_LINES.has(line) || FIXED_RESTORE_HEADER_LINES.has(line)) {
+      if (sawRestoreData || seenHeaderLines.has(line)) fail('dev126_reset_restore_sql_invalid')
+      seenHeaderLines.add(line)
+      continue
+    }
     fail('dev126_reset_restore_sql_closed_set_violation')
   }
   const expectedSequences = [...sequences.map(sequence => sequence.name)].sort()
-  if (inCopy || copyTargets.length !== businessRelations.length || new Set(copyTargets).size !== copyTargets.length ||
+  if (inCopy || Boolean(restrictKey) !== unrestrictSeen ||
+    copyTargets.length !== businessRelations.length || new Set(copyTargets).size !== copyTargets.length ||
     JSON.stringify([...new Set(copyTargets)].sort()) !== JSON.stringify([...businessRelations].sort()) ||
     new Set(sequenceTargets).size !== sequenceTargets.length ||
     JSON.stringify([...sequenceTargets].sort()) !== JSON.stringify(expectedSequences)) {
@@ -401,7 +450,7 @@ function buildRestoreSql({ restoreSql, businessRelations, sequences, scope }) {
       `END $dev126_preflight$;`,
     `TRUNCATE TABLE\n  ${truncate}\nRESTRICT;`,
     triggerDisable,
-    restoreSql.trimEnd(),
+    bodyLines.join('\n').trimEnd(),
     triggerEnable,
     `UPDATE ${SCHEMA}.local_sandbox_principal_session_bindings\n` +
       `SET status = 'revoked'\n` +
@@ -485,6 +534,25 @@ async function assertRegularFile(filePath, code) {
   const resolved = await realpath(filePath).catch(() => fail(code))
   if (!samePath(resolved, filePath)) fail(code)
   return stat
+}
+
+async function validatedChildFilePath(filePath, parentDirectory, code, { output = false } = {}) {
+  const parent = path.resolve(parentDirectory)
+  const absoluteFilePath = path.resolve(filePath)
+  const parentStat = await lstat(parent).catch(() => fail(code))
+  if (!parentStat.isDirectory() || parentStat.isSymbolicLink() ||
+    !samePath(await realpath(parent).catch(() => fail(code)), parent) ||
+    !samePath(path.dirname(absoluteFilePath), parent)) fail(code)
+  if (output) {
+    const existing = await lstat(absoluteFilePath).catch(error => {
+      if (error?.code === 'ENOENT') return null
+      fail(code)
+    })
+    if (existing) fail(code)
+  } else {
+    await assertRegularFile(absoluteFilePath, code)
+  }
+  return process.platform === 'win32' ? path.toNamespacedPath(absoluteFilePath) : absoluteFilePath
 }
 
 async function copyVerifiedArchive(descriptor, targetInput, manifest, destination) {
@@ -890,9 +958,9 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
   async function loadOwnerState(client, context, scope, manifest, expected, identity, { readBusiness }) {
     const rolesRows = rowsFrom(await client.query(`
       SELECT role.rolname,role.rolcanlogin,role.rolsuper,role.rolcreatedb,role.rolcreaterole,role.rolbypassrls,
-        pg_catalog.pg_has_role($1,${quoteSqlLiteral(OWNER_ROLE)},'MEMBER') AS member_of_owner
-      FROM pg_catalog.pg_roles role WHERE role.rolname = ANY($2::text[])
-    `, [expected.ownerLogin, [expected.ownerLogin, OWNER_ROLE, expected.runtimeRole]]),
+        pg_catalog.pg_has_role(role.oid,${quoteSqlLiteral(OWNER_ROLE)},'MEMBER') AS member_of_owner
+      FROM pg_catalog.pg_roles role WHERE role.rolname = ANY($1::text[])
+    `, [[expected.ownerLogin, OWNER_ROLE, expected.runtimeRole]]),
     'dev126_reset_restore_roles_invalid')
     const roleMap = new Map(rolesRows.map(row => [row.rolname, roleProjection(row)]))
     if (roleMap.size !== 3) fail('dev126_reset_restore_roles_invalid', 503)
@@ -1217,6 +1285,8 @@ export function createDev126LocalResetRestoreOwner({
       const archivePath = path.join(work.taskDirectory, 'pinned.data.dump')
       await removeTaskFileIfPresent(work.taskDirectory, 'pinned.data.dump')
       await copyVerifiedArchive(loaded.baseline, targetInput, loaded.manifest, archivePath)
+      const archiveChildPath = await validatedChildFilePath(archivePath, work.taskDirectory,
+        'dev126_reset_restore_archive_path_invalid')
       const ownerLogin = environment.PGUSER
       const password = await passwordResolver(environment, loaded.context.expected, ownerLogin)(
         { host: loaded.context.expected.databaseHost, port: loaded.context.expected.databasePort,
@@ -1224,22 +1294,27 @@ export function createDev126LocalResetRestoreOwner({
       const childEnv = childEnvironment(environment, loaded.context.expected, ownerLogin, password)
       const executable = process.platform === 'win32' ? 'pg_restore.exe' : 'pg_restore'
       const list = await runChild(spawn, executable,
-        ['--list', '--no-password', archivePath], childEnv, { captureStdout: true })
+        ['--list', '--no-password', archiveChildPath], childEnv, { captureStdout: true })
       if (list.code !== 0) fail('dev126_reset_restore_archive_toc_invalid', 503)
       validateArchiveToc(list.stdout, loaded.businessRelations, initial.sequences)
       const restoreSqlPath = path.join(work.taskDirectory, 'restore-data.sql')
       await removeTaskFileIfPresent(work.taskDirectory, 'restore-data.sql')
+      const restoreSqlChildPath = await validatedChildFilePath(restoreSqlPath, work.taskDirectory,
+        'dev126_reset_restore_archive_render_failed', { output: true })
       const render = await runChild(spawn, executable, [
         '--data-only', '--no-owner', '--no-privileges', '--schema=ai_pdm_core',
-        '--exit-on-error', `--file=${restoreSqlPath}`, archivePath,
+        '--exit-on-error', `--file=${restoreSqlChildPath}`, archiveChildPath,
       ], childEnv)
       if (render.code !== 0) fail('dev126_reset_restore_archive_render_failed', 503)
+      await assertRegularFile(restoreSqlPath, 'dev126_reset_restore_archive_render_failed')
       const restoreSql = await readFile(restoreSqlPath, 'utf8').catch(() => fail('dev126_reset_restore_archive_render_failed', 503))
       const sql = buildRestoreSql({ restoreSql, businessRelations: loaded.businessRelations,
         sequences: initial.sequences, scope: loaded.scope })
       const transactionFile = path.join(work.taskDirectory, 'restore-transaction.sql')
       await removeTaskFileIfPresent(work.taskDirectory, 'restore-transaction.sql')
       await writeFile(transactionFile, sql, { mode: 0o600, flag: 'wx' })
+      const transactionChildPath = await validatedChildFilePath(transactionFile, work.taskDirectory,
+        'dev126_reset_restore_workdir_invalid')
       await prepareRepositoryStage(loaded, work)
       await readGenerationFence(loaded.scope)
       try {
@@ -1268,7 +1343,7 @@ export function createDev126LocalResetRestoreOwner({
           '--no-password', '--host', loaded.context.expected.databaseHost,
           '--port', String(loaded.context.expected.databasePort), '--dbname', loaded.context.expected.databaseName,
           '--username', ownerLogin, '--single-transaction', '--set', 'ON_ERROR_STOP=on',
-          '--file', transactionFile,
+          '--file', transactionChildPath,
         ], childEnv)
       } catch {
         psqlFailure = true

@@ -22,6 +22,9 @@ const authorityHash = 'e'.repeat(64)
 const authority = { mode: 'canonical_only', expectedCommit: 'local-dev', schemaHash: 'dev090-v1',
   rowVersion: 3, switchedAt: '2026-10-29T00:00:00.000Z' }
 const preservedControlNames = ['local_native_bootstrap_receipts', 'pdm_workbench_state_authority_control', 'schema_migrations']
+const pg18RestoreHeader = await readFile(new URL('./dev126-pg18-restore-header.fixture.sql', import.meta.url), 'utf8')
+const pg18RestrictKey = pg18RestoreHeader.match(/^\\restrict ([A-Za-z0-9_-]+)$/mu)?.[1]
+assert.ok(pg18RestrictKey)
 
 function fingerprint(target, generation) {
   return contractDigest({
@@ -42,7 +45,8 @@ function fence(scope, overrides = {}) {
   }
 }
 
-function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malformedToc = false } = {}) {
+function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malformedToc = false,
+  restoreSqlHeader = pg18RestoreHeader, restoreFooterKey = pg18RestrictKey, restoreHeaderExtra = '', copyRowData = '' } = {}) {
   const scope = Object.freeze({ sandboxId, resetId, sourceGeneration, generation: nextGeneration,
     baseline: Object.freeze({ id: 'base-dev126', sha256: 'a'.repeat(64) }) })
   const environment = {
@@ -56,13 +60,21 @@ function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malf
     PGUSER: scopedLogin, PGPASSWORD: 'local-test-only',
   }
 
-  return { scope, environment, onlineApp, psqlCode, applyPsql, malformedToc }
+  return { scope, environment, onlineApp, psqlCode, applyPsql, malformedToc,
+    restoreSqlHeader, restoreFooterKey, restoreHeaderExtra, copyRowData }
 }
 
 async function prepareHarness(t, options = {}) {
   const harness = makeHarness(t, options)
-  const sandboxRoot = await mkdtemp(path.join(os.tmpdir(), 'dev126-restore-test-'))
-  t.after(async () => rm(sandboxRoot, { recursive: true, force: true }))
+  const cleanupRoot = await mkdtemp(path.join(os.tmpdir(), 'dev126-restore-test-'))
+  let sandboxRoot = cleanupRoot
+  if (options.longPath) {
+    for (let index = 0; index < 5; index++) {
+      sandboxRoot = path.join(sandboxRoot, `restore-path-segment-${index}-${'x'.repeat(36)}`)
+      await mkdir(sandboxRoot)
+    }
+  }
+  t.after(async () => rm(cleanupRoot, { recursive: true, force: true }))
   const dataDirectory = path.join(sandboxRoot, 'data')
   const repositoryDirectory = path.join(sandboxRoot, 'repository')
   const baselineDirectory = path.join(sandboxRoot, 'control', 'dev126-reset-baselines', 'base-dev126')
@@ -203,9 +215,12 @@ async function prepareHarness(t, options = {}) {
       }
       const outputArg = args.find(arg => arg.startsWith('--file='))
       if (outputArg) {
-        const copySql = includedRelations.map(name => `COPY ai_pdm_core.${name} (id) FROM stdin;\n\\.\n`).join('\n')
+        const copySql = includedRelations.map((name, index) =>
+          `COPY ai_pdm_core.${name} (id) FROM stdin;\n${index === 0 && harness.copyRowData ? `${harness.copyRowData}\n` : ''}\\.\n`).join('\n')
         await writeFile(outputArg.slice('--file='.length),
-          `SET statement_timeout = 0;\nSET client_encoding = 'UTF8';\n${copySql}SELECT pg_catalog.setval('ai_pdm_core.business_001_id_seq', 1, false);\n`,
+          `${harness.restoreSqlHeader}${harness.restoreHeaderExtra}${copySql}` +
+          `SELECT pg_catalog.setval('ai_pdm_core.business_001_id_seq', 1, false);\n\n` +
+          `--\n-- PostgreSQL database dump complete\n--\n\n\\unrestrict ${harness.restoreFooterKey}\n`,
           { mode: 0o600 })
         child.stdout.end()
         child.stderr.end()
@@ -222,6 +237,10 @@ async function prepareHarness(t, options = {}) {
         assert.doesNotMatch(sql, /CASCADE|COMMENT ON DATABASE/u)
         assert.match(sql, /status = 'revoked'/u)
         assert.match(sql, /status='maintenance'/u)
+        assert.match(sql, /SET LOCAL search_path = pg_catalog;/u)
+        assert.doesNotMatch(sql, /SELECT pg_catalog\.set_config\(|\\(?:restrict|unrestrict)\s/u)
+        assert.doesNotMatch(sql, /dev126PG18FixtureKey/u)
+        if (harness.copyRowData) assert.ok(sql.includes(harness.copyRowData))
         assert.equal((sql.match(/DISABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
         assert.equal((sql.match(/ENABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
         if (harness.applyPsql) {
@@ -242,7 +261,7 @@ async function prepareHarness(t, options = {}) {
   const owner = createDev126LocalResetRestoreOwner({ environment: harness.environment,
     baselineReader: async () => descriptor, platformFence, database, spawn })
   return { ...harness, targetInput, manifest, descriptor, owner, databaseCalls, platformCalls, spawns,
-    currentState: () => structuredClone(currentState), setState: value => { currentState = value } }
+    platformFence, currentState: () => structuredClone(currentState), setState: value => { currentState = value } }
 }
 
 test('restores the pinned business set atomically, then rebinds PDM metadata to the Platform generation', async t => {
@@ -271,6 +290,50 @@ test('restores the pinned business set atomically, then rebinds PDM metadata to 
   const readiness = await h.owner.readiness({ targetInput: h.targetInput, scope: h.scope })
   assert.equal(readiness.ready, true)
   assert.equal(readiness.applicationsOffline, true)
+})
+
+test('uses validated Windows namespaced paths for PG tool archive and SQL arguments', async t => {
+  const h = await prepareHarness(t, { longPath: true })
+  await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
+  const expectedArchivePath = path.toNamespacedPath(path.join(workDirectory, 'pinned.data.dump'))
+  const expectedRestoreSqlPath = path.toNamespacedPath(path.join(workDirectory, 'restore-data.sql'))
+  const expectedTransactionPath = path.toNamespacedPath(path.join(workDirectory, 'restore-transaction.sql'))
+  const pgRestoreCalls = h.spawns.filter(item => item.executable.toLowerCase().startsWith('pg_restore'))
+  const listCall = pgRestoreCalls.find(item => item.args.includes('--list'))
+  const renderCall = pgRestoreCalls.find(item => item.args.some(arg => arg.startsWith('--file=')))
+  const psqlCall = h.spawns.find(item => item.executable.toLowerCase().startsWith('psql'))
+  assert.equal(listCall.args.at(-1), expectedArchivePath)
+  assert.equal(renderCall.args.at(-1), expectedArchivePath)
+  assert.equal(renderCall.args.find(arg => arg.startsWith('--file=')), `--file=${expectedRestoreSqlPath}`)
+  assert.equal(psqlCall.args[psqlCall.args.indexOf('--file') + 1], expectedTransactionPath)
+  if (process.platform === 'win32') {
+    assert.ok(expectedArchivePath.startsWith('\\\\?\\'))
+    assert.ok(expectedArchivePath.length > 260)
+  }
+})
+
+test('accepts the captured PostgreSQL 18.4 header and keeps escaped COPY row data scoped to COPY', async t => {
+  const h = await prepareHarness(t, { copyRowData: '\\N' })
+  const result = await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(result.restored, true)
+  assert.ok(h.spawns.some(item => item.executable.toLowerCase().startsWith('psql')))
+})
+
+test('rejects a mismatched PostgreSQL restrict pair before maintenance or psql', async t => {
+  const h = await prepareHarness(t, { restoreFooterKey: 'differentFixtureKey' })
+  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_sql_invalid')
+  assert.equal(h.databaseCalls.includes('markMaintenance'), false)
+  assert.equal(h.spawns.some(item => item.executable.toLowerCase().startsWith('psql')), false)
+})
+
+test('rejects any nonfixed search_path set_config emitted by the archive', async t => {
+  const h = await prepareHarness(t, { restoreHeaderExtra: "SELECT pg_catalog.set_config('search_path', 'public', false);\n" })
+  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_sql_closed_set_violation')
+  assert.equal(h.databaseCalls.includes('markMaintenance'), false)
+  assert.equal(h.spawns.some(item => item.executable.toLowerCase().startsWith('psql')), false)
 })
 
 test('reuses the immutable capture baseline for a later source generation', async t => {
@@ -304,6 +367,87 @@ test('an online application blocks the restore before database inspection or sub
     error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_generation_fence_invalid')
   assert.deepEqual(h.databaseCalls, [])
   assert.deepEqual(h.spawns, [])
+})
+
+test('rejects a runtime role with owner membership before PostgreSQL restore starts', async t => {
+  const h = await prepareHarness(t)
+  const currentState = h.currentState()
+  h.setState({ ...currentState, roles: { ...currentState.roles,
+    runtime: { ...h.currentState().roles.runtime, memberOfOwner: true } } })
+  const state = h.currentState()
+  const queries = []
+  const spawns = []
+  let connectionReads = 0
+  function Pool(poolOptions) {
+    return {
+      async connect() {
+        await poolOptions.password({ host: poolOptions.host, port: poolOptions.port,
+          database: poolOptions.database, user: poolOptions.user })
+        return {
+          async query(sql, values = []) {
+            const normalized = sql.trim()
+            queries.push({ sql: normalized, values })
+            if (normalized === 'BEGIN' || normalized.startsWith('BEGIN ') || normalized === 'COMMIT' || normalized === 'ROLLBACK' ||
+              normalized === `SET LOCAL ROLE ${ownerRole}`) return { rows: [] }
+            if (normalized.includes('current_database()')) {
+              connectionReads += 1
+              return { rows: [{ database_name: state.identity.databaseName,
+                current_user: connectionReads === 1 ? scopedLogin : ownerRole,
+                session_user: scopedLogin, server_address: state.identity.serverAddress,
+                server_port: state.identity.serverPort }] }
+            }
+            if (normalized.includes('FROM pg_catalog.pg_roles')) {
+              return { rows: Object.values(state.roles).map(role => ({
+                rolname: role.name, rolcanlogin: role.canLogin, rolsuper: role.isSuperuser,
+                rolcreatedb: role.canCreateDb, rolcreaterole: role.canCreateRole,
+                rolbypassrls: role.bypassRls, member_of_owner: role.memberOfOwner,
+              })) }
+            }
+            if (normalized.includes('FROM pg_catalog.pg_namespace')) return { rows: [{ schema_owner: state.schemaOwner }] }
+            if (normalized.includes('FROM pg_catalog.pg_database')) return { rows: [{
+              database_owner: state.databaseOwner, database_marker: state.databaseMarker,
+            }] }
+            if (normalized.includes('FROM ai_pdm_core.pdm_workbench_state_authority_control')) return { rows: [{
+              mode: authority.mode, expected_commit: authority.expectedCommit, schema_hash: authority.schemaHash,
+              row_version: authority.rowVersion, switched_at: authority.switchedAt,
+            }] }
+            if (normalized.includes('FROM ai_pdm_core.local_sandbox_target_metadata')) return { rows: [{
+              application_id: state.targetMetadata.applicationId, sandbox_id: state.targetMetadata.sandboxId,
+              database_name: state.targetMetadata.databaseName, sandbox_root: state.targetMetadata.sandboxRoot,
+              data_directory: state.targetMetadata.dataDirectory, repository_directory: state.targetMetadata.repositoryDirectory,
+              generation: state.targetMetadata.generation, fixture_version: state.targetMetadata.fixtureVersion,
+              fixture_hash: state.targetMetadata.fixtureHash,
+              native_session_contract_version: state.targetMetadata.nativeSessionContractVersion,
+              target_fingerprint: state.targetMetadata.targetFingerprint, status: state.targetMetadata.status,
+            }] }
+            if (normalized.includes('FROM pg_catalog.pg_trigger')) return { rows: [] }
+            if (normalized.includes("c.relkind IN ('r','p','m','f')")) return { rows: state.relations }
+            if (normalized.includes("sequence.relkind='S'")) return { rows: state.sequences.map(sequence => ({
+              name: sequence.name, owner: sequence.owner, owned_table: sequence.ownedTable,
+            })) }
+            if (normalized.startsWith('SELECT count(*)::text AS count')) return { rows: [{ count: '2' }] }
+            if (normalized.includes('FROM ai_pdm_core.local_sandbox_principal_session_bindings')) return { rows: state.sourceBindings.map(binding => ({
+              status: binding.status, central_correlation_id: binding.centralCorrelationId,
+              central_registration_observed_at: binding.centralRegistrationObservedAt,
+            })) }
+            throw new Error(`UNEXPECTED_STUB_QUERY:${normalized}`)
+          },
+          release() {},
+        }
+      },
+      async end() {},
+    }
+  }
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment, Pool,
+    baselineReader: async () => h.descriptor, platformFence: h.platformFence,
+    spawn: (...args) => { spawns.push(args); throw new Error('SUBPROCESS_SHOULD_NOT_START') } })
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_owner_state_invalid')
+  const roleQuery = queries.find(query => query.sql.includes('FROM pg_catalog.pg_roles'))
+  assert.match(roleQuery.sql, /pg_has_role\(role\.oid,/u)
+  assert.doesNotMatch(roleQuery.sql, /pg_has_role\(\$1,/u)
+  assert.deepEqual(roleQuery.values, [[scopedLogin, ownerRole, runtimeRole]])
+  assert.deepEqual(spawns, [])
 })
 
 test('restores the pinned repository objects and removes post-baseline files before readiness', async t => {
