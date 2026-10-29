@@ -27,12 +27,31 @@ export function CanonicalPreviewThumbnail({
   density: "gallery" | "inline";
 }) {
   const [mediaFailed, setMediaFailed] = useState(false);
+  const [hasEnteredLoadRange, setHasEnteredLoadRange] = useState(false);
+  const thumbnailRef = useRef<HTMLSpanElement>(null);
   const mediaIdentity = `${preview.state}|${preview.media?.href ?? ""}`;
   useEffect(() => { setMediaFailed(false); }, [mediaIdentity]);
   const failedPreview = mediaFailed ? { ...preview, state: "unavailable" as const, media: null } : preview;
   const ready = failedPreview.state === "ready" && Boolean(failedPreview.media);
+  useEffect(() => {
+    if (!ready || hasEnteredLoadRange) return;
+    const thumbnail = thumbnailRef.current;
+    if (!thumbnail) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setHasEnteredLoadRange(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0)) {
+        setHasEnteredLoadRange(true);
+      }
+    }, { rootMargin: "200px 0px", threshold: 0 });
+    observer.observe(thumbnail);
+    return () => observer.disconnect();
+  }, [hasEnteredLoadRange, ready]);
   const accessibleName = `${failedPreview.sourceLabel}，${stateLabel(failedPreview)}`;
   return <span
+    ref={thumbnailRef}
     className={`canonical-preview-thumbnail is-${density}`}
     role="img"
     aria-label={accessibleName}
@@ -42,7 +61,7 @@ export function CanonicalPreviewThumbnail({
       if (event.target instanceof HTMLImageElement) setMediaFailed(true);
     }}
   >
-    {ready && failedPreview.media ? <CanonicalPreviewMedia media={{ ...failedPreview.media, title: failedPreview.sourceLabel, alt: failedPreview.alt }} interactive={false} compact /> : <span className={`canonical-preview-placeholder is-${failedPreview.state}`}><span className="canonical-preview-placeholder-content">{failedPreview.state === "pending" || failedPreview.state === "delayed" ? <span className="canonical-preview-progress" aria-hidden="true" /> : null}<span>{previewText(failedPreview)}</span></span></span>}
+    {ready && hasEnteredLoadRange && failedPreview.media ? <CanonicalPreviewMedia media={{ ...failedPreview.media, title: failedPreview.sourceLabel, alt: failedPreview.alt }} interactive={false} compact /> : <span className={`canonical-preview-placeholder is-${failedPreview.state}`}><span className="canonical-preview-placeholder-content">{failedPreview.state === "pending" || failedPreview.state === "delayed" ? <span className="canonical-preview-progress" aria-hidden="true" /> : null}<span>{previewText(failedPreview)}</span></span></span>}
   </span>;
 }
 

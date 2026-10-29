@@ -5,21 +5,14 @@ import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download } from "lucide-react";
+import dynamic from "next/dynamic";
+import { errorMessage, readJson } from "@/lib/pdm-workbench-response";
 import { RETIRED_WORKBENCH_QUERY_KEYS } from "@/lib/pdm-canonical-workbench-contract";
-import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
-import { isPdfPreviewSlot, type DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { PdmWorkbenchMultiSelectFilter } from "@/components/pdm-workbench-multi-select-filter";
 import { PdmWorkbenchLayoutSwitch } from "@/components/pdm-workbench-layout-switch";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
-import { CanonicalEntityPreviewGallery, CanonicalPreviewThumbnail } from "@/components/canonical-pdm-preview-gallery";
-import { CanonicalPreviewPanel } from "@/components/canonical-preview-panel";
-import { PartPreviewSourceControl } from "@/components/part-preview-source-control";
-import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
-import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import { DRAWING_LAYOUT_STORAGE_KEY, PART_LAYOUT_STORAGE_KEY, normalizeCanonicalWorkbenchLayout, type CanonicalPreviewProjection, type CanonicalWorkbenchLayout } from "@/lib/pdm-canonical-preview";
@@ -36,9 +29,17 @@ import type {
   CanonicalWorkbenchAction,
   CanonicalWorkbenchDetailDto,
   CanonicalWorkbenchListDto,
-  CanonicalWorkbenchRowDto,
-  CanonicalDetailReadModelRow
+  CanonicalWorkbenchRowDto
 } from "@/lib/pdm-canonical-workbench-contract";
+
+// Keep detail/PDF/relation code out of the initial list bundle.
+const Drawer = dynamic(() => import("./canonical-workbench-drawer").then(module => module.CanonicalWorkbenchDrawer), {
+  loading: () => <div className="canonical-list-meta" role="status">正在開啟明細…</div>
+});
+const CanonicalEntityPreviewGallery = dynamic(() => import("./canonical-pdm-preview-gallery").then(module => module.CanonicalEntityPreviewGallery), {
+  loading: () => <div className="canonical-list-meta" role="status">正在載入預覽…</div>
+});
+const CanonicalPreviewThumbnail = dynamic(() => import("./canonical-pdm-preview-gallery").then(module => module.CanonicalPreviewThumbnail));
 
 type DomainConfig = {
   entityType: "drawing" | "part";
@@ -117,14 +118,6 @@ type RevisionTargetResponse = {
   };
   meta: { contractToken: string };
 };
-type ApiError = { error?: { code?: string; message?: string; correlationId?: string } };
-type HistoryRevisionDetail = {
-  data: {
-    revision: { revision: string; lifecycleState: string };
-    files: Array<{ id: string; role: string; displayName: string; fileName: string; mimeType: string; fileSize: number; contentHash: string; downloadHref: string; isPrimary: boolean }>;
-  };
-  meta: { readOnly: true };
-};
 type LayerSelection = PdmWorkbenchFilterSelection<CanonicalLayer>;
 type HandlingSelection = PdmWorkbenchFilterSelection<CanonicalHandling>;
 type PurposeSelection = PdmWorkbenchFilterSelection<ActiveDrawingPurposeCode>;
@@ -141,13 +134,6 @@ const DRAWER_WIDTH_STORAGE_KEYS: Record<"drawing" | "part", string> = {
   drawing: "pdm-drawing-detail-drawer-width",
   part: "pdm-part-detail-drawer-width"
 };
-
-function errorMessage(body: unknown, fallback: string) {
-  const api = body as ApiError;
-  if (typeof (body as { message?: unknown } | null)?.message === "string" && String((body as { message: string }).message).trim()) return String((body as { message: string }).message).trim();
-  if (typeof (body as { error?: unknown } | null)?.error === "string" && String((body as { error: string }).error).trim()) return String((body as { error: string }).error).trim();
-  return api?.error?.message?.trim() || fallback;
-}
 
 function errorCode(body: unknown) {
   const error = (body as { error?: unknown } | null)?.error;
@@ -168,11 +154,6 @@ function obsoleteRequestErrorMessage(body: unknown, entityType: "drawing" | "par
     return "此資料尚未正式發行，不能申請作廢。「主檔」是工作台的資料層導覽錨點；請先確認生命週期為「已發布」後再申請。";
   }
   return message;
-}
-
-async function readJson(response: Response) {
-  try { return await response.json() as unknown; }
-  catch { return null; }
 }
 
 function replaceLocation(patch: { query?: string; layer?: LayerSelection; handling?: HandlingSelection; purposeFilter?: PurposeSelection; itemKindFilter?: ItemKindSelection; seriesFilter?: SeriesSelection; materialFilter?: string; colorFilter?: string; sortBy?: CanonicalWorkbenchSortField; sort?: "asc" | "desc"; detail?: string | null; historyRevision?: string | null; layout?: CanonicalWorkbenchLayout | null; cursor?: string | null; direction?: "after" | "before"; pageIndex?: number; historyMode?: "replace" | "push" }) {
@@ -257,182 +238,6 @@ function writeStoredLayout(storageKey: string, layout: CanonicalWorkbenchLayout)
   try { window.localStorage.setItem(storageKey, layout); } catch { /* session state remains authoritative */ }
 }
 
-function DetailFields({ fields }: { fields: Detail["data"]["presentation"]["fields"] }) {
-  if (!fields.length) return <p className="canonical-empty">無資料</p>;
-  return <dl className="canonical-field-grid">{fields.map((field) => <div key={field.key}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>;
-}
-
-function DetailReadModelRows({ rows }: { rows: CanonicalDetailReadModelRow[] }) {
-  return <div className="canonical-detail-read-model-rows">
-    <div className="canonical-detail-read-model-header" aria-hidden="true"><span>欄位</span><span>值</span><span /></div>
-    {rows.map((row) => <details className="canonical-detail-read-model-row" key={row.key}>
-      <summary>
-        <span className="canonical-detail-read-model-label">{row.label}</span>
-        <strong className="canonical-detail-read-model-value">{row.value}</strong>
-        <span className="canonical-detail-read-model-toggle" aria-hidden="true">⌄</span>
-      </summary>
-      {row.details.length ? <dl className="canonical-detail-read-model-details">{row.details.map((detail) => <div key={`${row.key}-${detail.label}`}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl> : null}
-    </details>)}
-  </div>;
-}
-
-function DetailRecognitionSections({ detail }: { detail: Detail }) {
-  const recognition = detail.data.presentation.recognition;
-  const sections = detail.data.presentation.kind === "part"
-    ? [
-        { key: "part-attributes", title: "料號屬性", rows: recognition.partAttributes },
-        { key: "controlled-notes", title: "受控註記", rows: recognition.controlledNotes },
-        { key: "engineering-evidence", title: "辨識證據", rows: recognition.engineeringEvidence }
-      ]
-    : [
-        { key: "revision-metadata", title: "版次資料", rows: recognition.revisionMetadata },
-        { key: "controlled-notes", title: "受控註記", rows: recognition.controlledNotes },
-        { key: "engineering-evidence", title: "辨識證據", rows: recognition.engineeringEvidence }
-      ];
-  return <>{sections.filter((section) => section.rows.length > 0).map((section) => <section className="canonical-recognition-section" data-section={section.key} key={section.key}>
-    <h3>{section.title}</h3>
-    <DetailReadModelRows rows={section.rows} />
-  </section>)}</>;
-}
-
-export function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel] }) {
-  const cards: DrawingDetailPreviewCard[] = (previews ?? []).map((preview) => ({
-    kind: preview.kind,
-    title: preview.title,
-    fileName: preview.fileName,
-    state: preview.state === "queued" || preview.state === "running" ? "pending" : preview.state,
-    stateTitle: preview.stateTitle,
-    stateText: preview.stateText,
-    actions: preview.downloadHref ? <a className="secondary-button" href={preview.downloadHref} download aria-label={`下載原檔 ${preview.fileName ?? preview.title}`}>下載原檔</a> : undefined,
-    media: preview.mediaHref ? {
-      href: preview.mediaHref,
-      mode: preview.kind === "three-d" ? "image" : "document",
-      title: preview.title,
-      alt: preview.fileName ?? preview.title,
-      fullPdf: isPdfPreviewSlot(preview)
-    } : undefined
-  }));
-  return <DrawingDetailPreview cards={cards} title={null} showHeader={false} dataSection="canonical-drawing-preview" />;
-}
-
-function DrawingHistoryRevision({ drawingId, revisionId, onBack }: { drawingId: string; revisionId: string; onBack: () => void }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [data, setData] = useState<HistoryRevisionDetail | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true); setError("");
-    void fetch(`/api/numbering/drawings/${encodeURIComponent(drawingId)}/history/${encodeURIComponent(revisionId)}`, { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        const body = await readJson(response);
-        if (!response.ok) throw new Error(errorMessage(body, "歷史版次載入失敗"));
-        setData(body as HistoryRevisionDetail);
-      })
-      .catch((requestError: unknown) => { if (!(requestError instanceof Error && requestError.name === "AbortError")) setError(requestError instanceof Error ? requestError.message : "歷史版次載入失敗"); })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [drawingId, revisionId]);
-  return <section className="canonical-history-detail" aria-label="歷史版次明細">
-    <div className="canonical-drawer-section-heading"><h3>歷史版次明細</h3><button type="button" className="secondary-button" onClick={onBack}>返回版次清單</button></div>
-    {loading ? <p className="canonical-drawer-message" role="status">正在載入指定版次…</p> : error ? <p className="canonical-error" role="alert">{error}</p> : data ? <><p className="canonical-history-readonly">唯讀 · {data.data.revision.revision} · {data.data.revision.lifecycleState}</p><ul className="canonical-record-list">{data.data.files.map((file) => <li className="canonical-record" key={file.id}><div><strong>{file.displayName || file.fileName}</strong><small>{file.role} · {file.fileSize} bytes · {file.contentHash || "無雜湊"}</small></div><a className="secondary-button" href={file.downloadHref}>下載</a></li>)}</ul>{!data.data.files.length ? <p className="canonical-empty">此版次沒有可讀檔案。</p> : null}</> : null}
-  </section>;
-}
-
-function AttachmentManagementAction({ allowed, onClick }: { allowed: boolean; onClick: () => void }) {
-  const { state } = usePdmPermissions();
-  if (!allowed && state.kind !== "loading" && state.kind !== "unavailable") return null;
-  return <button type="button" className="secondary-button" disabled={!allowed}
-    aria-busy={state.kind === "loading" ? true : undefined} onClick={onClick}>管理附件</button>;
-}
-
-function Drawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart }: {
-  detail: Detail | null; loading: boolean; error: string; onClose: () => void;
-  width: number; onStartResize: (clientX: number) => void;
-  canManageAttachments: boolean;
-  historyRevisionId: string | null;
-  onHistoryRevisionChange: (revisionId: string | null) => void;
-  onAction: (row: CanonicalWorkbenchRowDto, action: CanonicalWorkbenchAction) => void;
-  onManageAttachments: (row: CanonicalWorkbenchRowDto) => void;
-  onPartPreviewCommitted: (row: CanonicalWorkbenchRowDto, result: PartPreviewMutationResult) => void;
-  onBeforeCreate: () => boolean;
-  onMatrixSaved: () => void;
-  onMatrixDirtyChange: (dirty: boolean) => void;
-  onOpenMatrixDrawing: (detailHref: string) => void;
-  onOpenMatrixPart: (detailHref: string) => void;
-}) {
-  const [matrixEditing, setMatrixEditing] = useState(false);
-  const presentation = detail?.data.presentation;
-  const relationMatrix = presentation?.relationMatrix;
-  const relationEditable = Boolean(relationMatrix?.rootId)
-    && (relationMatrix?.drawings.length ?? 0) > 0
-    && (relationMatrix?.parts.length ?? 0) > 0
-    && detail?.data.row.entityType === "drawing"
-    && Boolean(detail?.data.row.actions.some((action) => action.key === "edit_relation_matrix"));
-  useEffect(() => { setMatrixEditing(false); }, [detail?.data.row.rowKey]);
-  const relationAction = relationEditable && !matrixEditing
-    ? <button type="button" className="secondary-button canonical-preview-relation-action" data-canonical-relation-edit="true" onClick={() => setMatrixEditing(true)}>編輯關聯</button>
-    : null;
-  const footerActions = detail?.data.row.actions.filter((action) => action.key !== "edit_relation_matrix") ?? [];
-  const partPrimaryActions = footerActions.filter((action) => action.key === "edit" || action.key === "create_change" || action.key === "review");
-  const partLifecycleActions = footerActions.filter((action) => !partPrimaryActions.includes(action));
-  const renderAction = (action: CanonicalWorkbenchAction) => <button key={action.key} type="button" className={action.key === "cancel_work" ? "danger-button" : action.key === "void_rd" ? "secondary-button" : "primary-button"} onClick={() => onAction(detail!.data.row, action)}>{action.label}</button>;
-  const footer = footerActions.length ? <div className="canonical-drawer-actions">{detail?.data.row.entityType === "part" ? <>{partPrimaryActions.map(renderAction)}{partLifecycleActions.length ? <details className="canonical-drawer-more-actions"><summary className="secondary-button">更多操作</summary><div>{partLifecycleActions.map(renderAction)}</div></details> : null}</> : footerActions.map(renderAction)}</div> : undefined;
-  return <PdmEntityDetailDrawer
-    open
-    width={width}
-    ariaLabel="工作台明細"
-    title={detail?.data.row.code ?? "明細"}
-    subtitle={detail?.data.row.name || undefined}
-    status={detail ? <span className="canonical-status-pair"><span className={`canonical-layer is-${detail.data.row.layer}`}>{detail.data.row.layerLabel}</span><span className={`canonical-handling is-${detail.data.row.handling}`}>{detail.data.row.handlingLabel}</span></span> : undefined}
-    footer={footer}
-    entityType={detail?.data.row.entityType}
-    entityCode={detail?.data.row.code}
-    sourceContext="canonical-workbench"
-    detailFamily="canonical"
-    resizeLabel="調整明細欄寬度"
-    resizeTitle="拖拉調整明細欄寬度"
-    keepOpenSelector="[data-canonical-workbench-row='true'], [data-canonical-preview-card='true'], .canonical-modal"
-    onStartResize={onStartResize}
-    onClose={onClose}
-  >
-    {loading ? <p className="canonical-drawer-message" role="status">正在載入明細…</p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
-       <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
-       <DetailRecognitionSections detail={detail} />
-       {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}
-      {presentation.kind === "part" && presentation.preview ? <CanonicalPartPreviewSection
-        partNumber={detail.data.row.code}
-        preview={presentation.preview}
-        control={presentation.previewSourceControl}
-        mode="readonly"
-        onCommitted={(result) => onPartPreviewCommitted(detail.data.row, result)}
-      /> : null}
-      {presentation.kind === "part" ? <section data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3><AttachmentManagementAction allowed={canManageAttachments} onClick={() => onManageAttachments(detail.data.row)} /></div>{presentation.files.length ? <ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul> : <p className="canonical-empty">尚無附件</p>}</section> : presentation.files.length ? <section><h3>圖面檔案</h3><ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul></section> : null}
-      {presentation.kind === "drawing" || presentation.kind === "part" ? <>
-        <CanonicalRelationMatrixSection
-        matrix={presentation.relationMatrix}
-        contractToken={detail.meta.contractToken}
-        mode={presentation.kind === "drawing" ? "manage" : "readonly"}
-        editing={matrixEditing}
-        onEditingChange={setMatrixEditing}
-        editAction={relationAction}
-        createAction={presentation.relationMatrix.rootId ? <CanonicalNumberingCreateAction
-          surface={presentation.kind}
-          rootCode={presentation.relationMatrix.rootCode}
-          returnTo={typeof window === "undefined" ? undefined : `${window.location.pathname}${window.location.search}`}
-          className="secondary-button"
-          onBeforeNavigate={onBeforeCreate}
-        /> : null}
-        onSaved={onMatrixSaved}
-        onDirtyChange={onMatrixDirtyChange}
-        onOpenDrawing={onOpenMatrixDrawing}
-        onOpenPart={onOpenMatrixPart}
-      /></> : null}
-      {detail.data.row.handling === "blocked" ? <section className="canonical-blocker"><h3>受阻資訊</h3><p>{detail.data.row.blockerReason || "請系統管理員處理"}</p></section> : null}
-      {presentation.kind === "drawing" ? historyRevisionId ? <DrawingHistoryRevision drawingId={presentation.history.find((history) => history.id === historyRevisionId)?.drawingId ?? detail.data.row.entityId} revisionId={historyRevisionId} onBack={() => onHistoryRevisionChange(null)} /> : <section><h3>歷史版次清單</h3>{presentation.history.length ? <ul className="canonical-record-list">{presentation.history.map((history) => <li className="canonical-record" key={history.id}><button type="button" className="canonical-history-open" onClick={() => onHistoryRevisionChange(history.id)}><strong>{history.layerLabel} {history.revision}</strong><span>開啟指定版次</span></button></li>)}</ul> : <p className="canonical-empty">目前沒有歷史版次</p>}</section> : null}
-    </div> : null}
-  </PdmEntityDetailDrawer>;
-}
-
 export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | "part" }) {
   const router = useRouter();
   const config = DOMAIN_CONFIG[entityType];
@@ -440,6 +245,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const listRef = useRef<HTMLDivElement>(null);
   const filterTimerRef = useRef<number | null>(null);
   const filtersDirtyRef = useRef(false);
+  const textFilterDirtyRef = useRef(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: DRAWER_WIDTH_STORAGE_KEYS[entityType] });
   const [query, setQuery] = useState("");
   const [layer, setLayer] = useState<LayerSelection>({ mode: "all" });
@@ -494,7 +300,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const [layout, setLayout] = useState<CanonicalWorkbenchLayout>("list");
   const [previewByRowKey, setPreviewByRowKey] = useState<Record<string, CanonicalPreviewProjection>>({});
   const [previewCapability, setPreviewCapability] = useState(false);
-  const { allowsAction } = usePdmPermissions();
+  const { allowsAction, workbenchCache } = usePdmPermissions();
   const canManageAttachments = entityType === "part" && allowsAction("numbering.attachments.manage");
   const [previewPollingStopped, setPreviewPollingStopped] = useState(false);
   const [previewPollGeneration, setPreviewPollGeneration] = useState(0);
@@ -505,7 +311,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const restoredPageRef = useRef<{ cursor: string | null; direction: "after" | "before" } | null>(null);
   const entryCommandKeysRef = useRef(new Map<string, string>());
 
-  const changeFilter = useCallback((current: string | PdmWorkbenchFilterSelection, next: string | PdmWorkbenchFilterSelection, apply: () => void) => {
+  const changeFilter = useCallback((current: string | PdmWorkbenchFilterSelection, next: string | PdmWorkbenchFilterSelection, apply: () => void, debounce = false) => {
     const key = (value: string | PdmWorkbenchFilterSelection) => {
       if (typeof value === "string") return value;
       const params = new URLSearchParams();
@@ -515,6 +321,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     if (key(current) === key(next)) return;
     restoredPageRef.current = null;
     filtersDirtyRef.current = true;
+    textFilterDirtyRef.current = debounce;
     apply();
   }, []);
 
@@ -522,6 +329,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     if (filterTimerRef.current !== null) window.clearTimeout(filterTimerRef.current);
     filterTimerRef.current = null;
     filtersDirtyRef.current = false;
+    textFilterDirtyRef.current = false;
     const url = new URL(window.location.href);
     setQuery(url.searchParams.get("query") ?? "");
     setLayer(parsePdmWorkbenchFilterSelectionForBrowser(url.searchParams, "layer", { allowedValues: config.layerOptions.map((option) => option.value) }));
@@ -560,6 +368,9 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
 
   useEffect(() => {
     let active = true;
+    const cached = workbenchCache.readSeries();
+    if (cached) { setSeriesOptions(cached); setSeriesOptionsLoading(false); return; }
+    const cacheGeneration = workbenchCache.generation();
     const controller = new AbortController();
     void fetch("/api/numbering/series-codes", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -569,7 +380,10 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       })
       .then((body) => {
         if (!active) return;
-        setSeriesOptions(seriesFilterOptionsFromResponse(body));
+        if (cacheGeneration !== workbenchCache.generation()) { setSeriesOptionsLoading(false); return; }
+        const options = seriesFilterOptionsFromResponse(body);
+        workbenchCache.writeSeries(options, cacheGeneration);
+        setSeriesOptions(options);
         setSeriesOptionsLoading(false);
       })
       .catch((requestError: unknown) => {
@@ -578,7 +392,14 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         setSeriesOptionsLoading(false);
       });
     return () => { active = false; controller.abort(); };
-  }, []);
+  }, [workbenchCache]);
+
+  useEffect(() => workbenchCache.subscribe(() => {
+    // A denial/account change must also remove any restored display data.
+    setGroups([]); setPreviewByRowKey({}); setNextCursor(null); setPreviousCursor(null);
+    setContractToken(""); setDetail(null);
+    setSeriesOptions([]); setSeriesOptionsLoading(false);
+  }), [workbenchCache]);
 
 
   useEffect(() => {
@@ -722,25 +543,40 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       return;
     }
     const separator = listUrl.includes("?") ? "&" : "?";
+    const requestUrl = cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl;
+    const cacheGeneration = workbenchCache.generation();
+    const cached = !background ? workbenchCache.readList(requestUrl) : null;
+    if (cached) {
+      setGroups(cached.groups);
+      setPreviewCapability(cached.previewByRowKey !== undefined);
+      setPreviewByRowKey(cached.previewByRowKey ?? {});
+      // Cursor and command authority always come from the fresh response.
+      setNextCursor(null); setPreviousCursor(null); setContractToken("");
+    }
     try {
       if (background) previewPollRef.current.starts += 1;
-      const response = await fetch(cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl, { cache: "no-store", signal: controller.signal });
+      const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation) return;
       if (!response.ok) {
+        workbenchCache.clear(false);
         const message = errorMessage(body, "清單載入失敗");
         setError(message);
         if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
         return;
       }
+      if (cacheGeneration !== workbenchCache.generation()) { if (!background) setLoading(false); return; }
       const result = body as CanonicalWorkbenchListDto;
       const previewContractError = validatePreviewMapContract(result.data.groups, result.data.previewByRowKey);
       if (previewContractError) {
+        workbenchCache.clear(false);
+        setGroups([]); setPreviewByRowKey({});
         setError(`預覽資料契約錯誤：${previewContractError}`);
         if (!background) setLoading(false);
         return;
       }
       listPageRef.current = { cursor: cursor ?? null, direction };
+      workbenchCache.writeList(requestUrl, result.data, cacheGeneration);
       setGroups(result.data.groups);
       const hasPreviewCapability = result.data.previewByRowKey !== undefined;
       setPreviewCapability(hasPreviewCapability);
@@ -749,6 +585,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       setNextCursor(result.data.nextCursor); setPreviousCursor(result.data.previousCursor); setContractToken(result.meta.contractToken); setLoading(false);
     } catch (requestError) {
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation || (requestError instanceof Error && requestError.name === "AbortError")) return;
+      workbenchCache.clear(false);
       setError("清單載入失敗");
       if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
     } finally {
@@ -757,7 +594,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         if (background && generation === previewPollRef.current.generation && previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) setPreviewPollingStopped(true);
       }
     }
-  }, [listUrl, retiredQuery]);
+  }, [listUrl, retiredQuery, workbenchCache]);
 
   useEffect(() => () => {
     // Query replacement/unmount invalidates late results without reopening budget.
@@ -777,7 +614,10 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   }, [colorFilter, entityType, handling, itemKindFilter, layer, materialFilter, purposeFilter, query, seriesFilter, sort, sortBy]);
 
   useEffect(() => {
+    // Only typing needs debouncing; initial entry, back/forward and applied filters do not.
+    const delay = textFilterDirtyRef.current ? 250 : 0;
     const timer = window.setTimeout(() => {
+      textFilterDirtyRef.current = false;
       filterTimerRef.current = null;
       const restoredPage = restoredPageRef.current;
       restoredPageRef.current = null;
@@ -787,7 +627,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       }
       syncFilterLocation();
       void load();
-    }, 250);
+    }, delay);
     filterTimerRef.current = timer;
     return () => {
       window.clearTimeout(timer);
@@ -1150,14 +990,14 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   return <div className="canonical-workbench">
     <header className="canonical-workbench-header"><h1>{config.title}</h1><div className="canonical-workbench-header-actions"><CanonicalNumberingCreateAction surface={entityType} /></div></header>
     <section className="canonical-toolbar" aria-label="清單篩選">
-      <label className="canonical-search" htmlFor={searchId}><span>搜尋</span><input id={searchId} value={query} onChange={(event) => changeFilter(query, event.target.value, () => setQuery(event.target.value))} placeholder={config.searchPlaceholder} /></label>
+      <label className="canonical-search" htmlFor={searchId}><span>搜尋</span><input id={searchId} value={query} onChange={(event) => changeFilter(query, event.target.value, () => setQuery(event.target.value), true)} placeholder={config.searchPlaceholder} /></label>
       <PdmWorkbenchMultiSelectFilter label={config.layerFilterLabel} value={layer} options={config.layerOptions} onApply={(value) => changeFilter(layer, value, () => setLayer(value))} />
       <PdmWorkbenchMultiSelectFilter label="處理" value={handling} options={HANDLING_OPTIONS} onApply={(value) => changeFilter(handling, value, () => setHandling(value))} />
       {entityType === "drawing" ? <PdmWorkbenchMultiSelectFilter label="用途" value={purposeFilter} options={DRAWING_PURPOSE_OPTIONS} onApply={(value) => changeFilter(purposeFilter, value, () => setPurposeFilter(value))} /> : null}
       {entityType === "part" ? <PdmWorkbenchMultiSelectFilter label="料件類型" value={itemKindFilter} options={CANONICAL_NUMBERING_ITEM_KIND_OPTIONS} onApply={(value) => changeFilter(itemKindFilter, value, () => setItemKindFilter(value))} /> : null}
       <PdmWorkbenchMultiSelectFilter label="系列" value={seriesFilter} options={seriesFilterOptions} searchable disabled={seriesOptionsLoading || seriesFilterOptions.length === 0} onApply={(value) => changeFilter(seriesFilter, value, () => setSeriesFilter(value))} />
-      {entityType === "part" ? <label className="canonical-domain-filter"><span>材質</span><input value={materialFilter} onChange={(event) => changeFilter(materialFilter, event.target.value, () => setMaterialFilter(event.target.value))} placeholder="代碼或名稱" /></label> : null}
-      {entityType === "part" ? <label className="canonical-domain-filter"><span>顏色</span><input value={colorFilter} onChange={(event) => changeFilter(colorFilter, event.target.value, () => setColorFilter(event.target.value))} placeholder="代碼或名稱" /></label> : null}
+      {entityType === "part" ? <label className="canonical-domain-filter"><span>材質</span><input value={materialFilter} onChange={(event) => changeFilter(materialFilter, event.target.value, () => setMaterialFilter(event.target.value), true)} placeholder="代碼或名稱" /></label> : null}
+      {entityType === "part" ? <label className="canonical-domain-filter"><span>顏色</span><input value={colorFilter} onChange={(event) => changeFilter(colorFilter, event.target.value, () => setColorFilter(event.target.value), true)} placeholder="代碼或名稱" /></label> : null}
     </section>
     {error ? <div className="canonical-error" role="alert"><span>{error}</span>{error === "此篩選網址已失效" ? <button type="button" className="secondary-button" onClick={resetRetiredUrl}>清除舊篩選</button> : null}</div> : null}
     <section className="canonical-list" aria-busy={loading}>

@@ -3,6 +3,7 @@ const hooks = vi.hoisted(()=>({effects:[] as Array<()=>void|(()=>void)>,states:[
 vi.mock("react",()=>({useState:(initial:unknown)=>[initial,(value:unknown)=>hooks.states.push(value)],useEffect:(effect:()=>void|(()=>void))=>hooks.effects.push(effect)}));
 vi.mock("@/components/pdf-page-viewport",()=>({PdfPageViewport:()=>null}));
 vi.mock("@/components/pdf-document-viewport", () => ({ PdfDocumentViewport: () => null }));
+vi.mock("@/components/pdm-preview-image-cache-context", () => ({ usePdmPreviewImageCache: () => null }));
 import { CanonicalPreviewMedia, canonicalPreviewResponseDisposition } from "@/components/canonical-preview-media";
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();hooks.effects.length=0;hooks.states.length=0;});
 
