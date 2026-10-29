@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { issueLocalSandboxPrincipalSession } from "@/lib/local-sandbox-principal-session";
+import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
 import {
   clearLocalStateCookie,
   createLocalPrincipalSessionCookie,
@@ -92,7 +93,8 @@ export async function GET(request: Request) {
       new Date(issued.claims.expiresAt * 1000).toISOString(), local.config.origin));
     response.headers.append("set-cookie", clearLocalStateCookie(local.config.origin));
     return response;
-  } catch {
+  } catch (error) {
+    reportLocalPrincipalDiagnostic("local_sandbox_callback", error);
     const response = safeFailure(verifiedOrigin);
     if (verifiedOrigin) response.headers.append("set-cookie", clearLocalStateCookie(verifiedOrigin));
     return response;

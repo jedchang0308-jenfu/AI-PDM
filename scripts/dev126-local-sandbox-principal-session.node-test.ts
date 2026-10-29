@@ -196,6 +196,7 @@ function harness(options: {
   invalidIntrospectionSignature?: boolean
   nativeAccountLifecycleVersion?: number
   nativeProfileVersion?: number
+  lifecycleProjectionFailure?: boolean
 } = {}) {
   let registeredRow: Record<string, unknown> | null = null
   const bindings = new Map<string, LocalSandboxPrincipalSessionBinding>()
@@ -206,6 +207,11 @@ function harness(options: {
     query: async <T>() => [] as T[],
     queryOne: async <T>(sql: string): Promise<T | null> => {
       if (sql.includes('SELECT current_database()')) return { database_name: DATABASE_NAME } as T
+      if (sql.includes('project_local_principal_lifecycle_v1')) {
+        events.push('lifecycle_projection')
+        if (options.lifecycleProjectionFailure) throw new Error('LOCAL_LIFECYCLE_OWNER_MISMATCH')
+        return { changed: true } as T
+      }
       if (sql.includes('FROM ai_pdm_core.principal_session_records')) {
         events.push('native_session_readback')
         return registeredRow as T | null
@@ -418,6 +424,7 @@ test('issues only after assertion verification, actual target checks, native com
   assert.equal(result.binding.centralCorrelationId, 'central-registration-correlation-001')
   assert.equal(result.binding.centralRegistrationObservedAt, new Date(NOW_MS).toISOString())
   assert.ok(setup.events.indexOf('native_session_readback') < setup.events.indexOf('central_register'))
+  assert.ok(setup.events.indexOf('lifecycle_projection') < setup.events.indexOf('native_issue'))
   assert.ok(setup.events.indexOf('central_register') < setup.events.indexOf('binding_registered'))
   assert.equal(setup.bindings.size, 1)
   const replay = await issueLocalSandboxPrincipalSession(issueInput(assertion(), expected(), setup))
@@ -440,6 +447,28 @@ test('issues only after assertion verification, actual target checks, native com
     nowMs: NOW_MS + 30,
   })
   assert.equal(setup.events.filter((event) => event === 'central_introspection').length, 2)
+})
+
+test('reissues version two only after the native owner projection succeeds', async () => {
+  const setup = harness({ nativeAccountLifecycleVersion: 2, nativeProfileVersion: 2 })
+  const result = await issueLocalSandboxPrincipalSession(issueInput(
+    assertion({ accountLifecycleVersion: 2, profileVersion: 2 }), expected(), setup))
+  assert.equal(result.claims.accountLifecycleVersion, 2)
+  assert.equal(result.claims.profileVersion, 2)
+  assert.equal(result.binding.status, 'central_registered')
+})
+
+test('an owner projection refusal stops native issuance and central registration', async () => {
+  const setup = harness({ lifecycleProjectionFailure: true })
+  await assert.rejects(issueLocalSandboxPrincipalSession(issueInput(assertion(), expected(), setup)),
+    /LOCAL_LIFECYCLE_OWNER_MISMATCH/)
+  assert.deepEqual(setup.events, ['lifecycle_projection'])
+  const forged = issueInput(assertion(), expected(), harness())
+  forged.signedResponse.signature = 'invalid'
+  const noProjection = harness()
+  await assert.rejects(issueLocalSandboxPrincipalSession({ ...forged, database: noProjection.database,
+    ports: noProjection.ports }))
+  assert.deepEqual(noProjection.events, [])
 })
 
 test('requires the explicit local lane, rejects formal identity configuration, target drift, and unpinned synthetic AAL2', async () => {

@@ -396,6 +396,20 @@ export async function issueLocalSandboxPrincipalSession(input: IssueLocalSandbox
     fail('LOCAL_SANDBOX_CATALOG_BINDING_MISMATCH')
   }
 
+  // Only the already signature-verified, target-bound assertion reaches this
+  // owner function. PostgreSQL independently reads OrgMaster's versioned local
+  // contract; it never accepts a caller-supplied lifecycle transition.
+  const projected = await input.database.queryOne<{ changed: boolean }>(`
+    SELECT ai_pdm_core.project_local_principal_lifecycle_v1(
+      :sandboxId,:generation::uuid,:fixtureVersion,:fixtureHash,
+      :principalId,:employeeId,:lifecycleVersion,:profileVersion
+    ) AS changed
+  `, { sandboxId: assertion.sandboxId, generation: assertion.generation,
+    fixtureVersion: assertion.fixtureVersion, fixtureHash: assertion.fixtureHash,
+    principalId: assertion.principalId, employeeId: assertion.employeeId,
+    lifecycleVersion: assertion.accountLifecycleVersion, profileVersion: assertion.profileVersion });
+  if (!projected || typeof projected.changed !== 'boolean') fail('LOCAL_SANDBOX_LIFECYCLE_READBACK_FAILED')
+
   const handoff: JenfuPrincipalHandoff = {
     contractVersion: 'jenfu.sso-handoff.v2',
     issuer: LOCAL_IDENTITY_ISSUER,
