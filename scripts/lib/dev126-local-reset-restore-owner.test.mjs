@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { mkdtemp, mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -46,7 +46,8 @@ function fence(scope, overrides = {}) {
 }
 
 function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malformedToc = false,
-  restoreSqlHeader = pg18RestoreHeader, restoreFooterKey = pg18RestrictKey, restoreHeaderExtra = '', copyRowData = '' } = {}) {
+  restoreSqlHeader = pg18RestoreHeader, restoreFooterKey = pg18RestrictKey, restoreHeaderExtra = '', copyRowData = '',
+  psqlCodeSequence = null, psqlApplySequence = null, preRestoreBusinessRows = false } = {}) {
   const scope = Object.freeze({ sandboxId, resetId, sourceGeneration, generation: nextGeneration,
     baseline: Object.freeze({ id: 'base-dev126', sha256: 'a'.repeat(64) }) })
   const environment = {
@@ -61,7 +62,8 @@ function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malf
   }
 
   return { scope, environment, onlineApp, psqlCode, applyPsql, malformedToc,
-    restoreSqlHeader, restoreFooterKey, restoreHeaderExtra, copyRowData }
+    restoreSqlHeader, restoreFooterKey, restoreHeaderExtra, copyRowData,
+    psqlCodeSequence, psqlApplySequence, preRestoreBusinessRows }
 }
 
 async function prepareHarness(t, options = {}) {
@@ -164,6 +166,7 @@ async function prepareHarness(t, options = {}) {
       centralRegistrationObservedAt: '2026-10-29T00:00:00.000Z' }],
   }
   let currentState = structuredClone(sourceState)
+  let psqlApplied = false
   const business = includedRelations.map(name => {
     const relation = relations.find(item => item.name === name)
     return { name, rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 }
@@ -199,14 +202,20 @@ async function prepareHarness(t, options = {}) {
   const platformCalls = []
   const platformFence = { async readResetFence({ scope }) {
     platformCalls.push(scope.resetId)
-    return fence(scope, { applicationsOffline: !options.onlineApp })
+    return fence(scope, { applicationsOffline: options.fenceInvalidAt === platformCalls.length
+      ? false : !options.onlineApp })
   } }
   const spawns = []
+  const psqlInputs = []
   const spawn = (executable, args, spawnOptions) => {
     spawns.push({ executable, args: [...args], options: spawnOptions })
     const child = new EventEmitter()
     child.stdout = new PassThrough()
     child.stderr = new PassThrough()
+    child.stdin = new PassThrough()
+    const stdinChunks = []
+    child.stdin.on('data', chunk => stdinChunks.push(Buffer.from(chunk)))
+    const stdinEnded = new Promise(resolve => child.stdin.once('end', resolve))
     child.kill = () => {}
     setImmediate(async () => {
       if (args.includes('--list')) {
@@ -233,8 +242,13 @@ async function prepareHarness(t, options = {}) {
         return
       }
       if (executable.toLowerCase().startsWith('psql')) {
-        const transactionFile = args[args.indexOf('--file') + 1]
-        const sql = await readFile(transactionFile, 'utf8')
+        await stdinEnded
+        const psqlAttempt = spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length
+        const sql = Buffer.concat(stdinChunks).toString('utf8')
+        psqlInputs.push(sql)
+        assert.equal(args[args.indexOf('--file') + 1], '-')
+        assert.equal(spawnOptions.stdio[0], 'pipe')
+        assert.ok(sql.length > 0)
         assert.match(sql, /TRUNCATE TABLE[\s\S]+RESTRICT;/u)
         assert.match(sql, /SET LOCAL ROLE jenfu_ai_pdm_migrator;/u)
         assert.match(sql, /DISABLE TRIGGER USER;/u)
@@ -248,14 +262,17 @@ async function prepareHarness(t, options = {}) {
         if (harness.copyRowData) assert.ok(sql.includes(harness.copyRowData))
         assert.equal((sql.match(/DISABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
         assert.equal((sql.match(/ENABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
-        if (harness.applyPsql) {
+        const applyPsql = harness.psqlApplySequence?.[psqlAttempt - 1] ?? harness.applyPsql
+        const psqlCode = harness.psqlCodeSequence?.[psqlAttempt - 1] ?? harness.psqlCode
+        if (applyPsql) {
+          psqlApplied = true
           currentState = { ...currentState, principalSessionCount: 0,
             sourceBindings: currentState.sourceBindings.map(binding => ({ ...binding, status: 'revoked' })),
             targetMetadata: { ...currentState.targetMetadata, status: 'maintenance' } }
         }
         child.stdout.end()
         child.stderr.end()
-        child.emit('close', harness.psqlCode)
+        child.emit('close', psqlCode)
         return
       }
       child.stderr.end()
@@ -265,10 +282,103 @@ async function prepareHarness(t, options = {}) {
   }
   const owner = createDev126LocalResetRestoreOwner({ environment: harness.environment,
     baselineReader: async () => descriptor, platformFence, database, spawn })
-  return { ...harness, targetInput, manifest, descriptor, owner, databaseCalls, platformCalls, spawns,
+  return { ...harness, targetInput, manifest, descriptor, owner, databaseCalls, platformCalls, spawns, psqlInputs,
     platformFence, currentState: () => structuredClone(currentState), setState: value => { currentState = value },
     preservedControls: () => structuredClone(preservedControls),
-    setPreservedControls: value => { preservedControls = structuredClone(value) } }
+    setPreservedControls: value => { preservedControls = structuredClone(value) },
+    psqlWasApplied: () => psqlApplied, spawn }
+}
+
+function makeRestoreOwnerPool(harness, queries) {
+  return function Pool(poolOptions) {
+    return {
+      async connect() {
+        const password = await poolOptions.password({ host: poolOptions.host, port: poolOptions.port,
+          database: poolOptions.database, user: poolOptions.user })
+        assert.equal(password, harness.environment.PGPASSWORD)
+        let connectionReads = 0
+        const client = {
+          async query(sql, values = []) {
+            const normalized = sql.trim()
+            queries.push({ sql: normalized, values })
+            if (normalized === 'BEGIN' || normalized.startsWith('BEGIN ') || normalized === 'COMMIT' ||
+              normalized === 'ROLLBACK' || normalized === `SET LOCAL ROLE ${ownerRole}`) return { rows: [] }
+            if (normalized.includes('AS server_address')) {
+              connectionReads += 1
+              const state = harness.currentState()
+              return { rows: [{ database_name: state.identity.databaseName,
+                current_user: connectionReads === 1 ? scopedLogin : ownerRole,
+                session_user: scopedLogin, server_address: state.identity.serverAddress,
+                server_port: state.identity.serverPort }] }
+            }
+            const state = harness.currentState()
+            if (normalized.includes('FROM pg_catalog.pg_roles')) return { rows: Object.values(state.roles).map(role => ({
+              rolname: role.name, rolcanlogin: role.canLogin, rolsuper: role.isSuperuser,
+              rolcreatedb: role.canCreateDb, rolcreaterole: role.canCreateRole,
+              rolbypassrls: role.bypassRls, member_of_owner: role.memberOfOwner,
+            })) }
+            if (normalized.includes('FROM pg_catalog.pg_namespace')) return { rows: [{ schema_owner: state.schemaOwner }] }
+            if (normalized.includes('FROM pg_catalog.pg_database')) return { rows: [{
+              database_owner: state.databaseOwner, database_marker: state.databaseMarker,
+            }] }
+            if (normalized.includes('FROM ai_pdm_core.pdm_workbench_state_authority_control')) return { rows: [{
+              mode: state.authority.mode, expected_commit: state.authority.expectedCommit,
+              schema_hash: state.authority.schemaHash, row_version: state.authority.rowVersion,
+              switched_at: state.authority.switchedAt,
+            }] }
+            if (normalized.includes('FROM ai_pdm_core.local_sandbox_target_metadata')) return { rows: [{
+              application_id: state.targetMetadata.applicationId, sandbox_id: state.targetMetadata.sandboxId,
+              database_name: state.targetMetadata.databaseName, sandbox_root: state.targetMetadata.sandboxRoot,
+              data_directory: state.targetMetadata.dataDirectory, repository_directory: state.targetMetadata.repositoryDirectory,
+              generation: state.targetMetadata.generation, fixture_version: state.targetMetadata.fixtureVersion,
+              fixture_hash: state.targetMetadata.fixtureHash,
+              native_session_contract_version: state.targetMetadata.nativeSessionContractVersion,
+              target_fingerprint: state.targetMetadata.targetFingerprint, status: state.targetMetadata.status,
+            }] }
+            if (normalized.includes('FROM pg_catalog.pg_trigger')) return { rows: [] }
+            if (normalized.includes("c.relkind IN ('r','p','m','f')")) return { rows: state.relations }
+            if (normalized.includes("sequence.relkind='S'")) return { rows: state.sequences.map(sequence => ({
+              name: sequence.name, owner: sequence.owner, owned_table: sequence.ownedTable,
+            })) }
+            if (normalized.startsWith('SELECT count(*)::text AS count')) {
+              return { rows: [{ count: String(state.principalSessionCount) }] }
+            }
+            if (normalized.includes('FROM ai_pdm_core.local_sandbox_principal_session_bindings')) {
+              return { rows: state.sourceBindings.map(binding => ({ status: binding.status,
+                central_correlation_id: binding.centralCorrelationId,
+                central_registration_observed_at: binding.centralRegistrationObservedAt })) }
+            }
+            if (normalized.includes('to_jsonb(t)::text')) {
+              const name = normalized.match(/FROM ai_pdm_core\."([a-z][a-z0-9_]*)"/u)?.[1]
+              assert.ok(name, `expected a quoted PDM relation: ${normalized}`)
+              return { rows: harness.preRestoreBusinessRows && name === 'users' && !harness.psqlWasApplied()
+                ? [{ row_json: '{"id":"pre-reset"}' }] : [] }
+            }
+            if (normalized.includes("SET status='maintenance'")) {
+              harness.setState({ ...state, targetMetadata: { ...state.targetMetadata, status: 'maintenance' } })
+              return { rowCount: 1, rows: [] }
+            }
+            if (normalized.includes('UPDATE ai_pdm_core.local_sandbox_principal_session_bindings')) {
+              const registeredCount = state.sourceBindings.filter(binding => binding.status === 'central_registered').length
+              harness.setState({ ...state, sourceBindings: state.sourceBindings.map(binding => ({ ...binding,
+                status: binding.status === 'central_registered' ? 'revoked' : binding.status })) })
+              return { rowCount: registeredCount, rows: [] }
+            }
+            if (normalized.includes('UPDATE ai_pdm_core.local_sandbox_target_metadata') &&
+              normalized.includes('SET generation=$1::uuid')) {
+              harness.setState({ ...state, targetMetadata: { ...state.targetMetadata, generation: values[0],
+                targetFingerprint: values[1], status: 'ready' } })
+              return { rowCount: 1, rows: [] }
+            }
+            throw new Error(`UNEXPECTED_STUB_QUERY:${normalized}`)
+          },
+          release() {},
+        }
+        return client
+      },
+      async end() {},
+    }
+  }
 }
 
 test('restores the pinned business set atomically, then rebinds PDM metadata to the Platform generation', async t => {
@@ -309,13 +419,58 @@ test('restores the pinned business set atomically, then rebinds PDM metadata to 
   assert.equal(readiness.applicationsOffline, true)
 })
 
+test('real Postgres adapter marks the first read not applied, resumes the same maintenance intent through stdin, then rebinds with loaded context', async t => {
+  const h = await prepareHarness(t, { fenceInvalidAt: 4, preRestoreBusinessRows: true })
+  const queries = []
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment,
+    Pool: makeRestoreOwnerPool(h, queries), baselineReader: async () => h.descriptor,
+    platformFence: h.platformFence, spawn: h.spawn })
+
+  const firstRead = await owner.readBusinessRestore({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(firstRead.restored, false)
+  assert.equal(firstRead.targetMetadataStatus, 'ready')
+  assert.equal(h.currentState().targetMetadata.generation, sourceGeneration)
+  assert.equal(queries.some(query => query.sql.startsWith('UPDATE ')), false)
+  assert.deepEqual(h.spawns, [])
+
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_generation_fence_invalid')
+  assert.equal(h.currentState().targetMetadata.status, 'maintenance')
+  assert.equal(h.currentState().targetMetadata.generation, sourceGeneration)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 0)
+  const preservationReference = path.join(h.targetInput.sandboxRoot, 'control',
+    'dev126-reset-restore-preservations', `${h.scope.resetId}.json`)
+  const referenceBeforeRetry = await readFile(preservationReference, 'utf8')
+  const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
+  await assert.rejects(readdir(workDirectory), error => error.code === 'ENOENT')
+
+  const restored = await owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(restored.restored, true)
+  assert.equal(h.currentState().targetMetadata.status, 'maintenance')
+  assert.equal(h.currentState().targetMetadata.generation, sourceGeneration)
+  assert.equal(queries.filter(query => query.sql.includes("SET status='maintenance'")).length, 1)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+  assert.equal(await readFile(preservationReference, 'utf8'), referenceBeforeRetry)
+  assert.equal(h.psqlInputs.length, 1)
+  assert.match(h.psqlInputs[0], /TRUNCATE TABLE[\s\S]+RESTRICT;/u)
+  const psqlCalls = h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql'))
+  assert.ok(psqlCalls.every(item => item.args[item.args.indexOf('--file') + 1] === '-'))
+  assert.ok(psqlCalls.every(item => item.options.stdio[0] === 'pipe'))
+
+  const rebound = await owner.rebindAndFenceSessions({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(rebound.ready, true)
+  assert.equal(h.currentState().targetMetadata.status, 'ready')
+  assert.equal(h.currentState().targetMetadata.generation, nextGeneration)
+  assert.ok(queries.some(query => query.sql.includes('UPDATE ai_pdm_core.local_sandbox_principal_session_bindings')))
+  assert.ok(queries.some(query => query.sql.includes('SET generation=$1::uuid')))
+})
+
 test('uses validated Windows namespaced paths for PG tool archive and SQL arguments', async t => {
   const h = await prepareHarness(t, { longPath: true })
   await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
   const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
   const expectedArchivePath = path.toNamespacedPath(path.join(workDirectory, 'pinned.data.dump'))
   const expectedRestoreSqlPath = path.toNamespacedPath(path.join(workDirectory, 'restore-data.sql'))
-  const expectedTransactionPath = path.toNamespacedPath(path.join(workDirectory, 'restore-transaction.sql'))
   const pgRestoreCalls = h.spawns.filter(item => item.executable.toLowerCase().startsWith('pg_restore'))
   const listCall = pgRestoreCalls.find(item => item.args.includes('--list'))
   const renderCall = pgRestoreCalls.find(item => item.args.some(arg => arg.startsWith('--file=')))
@@ -323,7 +478,8 @@ test('uses validated Windows namespaced paths for PG tool archive and SQL argume
   assert.equal(listCall.args.at(-1), expectedArchivePath)
   assert.equal(renderCall.args.at(-1), expectedArchivePath)
   assert.equal(renderCall.args.find(arg => arg.startsWith('--file=')), `--file=${expectedRestoreSqlPath}`)
-  assert.equal(psqlCall.args[psqlCall.args.indexOf('--file') + 1], expectedTransactionPath)
+  assert.equal(psqlCall.args[psqlCall.args.indexOf('--file') + 1], '-')
+  assert.equal(psqlCall.options.stdio[0], 'pipe')
   if (process.platform === 'win32') {
     assert.ok(expectedArchivePath.startsWith('\\\\?\\'))
     assert.ok(expectedArchivePath.length > 260)
@@ -486,16 +642,13 @@ test('rejects an archive TOC entry outside the fixed PDM business inventory befo
   assert.equal(h.databaseCalls.includes('markMaintenance'), false)
 })
 
-test('does not replay an uncertain psql commit and requires readback first', async t => {
+test('does not replay an uncertain psql commit within the same attempt', async t => {
   const h = await prepareHarness(t, { psqlCode: 1, applyPsql: false })
   await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
     error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
   assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
   assert.equal(h.databaseCalls.filter(call => call === 'readBusiness').length, 1)
   assert.equal(h.currentState().targetMetadata.status, 'maintenance')
-  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
-    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_maintenance_resume_requires_readback')
-  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
 })
 
 test('refuses to recapture a missing preservation reference after maintenance begins', async t => {
