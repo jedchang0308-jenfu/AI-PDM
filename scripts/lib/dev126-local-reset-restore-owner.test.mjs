@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -168,7 +168,7 @@ async function prepareHarness(t, options = {}) {
     const relation = relations.find(item => item.name === name)
     return { name, rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 }
   })
-  const preservedControls = preservedControlNames.map(name => {
+  let preservedControls = preservedControlNames.map(name => {
     const relation = relations.find(item => item.name === name)
     return { name, rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 }
   })
@@ -182,7 +182,11 @@ async function prepareHarness(t, options = {}) {
     },
     async readBusiness() {
       databaseCalls.push('readBusiness')
-      return { state: structuredClone(currentState), business, preservedControls }
+      return { state: structuredClone(currentState), business, preservedControls: structuredClone(preservedControls) }
+    },
+    async readPreservedControls() {
+      databaseCalls.push('readPreservedControls')
+      return { state: structuredClone(currentState), preservedControls: structuredClone(preservedControls) }
     },
     async rebind(loaded) {
       databaseCalls.push('rebind')
@@ -262,7 +266,9 @@ async function prepareHarness(t, options = {}) {
   const owner = createDev126LocalResetRestoreOwner({ environment: harness.environment,
     baselineReader: async () => descriptor, platformFence, database, spawn })
   return { ...harness, targetInput, manifest, descriptor, owner, databaseCalls, platformCalls, spawns,
-    platformFence, currentState: () => structuredClone(currentState), setState: value => { currentState = value } }
+    platformFence, currentState: () => structuredClone(currentState), setState: value => { currentState = value },
+    preservedControls: () => structuredClone(preservedControls),
+    setPreservedControls: value => { preservedControls = structuredClone(value) } }
 }
 
 test('restores the pinned business set atomically, then rebinds PDM metadata to the Platform generation', async t => {
@@ -277,6 +283,11 @@ test('restores the pinned business set atomically, then rebinds PDM metadata to 
   assert.equal(result.recoveredAfterUnknown, false)
   assert.equal(h.currentState().targetMetadata.status, 'maintenance')
   assert.equal(h.currentState().databaseMarker, `${policy.markerPrefix}${sandboxId}:${nextGeneration}`)
+  const preservationReference = path.join(h.targetInput.sandboxRoot, 'control',
+    'dev126-reset-restore-preservations', `${h.scope.resetId}.json`)
+  const preservationReceipt = JSON.parse(await readFile(preservationReference, 'utf8'))
+  assert.equal(preservationReceipt.resetId, h.scope.resetId)
+  assert.deepEqual(preservationReceipt.preservedControls, h.preservedControls())
   const psql = h.spawns.find(item => item.executable.toLowerCase().startsWith('psql'))
   assert.ok(psql.args.includes('--single-transaction'))
   assert.ok(psql.args.includes('--set') && psql.args.includes('ON_ERROR_STOP=on'))
@@ -485,6 +496,42 @@ test('does not replay an uncertain psql commit and requires readback first', asy
   await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
     error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_maintenance_resume_requires_readback')
   assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+})
+
+test('refuses to recapture a missing preservation reference after maintenance begins', async t => {
+  const h = await prepareHarness(t, { psqlCode: 1, applyPsql: false })
+  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
+  const referencePath = path.join(h.targetInput.sandboxRoot, 'control',
+    'dev126-reset-restore-preservations', `${h.scope.resetId}.json`)
+  await unlink(referencePath)
+  const readBusinessCount = h.databaseCalls.filter(call => call === 'readBusiness').length
+  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_control_preservation_reference_missing')
+  assert.equal(h.databaseCalls.filter(call => call === 'readBusiness').length, readBusinessCount)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+})
+
+test('blocks rebind when a preserved control digest changes after the reset-bound capture', async t => {
+  const h = await prepareHarness(t)
+  await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  const changedControls = h.preservedControls().map(item => item.name === 'schema_migrations'
+    ? { ...item, rowCount: item.rowCount + 1, rowsSha256: 'f'.repeat(64) } : item)
+  h.setPreservedControls(changedControls)
+  await assert.rejects(h.owner.rebindAndFenceSessions({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_rebind_precondition_failed')
+  assert.equal(h.currentState().targetMetadata.status, 'maintenance')
+  assert.equal(h.databaseCalls.includes('rebind'), false)
+})
+
+test('rejects later restore readback when a preserved control digest differs from the captured reference', async t => {
+  const h = await prepareHarness(t)
+  await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  const changedControls = h.preservedControls().map(item => item.name === 'schema_migrations'
+    ? { ...item, rowsSha256: 'f'.repeat(64) } : item)
+  h.setPreservedControls(changedControls)
+  await assert.rejects(h.owner.readBusinessRestore({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_control_preservation_reference_mismatch')
 })
 
 test('accepts a nonzero psql exit only when fresh readback proves the complete reset state', async t => {

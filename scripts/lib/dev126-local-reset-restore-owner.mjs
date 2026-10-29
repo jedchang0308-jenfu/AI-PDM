@@ -635,6 +635,117 @@ async function createWorkDirectory(sandboxRoot, scope) {
   return Object.freeze({ workRoot, taskDirectory })
 }
 
+function normalizePreservedControlDigests(value) {
+  if (!Array.isArray(value) || value.length !== PRESERVED_CONTROL_RELATIONS.length ||
+    value.some(item => !exactKeys(item, ['name', 'rowCount', 'rowsSha256']) ||
+      !PRESERVED_CONTROL_RELATIONS.includes(item.name) || !Number.isSafeInteger(item.rowCount) ||
+      item.rowCount < 0 || !HASH.test(item.rowsSha256 ?? ''))) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  const sorted = [...value].sort((a, b) => a.name.localeCompare(b.name))
+  if (new Set(sorted.map(item => item.name)).size !== PRESERVED_CONTROL_RELATIONS.length ||
+    JSON.stringify(sorted.map(item => item.name)) !== JSON.stringify([...PRESERVED_CONTROL_RELATIONS].sort())) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  return Object.freeze(sorted.map(item => Object.freeze({ ...item })))
+}
+
+function controlPreservationReceipt(loaded, preservedControls) {
+  return Object.freeze({
+    contractVersion: 'dev126.local-reset-control-preservation.v1',
+    applicationId: 'ai-pdm',
+    resetId: loaded.scope.resetId,
+    sandboxId: loaded.scope.sandboxId,
+    sourceGeneration: loaded.scope.sourceGeneration,
+    generation: loaded.scope.generation,
+    baselineId: loaded.scope.baseline.id,
+    baselineSha256: loaded.scope.baseline.sha256,
+    manifestSha256: loaded.baseline.manifestSha256,
+    databaseName: loaded.context.expected.databaseName,
+    targetFingerprint: loaded.context.expected.targetFingerprint,
+    preservedControls: normalizePreservedControlDigests(preservedControls),
+  })
+}
+
+function validateControlPreservationReceipt(value, loaded) {
+  const keys = ['contractVersion', 'applicationId', 'resetId', 'sandboxId', 'sourceGeneration', 'generation',
+    'baselineId', 'baselineSha256', 'manifestSha256', 'databaseName', 'targetFingerprint', 'preservedControls']
+  if (!exactKeys(value, keys) || value.contractVersion !== 'dev126.local-reset-control-preservation.v1' ||
+    value.applicationId !== 'ai-pdm' || value.resetId !== loaded.scope.resetId ||
+    value.sandboxId !== loaded.scope.sandboxId || value.sourceGeneration !== loaded.scope.sourceGeneration ||
+    value.generation !== loaded.scope.generation || value.baselineId !== loaded.scope.baseline.id ||
+    value.baselineSha256 !== loaded.scope.baseline.sha256 || value.manifestSha256 !== loaded.baseline.manifestSha256 ||
+    value.databaseName !== loaded.context.expected.databaseName ||
+    value.targetFingerprint !== loaded.context.expected.targetFingerprint) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  return controlPreservationReceipt(loaded, value.preservedControls)
+}
+
+async function readOrCreateControlPreservationReference(loaded, {
+  createIfMissing = false,
+  observedPreservedControls,
+} = {}) {
+  const sandboxRoot = path.resolve(loaded.context.targetInput.sandboxRoot)
+  const controlRoot = path.join(sandboxRoot, 'control')
+  const controlStat = await lstat(controlRoot).catch(() => fail('dev126_reset_restore_control_preservation_reference_missing', 409))
+  if (!controlStat.isDirectory() || controlStat.isSymbolicLink() ||
+    !samePath(await realpath(controlRoot).catch(() => fail('dev126_reset_restore_control_preservation_reference_invalid', 503)), controlRoot)) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  const referenceRoot = path.join(controlRoot, 'dev126-reset-restore-preservations')
+  let referenceRootStat = await lstat(referenceRoot).catch(error => {
+    if (error?.code === 'ENOENT') return null
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  })
+  if (!referenceRootStat && createIfMissing) {
+    try { await mkdir(referenceRoot, { mode: 0o700 }) }
+    catch (error) { if (error?.code !== 'EEXIST') fail('dev126_reset_restore_control_preservation_reference_write_failed', 503) }
+    referenceRootStat = await lstat(referenceRoot).catch(() => fail('dev126_reset_restore_control_preservation_reference_invalid', 503))
+  }
+  if (!referenceRootStat) fail('dev126_reset_restore_control_preservation_reference_missing', 409)
+  if (!referenceRootStat.isDirectory() || referenceRootStat.isSymbolicLink() ||
+    !samePath(await realpath(referenceRoot).catch(() => fail('dev126_reset_restore_control_preservation_reference_invalid', 503)), referenceRoot) ||
+    (process.platform !== 'win32' && (referenceRootStat.mode & 0o077) !== 0)) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  const referencePath = path.join(referenceRoot, `${loaded.scope.resetId}.json`)
+  if (!samePath(path.dirname(referencePath), referenceRoot)) fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  let referenceStat = await lstat(referencePath).catch(error => {
+    if (error?.code === 'ENOENT') return null
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  })
+  if (!referenceStat) {
+    if (!createIfMissing || observedPreservedControls === undefined) {
+      fail('dev126_reset_restore_control_preservation_reference_missing', 409)
+    }
+    const receipt = controlPreservationReceipt(loaded, observedPreservedControls)
+    try { await writeFile(referencePath, `${JSON.stringify(receipt)}\n`, { mode: 0o600, flag: 'wx' }) }
+    catch (error) {
+      if (error?.code !== 'EEXIST') fail('dev126_reset_restore_control_preservation_reference_write_failed', 503)
+    }
+    referenceStat = await lstat(referencePath).catch(() => fail('dev126_reset_restore_control_preservation_reference_invalid', 503))
+  }
+  if (!referenceStat.isFile() || referenceStat.isSymbolicLink() || referenceStat.nlink > 1 ||
+    !samePath(await realpath(referencePath).catch(() => fail('dev126_reset_restore_control_preservation_reference_invalid', 503)), referencePath) ||
+    referenceStat.size <= 0 || referenceStat.size > 16 * 1024 ||
+    (process.platform !== 'win32' && (referenceStat.mode & 0o077) !== 0)) {
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  }
+  const parsed = await readFile(referencePath, 'utf8').then(text => {
+    try { return JSON.parse(text) } catch { fail('dev126_reset_restore_control_preservation_reference_invalid', 503) }
+  }).catch(error => {
+    if (error instanceof LocalSandboxError) throw error
+    fail('dev126_reset_restore_control_preservation_reference_invalid', 503)
+  })
+  const receipt = validateControlPreservationReceipt(parsed, loaded)
+  if (observedPreservedControls !== undefined &&
+    JSON.stringify(receipt.preservedControls) !== JSON.stringify(normalizePreservedControlDigests(observedPreservedControls))) {
+    fail('dev126_reset_restore_control_preservation_reference_mismatch', 409)
+  }
+  return receipt.preservedControls
+}
+
 async function safeTreeEntries(root, errorCode) {
   const rootStat = await lstat(root).catch(error => error?.code === 'ENOENT' ? null : fail(errorCode))
   if (!rootStat) return null
@@ -910,7 +1021,25 @@ function roleProjection(row) {
 }
 
 function createPostgresOwnerAdapter({ Pool, environment }) {
-  async function withOwner({ context, scope, manifest, readOnly, readBusiness = false, operation }) {
+  async function readControlDigests(client) {
+    const preservedControls = []
+    for (const relation of PRESERVED_CONTROL_RELATIONS) {
+      const table = qIdent(relation)
+      const result = rowsFrom(await client.query(`SELECT pg_catalog.to_jsonb(t)::text AS row_json
+        FROM ${SCHEMA}.${table} AS t ORDER BY pg_catalog.to_jsonb(t)::text`),
+      'dev126_reset_restore_control_readback_invalid')
+      const digest = createHash('sha256')
+      for (const row of result) {
+        if (typeof row.row_json !== 'string') fail('dev126_reset_restore_control_readback_invalid', 503)
+        digest.update(row.row_json, 'utf8').update('\n', 'utf8')
+      }
+      preservedControls.push(Object.freeze({ name: relation, rowCount: result.length, rowsSha256: digest.digest('hex') }))
+    }
+    return Object.freeze(preservedControls)
+  }
+
+  async function withOwner({ context, scope, manifest, readOnly, readBusiness = false,
+    readPreservedControls = false, operation }) {
     const ownerLogin = environment.PGUSER
     if (!SCOPED_LOGIN_ROLE.test(ownerLogin ?? '') ||
       !(typeof environment.PGPASSWORD === 'string' && environment.PGPASSWORD.length > 0) &&
@@ -942,7 +1071,8 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
       if (identity.current_user !== OWNER_ROLE || identity.session_user !== ownerLogin) {
         fail('dev126_reset_restore_role_switch_invalid', 503)
       }
-      const state = await loadOwnerState(client, context, scope, manifest, expected, identity, { readBusiness })
+      const state = await loadOwnerState(client, context, scope, manifest, expected, identity,
+        { readBusiness, readPreservedControls })
       const value = await operation(state, client, expected)
       await client.query('COMMIT')
       return value ?? state
@@ -956,7 +1086,8 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
     }
   }
 
-  async function loadOwnerState(client, context, scope, manifest, expected, identity, { readBusiness }) {
+  async function loadOwnerState(client, context, scope, manifest, expected, identity,
+    { readBusiness, readPreservedControls = false }) {
     const rolesRows = rowsFrom(await client.query(`
       SELECT role.rolname,role.rolcanlogin,role.rolsuper,role.rolcreatedb,role.rolcreaterole,role.rolbypassrls,
         pg_catalog.pg_has_role(role.oid,${quoteSqlLiteral(OWNER_ROLE)},'MEMBER') AS member_of_owner
@@ -1044,7 +1175,11 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
     validateOwnerState(state, context, scope, manifest, {
       allowMaintenance: true, allowNewGeneration: state.targetMetadata.generation === scope.generation,
     })
-    if (!readBusiness) return Object.freeze(state)
+    if (!readBusiness && !readPreservedControls) return Object.freeze(state)
+    const preservedControls = await readControlDigests(client)
+    if (readPreservedControls && !readBusiness) {
+      return Object.freeze({ state: Object.freeze(state), preservedControls })
+    }
     const business = []
     for (const relation of manifest.database.includedRelations) {
       const table = qIdent(relation)
@@ -1058,22 +1193,8 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
       }
       business.push(Object.freeze({ name: relation, rowCount: result.length, rowsSha256: digest.digest('hex') }))
     }
-    const preservedControls = []
-    for (const relation of PRESERVED_CONTROL_RELATIONS) {
-      const table = qIdent(relation)
-      const result = rowsFrom(await client.query(`SELECT pg_catalog.to_jsonb(t)::text AS row_json
-        FROM ${SCHEMA}.${table} AS t ORDER BY pg_catalog.to_jsonb(t)::text`),
-      'dev126_reset_restore_control_readback_invalid')
-      const digest = createHash('sha256')
-      for (const row of result) {
-        if (typeof row.row_json !== 'string') fail('dev126_reset_restore_control_readback_invalid', 503)
-        digest.update(row.row_json, 'utf8').update('\n', 'utf8')
-      }
-      preservedControls.push(Object.freeze({ name: relation, rowCount: result.length,
-        rowsSha256: digest.digest('hex') }))
-    }
     return Object.freeze({ state: Object.freeze(state), business: Object.freeze(business),
-      preservedControls: Object.freeze(preservedControls) })
+      preservedControls })
   }
 
   return Object.freeze({
@@ -1101,6 +1222,10 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
     },
     async readBusiness(context) {
       return withOwner({ ...context, readOnly: true, readBusiness: true, operation: async state => state })
+    },
+    async readPreservedControls(context) {
+      return withOwner({ ...context, readOnly: true, readPreservedControls: true,
+        operation: async snapshot => snapshot })
     },
     async rebind(context) {
       return withOwner({ ...context, readOnly: false, operation: async (state, client) => {
@@ -1148,27 +1273,26 @@ function quoteSqlLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`
 }
 
-function compareBusinessReadback(readback, manifest, scope) {
+function compareBusinessReadback(readback, manifest, scope, expectedPreservedControls) {
   if (!isRecord(readback) || !isRecord(readback.state) || !Array.isArray(readback.business) ||
-    !Array.isArray(readback.preservedControls)) return false
+    !Array.isArray(readback.preservedControls) || !Array.isArray(expectedPreservedControls)) return false
   const expected = manifest.database.relations.filter(relation => manifest.database.includedRelations.includes(relation.name))
     .map(relation => ({ name: relation.name, rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 }))
     .sort((a, b) => a.name.localeCompare(b.name))
   const actual = readback.business.map(relation => ({ name: relation.name, rowCount: relation.rowCount,
     rowsSha256: relation.rowsSha256 })).sort((a, b) => a.name.localeCompare(b.name))
-  // Control relations are excluded from the baseline's row-hash projection.
-  // Validate their live readback shape without inventing baseline hashes.
-  const actualControlNames = readback.preservedControls.map(relation => relation?.name).sort()
-  const validPreservedControls = readback.preservedControls.length === PRESERVED_CONTROL_RELATIONS.length &&
-    JSON.stringify(actualControlNames) === JSON.stringify([...PRESERVED_CONTROL_RELATIONS].sort()) &&
-    readback.preservedControls.every(relation => isRecord(relation) &&
-      Number.isSafeInteger(relation.rowCount) && relation.rowCount >= 0 && HASH.test(relation.rowsSha256 ?? ''))
+  let actualControls
+  let expectedControls
+  try {
+    actualControls = normalizePreservedControlDigests(readback.preservedControls)
+    expectedControls = normalizePreservedControlDigests(expectedPreservedControls)
+  } catch { return false }
   const phaseMatches = (readback.state.targetMetadata.generation === scope.sourceGeneration &&
     readback.state.targetMetadata.status === 'maintenance' && readback.state.databaseMarker === generationMarker(scope)) ||
     (readback.state.targetMetadata.generation === scope.generation &&
       readback.state.targetMetadata.status === 'ready' && readback.state.databaseMarker === generationMarker(scope))
   return JSON.stringify(actual) === JSON.stringify(expected) &&
-    validPreservedControls && phaseMatches && readback.state.principalSessionCount === 0 &&
+    JSON.stringify(actualControls) === JSON.stringify(expectedControls) && phaseMatches && readback.state.principalSessionCount === 0 &&
     readback.state.sourceBindings.every(binding => binding.status === 'revoked') &&
     (readback.state.targetMetadata.status === 'maintenance' || readback.state.targetMetadata.status === 'ready')
 }
@@ -1204,7 +1328,9 @@ export function createDev126LocalResetRestoreOwner({
   const ownerDatabase = database ?? createPostgresOwnerAdapter({ Pool, environment })
   if (!ownerDatabase || typeof ownerDatabase.inspect !== 'function' ||
     typeof ownerDatabase.markMaintenance !== 'function' || typeof ownerDatabase.readBusiness !== 'function' ||
-    typeof ownerDatabase.rebind !== 'function') throw new TypeError('DEV126_LOCAL_RESET_RESTORE_DATABASE_PORT_INVALID')
+    typeof ownerDatabase.readPreservedControls !== 'function' || typeof ownerDatabase.rebind !== 'function') {
+    throw new TypeError('DEV126_LOCAL_RESET_RESTORE_DATABASE_PORT_INVALID')
+  }
 
   async function readGenerationFence(scopeInput) {
     const scope = validateScope(scopeInput)
@@ -1240,7 +1366,10 @@ export function createDev126LocalResetRestoreOwner({
     const generation = state.targetMetadata?.generation
     validateOwnerState(state, loaded.context, loaded.scope, loaded.manifest,
       { allowMaintenance: true, allowNewGeneration: generation === loaded.scope.generation })
-    const databaseRestored = compareBusinessReadback(raw, loaded.manifest, loaded.scope)
+    const preservedControls = await readOrCreateControlPreservationReference(loaded, {
+      observedPreservedControls: raw.preservedControls,
+    })
+    const databaseRestored = compareBusinessReadback(raw, loaded.manifest, loaded.scope, preservedControls)
     const repositoryRestored = await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects)
     const restored = databaseRestored && repositoryRestored
     return Object.freeze({ resetId: loaded.scope.resetId, restored,
@@ -1264,8 +1393,9 @@ export function createDev126LocalResetRestoreOwner({
       fail('dev126_reset_restore_precondition_failed', 409)
     }
     if (initial.targetMetadata.status === 'maintenance') {
+      const preservedControls = await readOrCreateControlPreservationReference(loaded)
       const priorReadback = await ownerDatabase.readBusiness(loaded).catch(() => null)
-      if (priorReadback && compareBusinessReadback(priorReadback, loaded.manifest, loaded.scope) &&
+      if (priorReadback && compareBusinessReadback(priorReadback, loaded.manifest, loaded.scope, preservedControls) &&
         priorReadback.state.targetMetadata.generation === loaded.scope.sourceGeneration) {
         const work = await createWorkDirectory(targetInput.sandboxRoot, loaded.scope)
         let preserveWork = false
@@ -1282,6 +1412,21 @@ export function createDev126LocalResetRestoreOwner({
       }
       fail('dev126_reset_restore_maintenance_resume_requires_readback', 409)
     }
+    const preservedSnapshot = await ownerDatabase.readPreservedControls(loaded)
+    if (!isRecord(preservedSnapshot) || !isRecord(preservedSnapshot.state) ||
+      !Array.isArray(preservedSnapshot.preservedControls)) {
+      fail('dev126_reset_restore_control_readback_invalid', 503)
+    }
+    validateOwnerState(preservedSnapshot.state, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
+    if (preservedSnapshot.state.targetMetadata.generation !== loaded.scope.sourceGeneration ||
+      preservedSnapshot.state.targetMetadata.status !== 'ready' ||
+      preservedSnapshot.state.databaseMarker !== generationMarker(loaded.scope) ||
+      preservedSnapshot.state.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
+      fail('dev126_reset_restore_precondition_failed', 409)
+    }
+    const preservedControls = await readOrCreateControlPreservationReference(loaded, {
+      createIfMissing: true, observedPreservedControls: preservedSnapshot.preservedControls,
+    })
     const work = await createWorkDirectory(targetInput.sandboxRoot, loaded.scope)
     let preserveWork = false
     try {
@@ -1355,7 +1500,10 @@ export function createDev126LocalResetRestoreOwner({
       try { readback = await ownerDatabase.readBusiness(loaded) } catch {
         fail('dev126_reset_restore_commit_outcome_unknown', 503)
       }
-      if (compareBusinessReadback(readback, loaded.manifest, loaded.scope) &&
+      const verifiedControls = await readOrCreateControlPreservationReference(loaded, {
+        observedPreservedControls: readback.preservedControls,
+      })
+      if (compareBusinessReadback(readback, loaded.manifest, loaded.scope, verifiedControls) &&
         readback.state.targetMetadata.generation === loaded.scope.sourceGeneration &&
         readback.state.targetMetadata.status === 'maintenance' &&
         readback.state.databaseMarker === generationMarker(loaded.scope)) {
@@ -1379,8 +1527,9 @@ export function createDev126LocalResetRestoreOwner({
   async function rebindAndFenceSessions({ targetInput, scope: scopeInput }) {
     const loaded = await loadContext(targetInput, scopeInput)
     await readGenerationFence(loaded.scope)
+    const preservedControls = await readOrCreateControlPreservationReference(loaded)
     const restored = await ownerDatabase.readBusiness(loaded)
-    if (restored && compareBusinessReadback(restored, loaded.manifest, loaded.scope) &&
+    if (restored && compareBusinessReadback(restored, loaded.manifest, loaded.scope, preservedControls) &&
       restored.state.targetMetadata.generation === loaded.scope.generation &&
       restored.state.targetMetadata.status === 'ready' && restored.state.sourceBindings.every(binding => binding.status === 'revoked') &&
       await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects)) {
@@ -1389,7 +1538,7 @@ export function createDev126LocalResetRestoreOwner({
         targetFingerprint: targetFingerprintForGeneration(targetInput, loaded.scope.generation),
         sessionsCleared: restored.state.principalSessionCount === 0, sourceBindingsRevoked: true, ready: true })
     }
-    if (!compareBusinessReadback(restored, loaded.manifest, loaded.scope) ||
+    if (!compareBusinessReadback(restored, loaded.manifest, loaded.scope, preservedControls) ||
       !await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects) ||
       restored.state.targetMetadata.generation !== loaded.scope.sourceGeneration ||
       restored.state.targetMetadata.status !== 'maintenance' ||
@@ -1405,7 +1554,7 @@ export function createDev126LocalResetRestoreOwner({
       if (error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_pending_central_registration') throw error
       // Commit may have succeeded even if the client lost its response.
       const readback = await ownerDatabase.readBusiness(loaded).catch(() => null)
-      if (!readback || !compareBusinessReadback(readback, loaded.manifest, loaded.scope) ||
+      if (!readback || !compareBusinessReadback(readback, loaded.manifest, loaded.scope, preservedControls) ||
         !await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects) ||
         readback.state.targetMetadata.generation !== loaded.scope.generation ||
         readback.state.targetMetadata.status !== 'ready' || readback.state.databaseMarker !== generationMarker(loaded.scope) ||
@@ -1415,7 +1564,7 @@ export function createDev126LocalResetRestoreOwner({
     }
     const finalState = await ownerDatabase.readBusiness(loaded)
     validateOwnerState(finalState.state, loaded.context, loaded.scope, loaded.manifest, { allowNewGeneration: true })
-    if (!compareBusinessReadback(finalState, loaded.manifest, loaded.scope) || finalState.state.targetMetadata.status !== 'ready' ||
+    if (!compareBusinessReadback(finalState, loaded.manifest, loaded.scope, preservedControls) || finalState.state.targetMetadata.status !== 'ready' ||
       finalState.state.databaseMarker !== generationMarker(loaded.scope) ||
       finalState.state.sourceBindings.some(binding => binding.status !== 'revoked')) {
       fail('dev126_reset_restore_rebind_readback_failed', 503)
@@ -1431,9 +1580,13 @@ export function createDev126LocalResetRestoreOwner({
   async function readiness({ targetInput, scope: scopeInput }) {
     const loaded = await loadContext(targetInput, scopeInput)
     const fence = await readGenerationFence(loaded.scope)
+    await readOrCreateControlPreservationReference(loaded)
     const state = await ownerDatabase.readBusiness(loaded)
     validateOwnerState(state.state, loaded.context, loaded.scope, loaded.manifest, { allowNewGeneration: true })
-    const databaseRestored = compareBusinessReadback(state, loaded.manifest, loaded.scope)
+    const verifiedControls = await readOrCreateControlPreservationReference(loaded, {
+      observedPreservedControls: state.preservedControls,
+    })
+    const databaseRestored = compareBusinessReadback(state, loaded.manifest, loaded.scope, verifiedControls)
     const repositoryRestored = await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects)
     const restored = databaseRestored && repositoryRestored
     const ready = restored && state.state.targetMetadata.generation === loaded.scope.generation &&
