@@ -1,0 +1,221 @@
+{
+  "receiptId": "8fc354d8-5bd6-49a6-accb-94342563db0f",
+  "recordedAt": "2026-10-29T22:35:53.734Z",
+  "status": "PASS",
+  "scope": "nine-role-three-read-endpoints-and-cross-company-deny",
+  "target": {
+    "sandboxId": "dev021-reset-20261030",
+    "generation": "fa1e373e-1142-481d-a2f5-24b1ca22ddb2",
+    "port": 12020,
+    "fixtureHash": "457a437d3326692b30e665f2028895f5fdfdbe562d70dd6d27d4e08fe208d309"
+  },
+  "sourceCommit": "ea7aef70171fef9bafbc6046d0ab459fdeecbf14",
+  "endpoints": {
+    "search": "/api/search?entity=part&q=DEV126-NO-HIT",
+    "drawings": "/api/numbering/drawings/workbench",
+    "adminMatrix": "/api/settings/access/role-capabilities?stableRoleId=role-pdm-admin"
+  },
+  "proof": {
+    "scenario": "catalog-system-admin",
+    "status": 403,
+    "error": "entitlement_scope_mismatch"
+  },
+  "matrix": [
+    {
+      "scenario": "catalog-rd",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-rd-manager",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 403,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-qa",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 403,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-manufacturing",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-production-planning",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-procurement",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-external-specialist",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 403,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 403,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 403,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-pdm-admin",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 403,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 200,
+          "code": null
+        }
+      ]
+    },
+    {
+      "scenario": "catalog-system-admin",
+      "authStatus": 200,
+      "checks": [
+        {
+          "name": "search",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "drawings",
+          "status": 200,
+          "code": null
+        },
+        {
+          "name": "adminMatrix",
+          "status": 200,
+          "code": null
+        }
+      ]
+    }
+  ],
+  "qualification": "Each role used Platform account switch and the normal local PKCE callback, then the app native session. The external project-only role correctly received workspace denials.",
+  "notQualified": [
+    "full v7 permission/action matrix",
+    "external specialist project-scoped allow endpoint",
+    "write-command allow/deny matrix",
+    "production or real Google SSO"
+  ]
+}
