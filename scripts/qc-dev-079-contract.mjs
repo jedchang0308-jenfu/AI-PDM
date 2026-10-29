@@ -31,7 +31,11 @@ const postgresInvariant = read("db/postgres/050_drawing_recognition_part_owner_i
 const reviewerRoute = read("src/app/approvals/[requestId]/page.tsx");
 const reviewer = read("src/components/approval-request-workspace.tsx");
 const reviewPackage = read("src/components/canonical-review-package-workspace.tsx");
-const drawingWorkbench = [read("src/components/canonical-pdm-workbench.tsx"), read("src/components/drawing-workspace-drawer.tsx")].join("\n");
+const drawingWorkbench = [
+  read("src/components/canonical-pdm-workbench.tsx"),
+  read("src/components/canonical-workbench-drawer.tsx"),
+  read("src/components/drawing-workspace-drawer.tsx")
+].join("\n");
 const drawingDetailContent = read("src/components/drawing-detail-content.tsx");
 const unifiedDrawer = read("src/components/pdm-entity-detail-drawer.tsx");
 const controller = read("src/components/use-pdm-workbench-controller.ts");
