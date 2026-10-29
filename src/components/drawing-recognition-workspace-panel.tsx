@@ -141,7 +141,7 @@ function NativeMetadataHealthBanner({
     <div className={`dev079-recognition-adapter-health is-${health.state}`} role={isError ? "alert" : "status"}>
       {isError ? <AlertTriangle size={15} aria-hidden="true" /> : <ScanSearch size={15} aria-hidden="true" />}
       <div>
-        <strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "此批未使用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong>
+        <strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : "SolidWorks 屬性讀取失敗"}</strong>
         <span>{health.message}</span>
         {affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}
         {showRetry ? <button type="button" className="link-button" disabled={retryDisabled} title={retryDisabled ? "請先儲存或還原目前修改" : undefined} onClick={onRetry}><RefreshCcw size={14} />重新辨識</button> : null}
