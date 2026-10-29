@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { PassThrough } from 'node:stream'
 import os from 'node:os'
 import path from 'node:path'
@@ -68,6 +69,7 @@ function makeHarness(options = {}) {
   const queries = []
   const pools = []
   const spawns = []
+  const poolPasswords = []
   const targetRow = {
     application_id: 'ai-pdm', sandbox_id: SANDBOX, database_name: DATABASE,
     sandbox_root: input.target.sandboxRoot, data_directory: input.target.dataDirectory,
@@ -147,7 +149,14 @@ function makeHarness(options = {}) {
   function Pool(poolOptions) {
     pools.push(poolOptions)
     return {
-      async connect() { return client },
+      async connect() {
+        const password = await poolOptions.password({
+          host: poolOptions.host, port: poolOptions.port, database: poolOptions.database, user: poolOptions.user,
+        })
+        poolPasswords.push(password)
+        events.push('node-pg-password-resolved')
+        return client
+      },
       async end() { events.push('pool-end') },
     }
   }
@@ -176,7 +185,7 @@ function makeHarness(options = {}) {
     JENFU_LOCAL_SANDBOX_PLATFORM_KEY: 'platform-client-secret-must-not-reach-pg_dump',
   }
   const owner = createDev126LocalPostgresSnapshotOwner({ Pool, spawn, environment })
-  return { input, owner, events, queries, pools, spawns, environment }
+  return { input, owner, events, queries, pools, poolPasswords, spawns, environment }
 }
 
 test('uses a scoped LOGIN, switches to the migrator role, then captures one exported snapshot', async () => {
@@ -202,8 +211,11 @@ test('uses a scoped LOGIN, switches to the migrator role, then captures one expo
   assert.equal(harness.pools[0].database, DATABASE)
   assert.equal(harness.pools[0].host, '127.0.0.1')
   assert.equal(harness.pools[0].port, 15432)
-  assert.equal(harness.pools[0].password, undefined)
+  assert.equal(typeof harness.pools[0].password, 'function')
   assert.equal(harness.pools[0].connectionString, undefined)
+  assert.deepEqual(harness.poolPasswords, [PASSWORD])
+  assert.ok(harness.events.indexOf('node-pg-password-resolved') < harness.events.indexOf('spawn'))
+  assert.ok(!JSON.stringify(harness.pools[0]).includes(PASSWORD))
   assert.ok(harness.events.indexOf('spawn') < harness.events.indexOf('COMMIT'))
   assert.ok(harness.events.includes('release'))
   assert.ok(harness.events.includes('pool-end'))
@@ -230,8 +242,8 @@ test('uses a scoped LOGIN, switches to the migrator role, then captures one expo
   assert.equal(dump.options.env.PGHOST, '127.0.0.1')
   assert.equal(dump.options.env.PGPORT, '15432')
   assert.equal(dump.options.env.PGDATABASE, DATABASE)
-  assert.equal(dump.options.env.PGPASSWORD, PASSWORD)
-  assert.equal(dump.options.env.PGPASSFILE, 'C:\\private\\pgpass')
+  assert.equal(dump.options.env.PGPASSWORD, harness.poolPasswords[0])
+  assert.equal(dump.options.env.PGPASSFILE, undefined)
   assert.equal(dump.options.env.PATH, 'C:\\fake\\postgres\\bin')
   assert.equal(dump.options.env.SYSTEMROOT, 'C:\\Windows')
   assert.equal(dump.options.env.JENFU_LOCAL_SANDBOX_PLATFORM_KEY, undefined)
@@ -264,6 +276,39 @@ test('rejects runtime-owner conflation and absent owner credentials before openi
   })
   await assert.rejects(noCredentialOwner.captureAiPdmCoreSnapshot(noCredentials.input),
     { code: 'local_reset_owner_credentials_unavailable' })
+})
+
+test('resolves one exact PGPASSFILE entry for node-pg and pg_dump', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'aipdm-dev126-pgpass-'))
+  t.after(async () => rm(directory, { recursive: true, force: true }))
+  const passfile = path.join(directory, 'pgpass.conf')
+  await writeFile(passfile, `${`127.0.0.1:15432:${DATABASE}:${SCOPED_LOGIN}:passfile-secret`}${'\n'}`, { mode: 0o600 })
+  await chmod(passfile, 0o600)
+
+  const harness = makeHarness()
+  harness.environment.PGPASSWORD = ''
+  harness.environment.PGPASSFILE = passfile
+  await harness.owner.captureAiPdmCoreSnapshot(harness.input)
+
+  assert.deepEqual(harness.poolPasswords, ['passfile-secret'])
+  assert.equal(harness.spawns[0].options.env.PGPASSWORD, harness.poolPasswords[0])
+  assert.equal(harness.spawns[0].options.env.PGPASSFILE, undefined)
+})
+
+test('rejects wildcard or mismatched PGPASSFILE entries before opening a pool', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'aipdm-dev126-pgpass-invalid-'))
+  t.after(async () => rm(directory, { recursive: true, force: true }))
+  const passfile = path.join(directory, 'pgpass.conf')
+  await writeFile(passfile, `*:15432:${DATABASE}:${SCOPED_LOGIN}:wildcard-secret\n`, { mode: 0o600 })
+  await chmod(passfile, 0o600)
+
+  const harness = makeHarness()
+  harness.environment.PGPASSWORD = ''
+  harness.environment.PGPASSFILE = passfile
+  await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+    { code: 'local_reset_owner_password_file_no_exact_match' })
+  assert.equal(harness.pools.length, 0)
+  assert.equal(harness.spawns.length, 0)
 })
 
 test('rejects incorrect offline owner connection provenance before pg_dump', async () => {

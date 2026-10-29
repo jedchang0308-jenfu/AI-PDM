@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import { contractDigest } from '../../contracts/local-principal-sandbox/v1/protocol.mjs'
 import {
   captureDev126LocalResetBaseline,
+  readDev126LocalResetBaseline,
   DEV126_LOCAL_RESET_BASELINE_POLICY,
   verifyDev126LocalResetBaseline,
 } from './dev126-local-reset-baseline-owner.mjs'
@@ -230,6 +231,20 @@ test('refuses changed source or row inventory without replacing the first artifa
   input.snapshot.relations.find((relation) => relation.name === 'parts').rowsSha256 = 'e'.repeat(64)
   await assert.rejects(capture(input), { code: 'dev126_reset_baseline_conflict' })
   assert.equal(await readFile(manifestPath, 'utf8'), original)
+})
+
+test('reads a pinned baseline independently of subsequent business changes and rejects a substituted descriptor', async (t) => {
+  const input = await setup(t)
+  const first = await capture(input)
+  input.snapshot.relations.find(relation => relation.name === 'parts').rowsSha256 = 'e'.repeat(64)
+  const baseline = await readDev126LocalResetBaseline({ targetInput: input.targetInput,
+    baselineId: first.baselineId, expectedManifestSha256: first.manifestSha256 })
+  assert.equal(baseline.manifestSha256, first.manifestSha256)
+  assert.equal(baseline.manifest.database.schema, 'ai_pdm_core')
+  assert.equal(baseline.dataDumpPath, path.join(first.directory, 'ai-pdm-core.data.dump'))
+  await assert.rejects(readDev126LocalResetBaseline({ targetInput: input.targetInput,
+    baselineId: first.baselineId, expectedManifestSha256: '0'.repeat(64) }),
+    { code: 'dev126_reset_baseline_corrupt' })
 })
 
 test('rejects leaked control-table data and foreign relation owners', async (t) => {

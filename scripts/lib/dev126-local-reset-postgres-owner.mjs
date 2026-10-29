@@ -1,16 +1,22 @@
+import { constants as fsConstants } from 'node:fs'
+import { lstat, open, realpath } from 'node:fs/promises'
 import { spawn as nodeSpawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import pg from 'pg'
 import { isLoopbackHost, LocalSandboxError } from '../../contracts/local-principal-sandbox/v1/protocol.mjs'
 import { DEV126_LOCAL_RESET_BASELINE_POLICY as baselinePolicy } from './dev126-local-reset-baseline-owner.mjs'
 
 const OWNER_ROLE = baselinePolicy.ownerRole
+const require = createRequire(import.meta.url)
+const pgpassHelper = require('pgpass/lib/helper')
 const SCHEMA = baselinePolicy.schema
 const CONTROL_RELATIONS = baselinePolicy.controlRelations
 const POINTER_SOURCES = baselinePolicy.pointerSources
 const SNAPSHOT_ID = /^[0-9a-f]+-[0-9a-f]+-[0-9]+$/iu
 const SCOPED_LOGIN_ROLE = /^local_pdm_seed_[a-f0-9]{16}$/u
+const MAX_PGPASSFILE_BYTES = 1024 * 1024
 const HASH = /^[a-f0-9]{64}$/u
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/u
 const OWNER_CONNECTION_SQL = `
@@ -300,16 +306,16 @@ function buildDumpArguments(expected, snapshotId) {
   ])
 }
 
-function dumpEnvironment(environment, expected, ownerLogin) {
+function dumpEnvironment(environment, expected, ownerLogin, ownerPassword) {
   const childEnvironment = {}
   for (const name of [
     'PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'APPDATA',
-    'PGPASSFILE', 'PGPASSWORD',
   ]) {
     const key = Object.keys(environment).find((candidate) => candidate.toLowerCase() === name.toLowerCase())
     if (key && typeof environment[key] === 'string') childEnvironment[name] = environment[key]
   }
   childEnvironment.PGUSER = ownerLogin
+  childEnvironment.PGPASSWORD = ownerPassword
   childEnvironment.PGHOST = expected.databaseHost
   childEnvironment.PGPORT = String(expected.databasePort)
   childEnvironment.PGDATABASE = expected.databaseName
@@ -362,9 +368,77 @@ function runPgDump(spawn, executable, args, env) {
   })
 }
 
-function credentialSourceAvailable(environment) {
-  return (typeof environment.PGPASSFILE === 'string' && environment.PGPASSFILE.length > 0) ||
-    (typeof environment.PGPASSWORD === 'string' && environment.PGPASSWORD.length > 0)
+function exactPgpassEntry(entry, connection) {
+  return pgpassHelper.isValidEntry(entry) && pgpassHelper.match(connection, entry) &&
+    entry.host === connection.host && String(entry.port) === String(connection.port) &&
+    entry.database === connection.database && entry.user === connection.user
+}
+
+async function readExactPgpassPassword(passfile, connection) {
+  if (typeof passfile !== 'string' || passfile.length === 0 || passfile.includes('\0') || !path.isAbsolute(passfile)) {
+    fail('local_reset_owner_password_file_invalid')
+  }
+  const absolute = path.resolve(passfile)
+  let pathStat
+  let resolvedPath
+  try {
+    pathStat = await lstat(absolute)
+    resolvedPath = await realpath(absolute)
+  } catch {
+    fail('local_reset_owner_password_file_invalid')
+  }
+  if (!pathStat.isFile() || pathStat.isSymbolicLink() || pathStat.nlink > 1 ||
+    !samePath(absolute, resolvedPath) || pathStat.size > MAX_PGPASSFILE_BYTES ||
+    (process.platform !== 'win32' && (pathStat.mode & 0o077) !== 0)) {
+    fail('local_reset_owner_password_file_invalid')
+  }
+
+  let file
+  try {
+    const noFollow = fsConstants.O_NOFOLLOW ?? 0
+    file = await open(absolute, fsConstants.O_RDONLY | noFollow)
+    const fileStat = await file.stat()
+    if (!fileStat.isFile() || fileStat.nlink > 1 || fileStat.dev !== pathStat.dev || fileStat.ino !== pathStat.ino ||
+      fileStat.size !== pathStat.size || fileStat.size > MAX_PGPASSFILE_BYTES ||
+      (process.platform !== 'win32' && (fileStat.mode & 0o077) !== 0)) {
+      fail('local_reset_owner_password_file_invalid')
+    }
+    const content = await file.readFile()
+    if (content.byteLength !== fileStat.size || content.includes(0)) fail('local_reset_owner_password_file_invalid')
+    const exactMatches = []
+    for (const line of content.toString('utf8').split(/\r?\n/u)) {
+      const entry = pgpassHelper.parseLine(line)
+      if (entry && exactPgpassEntry(entry, connection)) exactMatches.push(entry.password)
+    }
+    if (exactMatches.length !== 1) fail('local_reset_owner_password_file_no_exact_match')
+    return exactMatches[0]
+  } catch (error) {
+    if (error instanceof LocalSandboxError) throw error
+    fail('local_reset_owner_password_file_invalid')
+  } finally {
+    try { await file?.close() } catch {}
+  }
+}
+
+function createOwnerPasswordResolver(environment, expected, ownerLogin) {
+  const connection = Object.freeze({
+    host: expected.databaseHost,
+    port: expected.databasePort,
+    database: expected.databaseName,
+    user: ownerLogin,
+  })
+  let passwordPromise
+  return async (connectionParameters) => {
+    if (!connectionParameters || connectionParameters.host !== connection.host ||
+      Number(connectionParameters.port) !== connection.port || connectionParameters.database !== connection.database ||
+      connectionParameters.user !== connection.user) fail('local_reset_owner_password_target_mismatch')
+    if (!passwordPromise) {
+      passwordPromise = typeof environment.PGPASSWORD === 'string' && environment.PGPASSWORD.length > 0
+        ? Promise.resolve(environment.PGPASSWORD)
+        : readExactPgpassPassword(environment.PGPASSFILE, connection)
+    }
+    return passwordPromise
+  }
 }
 
 /**
@@ -390,12 +464,21 @@ export function createDev126LocalPostgresSnapshotOwner({
       if (typeof ownerLogin !== 'string' || !SCOPED_LOGIN_ROLE.test(ownerLogin)) {
         fail('local_reset_owner_login_role_invalid')
       }
-      if (!credentialSourceAvailable(environment)) fail('local_reset_owner_credentials_unavailable')
+      if (!(typeof environment.PGPASSWORD === 'string' && environment.PGPASSWORD.length > 0) &&
+        !(typeof environment.PGPASSFILE === 'string' && environment.PGPASSFILE.length > 0)) {
+        fail('local_reset_owner_credentials_unavailable')
+      }
+      const password = createOwnerPasswordResolver(environment, expected, ownerLogin)
+      const ownerPassword = await password({
+        host: expected.databaseHost, port: expected.databasePort,
+        database: expected.databaseName, user: ownerLogin,
+      })
       const poolOptions = {
         host: expected.databaseHost,
         port: expected.databasePort,
         database: expected.databaseName,
         user: ownerLogin,
+        password,
         max: 1,
         connectionTimeoutMillis: 5000,
         statement_timeout: 120000,
@@ -463,7 +546,7 @@ export function createDev126LocalPostgresSnapshotOwner({
         const pointers = await collectPointers(client, target.repositoryDirectory)
         const dataDump = await runPgDump(spawn,
           process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump',
-          buildDumpArguments(expected, snapshotId), dumpEnvironment(environment, expected, ownerLogin))
+          buildDumpArguments(expected, snapshotId), dumpEnvironment(environment, expected, ownerLogin, ownerPassword))
         const includedRelations = relations.map((relation) => relation.name)
           .filter((name) => !CONTROL_RELATIONS.includes(name)).sort()
         await client.query('COMMIT')

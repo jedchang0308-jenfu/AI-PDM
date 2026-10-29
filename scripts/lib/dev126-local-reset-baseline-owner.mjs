@@ -751,6 +751,31 @@ export async function verifyDev126LocalResetBaseline({
   return resultFor(baselineDirectory, manifest, true)
 }
 
+/** Verify the pinned artifact without requiring the live business data to
+ * still equal its baseline. This is a filesystem read only, not a restore.
+ */
+export async function readDev126LocalResetBaseline({ targetInput, baselineId, expectedManifestSha256 }) {
+  if (!BASELINE_ID.test(baselineId ?? '') || baselineId === '.' || baselineId === '..' ||
+    !HASH.test(expectedManifestSha256 ?? '')) fail('dev126_reset_baseline_invalid')
+  const { target } = await verifiedTarget(targetInput)
+  const storeRoot = path.join(target.sandboxRoot, ...CONTROL_ROOT_PARTS)
+  if ([target.dataDirectory, target.repositoryDirectory].some(directory =>
+    within(directory, storeRoot) || within(storeRoot, directory))) fail('dev126_reset_baseline_path_invalid')
+  const stat = await lstat(storeRoot).catch(() => null)
+  if (!stat?.isDirectory() || stat.isSymbolicLink()) fail('dev126_reset_baseline_unavailable')
+  await ensureDirectoryWithoutLinks(storeRoot, target.sandboxRoot)
+  const directory = path.join(storeRoot, baselineId)
+  const manifest = await existingBaseline(directory, baselineId)
+  if (!manifest || manifest.target.targetFingerprint !== target.targetFingerprint ||
+    manifest.target.generation !== target.generation || manifest.target.databaseName !== target.databaseName ||
+    manifest.target.fixtureVersion !== targetInput.expectedFixtureVersion ||
+    manifest.target.fixtureHash !== targetInput.expectedFixtureHash) fail('dev126_reset_baseline_target_mismatch')
+  const descriptor = resultFor(directory, manifest, true)
+  if (descriptor.manifestSha256 !== expectedManifestSha256) fail('dev126_reset_baseline_corrupt')
+  return Object.freeze({ ...descriptor, manifest: Object.freeze(manifest),
+    dataDumpPath: path.join(directory, DATA_DUMP_FILE), objectsDirectory: path.join(directory, 'objects') })
+}
+
 export const DEV126_LOCAL_RESET_BASELINE_POLICY = Object.freeze({
   formatVersion: FORMAT_VERSION,
   schema: SCHEMA,
