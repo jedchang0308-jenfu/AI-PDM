@@ -484,6 +484,7 @@ export function createDev126LocalPostgresSnapshotOwner({
         statement_timeout: 120000,
         query_timeout: 125000,
         ssl: false,
+        options: '-c timezone=UTC -c datestyle=ISO,YMD -c search_path=pg_catalog',
         application_name: 'ai-pdm-dev126-reset-baseline',
       }
       let pool

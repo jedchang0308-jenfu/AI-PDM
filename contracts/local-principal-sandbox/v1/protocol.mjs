@@ -250,7 +250,8 @@ export function activeScenarioGrants(fixture, scenarioId, applicationId, nowMs =
 }
 
 export function localJoinDigest(assertion) {
-  const { issuedAt, expiresAt, joinDigest, ...binding } = assertion
+  const binding = Object.fromEntries(Object.entries(assertion).filter(([key]) =>
+    key !== 'issuedAt' && key !== 'expiresAt' && key !== 'joinDigest'))
   return contractDigest(binding)
 }
 export function validateLocalAssertion(assertion, expected, nowMs = Date.now()) {

@@ -233,6 +233,15 @@ test('refuses changed source or row inventory without replacing the first artifa
   assert.equal(await readFile(manifestPath, 'utf8'), original)
 })
 
+test('preserves the native DEV-090 schema identity without treating it as a SHA-256', async (t) => {
+  const input = await setup(t)
+  input.snapshot.authority.schemaHash = 'dev090-v1'
+  const baseline = await capture(input)
+  const artifact = await readDev126LocalResetBaseline({ targetInput: input.targetInput,
+    baselineId: baseline.baselineId, expectedManifestSha256: baseline.manifestSha256 })
+  assert.equal(artifact.manifest.database.authority.schemaHash, 'dev090-v1')
+})
+
 test('reads a pinned baseline independently of subsequent business changes and rejects a substituted descriptor', async (t) => {
   const input = await setup(t)
   const first = await capture(input)

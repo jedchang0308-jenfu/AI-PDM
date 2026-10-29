@@ -284,7 +284,9 @@ function validateAuthority(authority) {
   if (!exactKeys(authority, ['mode', 'expectedCommit', 'schemaHash', 'rowVersion', 'switchedAt']) ||
     typeof authority.mode !== 'string' || !['legacy_only', 'shadow_compare', 'cutover_window', 'canonical_only'].includes(authority.mode) ||
     typeof authority.expectedCommit !== 'string' || authority.expectedCommit.length > 128 ||
-    typeof authority.schemaHash !== 'string' || !HASH.test(authority.schemaHash) ||
+    // DEV-090's native schema identity is the literal dev090-v1, not a SHA.
+    typeof authority.schemaHash !== 'string' ||
+    (authority.schemaHash !== 'dev090-v1' && !HASH.test(authority.schemaHash)) ||
     !Number.isSafeInteger(authority.rowVersion) || authority.rowVersion < 1 ||
     typeof authority.switchedAt !== 'string' || !Number.isFinite(Date.parse(authority.switchedAt))) {
     fail('dev126_reset_baseline_target_mismatch')
