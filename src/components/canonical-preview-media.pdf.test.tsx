@@ -11,6 +11,7 @@ vi.mock("react", () => ({
 }));
 vi.mock("@/components/pdf-page-viewport", () => ({ PdfPageViewport: () => null }));
 vi.mock("@/components/pdf-document-viewport", () => ({ PdfDocumentViewport: () => null }));
+vi.mock("@/components/pdm-preview-image-cache-context", () => ({ usePdmPreviewImageCache: () => null }));
 import { CanonicalPreviewMedia, type CanonicalPreviewMediaModel } from "@/components/canonical-preview-media";
 const full: CanonicalPreviewMediaModel = { href: "/protected-pdf?context=work&bindingId=pdf", mode: "document", title: "Current PDF", fullPdf: true };
 function render(media = full, interactive = true, compact = false) {

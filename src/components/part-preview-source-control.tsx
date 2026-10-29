@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 
 import type { PartPreviewMutationResult, PartPreviewSourceControl as PartPreviewSourceControlModel } from "@/lib/pdm-part-preview";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
