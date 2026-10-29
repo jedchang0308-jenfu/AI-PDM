@@ -171,12 +171,12 @@ function validateBaseline(baseline, scope, targetInput) {
   const expectedExcluded = [...CONTROL_RELATIONS].sort()
   if (included.length !== BUSINESS_RELATION_COUNT || new Set(included).size !== included.length ||
     included.some(name => !IDENTIFIER.test(name) || CONTROL_RELATIONS.includes(name)) ||
-    JSON.stringify(excluded) !== JSON.stringify(expectedExcluded) || relations.length !== TOTAL_RELATION_COUNT ||
+    JSON.stringify(excluded) !== JSON.stringify(expectedExcluded) || relations.length !== BUSINESS_RELATION_COUNT ||
     relations.some(relation => !isRecord(relation) || !IDENTIFIER.test(relation.name ?? '') ||
       !['r', 'p'].includes(relation.kind) || relation.owner !== OWNER_ROLE ||
       !Number.isSafeInteger(relation.rowCount) || relation.rowCount < 0 || !HASH.test(relation.rowsSha256 ?? '')) ||
     JSON.stringify(relations.map(relation => relation.name).sort()) !==
-      JSON.stringify([...included, ...CONTROL_RELATIONS].sort()) ||
+      JSON.stringify([...included].sort()) ||
     !samePath(manifest.target.sandboxRoot, targetInput.sandboxRoot) ||
     !samePath(manifest.target.dataDirectory, targetInput.dataDirectory) ||
     !samePath(manifest.target.repositoryDirectory, targetInput.repositoryDirectory) ||
@@ -292,15 +292,16 @@ function validateOwnerState(state, context, scope, manifest, { allowMaintenance 
     !Number.isSafeInteger(state.principalSessionCount) || state.principalSessionCount < 0 ||
     !Array.isArray(state.sourceBindings)) fail('dev126_reset_restore_owner_state_invalid', 503)
 
-  const expectedRows = manifest.database.relations.map(relation => ({
+  const expectedBusinessRows = manifest.database.relations.map(relation => ({
     name: relation.name, kind: relation.kind, owner: relation.owner,
   })).sort((a, b) => a.name.localeCompare(b.name))
-  const observedRows = state.relations.map(relation => ({
-    name: relation.name, kind: relation.kind, owner: relation.owner,
-  })).sort((a, b) => a.name.localeCompare(b.name))
-  if (JSON.stringify(observedRows) !== JSON.stringify(expectedRows) ||
+  const businessByName = new Map(expectedBusinessRows.map(relation => [relation.name, relation]))
+  const expectedLiveNames = [...manifest.database.includedRelations, ...CONTROL_RELATIONS].sort()
+  const observedLiveNames = state.relations.map(relation => relation.name).sort()
+  if (JSON.stringify(observedLiveNames) !== JSON.stringify(expectedLiveNames) ||
     state.relations.length !== TOTAL_RELATION_COUNT ||
-    state.relations.some(relation => relation.owner !== OWNER_ROLE || !['r', 'p'].includes(relation.kind))) {
+    state.relations.some(relation => relation.owner !== OWNER_ROLE || !['r', 'p'].includes(relation.kind) ||
+      (businessByName.has(relation.name) && businessByName.get(relation.name).kind !== relation.kind))) {
     fail('dev126_reset_restore_inventory_drift', 503)
   }
   const businessSet = new Set(manifest.database.includedRelations)
@@ -1155,17 +1156,19 @@ function compareBusinessReadback(readback, manifest, scope) {
     .sort((a, b) => a.name.localeCompare(b.name))
   const actual = readback.business.map(relation => ({ name: relation.name, rowCount: relation.rowCount,
     rowsSha256: relation.rowsSha256 })).sort((a, b) => a.name.localeCompare(b.name))
-  const expectedControls = manifest.database.relations.filter(relation => PRESERVED_CONTROL_RELATIONS.includes(relation.name))
-    .map(relation => ({ name: relation.name, rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 }))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  const actualControls = readback.preservedControls.map(relation => ({ name: relation.name,
-    rowCount: relation.rowCount, rowsSha256: relation.rowsSha256 })).sort((a, b) => a.name.localeCompare(b.name))
+  // Control relations are excluded from the baseline's row-hash projection.
+  // Validate their live readback shape without inventing baseline hashes.
+  const actualControlNames = readback.preservedControls.map(relation => relation?.name).sort()
+  const validPreservedControls = readback.preservedControls.length === PRESERVED_CONTROL_RELATIONS.length &&
+    JSON.stringify(actualControlNames) === JSON.stringify([...PRESERVED_CONTROL_RELATIONS].sort()) &&
+    readback.preservedControls.every(relation => isRecord(relation) &&
+      Number.isSafeInteger(relation.rowCount) && relation.rowCount >= 0 && HASH.test(relation.rowsSha256 ?? ''))
   const phaseMatches = (readback.state.targetMetadata.generation === scope.sourceGeneration &&
     readback.state.targetMetadata.status === 'maintenance' && readback.state.databaseMarker === generationMarker(scope)) ||
     (readback.state.targetMetadata.generation === scope.generation &&
       readback.state.targetMetadata.status === 'ready' && readback.state.databaseMarker === generationMarker(scope))
   return JSON.stringify(actual) === JSON.stringify(expected) &&
-    JSON.stringify(actualControls) === JSON.stringify(expectedControls) && phaseMatches && readback.state.principalSessionCount === 0 &&
+    validPreservedControls && phaseMatches && readback.state.principalSessionCount === 0 &&
     readback.state.sourceBindings.every(binding => binding.status === 'revoked') &&
     (readback.state.targetMetadata.status === 'maintenance' || readback.state.targetMetadata.status === 'ready')
 }

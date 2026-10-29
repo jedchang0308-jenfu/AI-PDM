@@ -114,6 +114,7 @@ async function prepareHarness(t, options = {}) {
     rowCount: repositoryObject && name === 'file_assets' ? 1 : name === 'pdm_workbench_state_authority_control' ? 1 : 0,
     rowsSha256: repositoryObject && name === 'file_assets' ? 'd'.repeat(64) :
       name === 'pdm_workbench_state_authority_control' ? authorityHash : emptyHash }))
+  const baselineBusinessRelations = relations.filter(relation => includedRelations.includes(relation.name))
   const archive = Buffer.from('test-only custom archive placeholder')
   const archivePath = path.join(baselineDirectory, 'ai-pdm-core.data.dump')
   await writeFile(archivePath, archive, { mode: 0o600 })
@@ -125,7 +126,7 @@ async function prepareHarness(t, options = {}) {
       fixtureHash: targetInput.expectedFixtureHash, nativeSessionContractVersion: 'jenfu.ai-pdm-session.v2' },
     database: { schema: 'ai_pdm_core', schemaOwner: ownerRole, dumpFormat: 'custom-data-only',
       authority, principalSessionCount: 0, principalBindingCount: 0,
-      ownerConnection: { sessionUser: scopedLogin }, relations,
+      ownerConnection: { sessionUser: scopedLogin }, relations: baselineBusinessRelations,
       includedRelations: [...includedRelations].sort(), excludedRelations: [...policy.controlRelations].sort() },
     repository: { pointers: repositoryObject ? [{ sourceTable: 'file_assets', sourceId: 'asset-1',
       provider: 'local_repository', key: repositoryObject.key, sha256: objectSha256, bytes: repositoryObject.bytes.byteLength }] : [],
@@ -266,6 +267,11 @@ async function prepareHarness(t, options = {}) {
 
 test('restores the pinned business set atomically, then rebinds PDM metadata to the Platform generation', async t => {
   const h = await prepareHarness(t)
+  assert.equal(h.manifest.database.relations.length, policy.businessRelationCount)
+  assert.equal(h.manifest.database.includedRelations.length, policy.businessRelationCount)
+  assert.equal(h.manifest.database.excludedRelations.length, policy.controlRelations.length)
+  assert.deepEqual(h.manifest.database.relations.map(relation => relation.name).sort(),
+    [...h.manifest.database.includedRelations].sort())
   const result = await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
   assert.equal(result.restored, true)
   assert.equal(result.recoveredAfterUnknown, false)
