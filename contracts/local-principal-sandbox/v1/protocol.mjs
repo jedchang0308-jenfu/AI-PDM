@@ -10,6 +10,7 @@ export const LOCAL_IDENTITY_ISSUER = 'urn:jenfu:local-principal-sandbox'
 const HASH = /^[a-f0-9]{64}$/
 const NONCE = /^[A-Za-z0-9_-]{22,128}$/
 const IDENTIFIER = /^[a-z][a-z0-9-]{2,63}$/
+const LOCAL_ERROR_BRAND = Symbol.for('jenfu.local-principal-sandbox.error.v1')
 
 export class LocalSandboxError extends Error {
   constructor(code, status = 400) {
@@ -17,6 +18,11 @@ export class LocalSandboxError extends Error {
     this.name = 'LocalSandboxError'
     this.code = code
     this.status = status
+    Object.defineProperty(this, LOCAL_ERROR_BRAND, { value: true })
+  }
+  // Cached native runtimes may outlive a development module instance.
+  static [Symbol.hasInstance](value) {
+    return value instanceof Error && value[LOCAL_ERROR_BRAND] === true
   }
 }
 

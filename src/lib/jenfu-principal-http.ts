@@ -6,6 +6,7 @@ import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
+import { LocalSandboxError } from "../../contracts/local-principal-sandbox/v1/client.mjs";
 import { LOCAL_IDENTITY_ISSUER } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
 import {
   isLocalSandboxPrincipalRequestAdmission,
@@ -82,6 +83,10 @@ export async function principalRequestInput(token: string, request: Request): Pr
           reportLocalPrincipalDiagnostic("principal_request_input", error);
         }
         throw error;
+      }
+      if (error instanceof LocalSandboxError && error.status === 401 &&
+        ["local_session_invalid", "local_session_stale"].includes(error.code)) {
+        throw new JenfuPrincipalRequestError("auth_session_invalid");
       }
       reportLocalPrincipalDiagnostic("principal_request_input", error);
       const code = error instanceof Error ? error.message : "";
