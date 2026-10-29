@@ -782,6 +782,7 @@ export const DEV126_LOCAL_RESET_BASELINE_POLICY = Object.freeze({
   formatVersion: FORMAT_VERSION,
   schema: SCHEMA,
   ownerRole: PDM_OWNER_ROLE,
+  snapshotScope: SNAPSHOT_SCOPE,
   controlRelations: CONTROL_RELATIONS,
   pointerSources: POINTER_SOURCES,
   consistency: 'single-exported-postgresql-snapshot',

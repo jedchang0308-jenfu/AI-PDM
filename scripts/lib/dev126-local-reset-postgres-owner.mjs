@@ -148,9 +148,9 @@ function pointerFromRow(sourceTable, row, repositoryDirectory) {
 function validateScope(scope) {
   const excluded = CONTROL_RELATIONS.map((name) => `${SCHEMA}.${name}`).sort()
   if (!exactKeys(scope, [
-    'schema', 'dumpFormat', 'dataOnly', 'includeAllOwnedTablesExceptControlRelations',
+    'schema', 'ownerRole', 'dumpFormat', 'dataOnly', 'includeAllOwnedTablesExceptControlRelations',
     'excludedTableData', 'pointerSources', 'consistency', 'excludeOwnerAndPrivileges',
-  ]) || scope.schema !== SCHEMA || scope.dumpFormat !== 'custom' || scope.dataOnly !== true ||
+  ]) || scope.schema !== SCHEMA || scope.ownerRole !== OWNER_ROLE || scope.dumpFormat !== 'custom' || scope.dataOnly !== true ||
     scope.includeAllOwnedTablesExceptControlRelations !== true ||
     !Array.isArray(scope.excludedTableData) || !Array.isArray(scope.pointerSources) ||
     JSON.stringify([...scope.excludedTableData].sort()) !== JSON.stringify(excluded) ||

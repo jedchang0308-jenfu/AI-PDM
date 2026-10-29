@@ -38,13 +38,8 @@ function makeInput(overrides = {}) {
     generation: GENERATION, fixtureVersion: 'jenfu.local-principal-fixtures.v1', fixtureHash: FIXTURE_HASH,
     nativeSessionContractVersion: 'jenfu.ai-pdm-session.v2', targetFingerprint: FINGERPRINT, status: 'ready',
   }
-  const scope = {
-    schema: 'ai_pdm_core', dumpFormat: 'custom', dataOnly: true,
-    includeAllOwnedTablesExceptControlRelations: true,
-    excludedTableData: CONTROL.map((name) => `ai_pdm_core.${name}`),
-    pointerSources: POINTER_SOURCES, consistency: 'single-exported-postgresql-snapshot',
-    excludeOwnerAndPrivileges: true,
-  }
+  // Exercise the real baseline producer's scope instead of a parallel DTO.
+  const scope = structuredClone(DEV126_LOCAL_RESET_BASELINE_POLICY.snapshotScope)
   return {
     target,
     expectedDatabase: {
