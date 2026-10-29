@@ -54,7 +54,7 @@ describe("DEV122 B42 full PDF presentation and lifetime; captured fetch hooks, n
     servePdf(); render(); const cleanup = hooks.effects[0](); await ready();
     const tree = render(); expect(tree.type).toBe("div"); expect(tree.props["data-preview-full-pdf"]).toBe("true");
     const [viewer, link] = tree.props.children as ReactElement<Record<string, unknown>>[];
-    expect(viewer.props.bytes).toBeInstanceOf(ArrayBuffer); expect(viewer.props.sourceKey).toBe(full.href); expect(viewer.props.showControls).toBe(true); expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(viewer.props.bytes).toBeInstanceOf(ArrayBuffer); expect(viewer.props.sourceKey).toBe(full.href); expect(viewer.props.showControls).toBe(false); expect(viewer.props.fitPage).toBe(true); expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(link.type).toBe("a"); expect(link.props.href).toContain("bindingId=pdf");
     if (typeof cleanup === "function") cleanup();
   });
