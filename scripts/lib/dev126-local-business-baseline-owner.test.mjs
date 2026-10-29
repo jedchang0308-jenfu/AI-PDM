@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { test } from 'node:test'
 import { contractDigest } from '../../contracts/local-principal-sandbox/v1/protocol.mjs'
-import { initializeDev126LocalBusinessBaseline } from './dev126-local-business-baseline-owner.mjs'
+import { dev126LocalBusinessBaselineResultMaterial, initializeDev126LocalBusinessBaseline,
+  verifyDev126LocalBusinessBaseline } from './dev126-local-business-baseline-owner.mjs'
 
 const MIGRATOR = 'jenfu_ai_pdm_migrator'
 const DEFAULT_PRIORITY = [
@@ -117,6 +118,8 @@ class FakeOwnerClient {
       serverPort: options.serverPort ?? 55432,
       sessionUser: options.sessionUser ?? 'dev126_scoped_owner',
       currentUser: options.sessionUser ?? 'dev126_scoped_owner',
+      marker: options.marker ?? 'jenfu.local-principal-bootstrap.v1:dev126-test:11111111-1111-4111-8111-111111111111',
+      principalSessionCounts: { sessions: options.sessions ?? 0, bindings: options.bindings ?? 0 },
       schemaOwner: options.schemaOwner ?? MIGRATOR,
       metadataOwner: options.metadataOwner ?? MIGRATOR,
       metadataAcl: options.metadataAcl ?? {
@@ -145,19 +148,23 @@ class FakeOwnerClient {
     this.transactionSnapshot = null
     this.events = []
     this.options = options
+    this.readOnly = false
   }
 
   async query(sql, values = []) {
     const normalized = String(sql).replace(/\s+/gu, ' ').trim()
     this.events.push({ sql: normalized, values: structuredClone(values) })
+    if (this.readOnly && (/^(INSERT|UPDATE|DELETE|LOCK|CREATE|ALTER|DROP)\b/iu.test(normalized) ||
+      /\bFOR UPDATE\b/iu.test(normalized))) throw new Error('READ_ONLY_TRANSACTION_MUTATION')
 
     if (normalized.startsWith('SELECT current_database()')) {
       return { rows: [{ database_name: this.state.databaseName, current_user: this.state.currentUser,
         session_user: this.state.sessionUser, server_address: this.state.serverAddress,
-        server_port: this.state.serverPort }] }
+        server_port: this.state.serverPort, marker: this.state.marker }] }
     }
-    if (normalized === 'BEGIN') {
+    if (normalized === 'BEGIN' || normalized === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY') {
       this.transactionSnapshot = structuredClone(this.state)
+      this.readOnly = normalized.endsWith('READ ONLY')
       return { rows: [], rowCount: null }
     }
     if (normalized.startsWith('SET LOCAL ROLE ')) {
@@ -168,13 +175,19 @@ class FakeOwnerClient {
     if (normalized === 'COMMIT') {
       this.transactionSnapshot = null
       this.state.currentUser = this.state.sessionUser
+      this.readOnly = false
       if (this.options.commitUnknown) throw new Error('simulated commit response loss')
       return { rows: [], rowCount: null }
     }
     if (normalized === 'ROLLBACK') {
       if (this.transactionSnapshot) this.state = this.transactionSnapshot
       this.transactionSnapshot = null
+      this.readOnly = false
       return { rows: [], rowCount: null }
+    }
+    if (normalized.includes('FROM ai_pdm_core.principal_session_records') &&
+      normalized.includes('local_sandbox_principal_session_bindings')) {
+      return { rows: [structuredClone(this.state.principalSessionCounts)] }
     }
     if (normalized.includes('FROM pg_catalog.pg_namespace WHERE nspname=$1')) {
       return { rows: [{ schema_owner: this.state.schemaOwner }] }
@@ -213,10 +226,10 @@ class FakeOwnerClient {
     if (normalized.includes('FROM ai_pdm_core.active_role_catalog active')) {
       return { rows: this.state.catalogRows.map(row => structuredClone(row)) }
     }
-    if (normalized === 'SELECT id,role_code,title,system_defined,enabled FROM ai_pdm_core.roles ORDER BY id FOR UPDATE') {
+    if (normalized.startsWith('SELECT id,role_code,title,system_defined,enabled FROM ai_pdm_core.roles ORDER BY id')) {
       return { rows: this.state.roles.map(row => ({ ...row })).sort((a, b) => a.id.localeCompare(b.id)) }
     }
-    if (normalized === 'SELECT id,role_id,permission_kind,permission_code,allowed FROM ai_pdm_core.role_permissions ORDER BY id FOR UPDATE') {
+    if (normalized.startsWith('SELECT id,role_id,permission_kind,permission_code,allowed FROM ai_pdm_core.role_permissions ORDER BY id')) {
       return { rows: this.state.rolePermissions.map(row => ({ ...row })).sort((a, b) => a.id.localeCompare(b.id)) }
     }
     if (normalized.startsWith('INSERT INTO ai_pdm_core.roles')) {
@@ -283,6 +296,17 @@ function fixtureInput({ clientOptions, ...inputOverrides } = {}) {
   return input
 }
 
+async function readOnlyVerifierInput() {
+  const capturedInput = fixtureInput()
+  const capturedResult = await initializeDev126LocalBusinessBaseline(capturedInput)
+  const input = makeInput({ scopedMigratorSessionUser: 'postgres' })
+  input.client = new FakeOwnerClient({ sessionUser: 'postgres' })
+  input.client.state = structuredClone(capturedInput.client.state)
+  input.client.state.sessionUser = 'postgres'
+  input.client.state.currentUser = 'postgres'
+  return { input, capturedResult }
+}
+
 test('creates only JENFU business company, canonical priority and 091 ready metadata in one owner transaction', async () => {
   const input = fixtureInput()
   const result = await initializeDev126LocalBusinessBaseline(input)
@@ -337,6 +361,48 @@ test('reuses exact company, native catalog projection, active priority and ready
   assert.deepEqual(result.rolePriority.priority, [...DEFAULT_PRIORITY].reverse())
   assert.equal(result.metadata.created, false)
   assert.equal(input.client.events.some(event => /^(INSERT|UPDATE|DELETE) /iu.test(event.sql)), false)
+})
+
+test('verify-only reads the complete baseline in a repeatable read-only transaction with the capture digest', async () => {
+  const { input, capturedResult } = await readOnlyVerifierInput()
+  const before = structuredClone(input.client.state)
+
+  const result = await verifyDev126LocalBusinessBaseline(input)
+
+  assert.equal(input.client.events.filter(({ sql }) => sql === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY').length, 1)
+  assert.equal(input.client.events.at(-1).sql, 'COMMIT')
+  assert.equal(input.client.events.some(({ sql }) => /^(INSERT|UPDATE|DELETE|LOCK|CREATE|ALTER|DROP)\b/iu.test(sql) ||
+    /\bFOR UPDATE\b/iu.test(sql)), false)
+  assert.deepEqual(input.client.state, before)
+  assert.deepEqual(dev126LocalBusinessBaselineResultMaterial(result),
+    dev126LocalBusinessBaselineResultMaterial(capturedResult))
+  assert.equal(contractDigest({ target: input.target, policy: input.localPriorityPolicy,
+    result: dev126LocalBusinessBaselineResultMaterial(result) }),
+  contractDigest({ target: input.target, policy: input.localPriorityPolicy,
+    result: dev126LocalBusinessBaselineResultMaterial(capturedResult) }))
+})
+
+test('verify-only rejects missing, partial, drifted or nonempty state without repairing it', async t => {
+  const cases = [
+    ['missing company', state => { state.companies = [] }, 'COMPANY_BASELINE_MISSING'],
+    ['partial native role projection', state => { state.roles.pop() }, 'NATIVE_ROLE_PROJECTION_COLLISION'],
+    ['missing active priority', state => { state.priorities = [] }, 'ROLE_PRIORITY_ACTIVE_MISSING'],
+    ['missing target metadata', state => { state.metadata = [] }, 'TARGET_METADATA_MISSING'],
+    ['maintenance target metadata', state => { state.metadata[0].status = 'maintenance' }, 'TARGET_METADATA_NOT_READY'],
+    ['unbound workbench authority', state => { state.workbenchAuthority.expected_commit = '' }, 'WORKBENCH_AUTHORITY_COMMIT_UNBOUND'],
+    ['target marker mismatch', state => { state.marker = 'foreign-database' }, 'TARGET_IDENTITY_MISMATCH'],
+    ['principal session exists', state => { state.principalSessionCounts.sessions = 1 }, 'TARGET_HAS_PRINCIPAL_SESSIONS'],
+    ['principal binding exists', state => { state.principalSessionCounts.bindings = 1 }, 'TARGET_HAS_PRINCIPAL_SESSIONS'],
+  ]
+  for (const [name, mutate, code] of cases) await t.test(name, async () => {
+    const { input } = await readOnlyVerifierInput()
+    mutate(input.client.state)
+    const before = structuredClone(input.client.state)
+    await assert.rejects(verifyDev126LocalBusinessBaseline(input), { code: `LOCAL_BUSINESS_BASELINE_${code}` })
+    assert.deepEqual(input.client.state, before)
+    assert.equal(input.client.events.some(({ sql }) => /^(INSERT|UPDATE|DELETE|LOCK|CREATE|ALTER|DROP)\b/iu.test(sql) ||
+      /\bFOR UPDATE\b/iu.test(sql)), false)
+  })
 })
 
 test('binds only a blank expected commit on an already canonical DEV-090 row with CAS readback', async () => {

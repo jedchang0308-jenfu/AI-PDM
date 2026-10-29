@@ -214,13 +214,63 @@ test('native verify-only refuses a nonempty session registry before owner snapsh
   assert.deepEqual(await treeSnapshot(fixture.root), before)
 })
 
-test('business baseline verify-only is rejected before database or Platform dependencies are opened', async () => {
-  const calls = { inspect: 0, suite: 0 }
-  await assert.rejects(runDev126LocalPostnativeOwner({ stage: 'business-baseline',
-    root: path.resolve(os.tmpdir(), 'not-read'), taskRoot: path.resolve(os.tmpdir(), 'not-read-task'), verifyOnly: true,
-    dependencies: { inspectCluster() { calls.inspect += 1 }, readSuite() { calls.suite += 1 } } }),
-  { code: 'POSTNATIVE_VERIFY_ONLY_UNSUPPORTED' })
-  assert.deepEqual(calls, { inspect: 0, suite: 0 })
+test('business verify-only calls the read-only owner and creates no login or receipt', async t => {
+  const fixture = await makeSandbox(t)
+  const queries = []
+  const calls = { verify: 0, initialize: 0, connects: 0 }
+  class VerifyClient {
+    constructor(options) { this.options = options }
+    async connect() { calls.connects += 1 }
+    async end() {}
+    async query(sql) {
+      const query = String(sql).trim()
+      queries.push(query)
+      if (/^SELECT current_database\(\)/iu.test(query)) return { rows: [{ database_name: DATABASE_NAME,
+        session_user: 'postgres', host: '127.0.0.1', port: PORT,
+        marker: `jenfu.local-principal-bootstrap.v1:${SANDBOX_ID}:${GENERATION}` }] }
+      if (query.includes('principal_session_records')) return { rows: [{ sessions: 0, bindings: 0 }] }
+      if (query === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' || query === 'SET LOCAL ROLE jenfu_ai_pdm_migrator' ||
+        query === 'COMMIT' || query === 'ROLLBACK') return { rows: [], rowCount: null }
+      if (query === 'SELECT true') return { rows: [{ '?column?': true }] }
+      throw new Error(`BUSINESS_VERIFY_TEST_UNEXPECTED_QUERY:${query}`)
+    }
+  }
+  const material = { companyId: 'company-jenfu',
+    catalogProjection: { catalogVersion: 'catalog-v1', roleCount: 9, permissionCount: 10 },
+    rolePriority: { versionCode: 'priority-v1', priority: ROLE_CODES, policySha256: 'f'.repeat(64) },
+    workbenchAuthority: { id: 1, mode: 'canonical_only', expectedCommit: 'local-dev',
+      schemaHash: 'dev090-v1', rowVersion: 5, switchedAt: '2026-10-30T00:01:00.000Z' },
+    metadata: { status: 'ready', targetFingerprint: 'e'.repeat(64) } }
+  const businessBaselineOwner = {
+    dev126LocalBusinessBaselineResultMaterial() { return material },
+    async verifyDev126LocalBusinessBaseline(input) {
+      calls.verify += 1
+      assert.equal(input.scopedMigratorSessionUser, 'postgres')
+      assert.equal(input.client.options.user, 'postgres')
+      await input.client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
+      await input.client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+      await input.client.query('SELECT true')
+      await input.client.query('COMMIT')
+      return { company: { companyId: 'company-jenfu' },
+        catalogProjection: { catalogVersion: 'catalog-v1', roleCount: 9, permissionCount: 10 },
+        rolePriority: { versionCode: 'priority-v1', priority: ROLE_CODES, policySha256: 'f'.repeat(64) },
+        workbenchAuthority: { id: 1, mode: 'canonical_only', expectedCommit: 'local-dev',
+          schemaHash: 'dev090-v1', rowVersion: 5, switchedAt: '2026-10-30T00:01:00.000Z' },
+        metadata: { status: 'ready', targetFingerprint: 'e'.repeat(64) } }
+    },
+    async initializeDev126LocalBusinessBaseline() { calls.initialize += 1; throw new Error('capture must not run') },
+  }
+  const before = await treeSnapshot(fixture.root)
+  const result = await runDev126LocalPostnativeOwner({ stage: 'business-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, verifyOnly: true, dependencies: { platformRoot: fixture.platformRoot,
+      platform: fixture.platform, Client: VerifyClient, businessBaselineOwner } })
+
+  assert.equal(result.status, 'verified')
+  assert.match(result.resultDigest, /^[a-f0-9]{64}$/u)
+  assert.deepEqual(calls, { verify: 1, initialize: 0, connects: 1 })
+  assert.equal(queries.includes('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'), true)
+  assert.equal(queries.some(query => /^(CREATE|GRANT|REVOKE|DROP|INSERT|UPDATE|DELETE)\b/iu.test(query)), false)
+  assert.deepEqual(await treeSnapshot(fixture.root), before)
 })
 
 test('capture refuses a nonempty session registry before creating the retained seed login', async t => {

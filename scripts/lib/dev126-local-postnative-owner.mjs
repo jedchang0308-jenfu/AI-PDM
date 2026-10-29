@@ -161,7 +161,8 @@ async function validatePersistentLogin(admin, login, input, cluster, verifyOnly)
   return login
 }
 
-async function runBusinessBaseline({ root, taskRoot, Client, inspectCluster, readSuite }) {
+async function runBusinessBaseline({ root, taskRoot, verifyOnly = false, Client, inspectCluster, readSuite,
+  businessBaselineOwner }) {
   const input = await readPrivateJson(root, 'bootstrap-input.json')
   assertBootstrapInput(input)
   const suite = await readSuite(root)
@@ -174,7 +175,7 @@ async function runBusinessBaseline({ root, taskRoot, Client, inspectCluster, rea
   const policy = policyFor(input, await readPrivateJson(root, 'pdm-local-priority-policy.json'), protocol.contractDigest)
   const cluster = await inspectCluster({ taskRoot })
   const admin = await openAdmin({ Client, cluster, databaseName: input.databaseName })
-  const audit = { format: 'ai-pdm.local-business-baseline-receipt.v1', attemptId: randomUUID(),
+  const audit = verifyOnly ? null : { format: 'ai-pdm.local-business-baseline-receipt.v1', attemptId: randomUUID(),
     databaseName: input.databaseName, generation: input.generation, fixtureHash: fixture.fixtureHash,
     status: 'in_progress' }
   let scoped
@@ -183,49 +184,60 @@ async function runBusinessBaseline({ root, taskRoot, Client, inspectCluster, rea
     await assertTarget(admin, input, cluster)
     const counts = await readSessionCounts(admin)
     if (counts.sessions !== 0 || counts.bindings !== 0) fail('PDM_BASELINE_TARGET_HAS_SESSIONS')
-    const username = `local_pdm_seed_${randomBytes(8).toString('hex')}`
-    const password = randomBytes(32).toString('hex')
-    ephemeralLogin = username
-    await createScopedLogin(admin, username, password)
-    scoped = new Client({ ...cluster.adminConnection, database: input.databaseName, user: username, password,
-      application_name: 'dev126-scoped-native-baseline' })
-    await scoped.connect()
-    const contract = await from(suite.applications['ai-pdm'].worktree, 'scripts/lib/dev126-local-business-baseline-owner.mjs')
+    const contract = businessBaselineOwner ?? await from(suite.applications['ai-pdm'].worktree,
+      'scripts/lib/dev126-local-business-baseline-owner.mjs')
+    if (typeof contract.dev126LocalBusinessBaselineResultMaterial !== 'function' ||
+      (verifyOnly ? typeof contract.verifyDev126LocalBusinessBaseline !== 'function'
+        : typeof contract.initializeDev126LocalBusinessBaseline !== 'function')) {
+      fail('BUSINESS_BASELINE_OWNER_CONTRACT_INVALID')
+    }
     const inputTarget = ownerTarget(input, fixture, root, cluster.postmaster.port)
     const localPriorityPolicy = { ...policy }
-    const ownerInput = { client: scoped, scopedMigratorSessionUser: ephemeralLogin,
+    let client = admin
+    let sessionUser = 'postgres'
+    if (!verifyOnly) {
+      const username = `local_pdm_seed_${randomBytes(8).toString('hex')}`
+      const password = randomBytes(32).toString('hex')
+      ephemeralLogin = username
+      await createScopedLogin(admin, username, password)
+      scoped = new Client({ ...cluster.adminConnection, database: input.databaseName, user: username, password,
+        application_name: 'dev126-scoped-native-baseline' })
+      await scoped.connect()
+      client = scoped
+      sessionUser = ephemeralLogin
+    }
+    const ownerInput = { client, scopedMigratorSessionUser: sessionUser,
       target: inputTarget, localPriorityPolicy, workbenchAuthorityExpectedCommit: 'local-dev' }
-    const result = await contract.initializeDev126LocalBusinessBaseline(ownerInput)
+    const result = verifyOnly
+      ? await contract.verifyDev126LocalBusinessBaseline(ownerInput)
+      : await contract.initializeDev126LocalBusinessBaseline(ownerInput)
     const sourceDigest = protocol.contractDigest({ target: ownerInput.target, policy: localPriorityPolicy,
-      result: { companyId: result.company.companyId,
-        catalogProjection: { catalogVersion: result.catalogProjection.catalogVersion,
-          roleCount: result.catalogProjection.roleCount, permissionCount: result.catalogProjection.permissionCount },
-        rolePriority: { versionCode: result.rolePriority.versionCode, priority: result.rolePriority.priority,
-          policySha256: result.rolePriority.policySha256 },
-        workbenchAuthority: { id: result.workbenchAuthority.id, mode: result.workbenchAuthority.mode,
-          expectedCommit: result.workbenchAuthority.expectedCommit, schemaHash: result.workbenchAuthority.schemaHash,
-          rowVersion: result.workbenchAuthority.rowVersion, switchedAt: result.workbenchAuthority.switchedAt },
-        metadata: { status: result.metadata.status, targetFingerprint: result.metadata.targetFingerprint } } })
+      result: contract.dev126LocalBusinessBaselineResultMaterial(result) })
     const after = await readSessionCounts(admin)
     if (after.sessions !== 0 || after.bindings !== 0) fail('PDM_BASELINE_SESSION_FENCE_FAILED')
-    audit.status = 'owner-local-business-baseline-committed'
-    audit.resultDigest = sourceDigest
-    audit.catalogVersion = result.catalogProjection.catalogVersion
-    audit.catalogRoleCount = result.catalogProjection.roleCount
-    audit.catalogPermissionCount = result.catalogProjection.permissionCount
-    audit.priorityVersion = result.rolePriority.versionCode
-    audit.metadataTargetFingerprint = result.metadata.targetFingerprint
-    audit.workbenchAuthority = result.workbenchAuthority
-    audit.zeroSessionReadback = true
-    return Object.freeze({ stage: 'pdm-business-baseline', status: audit.status,
+    const status = verifyOnly ? 'verified' : 'owner-local-business-baseline-committed'
+    if (audit) {
+      audit.status = status
+      audit.resultDigest = sourceDigest
+      audit.catalogVersion = result.catalogProjection.catalogVersion
+      audit.catalogRoleCount = result.catalogProjection.roleCount
+      audit.catalogPermissionCount = result.catalogProjection.permissionCount
+      audit.priorityVersion = result.rolePriority.versionCode
+      audit.metadataTargetFingerprint = result.metadata.targetFingerprint
+      audit.workbenchAuthority = result.workbenchAuthority
+      audit.zeroSessionReadback = true
+    }
+    return Object.freeze({ stage: 'pdm-business-baseline', status,
       inputDigest: protocol.contractDigest({ sandboxId: input.sandboxId, generation: input.generation,
         fixtureHash: fixture.fixtureHash, policySha256: policy.sha256 }), resultDigest: sourceDigest,
-      catalogVersion: audit.catalogVersion, roleCount: audit.catalogRoleCount,
-      permissionCount: audit.catalogPermissionCount, priorityVersion: audit.priorityVersion,
-      metadataTargetFingerprint: audit.metadataTargetFingerprint, zeroSessionReadback: true })
+      catalogVersion: result.catalogProjection.catalogVersion, roleCount: result.catalogProjection.roleCount,
+      permissionCount: result.catalogProjection.permissionCount, priorityVersion: result.rolePriority.versionCode,
+      metadataTargetFingerprint: result.metadata.targetFingerprint, zeroSessionReadback: true })
   } catch (error) {
-    audit.status = 'failed'
-    audit.code = error.code ?? error.name
+    if (audit) {
+      audit.status = 'failed'
+      audit.code = error.code ?? error.name
+    }
     throw error
   } finally {
     if (scoped && scoped !== admin) await scoped.end().catch(() => undefined)
@@ -234,7 +246,7 @@ async function runBusinessBaseline({ root, taskRoot, Client, inspectCluster, rea
       await admin.query(`DROP ROLE "${ephemeralLogin}"`).catch(() => undefined)
     }
     await admin.end().catch(() => undefined)
-    await writePrivateJsonCreateOnly(path.join(root, 'control', `pdm-business-baseline-${audit.attemptId}.json`), audit)
+    if (audit) await writePrivateJsonCreateOnly(path.join(root, 'control', `pdm-business-baseline-${audit.attemptId}.json`), audit)
   }
 }
 
@@ -365,7 +377,6 @@ export async function runDev126LocalPostnativeOwner({ stage, root, taskRoot, ver
   if (!path.isAbsolute(runtimeRoot) || !path.isAbsolute(taskRoot ?? '') || !['business-baseline', 'native-baseline'].includes(stage)) {
     fail('POSTNATIVE_OWNER_ARGUMENTS_INVALID')
   }
-  if (verifyOnly && stage !== 'native-baseline') fail('POSTNATIVE_VERIFY_ONLY_UNSUPPORTED')
   const platformRoot = dependencies.platformRoot
   if (typeof platformRoot !== 'string' || !path.isAbsolute(platformRoot)) fail('PLATFORM_DEPENDENCIES_REQUIRED')
   const platform = dependencies.platform ?? await loadPlatformDependencies(platformRoot)
@@ -375,8 +386,8 @@ export async function runDev126LocalPostnativeOwner({ stage, root, taskRoot, ver
   const suite = await readSuite(runtimeRoot)
   if (!samePath(suite.root, runtimeRoot) || !samePath(suite.applications.platform.worktree, platformRoot) ||
     !samePath(suite.applications['ai-pdm'].worktree, process.cwd())) fail('POSTNATIVE_OWNER_SUITE_MISMATCH')
-  if (stage === 'business-baseline') return runBusinessBaseline({ root: runtimeRoot, taskRoot,
-    Client, inspectCluster, readSuite })
+  if (stage === 'business-baseline') return runBusinessBaseline({ root: runtimeRoot, taskRoot, verifyOnly,
+    Client, inspectCluster, readSuite, businessBaselineOwner: dependencies.businessBaselineOwner })
   const ownerTools = dependencies.ownerTools ?? await loadBaselineOwnerTools(suite)
   return runPdmNativeBaseline({ root: runtimeRoot, taskRoot, verifyOnly, Client, pg, inspectCluster, readSuite,
     ...ownerTools, platformRoot, gitHead: dependencies.gitHead ?? gitHead })

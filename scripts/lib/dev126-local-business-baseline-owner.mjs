@@ -165,13 +165,30 @@ async function assertActualTarget(client, target, sessionUser, expectedCurrentUs
            current_user::text AS current_user,
            session_user::text AS session_user,
            host(inet_server_addr())::text AS server_address,
-           inet_server_port()::integer AS server_port
+           inet_server_port()::integer AS server_port,
+           (SELECT shobj_description(oid,'pg_database') FROM pg_catalog.pg_database
+            WHERE datname=current_database()) AS marker
   `)
   if (result.length !== 1) fail('TARGET_READBACK_INVALID')
   const row = result[0]
   if (row.database_name !== target.databaseName || row.session_user !== sessionUser ||
     row.current_user !== expectedCurrentUser || !serverAddressMatches(target.databaseHost, row.server_address) ||
-    Number(row.server_port) !== target.databasePort) fail('TARGET_IDENTITY_MISMATCH')
+    Number(row.server_port) !== target.databasePort ||
+    row.marker !== `jenfu.local-principal-bootstrap.v1:${target.sandboxId}:${target.generation}`) {
+    fail('TARGET_IDENTITY_MISMATCH')
+  }
+}
+
+async function assertZeroPrincipalSessions(client) {
+  const result = await rows(client, `
+    SELECT (SELECT count(*)::int FROM ai_pdm_core.principal_session_records) AS sessions,
+           (SELECT count(*)::int FROM ai_pdm_core.local_sandbox_principal_session_bindings) AS bindings
+  `)
+  if (result.length !== 1 || !Number.isSafeInteger(Number(result[0].sessions)) ||
+    !Number.isSafeInteger(Number(result[0].bindings))) fail('PRINCIPAL_SESSION_READBACK_INVALID')
+  if (Number(result[0].sessions) !== 0 || Number(result[0].bindings) !== 0) {
+    fail('TARGET_HAS_PRINCIPAL_SESSIONS')
+  }
 }
 
 async function assertSchemaOwner(client) {
@@ -253,12 +270,12 @@ function workbenchAuthorityResult(row) {
   })
 }
 
-async function ensureCanonicalWorkbenchAuthority(client, expectedCommit) {
+async function ensureCanonicalWorkbenchAuthority(client, expectedCommit, readOnly = false) {
   const select = `
     SELECT id,mode,expected_commit,schema_hash,row_version,switched_at
     FROM ai_pdm_core.pdm_workbench_state_authority_control
     WHERE id=1
-    FOR UPDATE
+    ${readOnly ? '' : 'FOR UPDATE'}
   `
   const existing = await rows(client, select)
   if (existing.length !== 1 || Number(existing[0].id) !== 1 ||
@@ -273,6 +290,7 @@ async function ensureCanonicalWorkbenchAuthority(client, expectedCommit) {
   if (row.expected_commit === expectedCommit) {
     return Object.freeze({ bound: false, ...workbenchAuthorityResult(row) })
   }
+  if (readOnly && row.expected_commit === '') fail('WORKBENCH_AUTHORITY_COMMIT_UNBOUND')
   if (row.expected_commit !== '') fail('WORKBENCH_AUTHORITY_COMMIT_COLLISION')
 
   const rowVersion = Number(row.row_version)
@@ -293,13 +311,13 @@ function companyMatches(row) {
     row.company_kind === JENFU_COMPANY.companyKind && row.display_name === JENFU_COMPANY.displayName
 }
 
-async function ensureJenfuCompany(client) {
+async function ensureJenfuCompany(client, readOnly = false) {
   const select = `
     SELECT id,company_code,company_kind,display_name
     FROM ai_pdm_core.companies
     WHERE id=$1 OR company_code=$2
     ORDER BY id
-    FOR UPDATE
+    ${readOnly ? '' : 'FOR UPDATE'}
   `
   const existing = await rows(client, select, [JENFU_COMPANY.id, JENFU_COMPANY.companyCode])
   if (existing.length > 1) fail('COMPANY_IDENTITY_COLLISION')
@@ -307,6 +325,7 @@ async function ensureJenfuCompany(client) {
     if (!companyMatches(existing[0])) fail('COMPANY_IDENTITY_COLLISION')
     return Object.freeze({ created: false, companyId: JENFU_COMPANY.id })
   }
+  if (readOnly) fail('COMPANY_BASELINE_MISSING')
 
   await writeOne(client, `
     INSERT INTO ai_pdm_core.companies
@@ -431,15 +450,15 @@ function exactRows(observed, expected, keys, numericKeys = []) {
   return JSON.stringify(normalizeAndSort(observed)) === JSON.stringify(normalizeAndSort(expected))
 }
 
-async function ensureCatalogRoleProjection(client, catalog) {
+async function ensureCatalogRoleProjection(client, catalog, readOnly = false) {
   const expected = catalogProjection(catalog)
   const selectRoles = `
     SELECT id,role_code,title,system_defined,enabled
-    FROM ai_pdm_core.roles ORDER BY id FOR UPDATE
+    FROM ai_pdm_core.roles ORDER BY id ${readOnly ? '' : 'FOR UPDATE'}
   `
   const selectPermissions = `
     SELECT id,role_id,permission_kind,permission_code,allowed
-    FROM ai_pdm_core.role_permissions ORDER BY id FOR UPDATE
+    FROM ai_pdm_core.role_permissions ORDER BY id ${readOnly ? '' : 'FOR UPDATE'}
   `
   const observedRoles = await rows(client, selectRoles)
   const observedPermissions = await rows(client, selectPermissions)
@@ -453,6 +472,7 @@ async function ensureCatalogRoleProjection(client, catalog) {
     return Object.freeze({ created: false, catalogVersion: catalog.catalogVersion,
       roleCount: expected.roles.length, permissionCount: expected.rolePermissions.length })
   }
+  if (readOnly) fail('NATIVE_ROLE_PROJECTION_MISSING')
 
   for (const role of expected.roles) await writeOne(client, `
     INSERT INTO ai_pdm_core.roles
@@ -491,11 +511,11 @@ function samePriorityRow(row, expected) {
     row.priority_json === expected.priorityJson && row.status === 'active' && row.created_by == null
 }
 
-async function ensureActiveRolePriority(client, target, catalog, policy) {
+async function ensureActiveRolePriority(client, target, catalog, policy, readOnly = false) {
   const publishedRoleSet = new Set(catalog.roles.map(role => role.roleCode))
   const active = await rows(client, `
     SELECT id,version_code,priority_json,status,created_by
-    FROM ai_pdm_core.role_priority_versions WHERE status='active' ORDER BY id FOR UPDATE
+    FROM ai_pdm_core.role_priority_versions WHERE status='active' ORDER BY id ${readOnly ? '' : 'FOR UPDATE'}
   `)
   if (active.length > 1) fail('ROLE_PRIORITY_ACTIVE_CARDINALITY_INVALID')
   if (active.length === 1) {
@@ -505,6 +525,7 @@ async function ensureActiveRolePriority(client, target, catalog, policy) {
     return Object.freeze({ created: false, versionCode: active[0].version_code,
       priority: Object.freeze(priority), policySha256: policy.sha256 })
   }
+  if (readOnly) fail('ROLE_PRIORITY_ACTIVE_MISSING')
 
   const identity = priorityId(target, policy)
   const priorityJson = JSON.stringify(policy.roleCodes)
@@ -620,13 +641,13 @@ async function advanceMaintenanceMetadata(client, oldRow, target, fingerprint) {
     !metadataMatches(readback[0], target, fingerprint)) fail('TARGET_METADATA_WRITE_READBACK_FAILED')
 }
 
-async function ensureReadyTargetMetadata(client, target, fingerprint) {
+async function ensureReadyTargetMetadata(client, target, fingerprint, readOnly = false) {
   const select = `
     SELECT application_id,sandbox_id,database_name,status,generation,fixture_version,fixture_hash,
            native_session_contract_version,sandbox_root,data_directory,repository_directory,target_fingerprint
     FROM ai_pdm_core.local_sandbox_target_metadata
     WHERE application_id=$1 AND sandbox_id=$2
-    FOR UPDATE
+    ${readOnly ? '' : 'FOR UPDATE'}
   `
   const key = [APPLICATION_ID, target.sandboxId]
   const existing = await rows(client, select, key)
@@ -637,12 +658,15 @@ async function ensureReadyTargetMetadata(client, target, fingerprint) {
       if (!metadataMatches(row, target, fingerprint)) fail('TARGET_METADATA_COLLISION')
       return Object.freeze({ created: false, status: 'ready' })
     }
+    if (readOnly) fail('TARGET_METADATA_NOT_READY')
     if (!metadataMatches(row, target, fingerprint) && !previousMaintenanceMetadataIsKnown(row, target)) {
       fail('TARGET_METADATA_COLLISION')
     }
     await advanceMaintenanceMetadata(client, row, target, fingerprint)
     return Object.freeze({ created: false, status: 'ready' })
   }
+
+  if (readOnly) fail('TARGET_METADATA_MISSING')
 
   await writeOne(client, `
     INSERT INTO ai_pdm_core.local_sandbox_target_metadata
@@ -657,6 +681,67 @@ async function ensureReadyTargetMetadata(client, target, fingerprint) {
   if (readback.length !== 1 || readback[0].status !== 'ready' ||
     !metadataMatches(readback[0], target, fingerprint)) fail('TARGET_METADATA_WRITE_READBACK_FAILED')
   return Object.freeze({ created: true, status: 'ready' })
+}
+
+/**
+ * Return only the durable business-baseline fields used for coordinator resume
+ * receipts. Capture and verify-only must hash the same material.
+ */
+export function dev126LocalBusinessBaselineResultMaterial(result) {
+  return Object.freeze({
+    companyId: result.company.companyId,
+    catalogProjection: Object.freeze({ catalogVersion: result.catalogProjection.catalogVersion,
+      roleCount: result.catalogProjection.roleCount, permissionCount: result.catalogProjection.permissionCount }),
+    rolePriority: Object.freeze({ versionCode: result.rolePriority.versionCode,
+      priority: result.rolePriority.priority, policySha256: result.rolePriority.policySha256 }),
+    workbenchAuthority: Object.freeze({ id: result.workbenchAuthority.id, mode: result.workbenchAuthority.mode,
+      expectedCommit: result.workbenchAuthority.expectedCommit, schemaHash: result.workbenchAuthority.schemaHash,
+      rowVersion: result.workbenchAuthority.rowVersion, switchedAt: result.workbenchAuthority.switchedAt }),
+    metadata: Object.freeze({ status: result.metadata.status, targetFingerprint: result.metadata.targetFingerprint }),
+  })
+}
+
+/**
+ * Verify the complete business baseline under one repeatable, read-only
+ * snapshot. This entry never repairs missing or drifted state.
+ *
+ * @param {InitializeDev126LocalBusinessBaselineInput} input
+ */
+export async function verifyDev126LocalBusinessBaseline(input) {
+  const target = validateInput(input)
+  const { client, scopedMigratorSessionUser } = input
+  if (scopedMigratorSessionUser !== 'postgres') fail('VERIFY_ADMIN_SESSION_REQUIRED')
+
+  await assertActualTarget(client, target, 'postgres', 'postgres')
+  await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
+  let commitAttempted = false
+  try {
+    await client.query(`SET LOCAL ROLE ${MIGRATOR_ROLE}`)
+    await assertActualTarget(client, target, 'postgres', MIGRATOR_ROLE)
+    await assertSchemaOwner(client)
+    await assertRuntimeMetadataReadOnly(client)
+    await assertRuntimeWorkbenchAuthorityReadOnly(client)
+    await assertZeroPrincipalSessions(client)
+
+    const workbenchAuthority = await ensureCanonicalWorkbenchAuthority(client,
+      input.workbenchAuthorityExpectedCommit, true)
+    const company = await ensureJenfuCompany(client, true)
+    const catalog = await readPublishedCatalog(client, input.localPriorityPolicy)
+    const catalogProjection = await ensureCatalogRoleProjection(client, catalog, true)
+    const rolePriority = await ensureActiveRolePriority(client, target, catalog, input.localPriorityPolicy, true)
+    const fingerprint = targetFingerprint(target)
+    const metadata = await ensureReadyTargetMetadata(client, target, fingerprint, true)
+    const result = Object.freeze({ company, catalogProjection, rolePriority, workbenchAuthority,
+      metadata: Object.freeze({ ...metadata, targetFingerprint: fingerprint }) })
+
+    commitAttempted = true
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {})
+    if (commitAttempted) fail('COMMIT_RESULT_UNKNOWN', error)
+    throw error
+  }
 }
 
 /**

@@ -23,9 +23,6 @@ function argumentsFrom(argv) {
     ['root', 'taskRoot', 'platformRoot'].some(field => typeof options[field] !== 'string' || !path.isAbsolute(options[field]))) {
     throw new Error('POSTNATIVE_ARGUMENTS_INVALID')
   }
-  if (options.verifyOnly && options.stage !== 'native-baseline') {
-    throw Object.assign(new Error('POSTNATIVE_VERIFY_ONLY_UNSUPPORTED'), { code: 'POSTNATIVE_VERIFY_ONLY_UNSUPPORTED' })
-  }
   return options
 }
 
