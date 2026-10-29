@@ -460,12 +460,13 @@ function buildRestoreSql({ restoreSql, businessRelations, sequences, scope }) {
   ].join('\n\n') + '\n'
 }
 
-function runChild(spawn, executable, args, env, { captureStdout = false, timeoutMs = 15 * 60 * 1000 } = {}) {
+function runChild(spawn, executable, args, env, { captureStdout = false, timeoutMs = 15 * 60 * 1000, input } = {}) {
   return new Promise((resolve, reject) => {
     let child
     let settled = false
     let timedOut = false
     let outputTooLarge = false
+    let inputFailed = false
     let size = 0
     const chunks = []
     let killTimer
@@ -486,7 +487,7 @@ function runChild(spawn, executable, args, env, { captureStdout = false, timeout
     }
     try {
       child = spawn(executable, args, { shell: false, windowsHide: true, env,
-        stdio: ['ignore', 'pipe', 'pipe'] })
+        stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
     } catch {
       finish(reject, new Error('DEV126_LOCAL_RESET_CHILD_START_FAILED'))
       return
@@ -503,10 +504,23 @@ function runChild(spawn, executable, args, env, { captureStdout = false, timeout
       chunks.push(bytes)
     })
     child.stderr?.on('data', () => {})
+    if (input !== undefined) {
+      if (!child.stdin || typeof child.stdin.end !== 'function') {
+        inputFailed = true
+        stopChild()
+      } else {
+        child.stdin.on('error', () => { inputFailed = true; stopChild() })
+        // The complete validated script is already in memory. EOF is sent
+        // only after these bytes, so a file/stream read failure cannot turn a
+        // truncated script into a successful single-transaction import.
+        child.stdin.end(input)
+      }
+    }
     child.once('error', () => finish(reject, new Error('DEV126_LOCAL_RESET_CHILD_START_FAILED')))
     child.once('close', code => {
       clearTimeout(killTimer)
       if (timedOut) finish(reject, new Error('DEV126_LOCAL_RESET_CHILD_TIMEOUT'))
+      else if (inputFailed) finish(reject, new Error('DEV126_LOCAL_RESET_CHILD_INPUT_FAILED'))
       else if (outputTooLarge) finish(reject, new Error('DEV126_LOCAL_RESET_CHILD_OUTPUT_TOO_LARGE'))
       else finish(resolve, Object.freeze({
         code, stdout: captureStdout ? Buffer.concat(chunks, size).toString('utf8') : '',
@@ -1201,21 +1215,22 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
     async inspect(context) {
       return withOwner({ ...context, readOnly: true, operation: async state => state })
     },
-    async markMaintenance(context) {
-      return withOwner({ ...context, readOnly: false, operation: async (state, client) => {
-        validateOwnerState(state, context, context.scope, context.manifest, {
+    async markMaintenance(loaded) {
+      const { context, scope, manifest } = loaded
+      return withOwner({ ...loaded, readOnly: false, operation: async (state, client) => {
+        validateOwnerState(state, context, scope, manifest, {
           allowMaintenance: true, allowNewGeneration: false,
         })
-        if (state.targetMetadata.generation !== context.scope.sourceGeneration ||
+        if (state.targetMetadata.generation !== scope.sourceGeneration ||
           !['ready', 'maintenance'].includes(state.targetMetadata.status) ||
-          state.databaseMarker !== generationMarker(context.scope)) {
+          state.databaseMarker !== generationMarker(scope)) {
           fail('dev126_reset_restore_maintenance_precondition_failed')
         }
         if (state.targetMetadata.status === 'maintenance') return Object.freeze({ changed: false })
         const result = await client.query(`UPDATE ai_pdm_core.local_sandbox_target_metadata
           SET status='maintenance',updated_at=clock_timestamp()
           WHERE application_id='ai-pdm' AND sandbox_id=$1 AND generation=$2::uuid AND status='ready'`,
-        [context.scope.sandboxId, context.scope.sourceGeneration])
+        [scope.sandboxId, scope.sourceGeneration])
         if (Number(result?.rowCount) !== 1) fail('dev126_reset_restore_maintenance_readback_failed', 503)
         return Object.freeze({ changed: true })
       } })
@@ -1227,43 +1242,44 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
       return withOwner({ ...context, readOnly: true, readPreservedControls: true,
         operation: async snapshot => snapshot })
     },
-    async rebind(context) {
-      return withOwner({ ...context, readOnly: false, operation: async (state, client) => {
-        validateOwnerState(state, context, context.scope, context.manifest, {
-          allowMaintenance: true, allowNewGeneration: state.targetMetadata.generation === context.scope.generation,
+    async rebind(loaded) {
+      const { context, scope, manifest } = loaded
+      return withOwner({ ...loaded, readOnly: false, operation: async (state, client, expected) => {
+        validateOwnerState(state, context, scope, manifest, {
+          allowMaintenance: true, allowNewGeneration: state.targetMetadata.generation === scope.generation,
         })
         const pending = state.sourceBindings.some(binding => binding.status === 'pending_central_registration')
         if (pending) fail('dev126_reset_restore_pending_central_registration')
-        const alreadyBound = state.targetMetadata.generation === context.scope.generation &&
-          state.targetMetadata.status === 'ready' && state.databaseMarker === generationMarker(context.scope)
-        if (alreadyBound) return Object.freeze({ rebound: false, generation: context.scope.generation,
-          targetFingerprint: targetFingerprintForGeneration(context.targetInput, context.scope.generation) })
-        if (state.targetMetadata.generation !== context.scope.sourceGeneration ||
-          state.targetMetadata.status !== 'maintenance' || state.databaseMarker !== generationMarker(context.scope) ||
+        const alreadyBound = state.targetMetadata.generation === scope.generation &&
+          state.targetMetadata.status === 'ready' && state.databaseMarker === generationMarker(scope)
+        if (alreadyBound) return Object.freeze({ rebound: false, generation: scope.generation,
+          targetFingerprint: targetFingerprintForGeneration(context.targetInput, scope.generation) })
+        if (state.targetMetadata.generation !== scope.sourceGeneration ||
+          state.targetMetadata.status !== 'maintenance' || state.databaseMarker !== generationMarker(scope) ||
           state.principalSessionCount !== 0 || state.sourceBindings.some(binding => binding.status === 'central_registered')) {
           fail('dev126_reset_restore_rebind_precondition_failed')
         }
-        const nextFingerprint = targetFingerprintForGeneration(context.targetInput, context.scope.generation)
+        const nextFingerprint = targetFingerprintForGeneration(context.targetInput, scope.generation)
         const registeredCount = state.sourceBindings.filter(binding => binding.status === 'central_registered').length
         const bindingUpdate = await client.query(`UPDATE ai_pdm_core.local_sandbox_principal_session_bindings
           SET status='revoked'
           WHERE sandbox_id=$1 AND generation=$2::uuid AND status='central_registered'`,
-        [context.scope.sandboxId, context.scope.sourceGeneration])
+        [scope.sandboxId, scope.sourceGeneration])
         if (Number(bindingUpdate?.rowCount) !== registeredCount) fail('dev126_reset_restore_binding_readback_failed', 503)
         const metadataUpdate = await client.query(`UPDATE ai_pdm_core.local_sandbox_target_metadata
           SET generation=$1::uuid,target_fingerprint=$2,status='ready',updated_at=clock_timestamp()
           WHERE application_id='ai-pdm' AND sandbox_id=$3 AND generation=$4::uuid AND status='maintenance'`,
-        [context.scope.generation, nextFingerprint, context.scope.sandboxId, context.scope.sourceGeneration])
+        [scope.generation, nextFingerprint, scope.sandboxId, scope.sourceGeneration])
         if (Number(metadataUpdate?.rowCount) !== 1) fail('dev126_reset_restore_target_readback_failed', 503)
         const databaseName = context.expected.databaseName
-        const current = await loadOwnerState(client, context, context.scope, context.manifest,
-          { ...context.expected, sourceGeneration: context.scope.generation },
+        const current = await loadOwnerState(client, context, scope, manifest,
+          { ...expected, sourceGeneration: scope.generation },
           { database_name: databaseName, current_user: OWNER_ROLE, session_user: state.identity.sessionUser,
             server_address: state.identity.serverAddress, server_port: state.identity.serverPort }, { readBusiness: false })
-        validateOwnerState(current, context, context.scope, context.manifest, { allowNewGeneration: true })
+        validateOwnerState(current, context, scope, manifest, { allowNewGeneration: true })
         if (current.targetMetadata.status !== 'ready' || current.principalSessionCount !== 0 ||
           current.sourceBindings.some(binding => binding.status !== 'revoked')) fail('dev126_reset_restore_rebind_readback_failed', 503)
-        return Object.freeze({ rebound: true, generation: context.scope.generation, targetFingerprint: nextFingerprint })
+        return Object.freeze({ rebound: true, generation: scope.generation, targetFingerprint: nextFingerprint })
       } })
     },
   })
@@ -1366,10 +1382,21 @@ export function createDev126LocalResetRestoreOwner({
     const generation = state.targetMetadata?.generation
     validateOwnerState(state, loaded.context, loaded.scope, loaded.manifest,
       { allowMaintenance: true, allowNewGeneration: generation === loaded.scope.generation })
-    const preservedControls = await readOrCreateControlPreservationReference(loaded, {
-      observedPreservedControls: raw.preservedControls,
-    })
-    const databaseRestored = compareBusinessReadback(raw, loaded.manifest, loaded.scope, preservedControls)
+    let preservedControls
+    try {
+      preservedControls = await readOrCreateControlPreservationReference(loaded, {
+        observedPreservedControls: raw.preservedControls,
+      })
+    } catch (error) {
+      // The first read precedes the write that captures this reference. It is
+      // unambiguously not applied while metadata is still ready in the source
+      // generation. A maintenance/new-generation target must retain its receipt.
+      if (error.code !== 'dev126_reset_restore_control_preservation_reference_missing' ||
+          state.targetMetadata.status !== 'ready' || generation !== loaded.scope.sourceGeneration) throw error
+      preservedControls = null
+    }
+    const databaseRestored = preservedControls !== null &&
+      compareBusinessReadback(raw, loaded.manifest, loaded.scope, preservedControls)
     const repositoryRestored = await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects)
     const restored = databaseRestored && repositoryRestored
     return Object.freeze({ resetId: loaded.scope.resetId, restored,
@@ -1392,8 +1419,9 @@ export function createDev126LocalResetRestoreOwner({
       initial.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
       fail('dev126_reset_restore_precondition_failed', 409)
     }
+    let preservedControls
     if (initial.targetMetadata.status === 'maintenance') {
-      const preservedControls = await readOrCreateControlPreservationReference(loaded)
+      preservedControls = await readOrCreateControlPreservationReference(loaded)
       const priorReadback = await ownerDatabase.readBusiness(loaded).catch(() => null)
       if (priorReadback && compareBusinessReadback(priorReadback, loaded.manifest, loaded.scope, preservedControls) &&
         priorReadback.state.targetMetadata.generation === loaded.scope.sourceGeneration) {
@@ -1410,23 +1438,29 @@ export function createDev126LocalResetRestoreOwner({
           if (!preserveWork) await cleanupWorkDirectory(work)
         }
       }
-      fail('dev126_reset_restore_maintenance_resume_requires_readback', 409)
+      if (!priorReadback) fail('dev126_reset_restore_maintenance_resume_requires_readback', 409)
+      validateOwnerState(priorReadback.state, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
+      await readOrCreateControlPreservationReference(loaded, { observedPreservedControls: priorReadback.preservedControls })
+      // A negative, current owner readback with the same retained controls and
+      // durable generation fence permits this idempotent atomic restore to be
+      // resumed. It never repeats the Platform fence or captures new controls.
+    } else {
+      const preservedSnapshot = await ownerDatabase.readPreservedControls(loaded)
+      if (!isRecord(preservedSnapshot) || !isRecord(preservedSnapshot.state) ||
+        !Array.isArray(preservedSnapshot.preservedControls)) {
+        fail('dev126_reset_restore_control_readback_invalid', 503)
+      }
+      validateOwnerState(preservedSnapshot.state, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
+      if (preservedSnapshot.state.targetMetadata.generation !== loaded.scope.sourceGeneration ||
+        preservedSnapshot.state.targetMetadata.status !== 'ready' ||
+        preservedSnapshot.state.databaseMarker !== generationMarker(loaded.scope) ||
+        preservedSnapshot.state.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
+        fail('dev126_reset_restore_precondition_failed', 409)
+      }
+      preservedControls = await readOrCreateControlPreservationReference(loaded, {
+        createIfMissing: true, observedPreservedControls: preservedSnapshot.preservedControls,
+      })
     }
-    const preservedSnapshot = await ownerDatabase.readPreservedControls(loaded)
-    if (!isRecord(preservedSnapshot) || !isRecord(preservedSnapshot.state) ||
-      !Array.isArray(preservedSnapshot.preservedControls)) {
-      fail('dev126_reset_restore_control_readback_invalid', 503)
-    }
-    validateOwnerState(preservedSnapshot.state, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
-    if (preservedSnapshot.state.targetMetadata.generation !== loaded.scope.sourceGeneration ||
-      preservedSnapshot.state.targetMetadata.status !== 'ready' ||
-      preservedSnapshot.state.databaseMarker !== generationMarker(loaded.scope) ||
-      preservedSnapshot.state.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
-      fail('dev126_reset_restore_precondition_failed', 409)
-    }
-    const preservedControls = await readOrCreateControlPreservationReference(loaded, {
-      createIfMissing: true, observedPreservedControls: preservedSnapshot.preservedControls,
-    })
     const work = await createWorkDirectory(targetInput.sandboxRoot, loaded.scope)
     let preserveWork = false
     try {
@@ -1461,7 +1495,7 @@ export function createDev126LocalResetRestoreOwner({
       const transactionFile = path.join(work.taskDirectory, 'restore-transaction.sql')
       await removeTaskFileIfPresent(work.taskDirectory, 'restore-transaction.sql')
       await writeFile(transactionFile, sql, { mode: 0o600, flag: 'wx' })
-      const transactionChildPath = await validatedChildFilePath(transactionFile, work.taskDirectory,
+      await validatedChildFilePath(transactionFile, work.taskDirectory,
         'dev126_reset_restore_workdir_invalid')
       await prepareRepositoryStage(loaded, work)
       await readGenerationFence(loaded.scope)
@@ -1488,11 +1522,11 @@ export function createDev126LocalResetRestoreOwner({
       let psqlFailure = false
       try {
         psqlResult = await runChild(spawn, process.platform === 'win32' ? 'psql.exe' : 'psql', [
-          '--no-password', '--host', loaded.context.expected.databaseHost,
+          '--no-psqlrc', '--no-password', '--host', loaded.context.expected.databaseHost,
           '--port', String(loaded.context.expected.databasePort), '--dbname', loaded.context.expected.databaseName,
           '--username', ownerLogin, '--single-transaction', '--set', 'ON_ERROR_STOP=on',
-          '--file', transactionChildPath,
-        ], childEnv)
+          '--file', '-',
+        ], childEnv, { input: sql })
       } catch {
         psqlFailure = true
       }
@@ -1512,7 +1546,10 @@ export function createDev126LocalResetRestoreOwner({
         catch (error) { preserveWork = true; throw error }
         return normalizedResult(loaded.scope, readback, psqlFailure || psqlResult?.code !== 0)
       }
-      if (psqlFailure || psqlResult?.code !== 0) fail('dev126_reset_restore_commit_outcome_unknown', 503)
+      if (psqlFailure || psqlResult?.code !== 0) {
+        preserveWork = true
+        fail('dev126_reset_restore_commit_outcome_unknown', 503)
+      }
       fail('dev126_reset_restore_readback_mismatch', 503)
     } catch (error) {
       if (error instanceof LocalSandboxError) throw error

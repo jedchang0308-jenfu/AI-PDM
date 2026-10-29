@@ -8,7 +8,7 @@
     "npm": ">=11 <12"
   },
   "scripts": {
-    "test:dev126:local-sandbox": "node --test scripts/dev126-local-sandbox-reset-target.test.mjs scripts/dev126-local-sandbox-listener.test.mjs contracts/local-principal-sandbox/v1/conformance.node-test.mjs scripts/lib/dev126-local-reset-baseline-owner.test.mjs scripts/lib/dev126-local-reset-postgres-owner.test.mjs scripts/lib/dev126-local-reset-runtime-target.test.mjs && node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs --test scripts/dev126-local-sandbox-principal-session.node-test.ts",
+    "test:dev126:local-sandbox": "node --test scripts/dev126-local-sandbox-reset-target.test.mjs scripts/dev126-local-sandbox-listener.test.mjs contracts/local-principal-sandbox/v1/conformance.node-test.mjs scripts/lib/dev126-local-reset-baseline-owner.test.mjs scripts/lib/dev126-local-reset-postgres-owner.test.mjs scripts/lib/dev126-local-reset-runtime-target.test.mjs scripts/lib/dev126-local-reset-restore-owner.test.mjs && node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs --test scripts/dev126-local-sandbox-principal-session.node-test.ts",
     "audit:production": "node scripts/run-production-dependency-audit.mjs",
     "check:db-boundary": "node scripts/check-shared-database-boundary.mjs",
     "dev-010:n2:freeze": "node scripts/dev010-n2-source-freeze.mjs",
