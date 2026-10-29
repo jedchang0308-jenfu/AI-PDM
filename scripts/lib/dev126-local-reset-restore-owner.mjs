@@ -1,5 +1,5 @@
 import { constants as fsConstants } from 'node:fs'
-import { lstat, mkdir, open, realpath, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, open, realpath, readFile, readdir, rename, rm, unlink, writeFile } from 'node:fs/promises'
 import { spawn as nodeSpawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -614,7 +614,8 @@ async function copyVerifiedArchive(descriptor, targetInput, manifest, destinatio
   }
 }
 
-async function createWorkDirectory(sandboxRoot, scope) {
+async function createWorkDirectory(sandboxRoot, loaded) {
+  const { scope } = loaded
   const controlRoot = path.join(path.resolve(sandboxRoot), 'control')
   const controlStat = await lstat(controlRoot).catch(() => fail('dev126_reset_restore_workdir_invalid'))
   if (!controlStat.isDirectory() || controlStat.isSymbolicLink() ||
@@ -634,18 +635,34 @@ async function createWorkDirectory(sandboxRoot, scope) {
     fail('dev126_reset_restore_workdir_invalid')
   }
   const receiptPath = path.join(taskDirectory, 'work.json')
-  const receipt = JSON.stringify({ contractVersion: 'dev126.local-reset-restore-work.v1', resetId: scope.resetId,
+  const receipt = JSON.stringify({ contractVersion: 'dev126.local-reset-restore-work.v2', resetId: scope.resetId,
+    sandboxId: scope.sandboxId, sourceGeneration: scope.sourceGeneration, generation: scope.generation,
+    baselineId: scope.baseline.id, baselineSha256: scope.baseline.sha256,
+    manifestSha256: loaded.baseline.manifestSha256 })
+  const legacyReceipt = JSON.stringify({ contractVersion: 'dev126.local-reset-restore-work.v1', resetId: scope.resetId,
     sandboxId: scope.sandboxId, sourceGeneration: scope.sourceGeneration, generation: scope.generation,
     baselineId: scope.baseline.id, baselineSha256: scope.baseline.sha256 })
   if (created) await writeFile(receiptPath, receipt, { mode: 0o600, flag: 'wx' })
   else {
     await assertRegularFile(receiptPath, 'dev126_reset_restore_workdir_invalid')
-    if (await readFile(receiptPath, 'utf8').catch(() => '') !== receipt) fail('dev126_reset_restore_workdir_invalid')
+    const existingReceipt = await readFile(receiptPath, 'utf8').catch(() => '')
+    if (existingReceipt !== receipt && !(scope.baseline.sha256 === loaded.baseline.manifestSha256 &&
+      existingReceipt === legacyReceipt)) fail('dev126_reset_restore_workdir_invalid')
   }
   const allowed = new Set(['work.json', 'pinned.data.dump', 'restore-data.sql', 'restore-transaction.sql',
     'repository-stage', 'repository-backup'])
   const entries = await readdir(taskDirectory, { withFileTypes: true })
   if (entries.some(entry => !allowed.has(entry.name))) fail('dev126_reset_restore_workdir_invalid')
+  for (const entry of entries) {
+    const absolute = path.join(taskDirectory, entry.name)
+    const stat = await lstat(absolute).catch(() => fail('dev126_reset_restore_workdir_invalid'))
+    if (entry.name === 'repository-stage' || entry.name === 'repository-backup') {
+      if (!stat.isDirectory() || stat.isSymbolicLink() ||
+        !samePath(await realpath(absolute), absolute)) fail('dev126_reset_restore_workdir_invalid')
+      await safeTreeEntries(absolute, 'dev126_reset_restore_workdir_invalid')
+    } else if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink > 1 ||
+      !samePath(await realpath(absolute), absolute)) fail('dev126_reset_restore_workdir_invalid')
+  }
   return Object.freeze({ workRoot, taskDirectory })
 }
 
@@ -1425,7 +1442,7 @@ export function createDev126LocalResetRestoreOwner({
       const priorReadback = await ownerDatabase.readBusiness(loaded).catch(() => null)
       if (priorReadback && compareBusinessReadback(priorReadback, loaded.manifest, loaded.scope, preservedControls) &&
         priorReadback.state.targetMetadata.generation === loaded.scope.sourceGeneration) {
-        const work = await createWorkDirectory(targetInput.sandboxRoot, loaded.scope)
+        const work = await createWorkDirectory(targetInput.sandboxRoot, loaded)
         let preserveWork = false
         try {
           await readGenerationFence(loaded.scope)
@@ -1461,7 +1478,7 @@ export function createDev126LocalResetRestoreOwner({
         createIfMissing: true, observedPreservedControls: preservedSnapshot.preservedControls,
       })
     }
-    const work = await createWorkDirectory(targetInput.sandboxRoot, loaded.scope)
+    const work = await createWorkDirectory(targetInput.sandboxRoot, loaded)
     let preserveWork = false
     try {
       const archivePath = path.join(work.taskDirectory, 'pinned.data.dump')
@@ -1532,6 +1549,7 @@ export function createDev126LocalResetRestoreOwner({
       }
       let readback
       try { readback = await ownerDatabase.readBusiness(loaded) } catch {
+        preserveWork = true
         fail('dev126_reset_restore_commit_outcome_unknown', 503)
       }
       const verifiedControls = await readOrCreateControlPreservationReference(loaded, {

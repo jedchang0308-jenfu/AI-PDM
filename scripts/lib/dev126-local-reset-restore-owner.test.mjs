@@ -47,7 +47,8 @@ function fence(scope, overrides = {}) {
 
 function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malformedToc = false,
   restoreSqlHeader = pg18RestoreHeader, restoreFooterKey = pg18RestrictKey, restoreHeaderExtra = '', copyRowData = '',
-  psqlCodeSequence = null, psqlApplySequence = null, preRestoreBusinessRows = false } = {}) {
+  psqlCodeSequence = null, psqlApplySequence = null, preRestoreBusinessRows = false,
+  failFirstBusinessRowsRead = false } = {}) {
   const scope = Object.freeze({ sandboxId, resetId, sourceGeneration, generation: nextGeneration,
     baseline: Object.freeze({ id: 'base-dev126', sha256: 'a'.repeat(64) }) })
   const environment = {
@@ -63,7 +64,7 @@ function makeHarness(t, { onlineApp = null, psqlCode = 0, applyPsql = true, malf
 
   return { scope, environment, onlineApp, psqlCode, applyPsql, malformedToc,
     restoreSqlHeader, restoreFooterKey, restoreHeaderExtra, copyRowData,
-    psqlCodeSequence, psqlApplySequence, preRestoreBusinessRows }
+    psqlCodeSequence, psqlApplySequence, preRestoreBusinessRows, failFirstBusinessRowsRead }
 }
 
 async function prepareHarness(t, options = {}) {
@@ -290,6 +291,7 @@ async function prepareHarness(t, options = {}) {
 }
 
 function makeRestoreOwnerPool(harness, queries) {
+  let failBusinessRowsRead = harness.failFirstBusinessRowsRead
   return function Pool(poolOptions) {
     return {
       async connect() {
@@ -349,6 +351,10 @@ function makeRestoreOwnerPool(harness, queries) {
                 central_registration_observed_at: binding.centralRegistrationObservedAt })) }
             }
             if (normalized.includes('to_jsonb(t)::text')) {
+              if (failBusinessRowsRead && harness.psqlWasApplied()) {
+                failBusinessRowsRead = false
+                throw new Error('SYNTHETIC_BUSINESS_READBACK_FAILURE')
+              }
               const name = normalized.match(/FROM ai_pdm_core\."([a-z][a-z0-9_]*)"/u)?.[1]
               assert.ok(name, `expected a quoted PDM relation: ${normalized}`)
               return { rows: harness.preRestoreBusinessRows && name === 'users' && !harness.psqlWasApplied()
@@ -649,6 +655,123 @@ test('does not replay an uncertain psql commit within the same attempt', async t
   assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
   assert.equal(h.databaseCalls.filter(call => call === 'readBusiness').length, 1)
   assert.equal(h.currentState().targetMetadata.status, 'maintenance')
+})
+
+test('retries the same reset after a nonzero psql readback and reuses its exact work directory', async t => {
+  const h = await prepareHarness(t, { psqlCodeSequence: [1, 0], psqlApplySequence: [false, true],
+    preRestoreBusinessRows: true })
+  const queries = []
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment,
+    Pool: makeRestoreOwnerPool(h, queries), baselineReader: async () => h.descriptor,
+    platformFence: h.platformFence, spawn: h.spawn })
+  const preservationReference = path.join(h.targetInput.sandboxRoot, 'control',
+    'dev126-reset-restore-preservations', `${h.scope.resetId}.json`)
+  const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
+
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+  assert.equal(h.currentState().targetMetadata.status, 'maintenance')
+  assert.equal(h.psqlWasApplied(), false)
+  const markerBeforeRetry = await readFile(path.join(workDirectory, 'work.json'), 'utf8')
+  const marker = JSON.parse(markerBeforeRetry)
+  assert.deepEqual(Object.keys(marker).sort(), ['baselineId', 'baselineSha256', 'contractVersion', 'generation',
+    'manifestSha256', 'resetId', 'sandboxId', 'sourceGeneration'].sort())
+  assert.equal(marker.contractVersion, 'dev126.local-reset-restore-work.v2')
+  assert.equal(marker.manifestSha256, h.descriptor.manifestSha256)
+  const entriesBeforeRetry = (await readdir(workDirectory)).sort()
+  const preservationBeforeRetry = await readFile(preservationReference, 'utf8')
+
+  const restored = await owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(restored.restored, true)
+  assert.equal(h.psqlWasApplied(), true)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 2)
+  assert.deepEqual(h.psqlInputs.length, 2)
+  assert.deepEqual(entriesBeforeRetry, ['pinned.data.dump', 'repository-stage', 'restore-data.sql',
+    'restore-transaction.sql', 'work.json'].sort())
+  assert.equal(await readFile(preservationReference, 'utf8'), preservationBeforeRetry)
+  assert.ok(queries.length > 0)
+  await assert.rejects(readFile(path.join(workDirectory, 'work.json'), 'utf8'), error => error.code === 'ENOENT')
+  assert.equal(markerBeforeRetry.includes(h.scope.baseline.sha256), true)
+})
+
+test('resumes an exact legacy work marker because its baseline digest binds the manifest', async t => {
+  const h = await prepareHarness(t, { psqlCodeSequence: [1, 0], psqlApplySequence: [false, true],
+    preRestoreBusinessRows: true })
+  const queries = []
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment,
+    Pool: makeRestoreOwnerPool(h, queries), baselineReader: async () => h.descriptor,
+    platformFence: h.platformFence, spawn: h.spawn })
+  const markerPath = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work',
+    h.scope.resetId, 'work.json')
+
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
+  const legacyMarker = JSON.stringify({ contractVersion: 'dev126.local-reset-restore-work.v1',
+    resetId: h.scope.resetId, sandboxId: h.scope.sandboxId, sourceGeneration: h.scope.sourceGeneration,
+    generation: h.scope.generation, baselineId: h.scope.baseline.id, baselineSha256: h.scope.baseline.sha256 })
+  await writeFile(markerPath, legacyMarker, 'utf8')
+
+  const restored = await owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(restored.restored, true)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 2)
+})
+
+test('rejects a retained work directory with a mismatched manifest marker or an unknown root file without deleting it', async t => {
+  const h = await prepareHarness(t, { psqlCodeSequence: [1, 0], psqlApplySequence: [false, true],
+    preRestoreBusinessRows: true })
+  const queries = []
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment,
+    Pool: makeRestoreOwnerPool(h, queries), baselineReader: async () => h.descriptor,
+    platformFence: h.platformFence, spawn: h.spawn })
+  const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
+  const markerPath = path.join(workDirectory, 'work.json')
+
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
+  const exactMarker = await readFile(markerPath, 'utf8')
+  const wrongMarker = JSON.stringify({ ...JSON.parse(exactMarker), manifestSha256: 'f'.repeat(64) })
+  await writeFile(markerPath, wrongMarker, 'utf8')
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_workdir_invalid')
+  assert.equal(await readFile(markerPath, 'utf8'), wrongMarker)
+
+  await writeFile(markerPath, exactMarker, 'utf8')
+  const unknownPath = path.join(workDirectory, 'leave-this-file-alone.txt')
+  await writeFile(unknownPath, 'unrecognized task artifact', { flag: 'wx' })
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_workdir_invalid')
+  assert.equal(await readFile(markerPath, 'utf8'), exactMarker)
+  assert.equal(await readFile(unknownPath, 'utf8'), 'unrecognized task artifact')
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+  assert.equal(h.psqlInputs.length, 1)
+  assert.ok(queries.length > 0)
+})
+
+test('preserves an uncertain work directory and skips psql when retry readback already proves baseline', async t => {
+  const h = await prepareHarness(t, { psqlCode: 1, applyPsql: true, preRestoreBusinessRows: true,
+    failFirstBusinessRowsRead: true })
+  const queries = []
+  const owner = createDev126LocalResetRestoreOwner({ environment: h.environment,
+    Pool: makeRestoreOwnerPool(h, queries), baselineReader: async () => h.descriptor,
+    platformFence: h.platformFence, spawn: h.spawn })
+  const preservationReference = path.join(h.targetInput.sandboxRoot, 'control',
+    'dev126-reset-restore-preservations', `${h.scope.resetId}.json`)
+  const workDirectory = path.join(h.targetInput.sandboxRoot, 'control', 'dev126-reset-restore-work', h.scope.resetId)
+
+  await assert.rejects(owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_commit_outcome_unknown')
+  assert.equal(h.psqlWasApplied(), true)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+  const markerBeforeRetry = await readFile(path.join(workDirectory, 'work.json'), 'utf8')
+  const preservationBeforeRetry = await readFile(preservationReference, 'utf8')
+
+  const restored = await owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(restored.restored, true)
+  assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
+  assert.equal(await readFile(preservationReference, 'utf8'), preservationBeforeRetry)
+  assert.ok(markerBeforeRetry.includes(h.scope.baseline.sha256))
+  await assert.rejects(readFile(path.join(workDirectory, 'work.json'), 'utf8'), error => error.code === 'ENOENT')
 })
 
 test('refuses to recapture a missing preservation reference after maintenance begins', async t => {
