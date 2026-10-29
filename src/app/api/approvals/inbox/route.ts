@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ code: "principal_route_policy_unavailable" },
         { status: 503, headers: { "cache-control": "no-store" } });
     }
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
         [{ permissionKind: "action", permissionCode: "approval.inbox.view" }]);
       const decision = decisions[0];

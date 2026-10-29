@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const mode = resolveFileRouteMode(filePath);
   if (!mode) return NextResponse.json({ error: "Invalid file route" }, { status: 404 });
   try {
-    const readAuthorized = () => withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    const readAuthorized = async () => withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       async (snapshot, verified) => {
         const resource = await authorizePrincipalSubmissionReadInSnapshot(snapshot, verified, id);
         if (resource instanceof Response) return resource;

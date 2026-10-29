@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
           getJenfuEntitlementMode() !== "enforce") {
         return NextResponse.json({ error: "principal_authorization_unavailable" }, { status: 503 });
       }
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken),
+      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request),
         async (snapshot, verified) => {
           const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
             [{ permissionKind: "action", permissionCode: "accounts.lifecycle.manage" }]);

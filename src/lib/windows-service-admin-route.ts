@@ -75,7 +75,7 @@ async function authorizeSelfService(request: Request, routePath: string, method:
     return Response.json({ error: "principal_authorization_unavailable" }, { status: 503, headers });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (client, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (client, verified) => {
       const result = await resolvePrincipalCompanyContextInSnapshot(client, verified,
         requestedPdmCompanyCodeFromRequest(request));
       if (result.response) return result.response;

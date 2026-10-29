@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const includeHistory = status === "Obsolete";
     const filters = searchFilters(url, status);
     const hasFilters = Object.values(filters).some((value) => value?.trim());
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       if (partSearch) {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "page", permissionCode: "numbering.search" }]);

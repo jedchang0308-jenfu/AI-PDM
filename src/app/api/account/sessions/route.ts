@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ code: "principal_authorization_unavailable" },
         { status: 503, headers: { "cache-control": "no-store" } });
     }
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async (snapshot, verified) => {
       const sessions = await new JenfuPrincipalSessionListRepository(snapshot).list(
         verified.session.principalId, hashJenfuPrincipalSessionId(verified.session.sessionId));
       return NextResponse.json({ sessions }, { headers: { "cache-control": "no-store" } });

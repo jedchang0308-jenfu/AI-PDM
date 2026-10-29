@@ -46,7 +46,7 @@ export async function executePrincipalReadonlyShareCommand<TResult>(input: {
   }
   let context: { actor: ReturnType<typeof createPlatformActorContext>; verified: VerifiedPrincipalRequest };
   try {
-    context = await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (_snapshot, verified) => {
+    context = await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, input.request), async (_snapshot, verified) => {
       const authorizationActor = createJenfuVerifiedAuthorizationActor({
         identityIssuer: verified.session.identityIssuer,
         identitySubject: verified.session.identitySubject,
@@ -80,7 +80,7 @@ export async function executePrincipalReadonlyShareCommand<TResult>(input: {
     });
     return await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(), command,
-      principalRequest: principalRequestInput(token),
+      principalRequest: await principalRequestInput(token, input.request),
       principalAuthorization: {
         request: input.request, routePath: input.routePath, method: input.method,
         permissionCode: "submission.share",

@@ -348,9 +348,9 @@ export class DrawingRevisionWorkService {
 
   async uploadFilePrincipal(workId: string,
     input: { file: unknown; displayName?: unknown; description?: unknown },
-    token: string, context: CommandContext) {
+    token: string, request: Request, context: CommandContext) {
     return uploadDrawingRevisionWorkFilePrincipal({
-      client: this.client, token, workId, ...input, context
+      client: this.client, token, request, workId, ...input, context
     });
   }
 
@@ -384,10 +384,10 @@ export class DrawingRevisionWorkService {
   }
 
   async removeFilePrincipal(workId: string, fileBindingId: string,
-    token: string, context: CommandContext) {
+    token: string, request: Request, context: CommandContext) {
     let storageKeyToRemove: string | null = null;
     const result = await withVerifiedJenfuPrincipalRequest(
-      { ...principalRequestInput(token), database: this.client }, async (tx, verified) => {
+      { ...(await principalRequestInput(token, request)), database: this.client }, async (tx, verified) => {
         const service = new DrawingRevisionWorkService(tx);
         const profile = await service.requirePrincipalCapability(verified,
           "numbering.workspace.update");

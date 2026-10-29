@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const includeHistory = status === "Obsolete";
     const limit = parsePageLimit(url.searchParams.get("limit"));
     const offset = parsePageOffset(url.searchParams.get("offset"));
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       const scope = await authorizePrincipalSubmissionListInSnapshot(snapshot, verified);
       if (scope instanceof Response) return scope;
       const companyResult = await resolvePrincipalCompanyContextInSnapshot(snapshot, verified,

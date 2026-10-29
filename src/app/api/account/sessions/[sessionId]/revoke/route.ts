@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     if (!/^[0-9a-f]{64}$/u.test(sessionId) || reason.length < 1 || reason.length > 500) {
       return NextResponse.json({ error: "invalid_session_revoke" }, { status: 400 });
     }
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async (snapshot, verified) => {
       if (sessionId === hashJenfuPrincipalSessionId(verified.session.sessionId)) {
         return NextResponse.json({ error: "current_session_requires_logout" }, { status: 409 });
       }

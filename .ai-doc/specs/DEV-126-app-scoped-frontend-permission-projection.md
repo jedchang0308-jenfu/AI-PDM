@@ -1,5 +1,7 @@
 # DEV-126：AI-PDM 地端 SSO、單一前端權限來源與無感換頁
 
+- 現行切片（2026-10-29）：§13的local Principal sandbox契約已進入實作；使用者已接受本次四工作樹建立容量風險，現於新的獨立writer開發。下列既有source／SSO結果為前階段；不延伸為新切片產品或發布PASS。
+
 - 文件成熟度：Implemented and Locally Validated。
 - 執行狀態：Source / Local Acceptance Complete / PR Review Pending；本機與模擬驗收已完成，未merge或發布。
 - Native task：AIPDM/DEV-126#frontend-permission-projection。
@@ -255,3 +257,63 @@ Portal B 的兩個入口 no-access，直接 launch 404；Platform 全域登出�
 launcher 已覆蓋雙棧所有 listener owner，20 個正反情境與 local-entrypoint QC 通過。PR 與 main 的衝突僅來自 DEV-125／126 文件入口，已保留兩者並同步 main。既有 session 直接開啟 App 與 Portal SSO 取得相同 pages／actions；錯誤 callback 返回登入頁且原 Principal 不變；兩個真實 service-identity／audience 負測均為 broker401。
 
 Principal 撤權依使用者明確決定 `DEFERRED / NOT_RUN`，不以 app-grant withdrawal 或全域登出代替；缺少可走 OrgMaster lifecycle 的非正式 managed identity。其餘本輪 P5 已完成。任務 npm40056 樹、Chrome、另外兩 App 與 PG15432 已按指紋停止，12000／12010／12020／15432 全釋放；runtime registry／capacity lease／session 已結束，隔離資料與私密設定保留供後續、未入 Git。最新 exact-head CI／merge 依 PR #555 provider，之前成功 CI 不代表新增 head 已驗證，沒有 production 變更。
+
+<a id="local-principal-quick-login"></a>
+
+## 13. 現行切片：Principal v2 quick login、v7九角色及隔離CRUD／reset（2026-10-29）
+
+Native=`AIPDM/DEV-126#local-principal-quick-login`；來源=`JENFU/DEV-021#local-principal-sandbox`。共用session／版本join／local gate／發布A～J鏈由Platform DEV-021 spec §14維護；OrgMaster DEV-060供synthetic lifecycle fixture，FMS DEV-069獨立擁有財務capability。DEV-121既有已結案身分轉換不重開。
+
+### 13.1 現況與實作責任
+
+2026-10-29來源盤點：`local-quick-login-config.ts`只有Engineer、R&D Manager、Admin、Manufacturing、Procurement五個legacy demo帳號；`/api/auth/local-quick-login`呼叫`issueRegisteredLegacySessionCookieAsync`，且目前與`firebase_bff`互斥。這不符合本輪Principal v2目標。
+
+新quick login選擇allowlisted synthetic scenario，經Platform唯一local issuer取得已登錄parent session及短效handoff，再由PDM驗證active Principal／Employee、published grant、company／scope、profile及epoch，交易登錄native session後回ack，才交付cookie。保留POST同源／CSRF及HttpOnly cookie；browser不得任意指定role／claims。既有route可延用但實作需移除此路徑對legacy cookie發行／User.role／email fallback的依賴，不能以固定Admin或補一個簽名跳過backing state。
+
+Principal session權威為`src/lib/jenfu-principal-session.ts`的`jenfu.ai-pdm-session.v2`，registry為`src/lib/jenfu-principal-session-registry.ts`的`ai_pdm_core.principal_session_records`；`src/lib/platform-session-v2.ts`是另一套legacy User／UID BFF v2，不能混稱。沿`jenfu-principal-handoff-session-service.ts`既有typed admission、account lifecycle、canonical authEpoch、revokedBefore、Employee與profile／company、published grant檢查；local adapter換的是可信fixture來源，不移除檢查。
+
+token的sessionId、principalId／employeeId、identityIssuer／subject、epochKind=principal、authEpoch、accountLifecycleVersion、profileVersion、companyId、times、assuranceLevel／secondFactor／policyHash，需與registry及current state一致。共用sandbox generation／fixture／catalog join由adapter與registry關聯保存；嚴格native claims parser不得塞入未知欄位或省略必要欄位。未登錄、撤銷、版本不符及中央unavailable的session不得進入受保護資料路徑。
+
+### 13.2 v7九角色契約
+
+唯一角色定義沿`config/access-control/jenfu-role-catalog.v7.json`，catalogVersion=`ai-pdm.role-catalog.2026-10-10.v7`；本輪盤點raw file SHA256=`f64dfefe6855a85ede748066fa8754d306d99d7900b2ab2c2d4587a2541f1f84`。raw SHA僅綁定盤點bytes，catalogSha256／roleDefinitionHash仍沿原validator算法驗證，更新來源時重新綁定。
+
+| stableRoleId | roleCode | 角色 |
+|---|---|---|
+| role-rd | rd | 研發人員 |
+| role-rd-manager | rd_manager | 研發主管 |
+| role-qa | qa | QA/QC |
+| role-manufacturing | manufacturing | 生產人員 |
+| role-production-planning | production_planning | 生管人員 |
+| role-procurement | procurement | 採購 |
+| role-external-specialist | external_specialist | 外部專員 |
+| role-pdm-admin | pdm_admin | PDM管理員 |
+| role-system-admin | system_admin | 系統管理員 |
+
+OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissions、scopeKinds、風險、subjectKind、direct grant及assurance政策全部沿v7。角色名稱不直接等於capability；每角色依catalog至少選一個允許及一個拒絕／越scope案例，沒有業務允許能力的角色不得為湊案例擴權。system_admin也不能省略明示grant、company或resource guard。synthetic assurance只證明本機策略測試，不代表Google MFA。
+
+### 13.3 資料與reset
+
+使用task-owned隔離PostgreSQL及`PDM_DATA_DIR`／`PDM_REPOSITORY_DIR`，由PDM owner建立合法company、profile、role priority、published authority及圖號／料號fixture；保留runtime非owner與DB boundary。圖號／料號API成功讀取、合法空集合及實際CRUD均須驗證，不能只證明SSO／選單200。資料可由synthetic baseline或經去識別工作副本建立；不帶正式帳號任用、session、credential、通知或worker目的地。
+
+一鍵reset按共用契約：核對sandbox／path／DB fingerprint→阻止寫入→中央撤銷與換generation→各owner還原自己baseline→校驗registry／authority／資料／檔案→開放登入。generation不在還原範圍，舊token在reset後必須仍拒絕；中途故障維持maintenance並依收據恢復，不能部分成功冒充完成。正常CRUD／刪除仍受domain invariant及scope控制，不碰primary資料。外部解析worker、雲端storage、通知全部停用或task-local模擬。
+
+### 13.4 開發至發布的待辦
+
+| 待辦 | 交付／依賴 | 完成條件 |
+|---|---|---|
+| P126-A 來源重綁 | 原DEV-126目錄目前供`codex/faster-workbench-navigation-20261029`使用，本輪HEAD=`b9c1e31d9`；先建／選專屬writer並安全收斂適用官方基線 | 保留效能任務與既有diff；共用profile／版本join及source可定位 |
+| P126-B Principal quick login | Platform DEV-021 issuer＋OrgMaster DEV-060 fixtures；替換legacy發行路徑、完成native registry與ack | 真PG登錄readback，pending／缺record／錯epoch與wrong company／scope拒絕 |
+| P126-C 九角色與provider | v7原定義＋既有PdmPermissionProvider | 九角色allow／deny、無grant、hash／profile mismatch、帳號切換／late response；三頁純換頁新增permission request=0 |
+| P126-D CRUD／reset | B、C及task-owned DB／repository | 圖號／料號讀取與合法CRUD、reset回baseline、舊session不復活、外部effect=0、失敗maintenance |
+| P126-E PR／CI／地端交付 | 相關source收斂；一個active PR | focused regressions、planner選定checks；SQL變更才DB boundary、受影響型別／build；required CI、protected main merge；1020／12020 Chrome旅程及交接 |
+| P126-F 真實鏈與發布準備 | 正式auth／data路徑受影響時完成真實非正式回歸；平台A～J的G／H | 正式與local issuer完全分隔、正式profile拒絕quick login／reset；舊正式SSO相容、回復baseline可用 |
+| P126-G 發布／驗收／結案 | 沿現行app-owned release spec §26、planner及required provider gate | exact source／artifact／native receipt、served version、正常正式PDM權限／受影響資料及local拒絕；依原owner recovery；任務與主控回填 |
+
+現行：P126-A已建立獨立writer並核對官方基線；P126-B／C／D維持`IN_PROGRESS`。Source自查已加入local PostgreSQL canonical search path、DEV-090 043 local-only immutable source entry及僅綁定既有canonical row的baseline helper；owner tests`52/52`、Principal API／guard tests`44/44`、local sandbox tests`24/24`、authority/search-path tests`12 passed`、app TypeScript PASS。main另回報task-owned PG套用043／093收據並完成baseline authority readback：`canonical_only/dev090-v1/rowVersion=3/expectedCommit=local-dev`；auth/me、permissions、parts/drawings workbench API均200，Chrome圖號合法空集合、一般建檔201及搜尋讀回成功，三頁共用一次permission summary request。source／unit證據與main PG／Chrome證據分列，未代表正式驗收。未完成項目仍包括`external_specialist` expiry／sponsor／review覆蓋、完整allow／deny、global logout、reset orchestration及舊session撤銷、PR／required CI／release；DEV-090 static UI contract有兩項未解assertion，完整provider test另受共享`better-sqlite3` native binding缺失影響。任務分母持續至發布完成，不因局部PASS縮減；共用cluster狀態見Platform DEV-021 §14.14。
+
+### 13.5 證據與結案
+
+日常虛構local、真實隔離PG、真實Google／Firebase／OrgMaster publication及正式provider／actor證據分列。原§12真實Principal lifecycle撤權待補保持原狀；本輪synthetic撤權不代填。發布責任沿`.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md`現行§26及適用附則，不能使用sibling checkout／IAM／資料作發布輸入。
+
+部署與受影響功能驗收皆有證據後才可標本切片RELEASED；必要cell未驗為DEPLOYED／ACCEPTANCE_PENDING。失敗保留首個有效結果，停止相依寫入，安全的獨立驗證繼續；unknown先readback，回復限自有traffic／tag／entry且不down migration。只清本任務已識別資源，使用者日常runtime可交接保留。主責DEV-021只有收到本native切片實際完成證據才可計入整合結案。

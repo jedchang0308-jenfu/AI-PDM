@@ -722,7 +722,7 @@ describe("principal drawing revision work read", () => {
       expect(committed).toBe(true);
     });
     const result = await new DrawingRevisionWorkService(client).removeFilePrincipal(
-      "work-one", "binding-one", "v2-token", {
+      "work-one", "binding-one", "v2-token", new Request("http://127.0.0.1:12000/api/pdm/drawing-revision-works/work-one/files/binding-one", { method: "DELETE" }), {
         contractToken: "contract-one", expectedRowVersion: 2,
         idempotencyKey: "remove-one" });
     expect(result).toMatchObject({ removed: true, rowVersion: 3 });

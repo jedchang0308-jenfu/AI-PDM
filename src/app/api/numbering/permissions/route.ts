@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         { status: 503, headers: { "cache-control": "no-store" } });
     }
     const results = await evaluatePrincipalWorkspacePermissions({
-      ...principalRequestInput(principalToken),
+      ...(await principalRequestInput(principalToken, request)),
       permissions: [
         ...NUMBERING_PAGE_PERMISSION_CODES.map((permissionCode) => ({ permissionKind: "page" as const, permissionCode })),
         ...NUMBERING_ACTION_PERMISSION_CODES.map((permissionCode) => ({ permissionKind: "action" as const, permissionCode }))

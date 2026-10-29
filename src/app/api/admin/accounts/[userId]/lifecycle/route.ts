@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ use
       try { body = JSON.parse(encoded); }
       catch { return NextResponse.json({ error: "invalid_request" }, { status: 400 }); }
       const result = await updatePrincipalAccountLifecycle({
-        ...principalRequestInput(principalToken), pdmUserId: userId, body
+        ...(await principalRequestInput(principalToken, request)), pdmUserId: userId, body
       });
       return NextResponse.json({ account: result, subjectMode: "principal" },
         { headers: { "cache-control": "no-store" } });

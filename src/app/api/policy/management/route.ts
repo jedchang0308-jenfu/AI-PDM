@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       { status: 503, headers: noStore });
   }
   try {
-    await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       async () => true);
     const [content, metadata] = await Promise.all([
       readFile(policyFilePath, "utf8"), stat(policyFilePath)

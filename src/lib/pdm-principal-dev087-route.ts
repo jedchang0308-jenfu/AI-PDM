@@ -38,7 +38,7 @@ export async function withPrincipalDev087Route(request: Request, token: string,
       return Response.json({ code: "principal_route_policy_unavailable" },
         { status: 503, headers: { "cache-control": "no-store" } });
     }
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       async (tx, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
           verified, [{ permissionKind: "action", permissionCode: input.permissionCode,

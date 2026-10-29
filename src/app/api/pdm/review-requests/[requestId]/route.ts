@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
           { status: 503, headers: { "cache-control": "no-store" } });
       }
       const { requestId } = await params;
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async (tx, verified) => {
+      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async (tx, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, [
           { permissionKind: "action", permissionCode: "approval.inbox.view" },
           { permissionKind: "action", permissionCode: "approval.request.decide" }

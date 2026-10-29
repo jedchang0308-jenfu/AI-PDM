@@ -447,7 +447,7 @@ async function principalFileRead(request: Request, token: string, input: {
   }
   try {
     const readSource = async (action: 'view' | 'download' = 'view') => withVerifiedJenfuPrincipalRequest(
-      principalRequestInput(token), async (tx, verified) => {
+      await principalRequestInput(token, request), async (tx, verified) => {
         const finish = async (found: CanonicalFileSource) => {
           const failure = await authorizeDynamicResourceCapabilityInSnapshot(tx, verified,
             canonicalCapabilityGroups(found.linked_entity_type, found.capability_role ?? found.document_category), action);
