@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createPdmWorkbenchCache } from "@/lib/pdm-workbench-cache";
 
 // Captures the imported component's hooks and invokes its own load/effects.
 // This is a component lifetime unit test, not a mounted DOM/HTTP/production test.
 const runtime = vi.hoisted(() => ({ current: null as any }));
 vi.mock("@/components/pdm-permission-provider", () => ({
-  usePdmPermissions: () => ({ allowsAction: () => false })
+  usePdmPermissions: () => ({ allowsAction: () => false, workbenchCache: runtime.current.workbenchCache ??= createPdmWorkbenchCache() })
 }));
 vi.mock("react", () => ({
   useState: (initial: unknown) => runtime.current.state(initial),
@@ -41,7 +42,7 @@ function findNode(node: any, test: (props: any) => boolean): any {
   return findNode(node.props?.children, test);
 }
 
-function harness(locationMode = false) {
+function harness(locationMode = false, workbenchCache = createPdmWorkbenchCache()) {
   const values: any[] = [], refs: any[] = [], memos: any[] = [], callbacks: any[] = [];
   let s = 0, r = 0, m = 0, c = 0;
   let poll: any, lifetime: any, filters: any, tree: any;
@@ -52,11 +53,11 @@ function harness(locationMode = false) {
   const history = { replaceState: vi.fn((_state, _unused, url) => { location.href = new URL(url, location).href; }), pushState: vi.fn((_state, _unused, url) => { location.href = new URL(url, location).href; }) };
   vi.stubGlobal("window", { setTimeout, clearTimeout, location, history, localStorage: { setItem: vi.fn(), getItem: () => null } });
   const h: any = {
-    effects: [] as any[], load: null, push: vi.fn(), history, location,
+    effects: [] as any[], load: null, push: vi.fn(), history, location, workbenchCache,
     state(initial: unknown) { const i = s++; if (!(i in values)) values[i] = initial; return [values[i], (v: any) => { values[i] = typeof v === "function" ? v(values[i]) : v; }]; },
     ref(initial: unknown) { const i = r++; return refs[i] ??= { current: initial }; },
     memo(fn: () => unknown, deps: unknown[]) { const i = m++; if (!same(memos[i]?.deps, deps)) memos[i] = { deps, value: fn() }; return memos[i].value; },
-    callback(fn: unknown, deps: unknown[]) { const i = c++; if (!same(callbacks[i]?.deps, deps)) callbacks[i] = { deps, value: fn }; if (deps.length === 2 && typeof deps[0] === "string" && deps[0].startsWith("/api/") && typeof deps[1] === "boolean") h.load = callbacks[i].value; return callbacks[i].value; },
+    callback(fn: unknown, deps: unknown[]) { const i = c++; if (!same(callbacks[i]?.deps, deps)) callbacks[i] = { deps, value: fn }; if (deps.length >= 2 && typeof deps[0] === "string" && deps[0].startsWith("/api/") && typeof deps[1] === "boolean") h.load = callbacks[i].value; return callbacks[i].value; },
     render(replay = false) {
       runtime.current = h; s = r = m = c = 0; h.effects = [];
       tree = CanonicalPdmWorkbench({ entityType: "drawing" });
@@ -91,6 +92,45 @@ async function start(state = "pending") {
   return { h, fetch };
 }
 afterEach(() => { runtime.current?.unmount(); runtime.current = null; vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+describe("returning to a workbench (captured hooks)", () => {
+  it("shows the cached list while still issuing a fresh GET, then replaces it", async () => {
+    const { h: first, fetch } = await start("missing");
+    first.unmount();
+    let finish!: (response: Response) => void;
+    fetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+    const h = harness(false, first.workbenchCache);
+    const flight = h.load(); h.render();
+    expect(h.text()).toContain("unchanged");
+    expect(h.text()).toContain("更新中");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    finish(response("missing", "fresh server row"));
+    await flight; h.render();
+    expect(h.text()).toContain("fresh server row");
+    expect(h.text()).not.toContain("更新中");
+  });
+  it.each([401, 403, 503])("clears a restored list and cache after HTTP %i", async status => {
+    const { h: first, fetch } = await start("missing");
+    first.unmount();
+    fetch.mockImplementationOnce(async () => new Response(JSON.stringify({ message: "denied or unavailable" }), { status }));
+    const h = harness(false, first.workbenchCache);
+    await h.load(); h.render();
+    expect(h.text()).not.toContain("unchanged");
+    expect(h.text()).toContain("denied or unavailable");
+    expect(first.workbenchCache.readList(String(fetch.mock.calls[0][0]))).toBeNull();
+  });
+  it("does not accept a successful old response after an account/permission invalidation", async () => {
+    const { h, fetch } = await start("missing");
+    let finish!: (response: Response) => void;
+    fetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+    const flight = h.load();
+    h.workbenchCache.clear();
+    finish(response("missing", "old account response"));
+    await flight; h.render();
+    expect(h.text()).not.toContain("old account response");
+    expect(h.workbenchCache.readList(String(fetch.mock.calls[0][0]))).toBeNull();
+  });
+});
 
 describe("DEV122 imported workbench list polling lifetime (captured hooks)", () => {
   it.each(["pending", "delayed"])("%s stops after 30 actual background starts, including equivalent rerenders", async state => {
@@ -204,13 +244,14 @@ describe("DEV122 workbench URL restoration and pending filters (captured hooks, 
     return { h, fetch };
   }
 
-  it("typing before the first restore debounce persists query and loads the first page", async () => {
+  it("loads initial entry immediately and debounces only subsequent typing", async () => {
     const { h, fetch } = await locationStart();
-    await vi.advanceTimersByTimeAsync(10); h.query("DEV122 changed");
-    await vi.advanceTimersByTimeAsync(249); expect(fetch).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10); expect(fetch).toHaveBeenCalledTimes(1);
+    h.query("DEV122 changed");
+    await vi.advanceTimersByTimeAsync(249); expect(fetch).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(new URL(h.location.href).searchParams.get("query")).toBe("DEV122 changed");
-    expect(fetch.mock.calls[0][0]).toContain("query=DEV122+changed");
+    expect(fetch.mock.calls[1][0]).toContain("query=DEV122+changed");
     expect(h.history.pushState).not.toHaveBeenCalled();
   });
 

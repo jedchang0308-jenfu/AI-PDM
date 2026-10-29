@@ -33,6 +33,39 @@ async function render(label = "create") {
   await act(async () => root.render(<StrictMode><PdmPermissionProvider><Consumer label={label} /><Consumer /></PdmPermissionProvider></StrictMode>));
 }
 describe("app-shell permission ownership", () => {
+  it("clears display data on writes (even unknown outcomes) and logout without reusing a previous account", async () => {
+    let cache!: ReturnType<typeof usePdmPermissions>["workbenchCache"];
+    function Capture() {
+      const value = usePdmPermissions().workbenchCache;
+      React.useEffect(() => { cache = value; }, [value]);
+      return null;
+    }
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) !== "/api/numbering/permissions") throw new Error("connection lost");
+      return json(projection());
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () => root.render(<PdmPermissionProvider><Capture /></PdmPermissionProvider>));
+    const data = { groups: [], nextCursor: null, previousCursor: null, totalGroups: 0, totalRows: 0 };
+    cache.writeList("/api/parts/workbench", data, cache.generation());
+    await act(async () => {
+      await expect(pdmPermissionFetch("/api/pdm/work", { method: "POST" })).rejects.toThrow("connection lost");
+    });
+    expect(cache.readList("/api/parts/workbench")).toBeNull();
+    expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/permissions")).toHaveLength(1);
+    let finishWrite!: (response: Response) => void;
+    fetcher.mockImplementationOnce(() => new Promise<Response>(resolve => { finishWrite = resolve; }));
+    await act(async () => {
+      const write = pdmPermissionFetch("/api/pdm/work", { method: "POST" });
+      cache.writeList("/api/parts/workbench", data, cache.generation());
+      finishWrite(json({}));
+      await write;
+    });
+    expect(cache.readList("/api/parts/workbench")).toBeNull();
+    cache.writeList("/api/parts/workbench", data, cache.generation());
+    await act(async () => invalidatePdmPermissions("logout"));
+    expect(cache.readList("/api/parts/workbench")).toBeNull();
+  });
   it("deduplicates StrictMode and concurrent consumers; three route changes reuse the projection", async () => {
     const fetcher = vi.fn(async () => json(projection())); vi.stubGlobal("fetch", fetcher);
     await render();

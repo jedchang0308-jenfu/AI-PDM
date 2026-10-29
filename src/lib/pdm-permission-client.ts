@@ -5,6 +5,11 @@ import {
 
 export type PdmPermissionInvalidationReason = "logout" | "account-changed" | "unauthenticated" | "forbidden" | "permissions-changed";
 const listeners = new Set<(reason: PdmPermissionInvalidationReason) => void>();
+const mutationListeners = new Set<() => void>();
+export function subscribePdmMutationInvalidation(listener: () => void) {
+  mutationListeners.add(listener);
+  return () => { mutationListeners.delete(listener); };
+}
 export function invalidatePdmPermissions(reason: PdmPermissionInvalidationReason) {
   listeners.forEach(listener => listener(reason));
 }
@@ -15,10 +20,19 @@ export function subscribePdmPermissionInvalidation(listener: (reason: PdmPermiss
 
 /** Notify the shell without replaying the original request or consuming its body. */
 export async function pdmPermissionFetch(input: RequestInfo | URL, init?: RequestInit) {
-  const response = await fetch(input, init);
-  if (response.status === 401) invalidatePdmPermissions("unauthenticated");
-  else if (response.status === 403) invalidatePdmPermissions("forbidden");
-  return response;
+  const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  const mutating = method !== "GET" && method !== "HEAD";
+  // Invalidate before a write, including failures with an unknown server outcome.
+  if (mutating) mutationListeners.forEach(listener => listener());
+  try {
+    const response = await fetch(input, init);
+    if (response.status === 401) invalidatePdmPermissions("unauthenticated");
+    else if (response.status === 403) invalidatePdmPermissions("forbidden");
+    return response;
+  } finally {
+    // Also discard reads which completed while the write was in flight.
+    if (mutating) mutationListeners.forEach(listener => listener());
+  }
 }
 
 export type PdmPermissionState =
