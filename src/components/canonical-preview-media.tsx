@@ -139,7 +139,7 @@ export function CanonicalPreviewMedia({
   if (loadedHref === media.href && loadState === "ready" && resolvedMode === "document" && pdfBytes && renderDocumentAsPdfPage) {
     rendered = <PdfPageViewport bytes={pdfBytes} pageNumber={media.pageNumber ?? 1} title={media.title} sourceKey={media.href} focusRegion={media.focusRegion} />;
   } else if (loadedHref === media.href && loadState === "ready" && pdfBytes && requiresFullPdf) {
-    rendered = <PdfDocumentViewport bytes={pdfBytes} sourceKey={media.href} title={media.title} showControls={fullViewer} />;
+    rendered = <PdfDocumentViewport bytes={pdfBytes} sourceKey={media.href} title={media.title} showControls={false} fitPage={fullViewer} />;
   } else if (loadedHref === media.href && loadState === "ready" && objectUrl) {
     rendered = resolvedMode === "image"
       // Blob URLs are created from the protected endpoint at runtime.
