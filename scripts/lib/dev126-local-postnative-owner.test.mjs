@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { runOwnerFromArguments } from '../dev126-local-postnative-owner.mjs'
 import { runDev126LocalPostnativeOwner } from './dev126-local-postnative-owner.mjs'
 
 const ROLE_CODES = ['system_admin', 'pdm_admin', 'rd_manager', 'production_planning', 'qa', 'rd',
@@ -212,6 +213,23 @@ test('native verify-only refuses a nonempty session registry before owner snapsh
   assert.equal(fixture.calls.verify, 0)
   assert.equal(fixture.calls.seedPasswordHash, null)
   assert.deepEqual(await treeSnapshot(fixture.root), before)
+})
+
+test('CLI argument handoff forwards --platform-root into runner dependencies', async () => {
+  const root = path.resolve(os.tmpdir(), 'dev126-cli-sandbox')
+  const taskRoot = path.resolve(os.tmpdir(), 'dev126-cli-task')
+  const platformRoot = path.resolve(os.tmpdir(), 'dev126-cli-platform')
+  let received
+  const result = await runOwnerFromArguments(['node', 'scripts/dev126-local-postnative-owner.mjs',
+    '--stage', 'business-baseline', '--root', root, '--task-root', taskRoot,
+    '--platform-root', platformRoot, '--verify-only'], async options => {
+    received = options
+    return { status: 'dependency-handoff-probed' }
+  })
+
+  assert.deepEqual(received, { stage: 'business-baseline', root, taskRoot, verifyOnly: true,
+    dependencies: { platformRoot } })
+  assert.equal(result.status, 'dependency-handoff-probed')
 })
 
 test('business verify-only calls the read-only owner and creates no login or receipt', async t => {

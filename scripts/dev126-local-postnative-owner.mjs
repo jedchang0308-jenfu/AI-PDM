@@ -2,7 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runDev126LocalPostnativeOwner } from './lib/dev126-local-postnative-owner.mjs'
 
-function argumentsFrom(argv) {
+export function argumentsFrom(argv) {
   const options = {}
   for (let index = 2; index < argv.length; index += 1) {
     const key = argv[index]
@@ -26,10 +26,15 @@ function argumentsFrom(argv) {
   return options
 }
 
+export async function runOwnerFromArguments(argv, runOwner = runDev126LocalPostnativeOwner) {
+  const { platformRoot, ...ownerInput } = argumentsFrom(argv)
+  return runOwner({ ...ownerInput, dependencies: { platformRoot } })
+}
+
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : ''
 if (invokedPath === path.resolve(fileURLToPath(import.meta.url))) {
   try {
-    const receipt = await runDev126LocalPostnativeOwner(argumentsFrom(process.argv))
+    const receipt = await runOwnerFromArguments(process.argv)
     process.stdout.write(`${JSON.stringify(receipt)}\n`)
   } catch (error) {
     const candidate = error && typeof error === 'object' ? error.code ?? error.name : null
