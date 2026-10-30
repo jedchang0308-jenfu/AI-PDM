@@ -492,10 +492,13 @@ export async function closeAsyncDatabaseClient(): Promise<void> {
   runtimeClient = null;
   runtimeClientSignature = "";
   const previousDrain = runtime[postgresRuntimeDrainKey];
-  const drain = Promise.all([
+  const drain = Promise.allSettled([
     ...(previousDrain ? [previousDrain] : []),
     ...[...clients].map(client => client.close()),
-  ]).then(() => {});
+  ]).then(results => {
+    const failure = results.find(result => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
+  });
   runtime[postgresRuntimeDrainKey] = drain;
   try { await drain; }
   finally {

@@ -107,4 +107,25 @@ describe("PostgreSQL runtime process ownership", () => {
     expect(secondFinished).toBe(true);
     await originalClose();
   });
+
+  it("waits for every pool to settle before reporting a close failure", async () => {
+    const provider = await loadProvider();
+    const first = provider.getAsyncDatabaseClient();
+    vi.stubEnv("PDM_POSTGRES_URL", "postgresql://runtime@127.0.0.1:1/test_pool_b");
+    const second = provider.getAsyncDatabaseClient();
+    const originals = [first.close.bind(first), second.close.bind(second)];
+    const failure = new Error("POOL_CLOSE_FAILURE");
+    vi.spyOn(first, "close").mockRejectedValue(failure);
+    let finishDrain!: () => void;
+    vi.spyOn(second, "close").mockReturnValue(new Promise<void>(resolve => { finishDrain = resolve; }));
+    let finished = false;
+    const closing = provider.closeAsyncDatabaseClient().catch(error => { finished = true; return error; });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(finished).toBe(false);
+    const otherClosing = (await loadProvider()).closeAsyncDatabaseClient().catch(error => error);
+    finishDrain();
+    expect(await closing).toBe(failure);
+    expect(await otherClosing).toBe(failure);
+    await Promise.all(originals.map(close => close()));
+  });
 });
