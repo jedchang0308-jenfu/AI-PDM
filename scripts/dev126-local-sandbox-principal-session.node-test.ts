@@ -538,6 +538,21 @@ test('does not return a session token when central registration fails', async ()
   assert.equal([...setup.bindings.values()][0]?.status, 'pending_central_registration')
 })
 
+test('never admits a reset-abandoned handshake even when its native session and Central registration remain active', async () => {
+  const setup = harness()
+  const result = await issueLocalSandboxPrincipalSession(issueInput(assertion(), expected(), setup))
+  setup.bindings.set(result.binding.nativeSessionIdHash, { ...result.binding,
+    status: 'registration_abandoned', centralCorrelationId: null, centralRegistrationObservedAt: null })
+  await assert.rejects(resolveLocalSandboxPrincipalRequestAdmission({
+    request: request('GET'), token: result.token, environment, listenAddress: '127.0.0.1',
+    expected: expected(), database: setup.database, keyRing: KEY_RING,
+    targetReader: setup.ports.targetReader, nativeSessionReadback: setup.ports.nativeSessionReadback,
+    binding: setup.ports.binding, centralIntrospection: setup.ports.centralIntrospection,
+    nowMs: NOW_MS + 20,
+  }))
+  assert.equal(setup.events.includes('central_introspection'), false)
+})
+
 test('requires a fresh signed central introspection on every admission and fails closed on bad status or signature', async () => {
   for (const setup of [
     harness({ introspectionFailure: true }),

@@ -314,6 +314,10 @@ OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissi
 
 ### 13.5 證據與結案
 
+2026-10-30 source review 找到 Central 503 後的 pending handshake 可永久阻擋 reset。forward-only local migration 095 加入 `registration_abandoned` terminal state，該狀態必須保留 NULL 中央 ack；不改 091，也不把放棄當作已登錄或已收到中央撤銷回執。只有 Platform 持久 new-generation fence、四 App 離線、exact owner／target／baseline 與 maintenance 前提皆成立的 reset，才在同一 restore 交易將 source generation 的 pending 放棄、已登錄者撤銷並清除 native session registry。rebind 仍拒絕未處理 pending；admission 仍只接受 `central_registered`。既有 `sourceBindingsRevoked` 相容欄位在此表示 native binding 均已失效，terminal 狀態與 ack 真值另外保留。
+
+本次 source 檢查為 Node owner/reset 72 PASS／1 Windows symlink EPERM skip、TS session 12 PASS、app typecheck／affected lint／DB boundary PASS。095 已在 task-owned PostgreSQL 18 的原 091 結構執行並 rollback，兩條 v2 constraint 可成立且 rollback 後不存在；這只是 migration 相容性檢查，不是已套用或 pending reset 整鏈通過。完整新初始化、native pending 失敗後復原與 exact-head CI 仍待執行；較早 R1／R2 收據與首敗維持原來源。
+
 日常虛構local、真實隔離PG、真實Google／Firebase／OrgMaster publication及正式provider／actor證據分列。原§12真實Principal lifecycle撤權待補保持原狀；本輪synthetic撤權不代填。發布責任沿`.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md`現行§26及適用附則，不能使用sibling checkout／IAM／資料作發布輸入。
 
 部署與受影響功能驗收皆有證據後才可標本切片RELEASED；必要cell未驗為DEPLOYED／ACCEPTANCE_PENDING。失敗保留首個有效結果，停止相依寫入，安全的獨立驗證繼續；unknown先readback，回復限自有traffic／tag／entry且不down migration。只清本任務已識別資源，使用者日常runtime可交接保留。主責DEV-021只有收到本native切片實際完成證據才可計入整合結案。

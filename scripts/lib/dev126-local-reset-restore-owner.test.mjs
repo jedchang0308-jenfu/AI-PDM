@@ -255,7 +255,8 @@ async function prepareHarness(t, options = {}) {
         assert.match(sql, /DISABLE TRIGGER USER;/u)
         assert.match(sql, /ENABLE TRIGGER USER;/u)
         assert.doesNotMatch(sql, /CASCADE|COMMENT ON DATABASE/u)
-        assert.match(sql, /status = 'revoked'/u)
+        assert.match(sql, /SET status = CASE WHEN status = 'pending_central_registration' THEN 'registration_abandoned' ELSE 'revoked' END/u)
+        assert.match(sql, /AND status IN \('pending_central_registration', 'central_registered'\);/u)
         assert.match(sql, /status='maintenance'/u)
         assert.match(sql, /SET LOCAL search_path = pg_catalog;/u)
         assert.doesNotMatch(sql, /SELECT pg_catalog\.set_config\(|\\(?:restrict|unrestrict)\s/u)
@@ -268,7 +269,9 @@ async function prepareHarness(t, options = {}) {
         if (applyPsql) {
           psqlApplied = true
           currentState = { ...currentState, principalSessionCount: 0,
-            sourceBindings: currentState.sourceBindings.map(binding => ({ ...binding, status: 'revoked' })),
+            sourceBindings: currentState.sourceBindings.map(binding => ({ ...binding,
+              status: binding.status === 'pending_central_registration' ? 'registration_abandoned'
+                : binding.status === 'central_registered' ? 'revoked' : binding.status })),
             targetMetadata: { ...currentState.targetMetadata, status: 'maintenance' } }
         }
         child.stdout.end()
@@ -820,11 +823,35 @@ test('accepts a nonzero psql exit only when fresh readback proves the complete r
   assert.equal(h.spawns.filter(item => item.executable.toLowerCase().startsWith('psql')).length, 1)
 })
 
-test('refuses to revoke a pending Central binding without a legitimate registration receipt', async t => {
+test('abandons a pending handshake only within the fenced restore, retaining NULL Central acknowledgement', async t => {
   const h = await prepareHarness(t)
   h.setState({ ...h.currentState(), sourceBindings: [{ status: 'pending_central_registration',
     centralCorrelationId: null, centralRegistrationObservedAt: null }] })
+  const restored = await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(restored.restored, true)
+  assert.deepEqual(h.currentState().sourceBindings, [{ status: 'registration_abandoned',
+    centralCorrelationId: null, centralRegistrationObservedAt: null }])
+  assert.equal(h.currentState().principalSessionCount, 0)
+  const rebound = await h.owner.rebindAndFenceSessions({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(rebound.ready, true)
+  assert.equal((await h.owner.readiness({ targetInput: h.targetInput, scope: h.scope })).ready, true)
+})
+
+test('never abandons a pending handshake while an app is online', async t => {
+  const h = await prepareHarness(t, { onlineApp: true })
+  h.setState({ ...h.currentState(), sourceBindings: [{ status: 'pending_central_registration',
+    centralCorrelationId: null, centralRegistrationObservedAt: null }] })
   await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
-    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_precondition_failed')
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_generation_fence_invalid')
+  assert.equal(h.currentState().sourceBindings[0].status, 'pending_central_registration')
+  assert.deepEqual(h.spawns, [])
+})
+
+test('rejects an abandoned handshake with a fabricated Central acknowledgement before restore', async t => {
+  const h = await prepareHarness(t)
+  h.setState({ ...h.currentState(), sourceBindings: [{ status: 'registration_abandoned',
+    centralCorrelationId: 'not-a-registration-receipt', centralRegistrationObservedAt: null }] })
+  await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
+    error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_binding_invalid')
   assert.deepEqual(h.spawns, [])
 })

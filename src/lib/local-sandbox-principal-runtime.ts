@@ -359,7 +359,8 @@ function dateValue(value: unknown, nullable = false): string | null {
 function bindingFromRow(row: BindingRow | null): LocalSandboxPrincipalSessionBinding | null {
   if (!row) return null;
   const status = row.status;
-  if (status !== "pending_central_registration" && status !== "central_registered" && status !== "revoked") fail("LOCAL_SANDBOX_BINDING_READBACK_FAILED");
+  if (status !== "pending_central_registration" && status !== "central_registered" && status !== "revoked" &&
+    status !== "registration_abandoned") fail("LOCAL_SANDBOX_BINDING_READBACK_FAILED");
   return Object.freeze({
     contractVersion: row.contract_version as LocalSandboxPrincipalSessionBinding["contractVersion"],
     status,

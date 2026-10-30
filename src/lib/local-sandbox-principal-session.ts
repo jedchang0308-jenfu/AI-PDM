@@ -54,7 +54,7 @@ export interface LocalSandboxNativeSessionReadbackPort {
 
 export type LocalSandboxPrincipalSessionBinding = Readonly<{
   contractVersion: 'jenfu.local-sandbox-principal-binding.v1'
-  status: 'pending_central_registration' | 'central_registered' | 'revoked'
+  status: 'pending_central_registration' | 'central_registered' | 'revoked' | 'registration_abandoned'
   registrationId: string
   portalSessionId: string
   applicationId: 'ai-pdm'

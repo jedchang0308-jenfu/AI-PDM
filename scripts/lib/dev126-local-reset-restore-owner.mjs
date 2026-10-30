@@ -309,13 +309,21 @@ function validateOwnerState(state, context, scope, manifest, { allowMaintenance 
     !IDENTIFIER.test(sequence.ownedTable ?? '') || !businessSet.has(sequence.ownedTable) ||
     sequence.owner !== OWNER_ROLE)) fail('dev126_reset_restore_sequence_invalid', 503)
   for (const binding of state.sourceBindings) {
-    if (!isRecord(binding) || !['pending_central_registration', 'central_registered', 'revoked'].includes(binding.status) ||
+    if (!isRecord(binding) || !['pending_central_registration', 'central_registered', 'revoked', 'registration_abandoned'].includes(binding.status) ||
+      (['pending_central_registration', 'registration_abandoned'].includes(binding.status) &&
+        (binding.centralCorrelationId !== null || binding.centralRegistrationObservedAt !== null)) ||
       (binding.status === 'central_registered' && (!binding.centralCorrelationId || !binding.centralRegistrationObservedAt)) ||
       (binding.status === 'revoked' && (!binding.centralCorrelationId || !binding.centralRegistrationObservedAt))) {
       fail('dev126_reset_restore_binding_invalid', 503)
     }
   }
   return state
+}
+
+// Both terminal states deny native admission. Abandoned handshakes retain NULL
+// acknowledgement fields and never claim that Central registered the session.
+function isFencedBinding(binding) {
+  return binding.status === 'revoked' || binding.status === 'registration_abandoned'
 }
 
 function sameAuthority(left, right) {
@@ -443,20 +451,15 @@ function buildRestoreSql({ restoreSql, businessRelations, sequences, scope }) {
       `AND generation='${scope.sourceGeneration}'::uuid AND status='maintenance') THEN\n` +
       `    RAISE EXCEPTION 'DEV126_TARGET_GENERATION_CHANGED';\n` +
       `  END IF;\n` +
-      `  IF EXISTS (SELECT 1 FROM ${SCHEMA}.local_sandbox_principal_session_bindings ` +
-      `WHERE sandbox_id='${scope.sandboxId}' AND generation='${scope.sourceGeneration}'::uuid ` +
-      `AND status='pending_central_registration') THEN\n` +
-      `    RAISE EXCEPTION 'DEV126_PENDING_CENTRAL_REGISTRATION';\n` +
-      `  END IF;\n` +
       `END $dev126_preflight$;`,
     `TRUNCATE TABLE\n  ${truncate}\nRESTRICT;`,
     triggerDisable,
     bodyLines.join('\n').trimEnd(),
     triggerEnable,
     `UPDATE ${SCHEMA}.local_sandbox_principal_session_bindings\n` +
-      `SET status = 'revoked'\n` +
+      `SET status = CASE WHEN status = 'pending_central_registration' THEN 'registration_abandoned' ELSE 'revoked' END\n` +
       `WHERE sandbox_id = '${scope.sandboxId}' AND generation = '${scope.sourceGeneration}'::uuid ` +
-      `AND status = 'central_registered';`,
+      `AND status IN ('pending_central_registration', 'central_registered');`,
   ].join('\n\n') + '\n'
 }
 
@@ -1295,7 +1298,7 @@ function createPostgresOwnerAdapter({ Pool, environment }) {
             server_address: state.identity.serverAddress, server_port: state.identity.serverPort }, { readBusiness: false })
         validateOwnerState(current, context, scope, manifest, { allowNewGeneration: true })
         if (current.targetMetadata.status !== 'ready' || current.principalSessionCount !== 0 ||
-          current.sourceBindings.some(binding => binding.status !== 'revoked')) fail('dev126_reset_restore_rebind_readback_failed', 503)
+          current.sourceBindings.some(binding => !isFencedBinding(binding))) fail('dev126_reset_restore_rebind_readback_failed', 503)
         return Object.freeze({ rebound: true, generation: scope.generation, targetFingerprint: nextFingerprint })
       } })
     },
@@ -1326,7 +1329,7 @@ function compareBusinessReadback(readback, manifest, scope, expectedPreservedCon
       readback.state.targetMetadata.status === 'ready' && readback.state.databaseMarker === generationMarker(scope))
   return JSON.stringify(actual) === JSON.stringify(expected) &&
     JSON.stringify(actualControls) === JSON.stringify(expectedControls) && phaseMatches && readback.state.principalSessionCount === 0 &&
-    readback.state.sourceBindings.every(binding => binding.status === 'revoked') &&
+    readback.state.sourceBindings.every(isFencedBinding) &&
     (readback.state.targetMetadata.status === 'maintenance' || readback.state.targetMetadata.status === 'ready')
 }
 
@@ -1420,7 +1423,7 @@ export function createDev126LocalResetRestoreOwner({
       sourceGeneration: loaded.scope.sourceGeneration, generation: loaded.scope.generation,
       observedGeneration: generation, targetMetadataStatus: state.targetMetadata.status,
       principalSessionCount: state.principalSessionCount,
-      sourceBindingsRevoked: state.sourceBindings.every(binding => binding.status === 'revoked'),
+      sourceBindingsRevoked: state.sourceBindings.every(isFencedBinding),
       businessRelationCount: raw.business.length, repositoryRestored,
       repositoryObjectCount: loaded.repositoryObjects.length })
   }
@@ -1432,8 +1435,7 @@ export function createDev126LocalResetRestoreOwner({
     validateOwnerState(initial, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
     if (initial.targetMetadata.generation !== loaded.scope.sourceGeneration ||
       !['ready', 'maintenance'].includes(initial.targetMetadata.status) || initial.databaseMarker !== generationMarker(loaded.scope) ||
-      initial.principalSessionCount < 0 ||
-      initial.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
+      initial.principalSessionCount < 0) {
       fail('dev126_reset_restore_precondition_failed', 409)
     }
     let preservedControls
@@ -1470,8 +1472,7 @@ export function createDev126LocalResetRestoreOwner({
       validateOwnerState(preservedSnapshot.state, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
       if (preservedSnapshot.state.targetMetadata.generation !== loaded.scope.sourceGeneration ||
         preservedSnapshot.state.targetMetadata.status !== 'ready' ||
-        preservedSnapshot.state.databaseMarker !== generationMarker(loaded.scope) ||
-        preservedSnapshot.state.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
+        preservedSnapshot.state.databaseMarker !== generationMarker(loaded.scope)) {
         fail('dev126_reset_restore_precondition_failed', 409)
       }
       preservedControls = await readOrCreateControlPreservationReference(loaded, {
@@ -1532,7 +1533,7 @@ export function createDev126LocalResetRestoreOwner({
       const latest = await ownerDatabase.inspect(loaded)
       validateOwnerState(latest, loaded.context, loaded.scope, loaded.manifest, { allowMaintenance: true })
       if (latest.targetMetadata.generation !== loaded.scope.sourceGeneration ||
-        latest.targetMetadata.status !== 'maintenance' || latest.sourceBindings.some(binding => binding.status === 'pending_central_registration')) {
+        latest.targetMetadata.status !== 'maintenance') {
         fail('dev126_reset_restore_precondition_failed', 409)
       }
       let psqlResult
@@ -1586,7 +1587,7 @@ export function createDev126LocalResetRestoreOwner({
     const restored = await ownerDatabase.readBusiness(loaded)
     if (restored && compareBusinessReadback(restored, loaded.manifest, loaded.scope, preservedControls) &&
       restored.state.targetMetadata.generation === loaded.scope.generation &&
-      restored.state.targetMetadata.status === 'ready' && restored.state.sourceBindings.every(binding => binding.status === 'revoked') &&
+      restored.state.targetMetadata.status === 'ready' && restored.state.sourceBindings.every(isFencedBinding) &&
       await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects)) {
       return Object.freeze({ resetId: loaded.scope.resetId, sandboxId: loaded.scope.sandboxId,
         sourceGeneration: loaded.scope.sourceGeneration, generation: loaded.scope.generation,
@@ -1613,7 +1614,7 @@ export function createDev126LocalResetRestoreOwner({
         !await repositoryMatches(targetInput.repositoryDirectory, loaded.repositoryObjects) ||
         readback.state.targetMetadata.generation !== loaded.scope.generation ||
         readback.state.targetMetadata.status !== 'ready' || readback.state.databaseMarker !== generationMarker(loaded.scope) ||
-        readback.state.sourceBindings.some(binding => binding.status !== 'revoked')) {
+        readback.state.sourceBindings.some(binding => !isFencedBinding(binding))) {
         fail('dev126_reset_restore_rebind_outcome_unknown', 503)
       }
     }
@@ -1621,7 +1622,7 @@ export function createDev126LocalResetRestoreOwner({
     validateOwnerState(finalState.state, loaded.context, loaded.scope, loaded.manifest, { allowNewGeneration: true })
     if (!compareBusinessReadback(finalState, loaded.manifest, loaded.scope, preservedControls) || finalState.state.targetMetadata.status !== 'ready' ||
       finalState.state.databaseMarker !== generationMarker(loaded.scope) ||
-      finalState.state.sourceBindings.some(binding => binding.status !== 'revoked')) {
+      finalState.state.sourceBindings.some(binding => !isFencedBinding(binding))) {
       fail('dev126_reset_restore_rebind_readback_failed', 503)
     }
     await readGenerationFence(loaded.scope)
@@ -1646,11 +1647,11 @@ export function createDev126LocalResetRestoreOwner({
     const restored = databaseRestored && repositoryRestored
     const ready = restored && state.state.targetMetadata.generation === loaded.scope.generation &&
       state.state.targetMetadata.status === 'ready' && state.state.databaseMarker === generationMarker(loaded.scope) &&
-      state.state.principalSessionCount === 0 && state.state.sourceBindings.every(binding => binding.status === 'revoked')
+      state.state.principalSessionCount === 0 && state.state.sourceBindings.every(isFencedBinding)
     return Object.freeze({ resetId: loaded.scope.resetId, ready, restored, generation: loaded.scope.generation,
       fenceStatus: fence.status, applicationsOffline: fence.applicationsOffline,
       principalSessionCount: state.state.principalSessionCount, repositoryRestored,
-      sourceBindingsRevoked: state.state.sourceBindings.every(binding => binding.status === 'revoked') })
+      sourceBindingsRevoked: state.state.sourceBindings.every(isFencedBinding) })
   }
 
   return Object.freeze({ restoreBusinessBaseline, readBusinessRestore, rebindAndFenceSessions,
