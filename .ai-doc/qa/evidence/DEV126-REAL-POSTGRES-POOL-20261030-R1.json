@@ -1,0 +1,153 @@
+{
+  "format": "aipdm.dev126.real-postgres-pool-evidence.v1",
+  "evidenceId": "c522868a-2b5d-4ee4-9aa9-a9dec2d64235",
+  "recordedAt": "2026-10-30T14:08:11.563Z",
+  "status": "PASS_BOUNDED_REAL_NONPRODUCTION_POOL_AND_REAUTHENTICATION",
+  "sourceRevision": "de7b8fbf9b8824917da89f98786c1203a75da4be",
+  "sourceFiles": [
+    {
+      "path": "src/lib/db-async-provider.ts",
+      "workingBytesSha256": "6a23b003a1c8001546cde32e869567f19d2e3ffd6b71761b4726acb5cae6fa43"
+    },
+    {
+      "path": "src/lib/db-async-runtime.test.ts",
+      "workingBytesSha256": "0cfab903cf3f074d77397211ee4ed6f49cf148aad6843c2e528c1fc0a00512fa"
+    }
+  ],
+  "pr": 560,
+  "environment": {
+    "firebaseProject": "jenfu-platform-nonprod",
+    "database": "task-owned isolated native PostgreSQL 18",
+    "runtimeOrigin": "http://localhost:12020",
+    "runId": "e598c60a4bc64ee5889048bb4355f7c0",
+    "formal": false
+  },
+  "rootCause": {
+    "sqlstate": "53300",
+    "runtimeRoleConnectionLimit": 12,
+    "beforeIdleConnections": 12,
+    "moduleScopedPools": "one per route/module evaluation; restarting was temporary recovery only",
+    "repaired": "one process-global PostgreSQL client per validated configuration; shared connections do not cache authorization or row snapshots",
+    "afterIdleConnections": 6,
+    "roleLimitUnchanged": true
+  },
+  "cases": {
+    "independentModuleAndTargetAndDrainTests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "typecheckApp": "PASS",
+    "changedSourceLint": "PASS",
+    "sixRealApiRoutes": {
+      "parallelWidth": 6,
+      "rounds": 5,
+      "requests": 30,
+      "all200": true
+    },
+    "globalLogoutAfterRepair": {
+      "allFourOldSessions401": true,
+      "otherPrincipalUnaffected": true,
+      "newPrincipalSessionAndBusinessApis200": true
+    },
+    "nativeSchemaBaseline": {
+      "supplementalSourcePath": "db/postgres/043_inline_relation_matrix.sql",
+      "sourceSha256": "9fffda2c684be440115a0a3e83fcd4f57248340f12077971fd210c9f9cac634e",
+      "appliedSha256": "9fffda2c684be440115a0a3e83fcd4f57248340f12077971fd210c9f9cac634e",
+      "allAffectedBusinessCountsZero": true,
+      "originalMigrationGuardsRetained": true,
+      "officialNativeLedgerCountBefore": 53,
+      "officialNativeLedgerCountAfter": 53,
+      "officialLedgerHashUnchanged": true,
+      "localOnlyExecutorGuardNotAltered": true,
+      "nonproductionSetupOnly": true
+    }
+  },
+  "localSqliteCompatibility": {
+    "status": "BLOCKED_BY_MISSING_SHARED_DEPENDENCY_NATIVE_BINDING",
+    "code": "better_sqlite3.node missing",
+    "sharedDependencyNotModified": true,
+    "linuxRequiredCiPending": true
+  },
+  "privateProofs": [
+    {
+      "basename": "browser-safe-result-1793369174556.json",
+      "sha256": "66120fab04a001084571b0f86d7385d3f9cf86573fc44ecdabb3e098bbda4139",
+      "script": "browser-real-four-session-readback.js",
+      "status": "REAL_FOUR_APP_SESSION_READBACK"
+    },
+    {
+      "basename": "browser-safe-result-1793368935302.json",
+      "sha256": "c5d1e6a4470e3cad7f9ad5865decc8d8e1d4e1d03e96f4d824dce08bb05e9f14",
+      "script": "browser-real-four-session-readback.js",
+      "status": "REAL_FOUR_APP_SESSION_READBACK"
+    },
+    {
+      "basename": "browser-safe-result-1793368937611.json",
+      "sha256": "1dcd040b563c523137c724c64993fe3c2dd8443f26a0f17027dfcfaf222efa2a",
+      "script": "browser-real-four-session-readback.js",
+      "status": "REAL_FOUR_APP_SESSION_READBACK"
+    },
+    {
+      "basename": "browser-safe-result-1793367837784.json",
+      "sha256": "645b1a03cff03370382180e4eb80f1e632a4c340cb0e33312def11e18543db4b",
+      "script": "browser-fms-global-logout-ui.js",
+      "status": "PASS_FMS_UI_OLD_CONTEXT_CLEARED"
+    },
+    {
+      "basename": "browser-safe-result-1793369057759.json",
+      "sha256": "f478a563b5d9c759332d78e2322b31f2f06534c1939a17dc3b5ab5a8f9630656",
+      "script": "browser-fms-relogin-a.js",
+      "status": "PASS_REAL_SSO_SESSION_ONLY"
+    },
+    {
+      "basename": "browser-safe-result-1793369202957.json",
+      "sha256": "de25700b8b0e4c127b7e7acf2aa308400062a0c51968cbb53af6c619a1f5de98",
+      "script": "browser-fms-relogin-draft-readback.js",
+      "status": "PASS_DRAFT_PRESERVED_AFTER_GLOBAL_LOGOUT"
+    },
+    {
+      "basename": "browser-safe-result-1793367702436.json",
+      "sha256": "64e0b75fe104759f5ceed7246c409ff7584171d5cf1d42675f816fa70b644f72",
+      "script": "browser-fms-real-navigation.js",
+      "status": "PASS_REAL_SHARED_PROVIDER_NAVIGATION_ONLY"
+    },
+    {
+      "basename": "browser-safe-result-1793369178435.json",
+      "sha256": "62eaadaafd28e1634636d3335fe8e82ef793eea5a5004f3f27a12e8a5d807b11",
+      "script": "browser-pdm-pool-regression.js",
+      "status": "PASS_30_PROTECTED_READS"
+    },
+    {
+      "basename": "native-normal-write-readback-r4-1793369204841.json",
+      "sha256": "26a33e39114cafead0b276d5f81beccc8e30dd65f71cce049f2528f72d449fa6",
+      "script": null,
+      "status": "PASS_NATIVE_REAL_SSO_RELOGIN_AND_UNCHANGED_DRAFT_READBACK"
+    },
+    {
+      "basename": "pdm-dev090-supplement-1793367521595.json",
+      "sha256": "10c60362357cf192f41a8ad5f7df048cf08d8e85865b497e21a23dfb5635e802",
+      "script": null,
+      "status": "PASS_OWNED_NONPRODUCTION_SOURCE_SUPPLEMENT_ONLY"
+    },
+    {
+      "basename": "pdm-pool-pressure-1793368737328.json",
+      "sha256": "a80b7e7fe51a06e8de045638d4d68664fd3b839e35cfa0446afa896a19f2962b",
+      "script": null,
+      "status": "PASS_READONLY_POOL_PRESSURE_OBSERVED"
+    },
+    {
+      "basename": "pdm-pool-pressure-1793369179411.json",
+      "sha256": "cd51969cae862ea17aa2bf977f02c2136e34620b0058245a786ce57c10ba1246",
+      "script": null,
+      "status": "PASS_READONLY_POOL_PRESSURE_OBSERVED"
+    },
+    {
+      "basename": "pdm-normal-read-replay-1793368457462.json",
+      "sha256": "fc98f2f55a5f1cfb99689358def56124703c5b99d9a15ad57c1525a2c4e78f14",
+      "script": null,
+      "status": "NORMAL_READONLY_REPLAY_FAILED"
+    }
+  ],
+  "productionAccepted": false,
+  "managedPrincipalRevocation": "DEFERRED_NOT_RUN_BY_USER"
+}
