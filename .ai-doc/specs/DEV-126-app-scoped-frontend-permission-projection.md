@@ -314,6 +314,8 @@ OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissi
 
 ### 13.5 證據與結案
 
+最新 native／固定埠補驗：[pending R3](../qa/DEV126-LOCAL-PENDING-RESET-20261030-R3.json) 綁定 `792aa7ec5`；兩個required CI成功，fresh native112步已實際套用095。正常1000→1020 SSO後從同筆真實binding以CAS建立受控pending／NULL ack，四App離線後公開reset首次ready；PDM native registry0、該舊binding為registration_abandoned且兩個ack仍NULL。明確舊PDM cookie重播401，fresh正常SSO200；FMS207個business relation摘要前後一致、100TWD草稿正常UI可再讀回。1020圖號／料號／搜尋換頁permission request維持1。這是native state fixture，不是實際HTTP503注入；原source-only／rollback-only結論不改寫，較大P126分母維持。
+
 2026-10-30 source review 找到 Central 503 後的 pending handshake 可永久阻擋 reset。forward-only local migration 095 加入 `registration_abandoned` terminal state，該狀態必須保留 NULL 中央 ack；不改 091，也不把放棄當作已登錄或已收到中央撤銷回執。只有 Platform 持久 new-generation fence、四 App 離線、exact owner／target／baseline 與 maintenance 前提皆成立的 reset，才在同一 restore 交易將 source generation 的 pending 放棄、已登錄者撤銷並清除 native session registry。rebind 仍拒絕未處理 pending；admission 仍只接受 `central_registered`。既有 `sourceBindingsRevoked` 相容欄位在此表示 native binding 均已失效，terminal 狀態與 ack 真值另外保留。
 
 本次 source 檢查為 Node owner/reset 72 PASS／1 Windows symlink EPERM skip、TS session 12 PASS、app typecheck／affected lint／DB boundary PASS。095 已在 task-owned PostgreSQL 18 的原 091 結構執行並 rollback，兩條 v2 constraint 可成立且 rollback 後不存在；這只是 migration 相容性檢查，不是已套用或 pending reset 整鏈通過。完整新初始化、native pending 失敗後復原與 exact-head CI 仍待執行；較早 R1／R2 收據與首敗維持原來源。
