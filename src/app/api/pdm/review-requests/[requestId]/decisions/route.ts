@@ -29,7 +29,7 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
     }
     const decision = validateDev087ReviewDecision(body.decision);
     const context = dev087CommandContext(request);
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (tx, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (tx, verified) => {
       const companyId = verified.profile.companyId;
       const item = await new PdmWorkReviewAsyncRepository(tx).get(tx, { companyId, requestId });
       const resourceGroup = item?.requestKind === "part_change" ? "part" as const

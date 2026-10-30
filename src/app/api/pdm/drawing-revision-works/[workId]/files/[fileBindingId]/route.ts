@@ -17,7 +17,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ w
       { status: 503, headers: { "cache-control": "no-store" } });
     const { workId, fileBindingId } = await params;
     return dev087Success(await new DrawingRevisionWorkService().removeFilePrincipal(
-      workId, fileBindingId, token, dev087CommandContext(request)));
+      workId, fileBindingId, token, request, dev087CommandContext(request)));
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError
       ? principalRequestFailure(error) : dev087RouteError(error);

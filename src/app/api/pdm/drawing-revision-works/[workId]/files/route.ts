@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ wor
     return dev087Success(await new DrawingRevisionWorkService().uploadFilePrincipal(workId, {
       file: form.get("file"), displayName: form.get("display_name"),
       description: form.get("description")
-    }, token, dev087CommandContext(request)));
+    }, token, request, dev087CommandContext(request)));
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError
       ? principalRequestFailure(error) : dev087RouteError(error);

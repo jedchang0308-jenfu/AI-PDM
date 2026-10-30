@@ -133,7 +133,7 @@ export async function requireNumberingPlatformCommandAsync(
     metadata: {
       actor,
       idempotencyKey: requestedIdempotencyKey(request, body, requestId),
-      principalRequest: principalRequestInput(token),
+      principalRequest: await principalRequestInput(token, request),
       principalAuthorization: {
         request, routePath: route.path, method: request.method, permissionCode,
         discriminator: input.discriminator,

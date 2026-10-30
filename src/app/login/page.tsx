@@ -24,6 +24,7 @@ type LoginModeResponse = {
   googleOAuth: { enabled: boolean };
   firebase: { config: FirebaseWebConfig | null };
   localQuickLogin: boolean;
+  localPrincipalSandbox: boolean;
 };
 
 function isAuthMode(value: unknown): value is AuthMode {
@@ -34,7 +35,8 @@ function isLoginModeResponse(value: unknown): value is LoginModeResponse {
   if (!value || typeof value !== "object") return false;
   const body = value as Partial<LoginModeResponse>;
   if (!isAuthMode(body.authMode) || typeof body.ssoHandoffEnabled !== "boolean"
-    || typeof body.localQuickLogin !== "boolean" || typeof body.googleOAuth?.enabled !== "boolean"
+    || typeof body.localQuickLogin !== "boolean" || typeof body.localPrincipalSandbox !== "boolean" ||
+    typeof body.googleOAuth?.enabled !== "boolean"
     || !body.firebase || typeof body.firebase !== "object") return false;
   const config = body.firebase.config;
   if (config !== null && (!config || typeof config !== "object"
@@ -88,7 +90,8 @@ const googleErrorMessages: Record<string, string> = {
   sso_principal_stale: "帳號或權限已更新，請重新登入。",
   principal_login_required: "請重新從鉦富平台登入。",
   auth_token_invalid: "登入驗證未通過，請重新登入。",
-  sso_dependency_unavailable: "目前無法完成登入，請稍後再試。"
+  sso_dependency_unavailable: "目前無法完成登入，請稍後再試。",
+  local_sandbox_unavailable: "本機測試登入服務暫時無法使用，請確認隔離環境設定與 Platform 服務。"
 };
 
 export default function LoginPage() {
@@ -102,6 +105,7 @@ export default function LoginPage() {
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
   const [localQuickLoginEnabled, setLocalQuickLoginEnabled] = useState(false);
+  const [localPrincipalSandbox, setLocalPrincipalSandbox] = useState(false);
   const [ssoHandoffEnabled, setSsoHandoffEnabled] = useState(false);
   const [quickLoginRole, setQuickLoginRole] = useState<string | null>(null);
   const [modeState, setModeState] = useState<LoginModeState>("loading");
@@ -130,6 +134,7 @@ export default function LoginPage() {
     setGoogleOAuthEnabled(false);
     setFirebaseConfig(null);
     setLocalQuickLoginEnabled(false);
+    setLocalPrincipalSandbox(false);
     setSsoHandoffEnabled(false);
     try {
       const response = await fetch("/api/auth/mode", { cache: "no-store", signal: controller.signal });
@@ -141,6 +146,7 @@ export default function LoginPage() {
       setGoogleOAuthEnabled(body.googleOAuth?.enabled === true);
       setFirebaseConfig(body.firebase?.config ?? null);
       setLocalQuickLoginEnabled(body.localQuickLogin === true);
+      setLocalPrincipalSandbox(body.localPrincipalSandbox === true);
       setSsoHandoffEnabled(body.ssoHandoffEnabled === true);
       setModeState("ready");
     } catch {
@@ -295,10 +301,21 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <section className="login-panel">
-        <div className={`login-heading ${authMode === "demo" ? "is-demo" : "is-managed"}`}>
+        <div className={`login-heading ${authMode === "demo" && !localPrincipalSandbox ? "is-demo" : "is-managed"}`}>
           <h1>AI PDM 登入</h1>
-          <p>{authMode === "demo" ? "請使用測試帳號登入，依角色權限檢視系統。" : "請使用公司帳號登入；若尚未有帳號，請向系統管理員索取邀請連結。"}</p>
+          <p>{localPrincipalSandbox ? "本機 Principal sandbox 使用鉦富平台的虛構測試身分。" : authMode === "demo" ? "請使用測試帳號登入，依角色權限檢視系統。" : "請使用公司帳號登入；若尚未有帳號，請向系統管理員索取邀請連結。"}</p>
         </div>
+
+        {modeState === "ready" && localPrincipalSandbox ? (
+          <div className="google-auth-choice" aria-label="本機 Principal sandbox 登入">
+            <button className="primary-button" type="button" disabled={loading}
+              onClick={() => window.location.assign("/api/auth/local-sandbox/start")}>
+              <LogIn size={16} aria-hidden="true" />
+              {loading ? "正在前往本機測試登入…" : "使用鉦富平台本機測試身分"}
+            </button>
+            <p className="login-provider-note">僅使用隔離 sandbox 的虛構身分與權限資料。</p>
+          </div>
+        ) : null}
 
         {localQuickLoginEnabled && authMode !== "firebase_bff" ? (
           <div className="local-quick-login-card" aria-label="地端快速登入">
@@ -385,7 +402,7 @@ export default function LoginPage() {
         </div> : null}
 
         {error ? <div className="form-error" role="alert">{error}</div> : null}
-        {modeState === "ready" && ssoHandoffEnabled ? (
+        {modeState === "ready" && !localPrincipalSandbox && ssoHandoffEnabled ? (
           <div className="google-auth-choice">
             <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
               <LogIn size={16} aria-hidden="true" />
@@ -393,7 +410,7 @@ export default function LoginPage() {
             </button>
             <p className="login-provider-note">登入一次即可進入你有權限的 Jenfu 系統。</p>
           </div>
-        ) : modeState === "ready" && authMode !== "demo" ? (
+        ) : modeState === "ready" && !localPrincipalSandbox && authMode !== "demo" ? (
           <div className="google-auth-choice">
             {googleOAuthEnabled ? (
               authMode === "firebase_bff" ? (
@@ -433,7 +450,7 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        {modeState === "ready" && !ssoHandoffEnabled && <form onSubmit={submit} className="login-form">
+        {modeState === "ready" && !localPrincipalSandbox && !ssoHandoffEnabled && <form onSubmit={submit} className="login-form">
           <>
             <label>
               {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
@@ -468,7 +485,7 @@ export default function LoginPage() {
             {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
         </form>}
-        {modeState === "ready" ? (
+        {modeState === "ready" && !localPrincipalSandbox ? (
           <div className="login-help-footer">
             <Link href="/account-recovery/request">忘記密碼</Link>
           </div>

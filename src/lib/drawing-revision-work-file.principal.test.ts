@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
-  principalRequestInput: (token: string) => ({ token })
+  principalRequestInput: (token: string, _request: Request) => ({ token })
 }));
 vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-request-guard")>(),
@@ -61,7 +61,7 @@ const verified = {
 };
 const payload = Buffer.from("drawing-pdf");
 function input() {
-  return { client, token: "v2-token", workId: "work-one",
+  return { client, token: "v2-token", request: new Request("http://127.0.0.1:12000/api/pdm/drawing-revision-works/work-one/files", { method: "POST" }), workId: "work-one",
     file: new File([payload], "drawing.pdf", { type: "application/pdf" }),
     context: { contractToken: "contract-one", expectedRowVersion: 2,
       idempotencyKey: "file-one" } };

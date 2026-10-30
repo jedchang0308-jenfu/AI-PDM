@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const principalToken = principalSessionTokenFromRequest(request);
   if (principalToken) {
     try {
-      await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async () => true);
+      await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async () => true);
       return NextResponse.json({ error: "principal_enrollment_required" },
         { status: 409, headers: { "cache-control": "no-store" } });
     } catch (error) { return principalRequestFailure(error); }

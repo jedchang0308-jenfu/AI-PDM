@@ -1,0 +1,136 @@
+{
+  "receiptId": "95d25525-a99e-4e57-a337-e7028aac53fa",
+  "recordedAt": "2026-10-30T05:01:25.066Z",
+  "status": "PASS",
+  "scope": "bounded-normal-ui-canonical-part-change-work-create-update-reload-cancel-and-formal-preservation",
+  "sourceCommit": "1ea15bb0ce3271e22f974bad96e38fad05c29970",
+  "target": {
+    "sandboxId": "dev021-repro-20261030",
+    "generation": "4b19a55e-42b1-40ed-bc59-8ee2f6830985",
+    "postgresPort": 57974,
+    "pdmOrigin": "http://localhost:14020"
+  },
+  "identities": {
+    "rootCreatorScenario": "active",
+    "workOwnerScenario": "catalog-system-admin",
+    "kind": "local-synthetic"
+  },
+  "root": {
+    "createStatus": 201,
+    "rootCode": "A0001",
+    "partId": "0261b6b2-f4d9-4fb3-bc91-48ccacf599cd",
+    "partNumber": "A0001-P01",
+    "name": "LOCAL-CRUD-WORK-20261030",
+    "status": "Draft"
+  },
+  "work": {
+    "workId": "a7ef5898-0df9-441b-846a-904534594936",
+    "create": {
+      "status": 200,
+      "idempotencyKey": "7fcca368-893b-4a98-9441-9481912569e2"
+    },
+    "update": {
+      "status": 200,
+      "idempotencyKey": "34fca44c-078b-4439-8f4d-7e8afe0bb3a9",
+      "partName": "LOCAL-CRUD-WORK-20261030-UPDATED"
+    },
+    "firstGetReadback": {
+      "status": 200,
+      "rowVersion": 2,
+      "partName": "LOCAL-CRUD-WORK-20261030-UPDATED"
+    },
+    "firstFullReload": {
+      "updatedNameObserved": true,
+      "savedTextVisible": true,
+      "initialWait20SecondsTimedOut": true
+    },
+    "afterOwnedClusterRecovery": {
+      "databaseGenerationUnchanged": true,
+      "rowVersion": 2,
+      "partName": "LOCAL-CRUD-WORK-20261030-UPDATED"
+    },
+    "finalBrowser": {
+      "observedAt": "2026-10-30T04:59:35.679Z",
+      "nativeSso": {
+        "observedAt": "2026-10-30T04:55:06.316Z",
+        "scenario": "catalog-system-admin",
+        "authStatus": 200,
+        "appOrigin": "http://localhost:14020/"
+      },
+      "before": {
+        "status": 200,
+        "rowVersion": 2,
+        "partName": "LOCAL-CRUD-WORK-20261030-UPDATED"
+      },
+      "cancel": {
+        "status": 200,
+        "code": null,
+        "idempotencyKey": "13923755-1299-4024-9eb0-8013b3c417f9"
+      },
+      "workReadback": {
+        "status": 404,
+        "code": "WORKBENCH_BAD_REQUEST"
+      },
+      "workbench": {
+        "status": 200,
+        "rows": [
+          {
+            "code": "A0001-P01",
+            "name": "LOCAL-CRUD-WORK-20261030",
+            "layer": "formal",
+            "handling": "none"
+          }
+        ]
+      },
+      "fullReload": {
+        "failure": null,
+        "codeButtons": 1,
+        "updatedProposalVisible": false,
+        "workingStateVisible": false
+      }
+    }
+  },
+  "checks": {
+    "normalUiCreateWork": true,
+    "normalUiAutomaticSave": true,
+    "serverUpdatedVersion2": true,
+    "fullReloadUpdatedValueObserved": true,
+    "interruptedRuntimePreservedWork": true,
+    "freshSsoBeforeCancel": true,
+    "normalUiCancel": true,
+    "canceledWorkNotFound": true,
+    "formalRowUnchanged": true,
+    "fullReloadOnlyFormalRow": true,
+    "unknownWriteNotResent": true
+  },
+  "preservedFailures": [
+    {
+      "type": "UNSUPPORTED_LEGACY_NOT_PASS",
+      "path": "PATCH /api/numbering/records/A0001",
+      "status": 503,
+      "code": "principal_route_not_migrated",
+      "note": "Canonical work journey uses existing Principal v2 work APIs; legacy root PATCH was not enabled."
+    },
+    {
+      "type": "INVALID_HARNESS_SELECTOR",
+      "note": "Exact aria-label matched cell and input before any update was sent. Corrected textbox selector."
+    },
+    {
+      "type": "RESPONSE_OBSERVATION_TIMEOUT",
+      "note": "A waiter from the failed selector later timed out while the valid update continued. Same-work GET proved rowVersion 2 and saved name; the update was not resent."
+    },
+    {
+      "type": "READINESS_WAIT_TIMEOUT",
+      "note": "Initial full-reload wait timed out during development compilation; the updated input and saved state were subsequently observed. No latency guarantee claimed."
+    },
+    {
+      "type": "INVALID_HARNESS_SELECTOR",
+      "note": "Cancel is under More operations and its confirmation is an alertdialog. Earlier waits made no cancel request; the final observed confirmation sent one idempotency key."
+    }
+  ],
+  "limits": [
+    "This is a supported canonical change-work journey, not all root/legacy CRUD or all v7 command combinations.",
+    "External project-scoped allow, remaining LS lifecycle/drift/recovery cells, fixed-port delivery and protected merge remain tracked by original tasks.",
+    "Local synthetic PostgreSQL/Chrome evidence does not replace real non-production, managed-identity lifecycle or production/release acceptance."
+  ]
+}

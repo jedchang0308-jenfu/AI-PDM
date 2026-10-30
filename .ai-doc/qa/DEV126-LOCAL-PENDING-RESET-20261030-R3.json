@@ -1,0 +1,66 @@
+{
+  "receiptId": "70b6aa87-dade-47c2-912c-a84d07e95240",
+  "recordedAt": "2026-10-30T06:14:15.621Z",
+  "status": "PASS",
+  "scope": "bounded-PDM-fixed-port-projection-and-native-abandoned-pending-reset",
+  "sourceCommit": "792aa7ec59aa166b3d08c6c26ac68608f1908ec7",
+  "coordinatorEvidence": "https://github.com/jedchang0308-jenfu/Jenfu-Platform/blob/8ec6e4a5070fdc430122ca34ebe86696846cba22/ai-doc/qa/evidence/DEV021-LOCAL-FIXED-PORT-PENDING-RESET-20261030-R6.json",
+  "coordinatorReceiptId": "c60f5fa6-716c-43c5-a2b9-bc14008a9960",
+  "environment": {
+    "kind": "local-synthetic",
+    "sandboxId": "dev021-daily-r2-20261030",
+    "origin": "http://localhost:1020",
+    "postgresPort": 49426
+  },
+  "sourceCi": {
+    "runId": 41009839571,
+    "requiredChecks": [
+      "DEV-012 Isolated PostgreSQL Cutover",
+      "Production Slice QC"
+    ],
+    "conclusion": "success"
+  },
+  "normalNavigation": {
+    "before": 1,
+    "routes": [
+      {
+        "label": "圖號工作台",
+        "path": "/numbering/drawings"
+      },
+      {
+        "label": "料號工作台",
+        "path": "/parts"
+      },
+      {
+        "label": "編號搜尋",
+        "path": "/numbering/search"
+      }
+    ],
+    "after": 1,
+    "addedPermissionQueries": 0
+  },
+  "pendingRecovery": {
+    "fixtureKind": "controlled-native-state-CAS-derived-from-real-SSO-binding",
+    "actualHttp503Injected": false,
+    "registrationId": "bd5d4860-2943-4635-9322-a469d2a05937",
+    "resetId": "58d9f309-d99f-42b3-bff3-b5c336975fac",
+    "sourceGeneration": "51411da7-a20f-430e-a3da-171bc8e8a2ac",
+    "generation": "1a2e41d1-97a0-47bd-9ad7-8f2fc428354d",
+    "status": "registration_abandoned",
+    "centralAckNull": true,
+    "nativeRegistryCountBeforeNewLogin": 0,
+    "firstResetAttemptReady": true,
+    "oldCookieReplayStatus": 401,
+    "freshNormalSsoStatus": 200
+  },
+  "fmsBusinessPreservation": {
+    "relationCount": 207,
+    "before": "2ae5ecea6a8a56152f94fb0253e8e61e37134d3c9ebfa2f5edce41d4c01bab18",
+    "after": "2ae5ecea6a8a56152f94fb0253e8e61e37134d3c9ebfa2f5edce41d4c01bab18"
+  },
+  "limits": [
+    "Native state fixture and source tests do not claim an actual callback HTTP503 outage injection.",
+    "No all-v7 write-role matrix, external project-scoped allow, full lifecycle/drift/recovery, real managed-identity, nonproduction or production completion claim.",
+    "Lower-severity source-review edge remains: a lost CREATE ROLE response may leave an unprivileged temporary login before cleanup ownership is recorded; no migrator membership or explicit database CONNECT grant has yet been applied. Not an observed authorization bypass."
+  ]
+}

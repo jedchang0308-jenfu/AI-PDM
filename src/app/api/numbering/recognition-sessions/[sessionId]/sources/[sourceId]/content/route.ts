@@ -35,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
       reauthorize: async source => {
         const token = principalSessionTokenFromRequest(request);
         if (!token) throw new DrawingRecognitionError('RECOGNITION_AUTH_SESSION_INVALID', '登入已失效，請重新登入。', 401);
-        await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+        await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
           if (verified.session.principalId !== access.actor.principalId ||
               verified.profile.pdmUserId !== access.actor.pdmUserId || verified.profile.companyId !== access.company.companyId) {
             throw new DrawingRecognitionError('RECOGNITION_VERIFIED_ACTOR_MISMATCH', '辨識發起者資料不一致。', 403);

@@ -19,6 +19,8 @@ export async function issueSessionForPrincipalHandoff(input: {
   keyRing: PlatformSessionKeyRing;
   trustPolicy: GoogleWorkspaceMfaTrustPolicy;
   nowMs?: number;
+  /** Local-only owner projection, after native first-login admission and before signing. */
+  synchronizeLocalAccountLifecycle?: (snapshot: AsyncDatabaseClient) => Promise<void>;
 }) {
   const { handoff } = input;
   const nowMs = input.nowMs ?? Date.now();
@@ -29,6 +31,15 @@ export async function issueSessionForPrincipalHandoff(input: {
   if (!Number.isFinite(authenticatedAt) || authenticatedAt > nowMs + 60_000 ||
     !Number.isFinite(proofExpiresAt)) throw new Error("HANDOFF_INVALID");
   if (proofExpiresAt <= nowMs) throw new Error("HANDOFF_EXPIRED");
+  if (input.synchronizeLocalAccountLifecycle !== undefined &&
+    (typeof input.synchronizeLocalAccountLifecycle !== "function" ||
+      handoff.identity.identityIssuer !== "urn:jenfu:local-principal-sandbox" ||
+      handoff.issuer !== "urn:jenfu:local-principal-sandbox" ||
+      process.env.NODE_ENV !== "development" || process.env.PDM_LOCAL_PRINCIPAL_SANDBOX !== "1" ||
+      process.env.K_SERVICE || process.env.K_REVISION || process.env.FUNCTION_TARGET ||
+      process.env.FUNCTION_NAME || process.env.FIREBASE_CONFIG)) {
+    throw new Error("HANDOFF_LOCAL_PROJECTION_FORBIDDEN");
+  }
 
   return input.database.transaction(async (snapshot) => {
     await snapshot.execute("SET LOCAL statement_timeout = '5s'");
@@ -96,6 +107,17 @@ export async function issueSessionForPrincipalHandoff(input: {
         principalId: handoff.identity.principalId,
         employeeId: handoff.identity.employeeId
       });
+    }
+    if (input.synchronizeLocalAccountLifecycle) {
+      // A new Principal must first pass the normal typed admission, published
+      // grants and native provisioning. Project versions in this same native
+      // transaction, then re-read the owner account before issuing any token.
+      await input.synchronizeLocalAccountLifecycle(snapshot);
+      account = await accountRepository.requireActive(handoff.identity.principalId);
+      if (account.pdmUserId !== profile.id || account.companyId !== profile.company_id ||
+        account.employeeId !== handoff.identity.employeeId || account.accountType !== typed.accountType) {
+        throw new Error("STALE_HANDOFF");
+      }
     }
     const assurance = resolvePrincipalHandoffAssurance({
       authentication: handoff.authentication, policy: input.trustPolicy

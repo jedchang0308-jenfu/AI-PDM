@@ -217,6 +217,58 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
+
+  it("admits a first native local account before projecting current lifecycle versions in the same transaction", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PDM_LOCAL_PRINCIPAL_SANDBOX", "1");
+    try {
+      const issuer = "urn:jenfu:local-principal-sandbox";
+      const localHandoff = { ...handoff, issuer, identity: { ...handoff.identity, identityIssuer: issuer } };
+      mocks.typed.mockResolvedValue({ principalId: "principal-one", employeeId: "employee-one",
+        accountType: "human_personal", identityIssuer: issuer,
+        identitySubject: handoff.identity.identitySubject, mappingVersion: 1,
+        publishedAt: "2026-09-24T00:00:00.000Z" });
+      const account = { principalId: "principal-one", pdmUserId: "pdm-user-one",
+        employeeId: "employee-one", accountType: "human_personal", companyId: "company-one",
+        lifecycleVersion: 1, profileVersion: 1, minimumAssurance: "aal1", sessionInvalidBefore: null };
+      mocks.account.mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"))
+        .mockResolvedValueOnce(account)
+        .mockResolvedValueOnce({ ...account, lifecycleVersion: 2, profileVersion: 2 });
+      const project = vi.fn(async (client: unknown) => {
+        expect(client).toBe(snapshot);
+        expect(mocks.ensureFirstLogin).toHaveBeenCalledTimes(1);
+        expect(mocks.register).not.toHaveBeenCalled();
+      });
+      const result = await issueSessionForPrincipalHandoff({ ...base, handoff: localHandoff,
+        expectedIdentityIssuer: issuer, synchronizeLocalAccountLifecycle: project });
+      expect(result.claims).toMatchObject({ accountLifecycleVersion: 2, profileVersion: 2 });
+      expect(project).toHaveBeenCalledTimes(1);
+      expect(mocks.register).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("refuses a local lifecycle hook for formal identities or production before opening a transaction", async () => {
+    const project = vi.fn(async () => undefined);
+    await expect(issueSessionForPrincipalHandoff({ ...base, synchronizeLocalAccountLifecycle: project }))
+      .rejects.toThrow("HANDOFF_LOCAL_PROJECTION_FORBIDDEN");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PDM_LOCAL_PRINCIPAL_SANDBOX", "1");
+    try {
+      const issuer = "urn:jenfu:local-principal-sandbox";
+      await expect(issueSessionForPrincipalHandoff({ ...base, expectedIdentityIssuer: issuer,
+        handoff: { ...handoff, issuer, identity: { ...handoff.identity, identityIssuer: issuer } },
+        synchronizeLocalAccountLifecycle: project })).rejects.toThrow("HANDOFF_LOCAL_PROJECTION_FORBIDDEN");
+      expect(transaction).not.toHaveBeenCalled();
+      expect(project).not.toHaveBeenCalled();
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("K_SERVICE", "cloud-runtime");
+      await expect(issueSessionForPrincipalHandoff({ ...base, expectedIdentityIssuer: issuer,
+        handoff: { ...handoff, issuer, identity: { ...handoff.identity, identityIssuer: issuer } },
+        synchronizeLocalAccountLifecycle: project })).rejects.toThrow("HANDOFF_LOCAL_PROJECTION_FORBIDDEN");
+      expect(transaction).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it("does not use a historical profile from another company", async () => {
     snapshot.queryOne.mockResolvedValueOnce({ id: "pdm-user-one", company_id: "other-company" });
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("PRINCIPAL_PROFILE_INVALID");

@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
   const { id } = await params;
   try {
-    const readAuthorized = () => withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    const readAuthorized = async () => withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       async (snapshot, verified) => {
         const resource = await authorizePrincipalSubmissionReadInSnapshot(snapshot, verified, id);
         if (resource instanceof Response) return resource;

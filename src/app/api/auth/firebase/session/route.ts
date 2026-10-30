@@ -13,6 +13,7 @@ import { exchangeFirebaseIdTokenForPlatformSession } from "@/lib/platform-identi
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
+import { isLocalPrincipalSandboxRequested } from "@/lib/local-sandbox-principal-runtime";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,15 @@ function exchangeFailure(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  try {
+    if (isLocalPrincipalSandboxRequested()) {
+      return NextResponse.json({ code: "formal_identity_forbidden_in_local_sandbox" },
+        { status: 404, headers: { "cache-control": "no-store" } });
+    }
+  } catch {
+    return NextResponse.json({ code: "auth_server_not_configured" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
   if (getAuthMode() !== "firebase_bff") {
     return NextResponse.json({ error: "Firebase BFF is disabled" }, { status: 404 });
   }

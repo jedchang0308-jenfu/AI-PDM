@@ -1,0 +1,400 @@
+import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { PassThrough } from 'node:stream'
+import os from 'node:os'
+import path from 'node:path'
+import { test } from 'node:test'
+import { DEV126_LOCAL_RESET_BASELINE_POLICY } from './dev126-local-reset-baseline-owner.mjs'
+import {
+  createDev126LocalPostgresSnapshotOwner,
+  DEV126_LOCAL_POSTGRES_SNAPSHOT_OWNER_POLICY,
+} from './dev126-local-reset-postgres-owner.mjs'
+
+const OWNER = DEV126_LOCAL_RESET_BASELINE_POLICY.ownerRole
+const SCOPED_LOGIN = 'local_pdm_seed_0123456789abcdef'
+const RUNTIME = 'jenfu_ai_pdm_runtime'
+const DATABASE = 'jenfu_local_dev126_owner_test'
+const SANDBOX = 'dev126-owner-test'
+const GENERATION = '00000000-0000-4000-8000-000000000126'
+const FINGERPRINT = 'a'.repeat(64)
+const FIXTURE_HASH = 'f'.repeat(64)
+const PASSWORD = 'fixture-secret-never-argv'
+const CONTROL = DEV126_LOCAL_RESET_BASELINE_POLICY.controlRelations
+const POINTER_SOURCES = DEV126_LOCAL_RESET_BASELINE_POLICY.pointerSources
+
+function makeInput(overrides = {}) {
+  const sandboxRoot = path.join(os.tmpdir(), 'aipdm-dev126-postgres-owner', SANDBOX)
+  const dataDirectory = path.join(sandboxRoot, 'data')
+  const repositoryDirectory = path.join(sandboxRoot, 'repository')
+  const target = {
+    applicationId: 'ai-pdm', sandboxId: SANDBOX, databaseName: DATABASE,
+    sandboxRoot, dataDirectory, repositoryDirectory,
+    generation: GENERATION, targetFingerprint: FINGERPRINT,
+  }
+  const targetMetadata = {
+    applicationId: 'ai-pdm', sandboxId: SANDBOX, databaseName: DATABASE,
+    sandboxRoot, dataDirectory, repositoryDirectory,
+    generation: GENERATION, fixtureVersion: 'jenfu.local-principal-fixtures.v1', fixtureHash: FIXTURE_HASH,
+    nativeSessionContractVersion: 'jenfu.ai-pdm-session.v2', targetFingerprint: FINGERPRINT, status: 'ready',
+  }
+  // Exercise the real baseline producer's scope instead of a parallel DTO.
+  const scope = structuredClone(DEV126_LOCAL_RESET_BASELINE_POLICY.snapshotScope)
+  return {
+    target,
+    expectedDatabase: {
+      databaseName: DATABASE, runtimeRole: RUNTIME, databaseHost: '127.0.0.1', databasePort: 15432,
+      sandboxId: SANDBOX, generation: GENERATION, targetFingerprint: FINGERPRINT,
+    },
+    runtimeTargetObservation: {
+      connection: {
+        databaseName: DATABASE, currentUser: RUNTIME, sessionUser: RUNTIME,
+        serverAddress: '127.0.0.1', serverPort: 15432,
+      },
+      targetMetadata,
+    },
+    scope,
+    ...overrides,
+  }
+}
+
+function makeHarness(options = {}) {
+  const input = makeInput(options.inputOverrides)
+  const events = []
+  const queries = []
+  const pools = []
+  const spawns = []
+  const poolPasswords = []
+  const targetRow = {
+    application_id: 'ai-pdm', sandbox_id: SANDBOX, database_name: DATABASE,
+    sandbox_root: input.target.sandboxRoot, data_directory: input.target.dataDirectory,
+    repository_directory: input.target.repositoryDirectory, generation: GENERATION,
+    fixture_version: 'jenfu.local-principal-fixtures.v1', fixture_hash: FIXTURE_HASH,
+    native_session_contract_version: 'jenfu.ai-pdm-session.v2', target_fingerprint: FINGERPRINT, status: 'ready',
+    ...options.targetRow,
+  }
+  const controls = new Set(CONTROL)
+  const relationNames = ['companies', 'file_assets', 'parts', ...CONTROL]
+    .filter((name) => name !== options.missingRelation)
+    .sort()
+  const relationOwner = options.relationOwner ?? OWNER
+  const pointerRows = options.pointerRows ?? ((table) => table === 'file_assets' ? [{
+    source_id: 'asset-1', provider: 'local_repository', key: 'assets/sample.pdf',
+    legacy_path: null, sha256: 'b'.repeat(64), bytes: '17',
+  }] : [])
+  let connectionReadCount = 0
+
+  const client = {
+    async query(sql, values = []) {
+      const normalized = sql.trim()
+      queries.push({ sql: normalized, values })
+      if (normalized.startsWith('BEGIN ')) return { rows: [] }
+      if (normalized === `SET LOCAL ROLE ${OWNER}`) {
+        events.push('role-switch')
+        return { rows: [] }
+      }
+      if (normalized === 'COMMIT' || normalized === 'ROLLBACK') {
+        events.push(normalized)
+        return { rows: [] }
+      }
+      if (normalized.includes('current_database()')) {
+        connectionReadCount += 1
+        const defaultConnection = connectionReadCount === 1 ? {
+          database_name: DATABASE, current_user: SCOPED_LOGIN, session_user: SCOPED_LOGIN,
+          server_address: '127.0.0.1', server_port: 15432,
+        } : {
+          database_name: DATABASE, current_user: OWNER, session_user: SCOPED_LOGIN,
+          server_address: '127.0.0.1', server_port: 15432,
+        }
+        const connection = connectionReadCount === 1
+          ? (options.loginConnection ?? defaultConnection)
+          : (options.ownerConnection ?? defaultConnection)
+        return { rows: [connection] }
+      }
+      if (normalized === 'SHOW transaction_read_only') return { rows: [{ transaction_read_only: 'on' }] }
+      if (normalized.includes('pg_export_snapshot')) return { rows: [{ snapshot_id: '00000003-00000001-1' }] }
+      if (normalized.includes('FROM pg_catalog.pg_namespace')) {
+        return { rows: [{ schema_owner: options.schemaOwner ?? OWNER }] }
+      }
+      if (normalized.includes('FROM ai_pdm_core.local_sandbox_target_metadata')) return { rows: [targetRow] }
+      if (normalized.includes('FROM ai_pdm_core.pdm_workbench_state_authority_control')) {
+        return { rows: [{ mode: 'canonical_only', expected_commit: 'local-dev', schema_hash: 'c'.repeat(64),
+          row_version: 3, switched_at: '2026-10-30T00:00:00.000Z' }] }
+      }
+      if (normalized.includes('principal_session_records') && normalized.includes('local_sandbox_principal_session_bindings')) {
+        return { rows: [{ principal_session_count: String(options.principalSessionCount ?? 0),
+          principal_binding_count: String(options.principalBindingCount ?? 0) }] }
+      }
+      if (normalized.includes('FROM pg_catalog.pg_class')) {
+        return { rows: relationNames.map((name) => ({ name, kind: options.foreignTable === name ? 'f' : 'r', owner: relationOwner })) }
+      }
+      if (normalized.includes('to_jsonb(t)::text')) {
+        const name = normalized.match(/ai_pdm_core\."([a-z][a-z0-9_]*)"/u)?.[1]
+        assert.ok(name, `relation summary is constrained to a quoted ai_pdm_core relation: ${normalized}`)
+        return { rows: controls.has(name) ? [] : [{ row_json: `{"id":"${name}-1"}` }] }
+      }
+      for (const table of POINTER_SOURCES) {
+        if (normalized.includes(`FROM ai_pdm_core.${table}`)) return { rows: pointerRows(table) }
+      }
+      throw new Error(`UNEXPECTED_STUB_QUERY:${normalized}`)
+    },
+    release() { events.push('release') },
+  }
+
+  function Pool(poolOptions) {
+    pools.push(poolOptions)
+    return {
+      async connect() {
+        const password = await poolOptions.password({
+          host: poolOptions.host, port: poolOptions.port, database: poolOptions.database, user: poolOptions.user,
+        })
+        poolPasswords.push(password)
+        events.push('node-pg-password-resolved')
+        return client
+      },
+      async end() { events.push('pool-end') },
+    }
+  }
+
+  function spawn(executable, args, spawnOptions) {
+    spawns.push({ executable, args, options: spawnOptions })
+    events.push('spawn')
+    const child = new EventEmitter()
+    child.stdout = new PassThrough()
+    child.stderr = new PassThrough()
+    child.kill = () => { events.push('kill'); return true }
+    setImmediate(() => {
+      child.stdout.end(Buffer.from('stub custom archive'))
+      child.stderr.end(Buffer.from(PASSWORD))
+      setImmediate(() => child.emit('close', 0, null))
+    })
+    return child
+  }
+
+  const environment = {
+    PATH: 'C:\\fake\\postgres\\bin', SystemRoot: 'C:\\Windows',
+    PGHOST: 'stale-host', PGPORT: '1', PGDATABASE: 'stale-db', PGUSER: SCOPED_LOGIN,
+    PGSERVICE: 'stale-service', PGSERVICEFILE: 'C:\\private\\service.conf', PGOPTIONS: '-c search_path=public',
+    PGTARGETSESSIONATTRS: 'read-write', PGSSLMODE: 'verify-full', PGPASSFILE: 'C:\\private\\pgpass',
+    PGPASSWORD: PASSWORD,
+    JENFU_LOCAL_SANDBOX_PLATFORM_KEY: 'platform-client-secret-must-not-reach-pg_dump',
+  }
+  const owner = createDev126LocalPostgresSnapshotOwner({ Pool, spawn, environment })
+  return { input, owner, events, queries, pools, poolPasswords, spawns, environment }
+}
+
+test('uses a scoped LOGIN, switches to the migrator role, then captures one exported snapshot', async () => {
+  const harness = makeHarness()
+  const snapshot = await harness.owner.captureAiPdmCoreSnapshot(harness.input)
+
+  assert.equal(snapshot.connection.currentUser, OWNER)
+  assert.equal(snapshot.connection.sessionUser, SCOPED_LOGIN)
+  assert.notEqual(snapshot.connection.currentUser, snapshot.connection.sessionUser)
+  assert.equal(snapshot.targetMetadata.generation, GENERATION)
+  assert.equal(snapshot.schemaOwner, OWNER)
+  assert.equal(snapshot.principalSessionCount, 0)
+  assert.equal(snapshot.principalBindingCount, 0)
+  assert.deepEqual(snapshot.dataDump.includedRelations, ['companies', 'file_assets', 'parts'])
+  assert.equal(snapshot.dataDump.format, 'custom-data-only')
+  assert.deepEqual(snapshot.storagePointers, [{
+    sourceTable: 'file_assets', sourceId: 'asset-1', provider: 'local_repository',
+    key: 'assets/sample.pdf', sha256: 'b'.repeat(64), bytes: 17,
+  }])
+
+  assert.equal(harness.pools.length, 1)
+  assert.equal(harness.pools[0].user, SCOPED_LOGIN)
+  assert.equal(harness.pools[0].database, DATABASE)
+  assert.equal(harness.pools[0].host, '127.0.0.1')
+  assert.equal(harness.pools[0].port, 15432)
+  assert.equal(typeof harness.pools[0].password, 'function')
+  assert.equal(harness.pools[0].connectionString, undefined)
+  assert.deepEqual(harness.poolPasswords, [PASSWORD])
+  assert.ok(harness.events.indexOf('node-pg-password-resolved') < harness.events.indexOf('spawn'))
+  assert.ok(!JSON.stringify(harness.pools[0]).includes(PASSWORD))
+  assert.ok(harness.events.indexOf('spawn') < harness.events.indexOf('COMMIT'))
+  assert.ok(harness.events.includes('release'))
+  assert.ok(harness.events.includes('pool-end'))
+  assert.ok(harness.events.includes('role-switch'))
+  assert.ok(harness.queries.some(({ sql }) => sql.startsWith('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')))
+  assert.deepEqual(harness.queries.filter(({ sql }) => sql.startsWith('SET ')).map(({ sql }) => sql),
+    [`SET LOCAL ROLE ${OWNER}`])
+  assert.ok(harness.queries.some(({ sql }) => sql.includes('pg_export_snapshot')))
+  assert.ok(harness.queries.every(({ sql }) => !/\b(INSERT|UPDATE|DELETE|TRUNCATE|CREATE|ALTER|DROP)\b/iu.test(sql)))
+  assert.ok(harness.queries.every(({ sql }) => !sql.includes('ai_pdm_contract') && !sql.includes('public.')))
+
+  assert.equal(harness.spawns.length, 1)
+  const [dump] = harness.spawns
+  assert.equal(dump.executable, DEV126_LOCAL_POSTGRES_SNAPSHOT_OWNER_POLICY.dumpExecutable)
+  assert.deepEqual(dump.args, [
+    '--no-password', '--host', '127.0.0.1', '--port', '15432', '--dbname', DATABASE,
+    '--format=custom', '--data-only', '--no-owner', '--no-privileges', '--schema=ai_pdm_core',
+    `--role=${OWNER}`, '--snapshot=00000003-00000001-1', '--lock-wait-timeout=5000',
+    ...CONTROL.map((name) => `--exclude-table-data=ai_pdm_core.${name}`),
+  ])
+  assert.equal(dump.options.shell, false)
+  assert.equal(dump.options.windowsHide, true)
+  assert.equal(dump.options.env.PGUSER, SCOPED_LOGIN)
+  assert.equal(dump.options.env.PGHOST, '127.0.0.1')
+  assert.equal(dump.options.env.PGPORT, '15432')
+  assert.equal(dump.options.env.PGDATABASE, DATABASE)
+  assert.equal(dump.options.env.PGPASSWORD, harness.poolPasswords[0])
+  assert.equal(dump.options.env.PGPASSFILE, undefined)
+  assert.equal(dump.options.env.PATH, 'C:\\fake\\postgres\\bin')
+  assert.equal(dump.options.env.SYSTEMROOT, 'C:\\Windows')
+  assert.equal(dump.options.env.JENFU_LOCAL_SANDBOX_PLATFORM_KEY, undefined)
+  assert.equal(dump.options.env.PGSERVICE, undefined)
+  assert.equal(dump.options.env.PGSERVICEFILE, undefined)
+  assert.equal(dump.options.env.PGOPTIONS, undefined)
+  assert.equal(dump.options.env.PGTARGETSESSIONATTRS, undefined)
+  assert.ok(!dump.args.join('\0').includes(PASSWORD))
+})
+
+test('rejects runtime-owner conflation and absent owner credentials before opening a pool', async () => {
+  const roleCollision = makeHarness({ inputOverrides: {
+    expectedDatabase: { ...makeInput().expectedDatabase, runtimeRole: OWNER },
+    runtimeTargetObservation: {
+      ...makeInput().runtimeTargetObservation,
+      connection: { ...makeInput().runtimeTargetObservation.connection, currentUser: OWNER, sessionUser: OWNER },
+    },
+  } })
+  await assert.rejects(roleCollision.owner.captureAiPdmCoreSnapshot(roleCollision.input),
+    { code: 'local_reset_owner_target_invalid' })
+  assert.equal(roleCollision.pools.length, 0)
+
+  const noCredentials = makeHarness()
+  noCredentials.environment.PGPASSWORD = ''
+  noCredentials.environment.PGPASSFILE = ''
+  const noCredentialOwner = createDev126LocalPostgresSnapshotOwner({
+    Pool: function () { assert.fail('pool must not open without owner credentials') },
+    spawn: () => assert.fail('dump must not start without owner credentials'),
+    environment: noCredentials.environment,
+  })
+  await assert.rejects(noCredentialOwner.captureAiPdmCoreSnapshot(noCredentials.input),
+    { code: 'local_reset_owner_credentials_unavailable' })
+})
+
+test('resolves one exact PGPASSFILE entry for node-pg and pg_dump', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'aipdm-dev126-pgpass-'))
+  t.after(async () => rm(directory, { recursive: true, force: true }))
+  const passfile = path.join(directory, 'pgpass.conf')
+  await writeFile(passfile, `${`127.0.0.1:15432:${DATABASE}:${SCOPED_LOGIN}:passfile-secret`}${'\n'}`, { mode: 0o600 })
+  await chmod(passfile, 0o600)
+
+  const harness = makeHarness()
+  harness.environment.PGPASSWORD = ''
+  harness.environment.PGPASSFILE = passfile
+  await harness.owner.captureAiPdmCoreSnapshot(harness.input)
+
+  assert.deepEqual(harness.poolPasswords, ['passfile-secret'])
+  assert.equal(harness.spawns[0].options.env.PGPASSWORD, harness.poolPasswords[0])
+  assert.equal(harness.spawns[0].options.env.PGPASSFILE, undefined)
+})
+
+test('rejects wildcard or mismatched PGPASSFILE entries before opening a pool', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'aipdm-dev126-pgpass-invalid-'))
+  t.after(async () => rm(directory, { recursive: true, force: true }))
+  const passfile = path.join(directory, 'pgpass.conf')
+  await writeFile(passfile, `*:15432:${DATABASE}:${SCOPED_LOGIN}:wildcard-secret\n`, { mode: 0o600 })
+  await chmod(passfile, 0o600)
+
+  const harness = makeHarness()
+  harness.environment.PGPASSWORD = ''
+  harness.environment.PGPASSFILE = passfile
+  await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+    { code: 'local_reset_owner_password_file_no_exact_match' })
+  assert.equal(harness.pools.length, 0)
+  assert.equal(harness.spawns.length, 0)
+})
+
+test('rejects incorrect offline owner connection provenance before pg_dump', async () => {
+  const harness = makeHarness({ ownerConnection: {
+    database_name: DATABASE, current_user: OWNER, session_user: 'unexpected_login',
+    server_address: '127.0.0.1', server_port: 15432,
+  } })
+  await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+    { code: 'local_reset_owner_role_switch_mismatch' })
+  assert.equal(harness.spawns.length, 0)
+  assert.ok(harness.events.includes('ROLLBACK'))
+})
+
+test('requires the scoped LOGIN pattern and verifies the real login before SET ROLE', async (t) => {
+  await t.test('rejects an owner role as PGUSER', async () => {
+    const harness = makeHarness()
+    harness.environment.PGUSER = OWNER
+    const owner = createDev126LocalPostgresSnapshotOwner({
+      Pool: function () { assert.fail('pool must not open for the NOLOGIN migrator') },
+      spawn: () => assert.fail('dump must not start for the NOLOGIN migrator'),
+      environment: harness.environment,
+    })
+    await assert.rejects(owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_login_role_invalid' })
+  })
+  await t.test('rejects a different authenticated login before role switch', async () => {
+    const harness = makeHarness({ loginConnection: {
+      database_name: DATABASE, current_user: 'some_other_login', session_user: SCOPED_LOGIN,
+      server_address: '127.0.0.1', server_port: 15432,
+    } })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_login_connection_mismatch' })
+    assert.equal(harness.spawns.length, 0)
+    assert.equal(harness.events.includes('role-switch'), false)
+  })
+  await t.test('rejects capture if the connection stayed as the LOGIN', async () => {
+    const harness = makeHarness({ ownerConnection: {
+      database_name: DATABASE, current_user: SCOPED_LOGIN, session_user: SCOPED_LOGIN,
+      server_address: '127.0.0.1', server_port: 15432,
+    } })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_role_switch_mismatch' })
+    assert.equal(harness.spawns.length, 0)
+  })
+})
+
+test('requires an empty principal registry and complete owned-table inventory before dump', async (t) => {
+  await t.test('nonempty session registry', async () => {
+    const harness = makeHarness({ principalSessionCount: 1 })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_registry_not_empty' })
+    assert.equal(harness.spawns.length, 0)
+    assert.equal(harness.queries.some(({ sql }) => sql.includes('FROM pg_catalog.pg_class')), false)
+  })
+  await t.test('missing required control relation', async () => {
+    const harness = makeHarness({ missingRelation: CONTROL[0] })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_relation_invalid' })
+    assert.equal(harness.spawns.length, 0)
+  })
+  await t.test('foreign table in schema', async () => {
+    const harness = makeHarness({ foreignTable: 'parts' })
+    await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+      { code: 'local_reset_owner_relation_invalid' })
+    assert.equal(harness.spawns.length, 0)
+  })
+})
+
+test('rejects owner, target, schema, and storage drift before pg_dump', async (t) => {
+  const cases = [
+    ['schema owner mismatch', { schemaOwner: 'other_owner' }, 'local_reset_owner_schema_mismatch'],
+    ['relation owner mismatch', { relationOwner: 'other_owner' }, 'local_reset_owner_relation_invalid'],
+    ['generation mismatch', { targetRow: { generation: '00000000-0000-4000-8000-000000000127' } },
+      'local_reset_owner_target_mismatch'],
+    ['nonlocal storage', { pointerRows: (table) => table === 'file_assets' ? [{
+      source_id: 'asset-1', provider: 'google_cloud_storage', key: 'bucket/key', legacy_path: null,
+      sha256: null, bytes: null,
+    }] : [] }, 'local_reset_owner_external_storage'],
+  ]
+  for (const [label, overrides, code] of cases) {
+    await t.test(label, async () => {
+      const harness = makeHarness(overrides)
+      await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input), { code })
+      assert.equal(harness.spawns.length, 0)
+    })
+  }
+})
+
+test('rejects malformed scope before opening a pool', async () => {
+  const harness = makeHarness({ inputOverrides: { scope: { ...makeInput().scope, excludedTableData: null } } })
+  await assert.rejects(harness.owner.captureAiPdmCoreSnapshot(harness.input),
+    { code: 'local_reset_owner_scope_invalid' })
+  assert.equal(harness.pools.length, 0)
+})

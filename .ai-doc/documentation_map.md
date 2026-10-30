@@ -1,8 +1,8 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
-## DEV-126 地端 SSO 與前端權限投影（Source／Local＋Live SSO Acceptance Complete）
+## DEV-126 地端 SSO 與前端權限投影（Local Principal Sandbox 實作中）
 
-[任務入口](dev_task.md#dev-126-frontend-permission-projection) → [契約§12 真實 SSO／權限／登出與收尾](specs/DEV-126-app-scoped-frontend-permission-projection.md) → [PR #555](https://github.com/jedchang0308-jenfu/AI-PDM/pull/555)。既有 source／local 證據保留，新增真實 service identity／SSO、三頁一次 projection、直接入口等效及全域登出驗證。Principal 撤權依使用者決定待補；合併／CI 依 provider，未正式發布，自有 runtime／lease 已釋放。
+[現行任務](dev_task.md#dev-126-frontend-permission-projection) → [§13 Principal-v2 quick login／CRUD／reset](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-principal-quick-login)。Local sandbox source／owner tests、TypeScript已通過；main 回報 task-owned PostgreSQL 已套 local-only 043／093並將 authority 綁至`local-dev`，auth／permission／料號／圖號 API回200，Chrome圖號空集合、正常建檔與搜尋讀回成功。此為本機隔離證據，不代表發布；`external_specialist` expiry／sponsor／review、allow／deny、global logout、reset、PR／CI／release仍待完成，原真實 Principal 撤權未由 synthetic 案例取代。測試限制與收據歸屬見[現行任務](dev_task.md#dev-126-frontend-permission-projection)。
 
 ## DEV-122／124 結案與 DEV-125 唯一後續入口（2026-10-28）
 

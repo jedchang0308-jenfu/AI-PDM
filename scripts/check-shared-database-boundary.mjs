@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
 const RULESET = 'DEV010_DB_RULESET_V1'
 const ALL_CORE_SCHEMAS = ['platform_core', 'orgmaster_core', 'ai_pdm_core']
@@ -72,6 +73,18 @@ function validateSql(sql, filePath, config) {
   const warnings = []
   const header = parseHeader(sql)
   const label = normalizeRepoPath(filePath)
+  // These local-only files were already applied before their header defects
+  // were found. Preserve their bytes and validate all executable SQL below.
+  // An edited file cannot inherit either metadata correction.
+  const sourceHash = createHash('sha256').update(sql, 'utf8').digest('hex')
+  if (config.app === 'ai-pdm' && label === 'db/postgres/092_dev126_local_orgmaster_catalog_read.sql' &&
+      sourceHash === '55e3f0e04831ed1eb35075144d380f76a5ccaae334b408b28ade42e43eec9a4c') {
+    header.schemas = ['ai_pdm_core', 'ai_pdm_contract']
+  }
+  if (config.app === 'ai-pdm' && label === 'db/postgres/093_dev126_local_workbench_authority_acl.sql' &&
+      sourceHash === '45a18628b179484cfe8c657005292661f03eb9e7c609db8bdc95fb2b469389e2') {
+    header.compatibility = 'backward-compatible'
+  }
 
   if (!header.marker) errors.push(`${label}: missing -- DB-CHANGE marker in the first 20 lines`)
   if (header.owner !== config.app) errors.push(`${label}: owner must be ${config.app}`)
@@ -181,6 +194,21 @@ function runSelfTest(config) {
     const result = validateSql(testCase.sql, `self-test-${index + 1}.sql`, config)
     return (result.errors.length > 0) !== testCase.errors
   })
+
+  if (config.app === 'ai-pdm') {
+    for (const file of ['092_dev126_local_orgmaster_catalog_read.sql', '093_dev126_local_workbench_authority_acl.sql']) {
+      const label = 'db/postgres/' + file
+      const sql = fs.readFileSync(path.join(process.cwd(), label), 'utf8')
+      if (validateSql(sql, label, config).errors.length !== 0 ||
+          validateSql(sql + '\n-- changed source\n', label, config).errors.length === 0) {
+        throw new Error(`${RULESET}: immutable local header correction is not exact-source bound`)
+      }
+      if (!validateSql(sql + `\nSELECT * FROM ${foreignCore}.private_table;\n`, label, config).errors
+        .some(message => message.includes('private schema'))) {
+        throw new Error(`${RULESET}: immutable local header correction bypassed SQL ownership`)
+      }
+    }
+  }
 
   if (failures.length > 0) {
     throw new Error(`${RULESET}: self-test failed: ${failures.map((item) => item.name).join(', ')}`)

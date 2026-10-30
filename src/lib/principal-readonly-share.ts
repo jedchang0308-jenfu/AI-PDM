@@ -50,7 +50,7 @@ export async function withPrincipalSharePermission<T>(
       { status: 503, headers: { "cache-control": "no-store" } });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       (snapshot, verified) => evaluate({ snapshot, verified }), { readOnly: options.readOnly !== false });
   } catch (error) {
     return principalRequestFailure(error);
@@ -73,7 +73,7 @@ export async function withPrincipalIdentityOnlyShareRoute<T>(
       { status: 503, headers: { "cache-control": "no-store" } });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       (snapshot, verified) => evaluate({ snapshot, verified }));
   } catch (error) {
     return principalRequestFailure(error);

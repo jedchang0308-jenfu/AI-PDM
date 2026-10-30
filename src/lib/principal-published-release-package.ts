@@ -46,7 +46,7 @@ export async function servePublishedReleasePackage(
   }
   const { id } = await params;
   try {
-    const readAuthorized = () => withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    const readAuthorized = async () => withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request),
       async (snapshot, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "action", permissionCode: route.permissionCode }]);

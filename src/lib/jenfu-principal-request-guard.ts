@@ -9,6 +9,8 @@ import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitl
 import { verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
+import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
+import { LOCAL_IDENTITY_ISSUER } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
 
 export class JenfuPrincipalRequestError extends Error {
   constructor(readonly code: "auth_session_invalid" | "auth_epoch_stale" | "principal_dependency_unavailable") {
@@ -139,6 +141,9 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
           throw new JenfuPrincipalRequestError("auth_session_invalid");
         }
         if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
+        if (claims.identityIssuer === LOCAL_IDENTITY_ISSUER) {
+          reportLocalPrincipalDiagnostic("principal_guard_state", error);
+        }
         throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
       }
       try { return await evaluate(client, verified); }
@@ -151,8 +156,16 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
     if (knownInactivePrincipal(error)) {
       throw new JenfuPrincipalRequestError("auth_session_invalid");
     }
-    if (error === evaluatorError && error !== undefined) throw error;
+    if (error === evaluatorError && error !== undefined) {
+      if (claims.identityIssuer === LOCAL_IDENTITY_ISSUER) {
+        reportLocalPrincipalDiagnostic("principal_guard_evaluator", error);
+      }
+      throw error;
+    }
     if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
+    if (claims.identityIssuer === LOCAL_IDENTITY_ISSUER) {
+      reportLocalPrincipalDiagnostic("principal_guard_state", error);
+    }
     throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
   }
 }

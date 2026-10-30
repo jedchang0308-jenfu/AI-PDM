@@ -81,6 +81,8 @@ const identityProtocolRoutes = new Map([
   ["GET /api/auth/jenfu-sso/callback", "jenfuSsoCallback"],
   ["GET /api/auth/jenfu-sso/start", "jenfuSsoStart"],
   ["POST /api/auth/local-quick-login", "findLocalQuickLoginAccount"],
+  ["GET /api/auth/local-sandbox/callback", "issueLocalSandboxPrincipalSession"],
+  ["GET /api/auth/local-sandbox/start", "createLocalSandboxLoginState"],
   ["GET /api/auth/login", "ensureDemoUserAsync"],
   ["POST /api/auth/login", "verifyPassword"],
   ["POST /api/auth/logout", "verifyJenfuPrincipalSession"],

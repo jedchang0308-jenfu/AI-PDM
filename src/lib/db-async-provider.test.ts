@@ -1,6 +1,32 @@
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import { createAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { createAsyncDatabaseClient, resolvePdmAsyncDatabaseSearchPath } from "@/lib/db-async-provider";
+
+describe("PostgreSQL runtime search path", () => {
+  it("pins local principal sandbox connections to the owned schema and pg_catalog", () => {
+    expect(resolvePdmAsyncDatabaseSearchPath({
+      NODE_ENV: "development",
+      PDM_LOCAL_PRINCIPAL_SANDBOX: "1"
+    })).toBe("ai_pdm_core,pg_catalog");
+  });
+
+  it("does not add public or enable the local path outside its explicit development lane", () => {
+    expect(resolvePdmAsyncDatabaseSearchPath({
+      NODE_ENV: "production",
+      PDM_LOCAL_PRINCIPAL_SANDBOX: "1"
+    })).toBeUndefined();
+    expect(resolvePdmAsyncDatabaseSearchPath({
+      NODE_ENV: "development",
+      PDM_LOCAL_PRINCIPAL_SANDBOX: "0"
+    })).toBeUndefined();
+  });
+
+  it("keeps the existing DEV010 boundary path", () => {
+    expect(resolvePdmAsyncDatabaseSearchPath({
+      DEV010_N2_DATABASE_BOUNDARY: "required"
+    })).toBe("ai_pdm_core,pg_catalog");
+  });
+});
 
 describe("SQLite application schema compatibility", () => {
   it("maps the owned ai_pdm_core schema to SQLite main without weakening sibling boundaries", async () => {

@@ -45,7 +45,7 @@ export async function GET(request: Request) {
         getJenfuEntitlementMode() !== "enforce") {
         return NextResponse.json({ error: "principal_authorization_unavailable" }, { status: 503 });
       }
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "action", permissionCode: "accounts.invitation.manage" }]);
         if (decisions.length !== 1) throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
           getJenfuEntitlementMode() !== "enforce") {
         return NextResponse.json({ error: "principal_authorization_unavailable" }, { status: 503 });
       }
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken),
+      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request),
         async (snapshot, verified) => {
           const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
             [{ permissionKind: "action", permissionCode: "accounts.lifecycle.manage" }]);
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     let body: unknown;
     try { body = JSON.parse(encoded); }
     catch { return NextResponse.json({ error: "invalid_request" }, { status: 400 }); }
-    const result = await provisionPrincipalAccount({ ...principalRequestInput(token), body });
+    const result = await provisionPrincipalAccount({ ...(await principalRequestInput(token, request)), body });
     return NextResponse.json(result, {
       status: result.replayed ? 200 : 201,
       headers: { "cache-control": "no-store" }

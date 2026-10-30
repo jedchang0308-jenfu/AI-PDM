@@ -104,7 +104,7 @@ export async function requirePrincipalNumberingPermissionAsync(
         response: Response.json({ code: "principal_authorization_unavailable" },
           { status: 503, headers: { "cache-control": "no-store" } }) };
     }
-    const result = await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async (snapshot, verified) => {
+    const result = await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async (snapshot, verified) => {
       const user = await new AsyncUserRepository(snapshot).getUserById(verified.profile.pdmUserId);
       if (!user || user.id !== verified.profile.pdmUserId ||
           user.company_id !== verified.profile.companyId) {

@@ -100,8 +100,8 @@ describe("principal drawing-work HTTP dispatch", () => {
       { params: Promise.resolve({ workId: "work-one" }) });
     expect(response.status).toBe(200);
     expect(mocks.uploadFile).toHaveBeenCalledWith("work-one",
-      expect.objectContaining({ file: expect.any(File) }), "v2-token",
-      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "file-one" }));
+      expect.objectContaining({ file: expect.any(File) }), "v2-token", request,
+      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "file-one", contractToken: "contract-one" }));
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 
@@ -119,8 +119,8 @@ describe("principal drawing-work HTTP dispatch", () => {
     }) });
     expect(response.status).toBe(200);
     expect(mocks.removeFile).toHaveBeenCalledWith(
-      "work-one", "binding-one", "v2-token",
-      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "remove-one" }));
+      "work-one", "binding-one", "v2-token", request,
+      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "remove-one", contractToken: "contract-one" }));
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
   it.each([

@@ -58,7 +58,7 @@ export async function withPrincipalCompanyRead(
       { status: 503, headers: { "cache-control": "no-store" } });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       const authorization = await authorizeInSnapshot(snapshot, verified, requestedCompany, permissions);
       if (authorization.response) return authorization.response;
       return read(snapshot, authorization.company, verified);
@@ -98,7 +98,7 @@ export async function withPrincipalCompanyWrite(
       { status: 503, headers: { "cache-control": "no-store" } });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       const authorization = await authorizeInSnapshot(snapshot, verified,
         requestedPdmCompanyCodeFromRequest(request),
         [{ permissionKind: "action", permissionCode }]);
@@ -135,7 +135,7 @@ export async function authorizePrincipalWorkspaceExternalRead(
       { status: 503, headers: { "cache-control": "no-store" } });
   }
   try {
-    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+    return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
       const authorization = await authorizeInSnapshot(snapshot, verified,
         requestedPdmCompanyCodeFromRequest(request),
         [{ permissionKind: "action", permissionCode }]);

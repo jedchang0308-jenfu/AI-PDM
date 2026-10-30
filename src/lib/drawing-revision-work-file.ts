@@ -52,11 +52,11 @@ async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
 
 /** Check before staging bytes; the write snapshot repeats every security check. */
 export async function uploadDrawingRevisionWorkFilePrincipal(input: {
-  client: AsyncDatabaseClient; token: string; workId: string; file: unknown;
+  client: AsyncDatabaseClient; token: string; request: Request; workId: string; file: unknown;
   displayName?: unknown; description?: unknown; context: CommandContext;
 }) {
   const actor = await withVerifiedJenfuPrincipalRequest(
-    { ...principalRequestInput(input.token), database: input.client },
+    { ...(await principalRequestInput(input.token, input.request)), database: input.client },
     (tx, verified) => requirePrincipalFileUpdate(tx, verified,
       input.workId, input.context.contractToken),
     { readOnly: true, isolationLevel: "repeatable_read" });
@@ -99,6 +99,7 @@ type DrawingFileUploadInput = {
   displayName?: unknown;
   description?: unknown;
   actor: DrawingFileActor;
+  request?: Request;
   context: CommandContext;
   /** Dependency-injection seam used only by isolated transaction fault tests. */
   checkpoint?: (point: DrawingRevisionWorkFileUploadCheckpoint) => void | Promise<void>;
@@ -438,7 +439,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     };
     const result = input.principalToken
       ? await withVerifiedJenfuPrincipalRequest(
-        { ...principalRequestInput(input.principalToken), database: input.client },
+        { ...(await principalRequestInput(input.principalToken, input.request!)), database: input.client },
         async (tx, verified) => {
           const currentActor = await requirePrincipalFileUpdate(tx, verified,
             input.workId, input.context.contractToken);

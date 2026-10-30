@@ -19,3 +19,8 @@ supabase/migrations/manifest.json text eol=lf
 
 # Byte-identical copy of the OrgMaster DEV-058 manager contract.
 config/access-control/orgmaster-role-policy-manager-v1.manifest.json text eol=lf
+
+# Keep local sandbox contract and migration source hashes stable on Windows.
+contracts/local-principal-sandbox/** text eol=lf
+# Preserve the exact bytes of the already-applied local ACL migration.
+db/postgres/093_dev126_local_workbench_authority_acl.sql text eol=lf whitespace=-blank-at-eof

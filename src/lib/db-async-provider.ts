@@ -13,6 +13,16 @@ export type AsyncDatabaseTransactionOptions = {
   readOnly?: boolean;
 };
 
+export function resolvePdmAsyncDatabaseSearchPath(
+  environment: Readonly<Record<string, string | undefined>> = process.env
+) {
+  const localPrincipalSandbox = environment.NODE_ENV === "development" &&
+    environment.PDM_LOCAL_PRINCIPAL_SANDBOX === "1";
+  return environment.DEV010_N2_DATABASE_BOUNDARY === "required" || localPrincipalSandbox
+    ? "ai_pdm_core,pg_catalog"
+    : undefined;
+}
+
 function isRetryablePostgresTransactionError(error: unknown) {
   const candidate = error as { code?: unknown } | null;
   return candidate?.code === "40001" || candidate?.code === "40P01";
@@ -429,6 +439,8 @@ function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
     process.env.PDM_POSTGRES_POOLER_MODE?.trim() ?? "",
     process.env.PDM_POSTGRES_MAX_CONNECTIONS?.trim() ?? "",
     process.env.DEV010_N2_DATABASE_BOUNDARY?.trim() ?? "",
+    process.env.NODE_ENV?.trim() ?? "",
+    process.env.PDM_LOCAL_PRINCIPAL_SANDBOX?.trim() ?? "",
     process.env.DEV010_N2_RUN_ID?.trim() ?? ""
   ].join("|");
 }
@@ -451,7 +463,7 @@ export function getAsyncDatabaseClient(): AsyncDatabaseClient {
       applicationName: process.env.DEV010_N2_RUN_ID?.trim()
         ? `dev010-n2-ai-pdm-${process.env.DEV010_N2_RUN_ID.trim().replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
         : "ai-pdm-postgres-runtime",
-      searchPath: process.env.DEV010_N2_DATABASE_BOUNDARY === "required" ? "ai_pdm_core,pg_catalog" : undefined
+      searchPath: resolvePdmAsyncDatabaseSearchPath()
     });
   }
   runtimeClientSignature = signature;
