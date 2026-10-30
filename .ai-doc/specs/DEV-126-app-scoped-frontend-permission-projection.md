@@ -292,6 +292,10 @@ token的sessionId、principalId／employeeId、identityIssuer／subject、epochK
 
 OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissions、scopeKinds、風險、subjectKind、direct grant及assurance政策全部沿v7。角色名稱不直接等於capability；每角色依catalog至少選一個允許及一個拒絕／越scope案例，沒有業務允許能力的角色不得為湊案例擴權。system_admin也不能省略明示grant、company或resource guard。synthetic assurance只證明本機策略測試，不代表Google MFA。
 
+2026-10-30 人類範圍決策：使用者選擇「維持目前拒絕，project 搜尋列後續業務功能」。v7 外部專員雖有 project 範圍 `numbering.search` page 定義，現有搜尋 API 只做 company／workspace 授權與查詢；本輪不為取得 allow 證據新增 project 搜尋或放寬 guard。保留 R1 對此外部角色的實際拒絕，project-scoped allow 明確標為 `FOLLOW_UP_BUSINESS_SCOPE / NOT_IMPLEMENTED`，不計為本輪合併／發布阻擋，也不記 PASS。其餘角色與既有權限驗收要求不變。
+
+後續業務功能：project 範圍編號搜尋。另行確認資料與 project 的權威關聯、server 端過濾、合法 direct assignment／有效期限與同公司／跨 project 拒絕案例後才實作；不能把現行 dynamic role-policy submission/share 路徑當成 v7 已支援的搜尋。本輪未修改角色目錄或業務授權。
+
 ### 13.3 資料與reset
 
 使用task-owned隔離PostgreSQL及`PDM_DATA_DIR`／`PDM_REPOSITORY_DIR`，由PDM owner建立合法company、profile、role priority、published authority及圖號／料號fixture；保留runtime非owner與DB boundary。圖號／料號API成功讀取、合法空集合及實際CRUD均須驗證，不能只證明SSO／選單200。資料可由synthetic baseline或經去識別工作副本建立；不帶正式帳號任用、session、credential、通知或worker目的地。
@@ -313,6 +317,8 @@ OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissi
 初期source檢查點（保留原範圍）：P126-A已建立獨立writer並核對官方基線；P126-B／C／D當時維持`IN_PROGRESS`。Source自查已加入local PostgreSQL canonical search path、DEV-090 043 local-only immutable source entry及僅綁定既有canonical row的baseline helper；owner tests`52/52`、Principal API／guard tests`44/44`、local sandbox tests`24/24`、authority/search-path tests`12 passed`、app TypeScript PASS。main另回報task-owned PG套用043／093收據並完成baseline authority readback：`canonical_only/dev090-v1/rowVersion=3/expectedCommit=local-dev`；auth/me、permissions、parts/drawings workbench API均200，Chrome圖號合法空集合、一般建檔201及搜尋讀回成功，三頁共用一次permission summary request。source／unit證據與main PG／Chrome證據分列，未代表正式驗收。未完成項目仍包括`external_specialist` expiry／sponsor／review覆蓋、完整allow／deny、global logout、reset orchestration及舊session撤銷、PR／required CI／release；DEV-090 static UI contract有兩項未解assertion，完整provider test另受共享`better-sqlite3` native binding缺失影響。任務分母持續至發布完成，不因局部PASS縮減；共用cluster狀態見Platform DEV-021 §14.14。
 
 ### 13.5 證據與結案
+
+2026-10-30 最新增量：主控 [R7 真實timeout與reset恢復](https://github.com/jedchang0308-jenfu/Jenfu-Platform/blob/5da4a38b4efaa04ba2cba2d4247ff74db6a207db/ai-doc/qa/evidence/DEV021-LOCAL-ACTUAL-FAILURE-RECOVERY-20261030-R7.json) 已驗真實Central row contention／client timeout、PDM callback安全303／native401；首次repository restore失敗後保持maintenance，以同reset ID恢復ready，四個明確舊cookie401、新正常SSO200，FMS業務摘要／草稿保留。[R8 lifecycle與UI](https://github.com/jedchang0308-jenfu/Jenfu-Platform/blob/5da4a38b4efaa04ba2cba2d4247ff74db6a207db/ai-doc/qa/evidence/DEV021-LOCAL-LIFECYCLE-LOGOUT-20261030-R8.json) 已驗全域登出、切換帳號及OrgMaster synthetic停用／撤銷／撤grant的舊session失效和新登入／入口拒絕。[R9 native admission](https://github.com/jedchang0308-jenfu/Jenfu-Platform/blob/5da4a38b4efaa04ba2cba2d4247ff74db6a207db/ai-doc/qa/evidence/DEV021-LOCAL-NATIVE-ADMISSION-20261030-R9.json) 已驗原cookie在binding pending時401、恢復原ack後200、移除該筆synthetic native record後401；runtime DELETE先被42501拒絕，負向fixture僅由已驗明隔離cluster管理身分建立，未擴runtime權限。原first failure保留；這些有界結果不代表完整P126或真實managed-identity／發布通過。外部專員project搜尋維持人類已決定的後續業務範圍。
 
 最新 native／固定埠補驗：[pending R3](../qa/DEV126-LOCAL-PENDING-RESET-20261030-R3.json) 綁定 `792aa7ec5`；兩個required CI成功，fresh native112步已實際套用095。正常1000→1020 SSO後從同筆真實binding以CAS建立受控pending／NULL ack，四App離線後公開reset首次ready；PDM native registry0、該舊binding為registration_abandoned且兩個ack仍NULL。明確舊PDM cookie重播401，fresh正常SSO200；FMS207個business relation摘要前後一致、100TWD草稿正常UI可再讀回。1020圖號／料號／搜尋換頁permission request維持1。這是native state fixture，不是實際HTTP503注入；原source-only／rollback-only結論不改寫，較大P126分母維持。
 
