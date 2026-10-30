@@ -9,6 +9,14 @@ async function loadProvider() {
   return provider;
 }
 
+function cloudSqlEnvironment() {
+  vi.stubEnv("PDM_DB_PROVIDER", "cloud_sql_postgres");
+  for (const name of ["PDM_POSTGRES_URL", "PDM_POSTGRES_ADMIN_URL", "PDM_CLOUD_SQL_PASSWORD", "GOOGLE_APPLICATION_CREDENTIALS", "DEV010_N1C_TARGET_GUARD"]) vi.stubEnv(name, "");
+  vi.stubEnv("PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME", "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg");
+  vi.stubEnv("PDM_CLOUD_SQL_DATABASE", "jenfu_stg");
+  vi.stubEnv("PDM_CLOUD_SQL_USER", "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam");
+}
+
 beforeEach(() => {
   vi.stubEnv("PDM_DB_PROVIDER", "postgres");
   // Pool construction is lazy: these tests never connect to a database.
@@ -21,6 +29,25 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL runtime process ownership", () => {
+  it("keeps all Cloud SQL timeout profiles distinct across module reloads", async () => {
+    cloudSqlEnvironment();
+    let previous = (await loadProvider()).getAsyncDatabaseClient();
+    for (const name of ["PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS", "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS", "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS", "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS"]) {
+      vi.stubEnv(name, "11000");
+      const current = (await loadProvider()).getAsyncDatabaseClient();
+      expect(current).not.toBe(previous);
+      previous = current;
+    }
+  });
+
+  it("revalidates Cloud SQL secret restrictions before reusing a cached client", async () => {
+    cloudSqlEnvironment();
+    const provider = await loadProvider();
+    provider.getAsyncDatabaseClient();
+    vi.stubEnv("GOOGLE_APPLICATION_CREDENTIALS", "C:/unused-test-credential.json");
+    expect(() => provider.getAsyncDatabaseClient()).toThrow("CLOUD_SQL_SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
+  });
+
   it("reuses one client across independently evaluated route modules and replaces it after close", async () => {
     const firstModule = await loadProvider();
     const first = firstModule.getAsyncDatabaseClient();
@@ -60,6 +87,24 @@ describe("PostgreSQL runtime process ownership", () => {
     finishDrain();
     await closing;
     expect(secondModule.getAsyncDatabaseClient()).toBe(replacement);
+    await originalClose();
+  });
+
+  it("makes another module's close wait for an in-flight drain", async () => {
+    const firstModule = await loadProvider();
+    const first = firstModule.getAsyncDatabaseClient();
+    const originalClose = first.close.bind(first);
+    let finishDrain!: () => void;
+    vi.spyOn(first, "close").mockReturnValue(new Promise<void>(resolve => { finishDrain = resolve; }));
+    const closing = firstModule.closeAsyncDatabaseClient();
+    const secondModule = await loadProvider();
+    let secondFinished = false;
+    const secondClosing = secondModule.closeAsyncDatabaseClient().then(() => { secondFinished = true; });
+    await Promise.resolve();
+    expect(secondFinished).toBe(false);
+    finishDrain();
+    await Promise.all([closing, secondClosing]);
+    expect(secondFinished).toBe(true);
     await originalClose();
   });
 });

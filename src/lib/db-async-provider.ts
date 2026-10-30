@@ -400,8 +400,10 @@ let runtimeClientSignature = "";
 // Next route bundles and development reloads can evaluate this module more
 // than once in one process. Share connections, never authorization snapshots.
 const postgresRuntimeClientsKey = Symbol.for("jenfu.ai-pdm.postgres-runtime-clients.v1");
+const postgresRuntimeDrainKey = Symbol.for("jenfu.ai-pdm.postgres-runtime-drain.v1");
 type PostgresRuntimeGlobal = typeof globalThis & {
   [postgresRuntimeClientsKey]?: Map<string, AsyncDatabaseClient>;
+  [postgresRuntimeDrainKey]?: Promise<void>;
 };
 
 function postgresRuntimeClients() {
@@ -427,25 +429,6 @@ function parseMaxConnections(value: string | undefined): number | undefined {
 
 function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
   if (kind === "sqlite") return "sqlite";
-  if (kind === "cloud_sql_postgres") {
-    return [
-      kind,
-      process.env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_HOST?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_PORT?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_DATABASE?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_USER?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_POOL_MAX?.trim() ?? "",
-      process.env.DEV010_N1C_TARGET_GUARD?.trim() ?? "",
-      process.env.DEV010_N1C_RUN_ID?.trim() ?? "",
-      process.env.PDM_DEPLOYMENT_ENV?.trim() ?? "",
-      process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? "",
-      process.env.GOOGLE_CLOUD_REGION?.trim() ?? "",
-      process.env.PDM_DATABASE_ENVIRONMENT_MARKER?.trim() ?? "",
-      process.env.DEV010_N2_DATABASE_BOUNDARY?.trim() ?? "",
-      process.env.DEV010_N2_RUN_ID?.trim() ?? ""
-    ].join("|");
-  }
   return [
     "postgres",
     process.env.PDM_POSTGRES_URL?.trim() ?? "",
@@ -460,7 +443,9 @@ function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
 
 export function getAsyncDatabaseClient(): AsyncDatabaseClient {
   const kind = normalizeRuntimeProviderKind(process.env.PDM_DB_PROVIDER);
-  const signature = getRuntimeClientSignature(kind);
+  // Validate the complete Cloud SQL profile even when a client is cached.
+  const cloudSqlConfig = kind === "cloud_sql_postgres" ? resolveCloudSqlRuntimeConfig() : null;
+  const signature = cloudSqlConfig ? JSON.stringify(cloudSqlConfig) : getRuntimeClientSignature(kind);
   const postgresClients = kind === "sqlite" ? null : postgresRuntimeClients();
   const clientKey = postgresClients ? createHash("sha256").update(signature).digest("hex") : signature;
   const existing = postgresClients?.get(clientKey);
@@ -471,7 +456,7 @@ export function getAsyncDatabaseClient(): AsyncDatabaseClient {
   if (kind === "sqlite") {
     client = createAsyncDatabaseClient({ kind, database: getDb() });
   } else if (kind === "cloud_sql_postgres") {
-    client = createAsyncDatabaseClient(resolveCloudSqlRuntimeConfig());
+    client = createAsyncDatabaseClient(cloudSqlConfig!);
   } else {
     client = createAsyncDatabaseClient({
       kind,
@@ -499,11 +484,21 @@ export async function verifyAsyncDatabaseReadiness(): Promise<void> {
 }
 
 export async function closeAsyncDatabaseClient(): Promise<void> {
+  const runtime = globalThis as PostgresRuntimeGlobal;
   const postgresClients = postgresRuntimeClients();
   const clients = new Set(postgresClients.values());
   postgresClients.clear();
   if (runtimeClient) clients.add(runtimeClient);
   runtimeClient = null;
   runtimeClientSignature = "";
-  await Promise.all([...clients].map(client => client.close()));
+  const previousDrain = runtime[postgresRuntimeDrainKey];
+  const drain = Promise.all([
+    ...(previousDrain ? [previousDrain] : []),
+    ...[...clients].map(client => client.close()),
+  ]).then(() => {});
+  runtime[postgresRuntimeDrainKey] = drain;
+  try { await drain; }
+  finally {
+    if (runtime[postgresRuntimeDrainKey] === drain) delete runtime[postgresRuntimeDrainKey];
+  }
 }
