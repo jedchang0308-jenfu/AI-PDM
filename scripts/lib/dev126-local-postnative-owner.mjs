@@ -10,7 +10,11 @@ const BASELINE_ID = 'dev126-initial-v2'
 const OWNER_LOGIN = /^local_pdm_seed_[a-f0-9]{16}$/u
 const HASH = /^[a-f0-9]{64}$/u
 const REVISION = /^[a-f0-9]{40}$/iu
-const fail = code => { throw Object.assign(new Error(code), { code }) }
+const fail = (code, cause) => {
+  const error = new Error(code, cause ? { cause } : undefined)
+  error.code = code
+  throw error
+}
 const from = (root, file) => import(pathToFileURL(path.join(root, file)).href)
 
 function isRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) }
@@ -131,11 +135,78 @@ async function openAdmin({ Client, cluster, databaseName }) {
   return client
 }
 
-async function createScopedLogin(admin, username, password, connectionLimit = 0) {
+async function readDatabaseConnectAcl(admin, databaseName, username) {
+  const result = await admin.query(`
+    SELECT has_database_privilege(target_role.oid,db.oid,'CONNECT') AS can_connect,
+           COALESCE((
+             SELECT jsonb_agg(jsonb_build_object('privilege',acl.privilege_type,'grantable',acl.is_grantable)
+                              ORDER BY acl.privilege_type)
+             FROM pg_catalog.aclexplode(COALESCE(db.datacl,pg_catalog.acldefault('d',db.datdba))) acl
+             WHERE acl.grantee=target_role.oid
+           ),'[]'::jsonb) AS direct_privileges
+    FROM pg_catalog.pg_database db
+    JOIN pg_catalog.pg_roles target_role ON target_role.rolname=$2
+    WHERE db.datname=$1
+  `, [databaseName, username])
+  if (result.rows?.length !== 1 || typeof result.rows[0].can_connect !== 'boolean' ||
+    !Array.isArray(result.rows[0].direct_privileges)) fail('PDM_DATABASE_CONNECT_ACL_READBACK_INVALID')
+  return result.rows[0]
+}
+
+function exactDatabaseConnectAcl(readback, expected) {
+  if (!readback || readback.can_connect !== expected || !Array.isArray(readback.direct_privileges)) return false
+  if (!expected) return readback.direct_privileges.length === 0
+  return readback.direct_privileges.length === 1 && exactKeys(readback.direct_privileges[0], ['privilege', 'grantable']) &&
+    readback.direct_privileges[0].privilege === 'CONNECT' && readback.direct_privileges[0].grantable === false
+}
+
+async function assertDatabaseConnectAcl(admin, databaseName, username, expected, errorCode) {
+  const readback = await readDatabaseConnectAcl(admin, databaseName, username)
+  if (!exactDatabaseConnectAcl(readback, expected)) fail(errorCode)
+}
+
+async function ensureDatabaseConnectAcl(admin, databaseName, username) {
+  const current = await readDatabaseConnectAcl(admin, databaseName, username)
+  if (exactDatabaseConnectAcl(current, true)) return
+  if (current.can_connect === false && current.direct_privileges.length === 0) {
+    await admin.query(`GRANT CONNECT ON DATABASE "${databaseName}" TO "${username}"`)
+    await assertDatabaseConnectAcl(admin, databaseName, username, true, 'PDM_DATABASE_CONNECT_GRANT_READBACK_FAILED')
+    return
+  }
+  fail('PDM_DATABASE_CONNECT_ACL_MISMATCH')
+}
+
+async function createScopedLogin(admin, { databaseName, username, password, connectionLimit = 0,
+  onCreated }) {
   const literal = (await admin.query('SELECT quote_literal($1::text) AS value', [password])).rows?.[0]?.value
   if (typeof literal !== 'string' || !/^'[0-9a-f]{64}'$/u.test(literal)) fail('PDM_SCOPED_LOGIN_CREATE_FAILED')
   await admin.query(`CREATE ROLE "${username}" LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS${connectionLimit ? ` CONNECTION LIMIT ${connectionLimit}` : ''} PASSWORD ${literal}`)
+  if (typeof onCreated === 'function') onCreated()
   await admin.query(`GRANT jenfu_ai_pdm_migrator TO "${username}"`)
+  await ensureDatabaseConnectAcl(admin, databaseName, username)
+}
+
+async function cleanupTemporaryScopedLogin(admin, databaseName, username) {
+  let firstError
+  try {
+    await admin.query(`REVOKE CONNECT ON DATABASE "${databaseName}" FROM "${username}"`)
+  } catch (error) { firstError = error }
+  try {
+    await assertDatabaseConnectAcl(admin, databaseName, username, false,
+      'PDM_SCOPED_LOGIN_CONNECT_REVOKE_READBACK_FAILED')
+  } catch (error) { firstError ??= error }
+  try {
+    await admin.query(`REVOKE jenfu_ai_pdm_migrator FROM "${username}"`)
+  } catch (error) { firstError ??= error }
+  try {
+    await admin.query(`DROP ROLE "${username}"`)
+  } catch (error) { firstError ??= error }
+  try {
+    const readback = await admin.query('SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname=$1) AS present',
+      [username])
+    if (readback.rows?.length !== 1 || readback.rows[0].present !== false) fail('PDM_SCOPED_LOGIN_DROP_READBACK_FAILED')
+  } catch (error) { firstError ??= error }
+  if (firstError) fail('PDM_SCOPED_LOGIN_CLEANUP_FAILED', firstError)
 }
 
 async function validatePersistentLogin(admin, login, input, cluster, verifyOnly) {
@@ -147,7 +218,8 @@ async function validatePersistentLogin(admin, login, input, cluster, verifyOnly)
     FROM pg_catalog.pg_roles WHERE rolname=$1`, [login.username])
   if (identity.rows?.length === 0) {
     if (verifyOnly) fail('OWNER_LOGIN_MISSING')
-    await createScopedLogin(admin, login.username, login.password, 2)
+    await createScopedLogin(admin, { databaseName: input.databaseName, username: login.username,
+      password: login.password, connectionLimit: 2 })
   } else if (identity.rows?.length !== 1) fail('OWNER_LOGIN_PRIVILEGE_MISMATCH')
   const actual = await admin.query(`SELECT rolcanlogin,rolinherit,rolsuper,rolcreatedb,rolcreaterole,rolbypassrls
     FROM pg_catalog.pg_roles WHERE rolname=$1`, [login.username])
@@ -180,6 +252,8 @@ async function runBusinessBaseline({ root, taskRoot, verifyOnly = false, Client,
     status: 'in_progress' }
   let scoped
   let ephemeralLogin
+  let operationError
+  let cleanupError
   try {
     await assertTarget(admin, input, cluster)
     const counts = await readSessionCounts(admin)
@@ -198,8 +272,8 @@ async function runBusinessBaseline({ root, taskRoot, verifyOnly = false, Client,
     if (!verifyOnly) {
       const username = `local_pdm_seed_${randomBytes(8).toString('hex')}`
       const password = randomBytes(32).toString('hex')
-      ephemeralLogin = username
-      await createScopedLogin(admin, username, password)
+      await createScopedLogin(admin, { databaseName: input.databaseName, username, password,
+        onCreated() { ephemeralLogin = username } })
       scoped = new Client({ ...cluster.adminConnection, database: input.databaseName, user: username, password,
         application_name: 'dev126-scoped-native-baseline' })
       await scoped.connect()
@@ -234,19 +308,32 @@ async function runBusinessBaseline({ root, taskRoot, verifyOnly = false, Client,
       permissionCount: result.catalogProjection.permissionCount, priorityVersion: result.rolePriority.versionCode,
       metadataTargetFingerprint: result.metadata.targetFingerprint, zeroSessionReadback: true })
   } catch (error) {
+    operationError = error
     if (audit) {
       audit.status = 'failed'
       audit.code = error.code ?? error.name
     }
     throw error
   } finally {
-    if (scoped && scoped !== admin) await scoped.end().catch(() => undefined)
+    if (scoped && scoped !== admin) {
+      try { await scoped.end() } catch (error) { cleanupError ??= error }
+    }
     if (ephemeralLogin) {
-      await admin.query(`REVOKE jenfu_ai_pdm_migrator FROM "${ephemeralLogin}"`).catch(() => undefined)
-      await admin.query(`DROP ROLE "${ephemeralLogin}"`).catch(() => undefined)
+      try { await cleanupTemporaryScopedLogin(admin, input.databaseName, ephemeralLogin) }
+      catch (error) { cleanupError ??= error }
     }
     await admin.end().catch(() => undefined)
-    if (audit) await writePrivateJsonCreateOnly(path.join(root, 'control', `pdm-business-baseline-${audit.attemptId}.json`), audit)
+    if (audit) {
+      if (cleanupError) {
+        audit.cleanupError = cleanupError.code ?? cleanupError.name
+        if (!operationError) {
+          audit.status = 'failed'
+          audit.code = 'PDM_SCOPED_LOGIN_CLEANUP_FAILED'
+        }
+      }
+      await writePrivateJsonCreateOnly(path.join(root, 'control', `pdm-business-baseline-${audit.attemptId}.json`), audit)
+    }
+    if (cleanupError && !operationError) fail('PDM_SCOPED_LOGIN_CLEANUP_FAILED', cleanupError)
   }
 }
 
@@ -261,7 +348,10 @@ async function makeBaselineLogin({ root, input, cluster, admin, verifyOnly }) {
     await writePrivateJsonCreateOnly(file, login)
   }
   await validatePersistentLogin(admin, login, input, cluster, verifyOnly)
-  if (!verifyOnly) await admin.query(`GRANT CONNECT ON DATABASE "${input.databaseName}" TO "${login.username}"`)
+  if (verifyOnly) {
+    await assertDatabaseConnectAcl(admin, input.databaseName, login.username, true,
+      'OWNER_LOGIN_DATABASE_CONNECT_ACL_MISMATCH')
+  } else await ensureDatabaseConnectAcl(admin, input.databaseName, login.username)
   return login
 }
 

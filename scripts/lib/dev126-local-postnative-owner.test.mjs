@@ -140,6 +140,8 @@ async function makeSandbox(t, { withReference = true, withBaseline = true, withS
         session_user: 'postgres', host: '127.0.0.1', port: PORT, marker: observedMarker }] }
       if (query.includes('principal_session_records')) return { rows: [{ sessions: sessionCount, bindings: bindingCount }] }
       if (query.includes('FROM pg_catalog.pg_auth_members')) return { rows: [{ rolname: 'jenfu_ai_pdm_migrator' }] }
+      if (query.includes('has_database_privilege')) return { rows: [{ can_connect: true,
+        direct_privileges: [{ privilege: 'CONNECT', grantable: false }] }] }
       if (query.includes('FROM pg_catalog.pg_roles WHERE rolname=$1')) return { rows: [{ rolcanlogin: true,
         rolinherit: false, rolsuper: false, rolcreatedb: false, rolcreaterole: false, rolbypassrls: false }] }
       throw new Error('POSTNATIVE_TEST_UNEXPECTED_QUERY')
@@ -180,6 +182,155 @@ async function makeSandbox(t, { withReference = true, withBaseline = true, withS
 
   return { root, tempRoot, platformRoot, control, baselineDirectory, login, reference, fingerprint,
     adminQueries, calls, platform, ownerTools, run }
+}
+
+function makeAclAwareClient(fixture, { persistentPrivileges = [{ privilege: 'CONNECT', grantable: false }],
+  publicConnect = false, ignoreConnectGrant = false } = {}) {
+  const roles = new Map([[fixture.login.username, { rolcanlogin: true, rolinherit: false, rolsuper: false,
+    rolcreatedb: false, rolcreaterole: false, rolbypassrls: false }]])
+  const groups = new Map([[fixture.login.username, new Set(['jenfu_ai_pdm_migrator'])]])
+  const databasePrivileges = new Map([[fixture.login.username, structuredClone(persistentPrivileges)]])
+  const events = []
+  const connectionUsers = []
+  const databasePrivilegeState = username => {
+    const direct_privileges = structuredClone(databasePrivileges.get(username) ?? [])
+      .sort((left, right) => left.privilege.localeCompare(right.privilege))
+    return { can_connect: publicConnect || direct_privileges.some(item => item.privilege === 'CONNECT'),
+      direct_privileges }
+  }
+  class AclClient {
+    constructor(options) { this.options = options }
+    async connect() {
+      const username = this.options.user
+      connectionUsers.push(username)
+      if (username === 'postgres') return
+      const role = roles.get(username)
+      const acl = databasePrivilegeState(username)
+      if (!role?.rolcanlogin || role.rolinherit || groups.get(username)?.size !== 1 ||
+        !groups.get(username)?.has('jenfu_ai_pdm_migrator') || acl.can_connect !== true ||
+        acl.direct_privileges.length !== 1 || acl.direct_privileges[0].privilege !== 'CONNECT' ||
+        acl.direct_privileges[0].grantable !== false) throw Object.assign(new Error('NOINHERIT_DATABASE_CONNECT_REQUIRED'), {
+        code: '42501',
+      })
+    }
+    async end() {}
+    async query(sql, values = []) {
+      const query = String(sql).replace(/\s+/gu, ' ').trim()
+      const safeQuery = query.replace(/PASSWORD '[a-f0-9]{64}'/iu, "PASSWORD '<redacted>'")
+      events.push({ query: safeQuery, user: this.options.user })
+      if (query.startsWith('SELECT current_database()')) return { rows: [{ database_name: DATABASE_NAME,
+        session_user: 'postgres', host: '127.0.0.1', port: PORT,
+        marker: `jenfu.local-principal-bootstrap.v1:${SANDBOX_ID}:${GENERATION}` }] }
+      if (query.includes('principal_session_records')) return { rows: [{ sessions: 0, bindings: 0 }] }
+      if (query === 'SELECT quote_literal($1::text) AS value') return { rows: [{ value: `'${values[0]}'` }] }
+      if (query.includes('has_database_privilege')) {
+        if (values[0] !== DATABASE_NAME) throw new Error('DATABASE_ACL_QUERY_TARGET_MISMATCH')
+        return { rows: [databasePrivilegeState(values[1])] }
+      }
+      if (query.startsWith('SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname=$1)')) {
+        return { rows: [{ present: roles.has(values[0]) }] }
+      }
+      if (query.includes('FROM pg_catalog.pg_roles WHERE rolname=$1')) {
+        return { rows: roles.has(values[0]) ? [structuredClone(roles.get(values[0]))] : [] }
+      }
+      if (query.includes('FROM pg_catalog.pg_auth_members')) {
+        return { rows: [...(groups.get(values[0]) ?? [])].map(rolname => ({ rolname })) }
+      }
+      if (query.startsWith('CREATE ROLE ')) {
+        const match = query.match(/^CREATE ROLE "([a-z][a-z0-9_]{0,62})" LOGIN NOINHERIT\b/u)
+        if (!match || roles.has(match[1])) throw new Error('ACL_TEST_ROLE_CREATE_INVALID')
+        roles.set(match[1], { rolcanlogin: true, rolinherit: false, rolsuper: false,
+          rolcreatedb: false, rolcreaterole: false, rolbypassrls: false })
+        groups.set(match[1], new Set())
+        databasePrivileges.set(match[1], [])
+        return { rows: [], rowCount: 1 }
+      }
+      const membershipGrant = query.match(/^GRANT jenfu_ai_pdm_migrator TO "([a-z][a-z0-9_]{0,62})"$/u)
+      if (membershipGrant) {
+        groups.get(membershipGrant[1])?.add('jenfu_ai_pdm_migrator')
+        return { rows: [], rowCount: 1 }
+      }
+      const connectGrant = query.match(/^GRANT CONNECT ON DATABASE "([a-z][a-z0-9_]{0,62})" TO "([a-z][a-z0-9_]{0,62})"$/u)
+      if (connectGrant) {
+        if (connectGrant[1] !== DATABASE_NAME) throw new Error('DATABASE_ACL_GRANT_TARGET_MISMATCH')
+        const privileges = databasePrivileges.get(connectGrant[2])
+        if (!privileges) throw new Error('DATABASE_ACL_ROLE_MISSING')
+        if (!ignoreConnectGrant && !privileges.some(item => item.privilege === 'CONNECT')) {
+          privileges.push({ privilege: 'CONNECT', grantable: false })
+        }
+        return { rows: [], rowCount: 1 }
+      }
+      const connectRevoke = query.match(/^REVOKE CONNECT ON DATABASE "([a-z][a-z0-9_]{0,62})" FROM "([a-z][a-z0-9_]{0,62})"$/u)
+      if (connectRevoke) {
+        if (connectRevoke[1] !== DATABASE_NAME) throw new Error('DATABASE_ACL_REVOKE_TARGET_MISMATCH')
+        const privileges = databasePrivileges.get(connectRevoke[2])
+        if (!privileges) throw new Error('DATABASE_ACL_ROLE_MISSING')
+        databasePrivileges.set(connectRevoke[2], privileges.filter(item => item.privilege !== 'CONNECT'))
+        return { rows: [], rowCount: 1 }
+      }
+      const membershipRevoke = query.match(/^REVOKE jenfu_ai_pdm_migrator FROM "([a-z][a-z0-9_]{0,62})"$/u)
+      if (membershipRevoke) {
+        groups.get(membershipRevoke[1])?.delete('jenfu_ai_pdm_migrator')
+        return { rows: [], rowCount: 1 }
+      }
+      const roleDrop = query.match(/^DROP ROLE "([a-z][a-z0-9_]{0,62})"$/u)
+      if (roleDrop) {
+        roles.delete(roleDrop[1])
+        groups.delete(roleDrop[1])
+        databasePrivileges.delete(roleDrop[1])
+        return { rows: [], rowCount: 1 }
+      }
+      throw new Error(`ACL_TEST_UNEXPECTED_QUERY:${safeQuery}`)
+    }
+  }
+  return { Client: AclClient, events, connectionUsers, roles, groups, databasePrivileges,
+    databasePrivilegeState }
+}
+
+function makeBusinessBaselineOwnerStub(calls) {
+  const result = { company: { created: false, companyId: 'company-jenfu' },
+    catalogProjection: { created: false, catalogVersion: 'catalog-v1', roleCount: 9, permissionCount: 10 },
+    rolePriority: { created: false, versionCode: 'priority-v1', priority: ROLE_CODES, policySha256: 'f'.repeat(64) },
+    workbenchAuthority: { bound: false, id: 1, mode: 'canonical_only', expectedCommit: 'local-dev',
+      schemaHash: 'dev090-v1', rowVersion: 5, switchedAt: '2026-10-30T00:01:00.000Z' },
+    metadata: { created: false, status: 'ready', targetFingerprint: 'e'.repeat(64) } }
+  return {
+    dev126LocalBusinessBaselineResultMaterial(value) {
+      return { companyId: value.company.companyId,
+        catalogProjection: { catalogVersion: value.catalogProjection.catalogVersion,
+          roleCount: value.catalogProjection.roleCount, permissionCount: value.catalogProjection.permissionCount },
+        rolePriority: { versionCode: value.rolePriority.versionCode, priority: value.rolePriority.priority,
+          policySha256: value.rolePriority.policySha256 },
+        workbenchAuthority: { id: value.workbenchAuthority.id, mode: value.workbenchAuthority.mode,
+          expectedCommit: value.workbenchAuthority.expectedCommit, schemaHash: value.workbenchAuthority.schemaHash,
+          rowVersion: value.workbenchAuthority.rowVersion, switchedAt: value.workbenchAuthority.switchedAt },
+        metadata: { status: value.metadata.status, targetFingerprint: value.metadata.targetFingerprint } }
+    },
+    async initializeDev126LocalBusinessBaseline(input) {
+      calls.initialize += 1
+      assert.match(input.scopedMigratorSessionUser, /^local_pdm_seed_[a-f0-9]{16}$/u)
+      return result
+    },
+  }
+}
+
+function makeNativeOwnerTools(fixture, aclClient, calls) {
+  const baselineResult = { ...fixture.reference, directory: fixture.baselineDirectory }
+  return {
+    snapshotOwnerFactory({ environment }) {
+      calls.snapshotOwner += 1
+      assert.equal(environment.PGUSER, fixture.login.username)
+      assert.deepEqual(aclClient.databasePrivilegeState(fixture.login.username), {
+        can_connect: true, direct_privileges: [{ privilege: 'CONNECT', grantable: false }],
+      })
+      return Object.freeze({})
+    },
+    runtimeTargetReaderFactory() { return Object.freeze({ async readCurrentTarget() { throw new Error('not called by stub') } }) },
+    baselineFunctions: {
+      async verify() { calls.verify += 1; return baselineResult },
+      async capture() { calls.capture += 1; return baselineResult },
+    },
+  }
 }
 
 test('native verify-only reads the pinned baseline and retains all private seed inputs without writing', async t => {
@@ -230,6 +381,106 @@ test('CLI argument handoff forwards --platform-root into runner dependencies', a
   assert.deepEqual(received, { stage: 'business-baseline', root, taskRoot, verifyOnly: true,
     dependencies: { platformRoot } })
   assert.equal(result.status, 'dependency-handoff-probed')
+})
+
+test('business capture grants exact CONNECT to a NOINHERIT temporary login and revokes before dropping it', async t => {
+  const fixture = await makeSandbox(t)
+  const acl = makeAclAwareClient(fixture, { persistentPrivileges: [] })
+  const calls = { initialize: 0 }
+  const result = await runDev126LocalPostnativeOwner({ stage: 'business-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, dependencies: { platformRoot: fixture.platformRoot, platform: fixture.platform,
+      Client: acl.Client, businessBaselineOwner: makeBusinessBaselineOwnerStub(calls) } })
+
+  const created = acl.events.find(event => event.query.startsWith('CREATE ROLE "local_pdm_seed_'))
+  assert.match(created.query, / LOGIN NOINHERIT /u)
+  const username = created.query.match(/^CREATE ROLE "([^"]+)"/u)[1]
+  const grant = acl.events.findIndex(event => event.query === `GRANT CONNECT ON DATABASE "${DATABASE_NAME}" TO "${username}"`)
+  const revoke = acl.events.findIndex(event => event.query === `REVOKE CONNECT ON DATABASE "${DATABASE_NAME}" FROM "${username}"`)
+  const drop = acl.events.findIndex(event => event.query === `DROP ROLE "${username}"`)
+  assert.ok(grant >= 0)
+  assert.ok(revoke > grant)
+  assert.ok(drop > revoke)
+  assert.equal(acl.events.filter(event => event.query.includes('has_database_privilege')).length, 3)
+  assert.equal(acl.connectionUsers.includes(username), true)
+  assert.equal(acl.roles.has(username), false)
+  assert.equal(acl.databasePrivileges.has(username), false)
+  assert.equal(calls.initialize, 1)
+  assert.equal(result.status, 'owner-local-business-baseline-committed')
+  assert.equal(acl.events.some(event => /^GRANT ALL\b/u.test(event.query)), false)
+})
+
+test('business capture rejects a CONNECT grant without exact ACL readback and still cleans up the temp login', async t => {
+  const fixture = await makeSandbox(t)
+  const acl = makeAclAwareClient(fixture, { persistentPrivileges: [], ignoreConnectGrant: true })
+  const calls = { initialize: 0 }
+
+  await assert.rejects(runDev126LocalPostnativeOwner({ stage: 'business-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, dependencies: { platformRoot: fixture.platformRoot, platform: fixture.platform,
+      Client: acl.Client, businessBaselineOwner: makeBusinessBaselineOwnerStub(calls) } }),
+  { code: 'PDM_DATABASE_CONNECT_GRANT_READBACK_FAILED' })
+
+  const created = acl.events.find(event => event.query.startsWith('CREATE ROLE "local_pdm_seed_'))
+  const username = created.query.match(/^CREATE ROLE "([^"]+)"/u)[1]
+  const revoke = acl.events.findIndex(event => event.query === `REVOKE CONNECT ON DATABASE "${DATABASE_NAME}" FROM "${username}"`)
+  const drop = acl.events.findIndex(event => event.query === `DROP ROLE "${username}"`)
+  assert.ok(revoke >= 0)
+  assert.ok(drop > revoke)
+  assert.equal(acl.roles.has(username), false)
+  assert.equal(calls.initialize, 0)
+})
+
+test('native capture grants and readbacks exact database CONNECT for the retained seed login', async t => {
+  const fixture = await makeSandbox(t)
+  const acl = makeAclAwareClient(fixture, { persistentPrivileges: [] })
+  const calls = { snapshotOwner: 0, verify: 0, capture: 0 }
+  const ownerTools = makeNativeOwnerTools(fixture, acl, calls)
+
+  const result = await runDev126LocalPostnativeOwner({ stage: 'native-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, dependencies: { platformRoot: fixture.platformRoot, platform: fixture.platform,
+      Client: acl.Client, ownerTools } })
+
+  assert.equal(result.status, 'PASS')
+  assert.deepEqual(acl.databasePrivilegeState(fixture.login.username), {
+    can_connect: true, direct_privileges: [{ privilege: 'CONNECT', grantable: false }],
+  })
+  assert.equal(acl.events.filter(event => event.query ===
+    `GRANT CONNECT ON DATABASE "${DATABASE_NAME}" TO "${fixture.login.username}"`).length, 1)
+  assert.equal(acl.events.some(event => event.query.includes(`REVOKE CONNECT ON DATABASE "${DATABASE_NAME}" FROM "${fixture.login.username}"`) ||
+    event.query === `DROP ROLE "${fixture.login.username}"`), false)
+  assert.deepEqual(calls, { snapshotOwner: 1, verify: 0, capture: 1 })
+})
+
+test('native verify-only requires exact persistent CONNECT ACL without repairing it', async t => {
+  const fixture = await makeSandbox(t)
+  const acl = makeAclAwareClient(fixture, { persistentPrivileges: [] })
+  const calls = { snapshotOwner: 0, verify: 0, capture: 0 }
+  const before = await treeSnapshot(fixture.root)
+
+  await assert.rejects(runDev126LocalPostnativeOwner({ stage: 'native-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, verifyOnly: true, dependencies: { platformRoot: fixture.platformRoot,
+      platform: fixture.platform, Client: acl.Client, ownerTools: makeNativeOwnerTools(fixture, acl, calls) } }),
+  { code: 'OWNER_LOGIN_DATABASE_CONNECT_ACL_MISMATCH' })
+
+  assert.deepEqual(calls, { snapshotOwner: 0, verify: 0, capture: 0 })
+  assert.equal(acl.events.some(event => /^(CREATE ROLE|GRANT CONNECT|REVOKE CONNECT|DROP ROLE)\b/u.test(event.query)), false)
+  assert.deepEqual(acl.databasePrivilegeState(fixture.login.username), { can_connect: false, direct_privileges: [] })
+  assert.deepEqual(await treeSnapshot(fixture.root), before)
+})
+
+test('native capture rejects extra direct database privileges instead of widening or accepting the ACL', async t => {
+  const fixture = await makeSandbox(t)
+  const initialPrivileges = [{ privilege: 'CONNECT', grantable: false }, { privilege: 'CREATE', grantable: false }]
+  const acl = makeAclAwareClient(fixture, { persistentPrivileges: initialPrivileges })
+  const calls = { snapshotOwner: 0, verify: 0, capture: 0 }
+
+  await assert.rejects(runDev126LocalPostnativeOwner({ stage: 'native-baseline', root: fixture.root,
+    taskRoot: fixture.tempRoot, dependencies: { platformRoot: fixture.platformRoot, platform: fixture.platform,
+      Client: acl.Client, ownerTools: makeNativeOwnerTools(fixture, acl, calls) } }),
+  { code: 'PDM_DATABASE_CONNECT_ACL_MISMATCH' })
+
+  assert.deepEqual(calls, { snapshotOwner: 0, verify: 0, capture: 0 })
+  assert.equal(acl.events.some(event => event.query.startsWith('GRANT CONNECT ON DATABASE')), false)
+  assert.deepEqual(acl.databasePrivilegeState(fixture.login.username).direct_privileges, initialPrivileges)
 })
 
 test('business verify-only calls the read-only owner and creates no login or receipt', async t => {
