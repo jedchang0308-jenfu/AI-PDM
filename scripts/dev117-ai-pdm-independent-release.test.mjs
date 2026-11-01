@@ -284,7 +284,7 @@ test('QA-117-011 AI_PDM-only traffic rollback', () => {
   assert.doesNotThrow(() => assertDev117RollbackReceipt(receipt, config))
   assert.throws(() => assertDev117RollbackReceipt(rehash({ ...receipt, platformMutationCount: 1 }), config), /DEV117_ROLLBACK_RECEIPT_INVALID/u)
   assert.match(workflow, /\n  failure:\r?\n[\s\S]*--stage rollback\b/u)
-  assert.match(workflow, /needs: \[preflight, build, migrate, candidate-smoke, activate-readback\]/u)
+  assert.match(workflow, /needs: \[preflight, installer, build, migrate, candidate-smoke, activate-readback\]/u)
   assert.deepEqual(currentConfig.edge, { servingDependency: false, rollbackDependency: false, ordinaryReleaseMutations: 0, disposition: 'RETAINED_UNUSED_EDGE' })
 })
 
