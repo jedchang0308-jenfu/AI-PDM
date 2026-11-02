@@ -20,6 +20,8 @@ function transactionCookieName(config: ReturnType<typeof getJenfuSsoHandoffConfi
 }
 const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
+const SSO_TRANSACTION_TTL_MS = 15 * 60_000;
+const SSO_TRANSACTION_TTL_SECONDS = SSO_TRANSACTION_TTL_MS / 1000;
 
 const BROKER_PUBLIC_FAILURES = new Map<string, number>([
   ["sso_reauthentication_required", 401],
@@ -66,7 +68,7 @@ function secret() {
 
 function mac(value: string) { return crypto.createHmac("sha256", secret()).update("jenfu-sso-transaction-v1\0").update(value).digest("base64url"); }
 function encode(value: Transaction) { const payload = Buffer.from(JSON.stringify(value), "utf8").toString("base64url"); return `${payload}.${mac(payload)}`; }
-function decode(value: string | undefined): Transaction | null {
+function decode(value: string | undefined): { transaction: Transaction; expired: boolean } | null {
   if (!value) return null;
   const split = value.lastIndexOf(".");
   if (split <= 0) return null;
@@ -76,8 +78,8 @@ function decode(value: string | undefined): Transaction | null {
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
   try {
     const result = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Transaction;
-    if (!/^[A-Za-z0-9_-]{22,256}$/u.test(result.state) || !/^[A-Za-z0-9_-]{43,128}$/u.test(result.verifier) || result.issuer.length < 1 || !Number.isSafeInteger(result.expiresAt) || result.expiresAt < Date.now() || !result.returnTo.startsWith("/") || result.returnTo.startsWith("//") || result.returnTo.includes("\\") || result.returnTo.length > MAX_RETURN_TO) return null;
-    return result;
+    if (!/^[A-Za-z0-9_-]{22,256}$/u.test(result.state) || !/^[A-Za-z0-9_-]{43,128}$/u.test(result.verifier) || result.issuer.length < 1 || !Number.isSafeInteger(result.expiresAt) || !result.returnTo.startsWith("/") || result.returnTo.startsWith("//") || result.returnTo.includes("\\") || result.returnTo.length > MAX_RETURN_TO) return null;
+    return { transaction: result, expired: result.expiresAt <= Date.now() };
   } catch { return null; }
 }
 
@@ -155,6 +157,12 @@ function readCookie(request: Request, config: ReturnType<typeof setup>) {
   try { return decodeURIComponent(value); } catch { return undefined; }
 }
 
+function transactionCookiePresent(request: Request) {
+  const names = [COOKIE, "ai_pdm_sso_tx"];
+  return request.headers.get("cookie")?.split(";").map((item) => item.trim())
+    .some((item) => names.some((name) => item.startsWith(`${name}=`))) ?? false;
+}
+
 export function safeJenfuSsoReturnTo(value: string | null | undefined) {
   if (!value) return "/";
   try {
@@ -185,7 +193,7 @@ export async function jenfuSsoStart(request: Request) {
   const response = NextResponse.redirect(authorize, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  response.cookies.set(transactionCookieName(config), encode({ state, verifier, returnTo, issuer: config.issuer, expiresAt: Date.now() + 300_000 }), { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 300 });
+  response.cookies.set(transactionCookieName(config), encode({ state, verifier, returnTo, issuer: config.issuer, expiresAt: Date.now() + SSO_TRANSACTION_TTL_MS }), { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: SSO_TRANSACTION_TTL_SECONDS });
   return response;
 }
 
@@ -194,9 +202,26 @@ export async function jenfuSsoCallback(request: Request) {
   try { config = setup(); } catch { return error("sso_request_invalid", 404); }
   if (request.method !== "GET") return error("sso_request_invalid", 405);
   const params = new URL(request.url).searchParams;
-  const tx = decode(readCookie(request, config));
+  const rawTransaction = readCookie(request, config);
+  const decoded = decode(rawTransaction);
   const code = params.get("code");
-  if (!tx || params.get("state") !== tx.state || params.get("iss") !== tx.issuer || !code || params.getAll("code").length !== 1 || params.getAll("state").length !== 1) return callbackFailure(config, "sso_request_invalid");
+  const state = params.get("state");
+  const issuer = params.get("iss");
+  const exactCallback = [...params.keys()].every((key) => ["code", "state", "iss"].includes(key))
+    && ["code", "state", "iss"].every((key) => params.getAll(key).length === 1)
+    && !!state && /^[A-Za-z0-9_-]{22,256}$/u.test(state) && !!code && code.length <= 4096 && issuer === config.issuer;
+  if (!exactCallback) return callbackFailure(config, "sso_request_invalid");
+  if (!decoded) {
+    if (transactionCookiePresent(request)) return callbackFailure(config, "sso_request_invalid");
+    return jenfuSsoStart(new Request(new URL("/api/auth/jenfu-sso/start", config.base)));
+  }
+  const { transaction: tx, expired } = decoded;
+  if (state !== tx.state || issuer !== tx.issuer) return callbackFailure(config, "sso_request_invalid");
+  if (expired) {
+    const restart = new URL("/api/auth/jenfu-sso/start", config.base);
+    restart.searchParams.set("returnTo", tx.returnTo);
+    return jenfuSsoStart(new Request(restart));
+  }
   let stage: CallbackStage = "service_identity";
   try {
     const controller = new AbortController();
