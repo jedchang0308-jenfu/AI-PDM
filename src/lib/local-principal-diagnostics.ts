@@ -6,6 +6,7 @@ export type LocalPrincipalDiagnosticStage =
   | "principal_guard_state"
   | "principal_guard_evaluator"
   | "local_sandbox_callback"
+  | "local_sandbox_quick_login"
   | "principal_http_boundary";
 
 /** Log only fixed stage, sanitized error name and stable error/SQLSTATE code in the local dev lane. */
