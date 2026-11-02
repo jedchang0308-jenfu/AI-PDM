@@ -2,6 +2,8 @@
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
 
+- 2026-11-02 Principal v2 quick-login corrective slice 已完成並合併：PR [#563](https://github.com/jedchang0308-jenfu/AI-PDM/pull/563)，merge commit `caf827a5798610fc8ee549bb00acccdf4a76711f`。`/api/auth/local-quick-login` 已移除可選 role／claims 的 legacy session 發行，固定改走 loopback `active` scenario、Platform PKCE handoff、Principal／Employee／grant／company／scope／profile／epoch 驗證及 native v2 session registration/readback；舊 role picker 與未授權自訂 claims 不再是可用入口。合併後 main CI `41376437991` SUCCESS：Production Slice QC 與 DEV-012 Isolated PostgreSQL Cutover 均通過。此為局部 corrective delivery，不改寫既有首敗或未執行證據，也不代表 DEV-126 整體 release acceptance；其餘寫入 allow／deny、lifecycle／drift／recover、固定埠交接、真實非正式整鏈及 managed Principal 撤權仍依下方分母維持未完成／DEFERRED。
+
 - 2026-10-30 真實非正式連線池修復：[native pool R1](qa/evidence/DEV126-REAL-POSTGRES-POOL-20261030-R1.json) 綁定 source `de7b8fb`，保留 SQLSTATE 53300／role limit 12 與 idle 12 首敗；process 共用、按完整設定 digest 隔離 PostgreSQL client 後，六 API 平行五輪共 30 次全 200，idle 12→6，未提高連線上限。R1 的六項測試、typecheck／lint、四系統舊 session 401、其他 Principal 不受影響及新 session/business API 200 均維持原證據時點。PR [#559](https://github.com/jedchang0308-jenfu/AI-PDM/pull/559) 已合併 `78c65b2`，required CI `41032625465` SUCCESS；PR [#560](https://github.com/jedchang0308-jenfu/AI-PDM/pull/560) 已合併 `80fd548`，required CI `41070084560` SUCCESS；#560 後續 close-failure drain 回歸為七案。本機 SQLite 相容性案例在 native binding 前置條件失敗，相關業務 assertions 未執行；既有首敗保留，未改共享依賴。綠色 CI 不改寫 R1 時點或此本機前置條件失敗。以上不代表完整 P126 或正式發布驗收。
 
 
