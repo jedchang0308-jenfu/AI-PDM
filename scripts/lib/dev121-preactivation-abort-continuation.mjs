@@ -2089,9 +2089,9 @@ async function readHistoricalOrdinaryPredecessor({ profile, transport, intent, b
     if (evidence.repair || evidence.terminalFacts.databaseDisposition !== 'FORWARD_APPLIED'
       || basis.inputFingerprint !== evidence.fingerprint) fail()
     const inherited = evidence.prepareFacts.preActivationAbortBasis
-    if (inherited?.schemaVersion !== 'ai-pdm.principal-unpublished-build-abort-basis.v1'
+    if (inherited && (inherited.schemaVersion !== 'ai-pdm.principal-unpublished-build-abort-basis.v1'
       || inherited.inheritedBasis?.schemaVersion !== 'ai-pdm.principal-prebuild-abort-basis.v1'
-      || !same(prior.baselineIntentRef, inherited.failedIntentRef) || !same(basis.releasedIntentRef, inherited.releasedIntentRef)) fail()
+      || !same(prior.baselineIntentRef, inherited.failedIntentRef) || !same(basis.releasedIntentRef, inherited.releasedIntentRef))) fail()
     const refs = { prepare: evidence.prepare.ref, migration: evidence.migration.ref, candidate: evidence.candidate.ref,
       deployment: evidence.deployment.ref, entrypoint: evidence.entry.ref, rollback: evidence.rollback.ref,
       terminal: terminal.ref, runtimeConfig: basis.stageRefs?.runtimeConfig, ...evidence.optionalRefs }
@@ -2120,6 +2120,18 @@ async function readHistoricalOrdinaryPredecessor({ profile, transport, intent, b
       || revision.containers.find(row => row.name === profile.runtime.containerName).image !== failed.proof.artifactDigest) fail()
     const priorBinding = currentMigrationBinding({ profile, intent: prior, paths, migration: evidence.migration,
       deployment: evidence.deployment, run, failed })
+    // R145 and older ordinary FORWARD_APPLIED aborts may point directly from
+    // the predecessor capsule to the already-serving RELEASED anchor.  That
+    // legacy shape has no inherited unpublished/zero-build basis.  Keep this
+    // compatibility path narrow: the predecessor must explicitly name the
+    // same released anchor, retain the exact current basis refs/proof, and
+    // the immutable execution inventory must contain exactly the predecessor
+    // and current migration executions before the released proof is consumed.
+    if (!inherited) {
+      if (!same(prior.baselineIntentRef, basis.releasedIntentRef)) fail()
+      await assertHistoricalMigrationAbsence(profile, transport, prior, paths, run, [priorBinding, binding], { allowDirectPredecessor: true })
+      return consume(await transport.readJson(basis.releasedIntentRef, bucket, ['receipts']), basis.releasedIntentRef, [basis])
+    }
     const consumeReleased = (released, releasedRef, retainedBases) => {
       if (retainedBases.length !== 2 || !same(releasedRef, basis.releasedIntentRef)) fail()
       return consume(released, releasedRef, [basis, ...retainedBases])
@@ -2222,7 +2234,69 @@ function historicalExecutionArguments(execution) {
     || values.get('--output-ref').split('/').slice(3).some(part => !part || part === '.' || part === '..')) fail()
   return { container: containers[0], values }
 }
-async function assertHistoricalMigrationAbsence(profile, transport, intent, paths, run, bindings) {
+function knownNonMigrationExecutionArguments(execution, bucket) {
+  const containers = execution.template?.containers
+  if (!Array.isArray(containers) || containers.length !== 1 || containers[0].name !== 'migration'
+    || !Array.isArray(containers[0].args)) return null
+  const args = containers[0].args
+  const definitions = [
+    {
+      flags: ['--permission-operation-ref', '--permission-operation-sha256', '--source-revision', '--permission-output-ref'],
+      operation: '--permission-operation-ref', hash: '--permission-operation-sha256', output: '--permission-output-ref',
+      operationPattern: /^gs:\/\/.+\/source\/rd-permission-readback\/[A-Za-z0-9._-]+\.json$/u,
+      outputPattern: /^gs:\/\/.+\/receipts\/(?:releases|diagnostics)\/[A-Za-z0-9._/-]+\.json$/u,
+    },
+    {
+      flags: ['--runtime-operation-ref', '--runtime-operation-sha256', '--source-revision', '--runtime-database-output-ref'],
+      operation: '--runtime-operation-ref', hash: '--runtime-operation-sha256', output: '--runtime-database-output-ref',
+      operationPattern: /^gs:\/\/.+\/source\/(?:openswx-dispatch-recovery|preview-openswx-runtime-readback)\/[A-Za-z0-9._/-]+\.json$/u,
+      outputPattern: /^gs:\/\/.+\/receipts\/diagnostics\/[A-Za-z0-9._/-]+\/database\.json$/u,
+    },
+    {
+      flags: ['--openswx-dispatch-recovery-operation-ref', '--openswx-dispatch-recovery-operation-sha256', '--source-revision', '--openswx-dispatch-recovery-output-ref'],
+      operation: '--openswx-dispatch-recovery-operation-ref', hash: '--openswx-dispatch-recovery-operation-sha256', output: '--openswx-dispatch-recovery-output-ref',
+      operationPattern: /^gs:\/\/.+\/source\/openswx-dispatch-recovery\/[A-Za-z0-9._/-]+\.json$/u,
+      outputPattern: /^gs:\/\/.+\/receipts\/releases\/[A-Za-z0-9._/-]+\/recovery\.json$/u,
+    },
+    {
+      flags: ['--dev125-openswx-retirement-operation-ref', '--operation-sha256', '--source-revision', '--output-ref'],
+      operation: '--dev125-openswx-retirement-operation-ref', hash: '--operation-sha256', output: '--output-ref',
+      operationPattern: /^gs:\/\/.+\/source\/openswx-dispatch-recovery\/dev125-retirement-cleanup\/[A-Za-z0-9._/-]+\.json$/u,
+      outputPattern: /^gs:\/\/.+\/receipts\/releases\/DEV125-OPENSWX-RETIREMENT\/[A-Za-z0-9._/-]+\/cleanup\.json$/u,
+    },
+  ]
+  const flag = value => typeof value === 'string' ? /^(--[a-z][a-z0-9-]*)(?:=.+)?$/u.exec(value)?.[1] : undefined
+  const present = args.map(flag).filter(Boolean)
+  const definition = definitions.find(row => row.flags.length === present.length
+    && row.flags.every(name => present.filter(value => value === name).length === 1)
+    && present.every(name => row.flags.includes(name)))
+  if (!definition) {
+    const diagnosticSpecific = new Set(definitions.flatMap(row => row.flags.filter(name => !['--source-revision', '--output-ref'].includes(name))))
+    if (present.some(name => diagnosticSpecific.has(name))) fail()
+    return null
+  }
+  const allowed = new Set(definition.flags)
+  const values = new Map()
+  for (let i = 0; i < args.length; i++) {
+    const item = args[i]
+    if (typeof item !== 'string') fail()
+    const match = /^(--[a-z][a-z0-9-]*)(?:=(.+))?$/u.exec(item)
+    if (!match || !allowed.has(match[1]) || values.has(match[1])) fail()
+    const value = match[2] ?? args[++i]
+    if (typeof value !== 'string' || !value || value.startsWith('--')) fail()
+    values.set(match[1], value)
+  }
+  const refs = [values.get(definition.operation), values.get(definition.output)]
+  const safeRef = value => typeof value === 'string' && value.startsWith(`gs://${bucket}/`)
+    && value.split('/').slice(3).every(part => part && part !== '.' && part !== '..')
+  if (values.size !== definition.flags.length || !refs.every(safeRef)
+    || !definition.operationPattern.test(values.get(definition.operation) ?? '')
+    || !/^[a-f0-9]{64}$/u.test(values.get(definition.hash) ?? '')
+    || !/^[a-f0-9]{40}$/u.test(values.get('--source-revision') ?? '')
+    || !definition.outputPattern.test(values.get(definition.output) ?? '')) fail()
+  return { container: containers[0], values }
+}
+async function assertHistoricalMigrationAbsence(profile, transport, intent, paths, run, bindings, { allowDirectPredecessor = false } = {}) {
   const window = closedOwnerWindow(run)
   // Bindings are constructed only by the fixed current/prior native proof
   // readers above, never by caller input or an arbitrary historical allowlist.
@@ -2230,7 +2304,10 @@ async function assertHistoricalMigrationAbsence(profile, transport, intent, path
     || new Set(bindings.map(row => row.name)).size !== bindings.length
     || new Set(bindings.map(row => row.args[5])).size !== bindings.length
     || new Set(bindings.map(row => row.args[7])).size !== bindings.length
-    || bindings.some(row => window.end >= row.window.start)) fail()
+    || (!allowDirectPredecessor && bindings.some(row => window.end >= row.window.start))
+    || (allowDirectPredecessor && (bindings.length !== 2
+      || bindings[0].window.start < window.start || bindings[0].window.end > window.end
+      || bindings[1].window.start <= window.end))) fail()
   if (bindings.length === 2 && bindings[0].window.end >= bindings[1].window.start) fail()
   const expected = new Map(bindings.map(row => [row.name, row])), counts = new Map(bindings.map(row => [row.name, 0]))
   const job = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
@@ -2257,8 +2334,17 @@ async function assertHistoricalMigrationAbsence(profile, transport, intent, path
         if (typeof count !== 'number' || !Number.isInteger(count) || count < 0 || (name === 'runningCount' && count !== 0)) fail()
       }
       names.add(execution.name); inventory.push(execution)
+      const nonMigration = knownNonMigrationExecutionArguments(execution, profile.artifact.releaseBucket)
+      if (nonMigration) {
+        if (nonMigration.values.get('--permission-output-ref') === paths.migrate) fail()
+        continue
+      }
       const { container, values } = historicalExecutionArguments(execution)
-      if ((created <= window.end && completed >= window.start) || values.get('--source-revision') === intent.sourceRevision || values.get('--output-ref') === paths.migrate) fail()
+      const expectedBinding = expected.get(execution.name)
+      const directExpected = allowDirectPredecessor && expectedBinding
+        && same(container.args, expectedBinding.args) && container.image === expectedBinding.image
+      if ((!directExpected && (created <= window.end && completed >= window.start))
+        || (!directExpected && (values.get('--source-revision') === intent.sourceRevision || values.get('--output-ref') === paths.migrate))) fail()
       if (created >= window.start) {
         const binding = expected.get(execution.name)
         if (!binding) fail()

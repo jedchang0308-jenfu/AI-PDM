@@ -250,12 +250,14 @@ function ordinaryAbortFixture() {
     const cloudBuild = buildRecord(source, buildId, sourceObject, image); builds.set(buildId, cloudBuild)
     const provenance = put(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: source, sourceObject, artifactDigest: image, cloudBuild, artifactRegistry: { uri: image }, status: 'PASS' })
     const build = seal('build', { artifactDigest: image, sourceObject, provenanceReceiptRef: provenance.ref }, prepare.ref)
+    const migrationBundle = put(`gs://${bucket}/source/migration-bundles/${source}/${intent.migrationManifestSha256}.json`, { manifestSha256: intent.migrationManifestSha256 })
     const deployment = put(paths.deployment, { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: 'ai-pdm', sourceRevision: source,
-      artifactDigest: image, releaseIntentRef: intentRow.ref, releaseIntentSha256: intentRow.ref.sha256, buildReceiptRef: build.ref, deadlineAt: intent.deadlineAt })
+      artifactDigest: image, releaseIntentRef: intentRow.ref, releaseIntentSha256: intentRow.ref.sha256, buildReceiptRef: build.ref, deadlineAt: intent.deadlineAt,
+      migrationBundleRef: migrationBundle.ref, migrationRunnerDigest })
     const migrationCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: source,
       database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: intent.migrationManifestSha256,
       baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 27, applied: 0, replayed: 27,
-      crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }], boundaryStatus: 'PASS', executionName: 'own/job/execution',
+      crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }], boundaryStatus: 'PASS', executionName: `ai-pdm-prod-migration-runner-${source.slice(0, 12)}`,
       startedAt: '2026-09-30T00:02:00Z', completedAt: '2026-09-30T00:03:00Z', status: 'PASS' }
     const migration = put(paths.migrate, { ...migrationCore, receiptSha256: sha256(canonicalize(migrationCore)) })
     const migrationAdmission = put(paths.migrationAdmission, stageReceipt({ profile, intent, stage: 'migrate',
@@ -1914,6 +1916,65 @@ async function decisionOrdinaryAbortFixture() {
   return { ...h, ordinary, ordinaryRun, ordinaryBasis, ordinaryExecution, currentRun, execution, executions, verify, decision }
 }
 
+async function legacyDirectOrdinaryAbortFixture() {
+  const h = ordinaryAbortFixture()
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', ledger: 'ai_pdm_core.schema_migrations', migrationBootstrap: true, principalContractLedgerFloor: 35 }
+  const prior = h.failed
+  const priorRun = { id: '42', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: prior.intent.sourceRevision,
+    createdAt: '2026-09-30T00:00:00Z', updatedAt: '2026-09-30T00:05:00Z' }
+  h.ownerRun.id = priorRun.id; h.ownerRun.headSha = priorRun.headSha
+  h.ownerRun.createdAt = priorRun.createdAt; h.ownerRun.updatedAt = priorRun.updatedAt
+  const priorBasis = (await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })).authorityBasis
+  const f = h.release({ source: 'c'.repeat(40), releaseId: 'DEV122-LEGACY-DIRECT-ABORT', revision: 'ai-pdm-prod-444444444444',
+    previous: previousRevision, imageDigit: '1', anchorRef: prior.intentRow.ref, preActivationAbortBasis: priorBasis })
+  const { receiptSha256: _seal, ...originalMigration } = h.objects.get(f.paths.migrate).value
+  const migrationCore = { ...originalMigration, executionName: 'ai-pdm-prod-migration-runner-cccccccccccc', startedAt: '2026-10-02T00:02:00Z', completedAt: '2026-10-02T00:03:00Z' }
+  const migration = h.put(f.paths.migrate, { ...migrationCore, receiptSha256: sha256(canonicalize(migrationCore)) })
+  const migrationAdmission = h.put(f.paths.migrationAdmission, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'migrate',
+    previousReceiptRef: h.objects.get(f.paths.deployment).ref, facts: { migrationReceiptRef: migration.ref, disposition: 'FORWARD_APPLIED',
+      sourceRevision: f.intent.sourceRevision, manifestSha256: f.intent.migrationManifestSha256 }, observedAt: '2026-10-02T00:03:10Z' }))
+  const candidate = f.seal('candidate', { ...h.objects.get(f.paths.candidate).value.facts, migrationReceiptRef: migration.ref,
+    migrationAdmissionRef: migrationAdmission.ref, deploymentCapsuleRef: h.objects.get(f.paths.deployment).ref,
+    tagUri: candidateOrigin, tag: candidateTag }, migrationAdmission.ref)
+  const entry = f.seal('entrypoint', h.objects.get(f.paths.entrypoint).value.facts, candidate.ref)
+  const smoke = { ...structuredClone(h.objects.get(h.anchor.paths.verify).value.facts.smoke), candidateRevision: f.revision,
+    artifactDigest: f.image, origin: candidateOrigin }
+  const verify = h.put(f.paths.verify, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'verify', previousReceiptRef: entry.ref,
+    facts: { candidateRevision: f.revision, artifactDigest: f.image, candidateReceiptRef: candidate.ref, entrypointReceiptRef: entry.ref,
+      tagUri: candidateOrigin, providerTagUri: candidateOrigin, sideEffects: h.profile.sideEffects, smoke }, observedAt: '2026-10-02T00:04:00Z' }))
+  const decision = h.put(f.paths.decision, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'decision', previousReceiptRef: verify.ref,
+    facts: { candidateRevision: f.revision, artifactDigest: f.image, decision: 'GO', remainingHumanAction: 0, verifyReceiptRef: verify.ref }, observedAt: '2026-10-02T00:04:10Z' }))
+  const rollbackFacts = { ...h.objects.get(f.paths.rollback).value.facts, migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  const rollback = f.seal('rollback', rollbackFacts, entry.ref)
+  const terminalFacts = { ...h.objects.get(f.paths.terminal).value.facts, migrationAdmissionRef: migrationAdmission.ref, migrationEvidenceRef: migration.ref }
+  f.seal('terminal', terminalFacts, rollback.ref)
+  const currentRun = { id: '45', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: f.intent.sourceRevision,
+    createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-10-02T00:05:00Z' }
+  Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
+    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/45', candidateRevision: f.revision,
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
+  h.control()
+  h.transport.readOwnerRun = async (_p, ref) => ref.endsWith('/42') ? priorRun : currentRun
+  const executionFor = (intent, paths, deployment, executionName, createdAt, completedAt) => ({
+    name: `projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/${executionName}`,
+    createTime: createdAt, completionTime: completedAt, succeededCount: 1, failedCount: 0, cancelledCount: 0, runningCount: 0, taskCount: 1,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: { containers: [{ name: 'migration', image: deployment.value.migrationRunnerDigest, args: [
+      '--bundle-ref', deployment.value.migrationBundleRef.uri, '--bundle-sha256', deployment.value.migrationBundleRef.sha256,
+      '--source-revision', intent.sourceRevision, '--output-ref', paths.migrate,
+    ] }] },
+  })
+  const priorExecution = executionFor(prior.intent, prior.paths, h.objects.get(prior.paths.deployment), prior.migration.value.executionName,
+    '2026-09-30T00:01:00Z', '2026-09-30T00:04:00Z')
+  const currentExecution = executionFor(f.intent, f.paths, h.objects.get(f.paths.deployment), migrationCore.executionName,
+    '2026-10-02T00:01:00Z', '2026-10-02T00:04:00Z')
+  const request = h.transport.request
+  h.transport.request = (url, ...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')
+    ? { executions: [priorExecution, currentExecution] } : request(url, ...args)
+  h.failed = f; h.helperInput.baselineIntentRef = f.intentRow.ref
+  return { ...h, prior, priorBasis, priorRun, currentRun, currentExecution, priorExecution, verify, decision }
+}
+
 test('B32 fixed ordinary predecessor retains native released anchor, sealed GO and two completed migrations cold/warm/next prepare', async () => {
   const h = await decisionOrdinaryAbortFixture(), control = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
@@ -1932,6 +1993,26 @@ test('B32 fixed ordinary predecessor retains native released anchor, sealed GO a
   assert.deepEqual((await executeOwnerStage(next.input)).ref, prepared.ref)
   assert.deepEqual(prepared.value.facts.preActivationAbortBasis.stageRefs.decision, h.decision.ref)
   assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, control)
+})
+
+test('legacy direct ordinary forward-applied predecessor retains only its named released anchor and exact two-execution history', async () => {
+  const h = await legacyDirectOrdinaryAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const cold = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  const warm = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.deepEqual(warm, cold)
+  assert.deepEqual(cold.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+  assert.deepEqual(cold.authorityBasis.failedIntentRef, h.failed.intentRow.ref)
+  assert.equal(cold.authorityBasis.failedProof.disposition, 'migration_only')
+  assert.equal(h.calls.puts, 0)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+})
+
+test('legacy direct ordinary predecessor rejects an extra or unbound migration execution before publication', async () => {
+  const h = await legacyDirectOrdinaryAbortFixture()
+  h.transport.request = url => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')
+    ? { executions: [h.priorExecution, h.currentExecution, { ...h.currentExecution, name: h.currentExecution.name + '-extra' }] } : {}
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(h.calls.puts, 0)
 })
 
 test('B32 fixed ordinary predecessor rejects verified GO, native history and retained boundary drift without publication', async () => {
