@@ -81,7 +81,13 @@ function staticScan() {
   const failure = section(source, 'failure')
   if (!failure.includes('--stage rollback') || !failure.includes('aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com')) fail('DEV117_QC_ROLLBACK_BOUNDARY_INVALID')
   const actionLines = source.split(/\r?\n/u).map((line) => line.trim().replace(/^-\s+/u, '')).filter((line) => line.startsWith('uses:'))
-  const allowedActions = new Set(['uses: actions/checkout@v4', 'uses: actions/setup-node@v4', 'uses: google-github-actions/auth@v3'])
+  const allowedActions = new Set([
+    'uses: actions/checkout@v4',
+    'uses: actions/setup-node@v4',
+    'uses: actions/download-artifact@v4',
+    'uses: actions/upload-artifact@v4',
+    'uses: google-github-actions/auth@v3',
+  ])
   if (actionLines.some((line) => !allowedActions.has(line))) fail('DEV117_QC_ACTION_VERSION_INVALID')
   return { yamlParsed: true, stageCount: currentConfig.workflow.jobs.length, actionVersionsChecked: actionLines.length, forbiddenMatches: 0 }
 }
