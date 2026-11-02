@@ -266,13 +266,15 @@ Native=`AIPDM/DEV-126#local-principal-quick-login`；來源=`JENFU/DEV-021#local
 
 ### 13.1 現況與實作責任
 
-2026-10-29來源盤點：`local-quick-login-config.ts`只有Engineer、R&D Manager、Admin、Manufacturing、Procurement五個legacy demo帳號；`/api/auth/local-quick-login`呼叫`issueRegisteredLegacySessionCookieAsync`，且目前與`firebase_bff`互斥。這不符合本輪Principal v2目標。
+2026-10-29來源盤點（歷史）：`local-quick-login-config.ts`只有Engineer、R&D Manager、Admin、Manufacturing、Procurement五個legacy demo帳號；`/api/auth/local-quick-login`呼叫`issueRegisteredLegacySessionCookieAsync`，且目前與`firebase_bff`互斥。這不符合本輪Principal v2目標。以下 2026-11-02 的 corrective slice 已取代這段歷史實作，但不改寫原始缺口證據。
 
 新quick login選擇allowlisted synthetic scenario，經Platform唯一local issuer取得已登錄parent session及短效handoff，再由PDM驗證active Principal／Employee、published grant、company／scope、profile及epoch，交易登錄native session後回ack，才交付cookie。保留POST同源／CSRF及HttpOnly cookie；browser不得任意指定role／claims。既有route可延用但實作需移除此路徑對legacy cookie發行／User.role／email fallback的依賴，不能以固定Admin或補一個簽名跳過backing state。
 
 Principal session權威為`src/lib/jenfu-principal-session.ts`的`jenfu.ai-pdm-session.v2`，registry為`src/lib/jenfu-principal-session-registry.ts`的`ai_pdm_core.principal_session_records`；`src/lib/platform-session-v2.ts`是另一套legacy User／UID BFF v2，不能混稱。沿`jenfu-principal-handoff-session-service.ts`既有typed admission、account lifecycle、canonical authEpoch、revokedBefore、Employee與profile／company、published grant檢查；local adapter換的是可信fixture來源，不移除檢查。
 
 token的sessionId、principalId／employeeId、identityIssuer／subject、epochKind=principal、authEpoch、accountLifecycleVersion、profileVersion、companyId、times、assuranceLevel／secondFactor／policyHash，需與registry及current state一致。共用sandbox generation／fixture／catalog join由adapter與registry關聯保存；嚴格native claims parser不得塞入未知欄位或省略必要欄位。未登錄、撤銷、版本不符及中央unavailable的session不得進入受保護資料路徑。
+
+2026-11-02 corrective slice 已合併 [PR #563](https://github.com/jedchang0308-jenfu/AI-PDM/pull/563)（merge `caf827a5798610fc8ee549bb00acccdf4a76711f`）。`/api/auth/local-quick-login` 現在只接受空 body，固定選取 allowlisted `active` scenario，經 Platform PKCE handoff 後由 PDM 驗證 Principal／Employee／published grant／company／scope／profile／epoch，再建立 native v2 session、registry record 與中央 readback；不再發行 legacy role／claims session，browser 也不能選任意 role 或 claims。合併後 main CI [#41376437991](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/41376437991) 通過；本地無依賴 subset 為 `27 pass / 1 skip`，完整本地套件檢查仍受 worktree 未安裝 `pg`／`tsc` 阻塞。這只關閉 quick-login 的 source／CI corrective slice，不等於 P126-B 的完整真PG負向矩陣或 P126-G release acceptance。
 
 ### 13.2 v7九角色契約
 
@@ -307,10 +309,10 @@ OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissi
 | 待辦 | 交付／依賴 | 完成條件 |
 |---|---|---|
 | P126-A 來源重綁 | 原DEV-126目錄目前供`codex/faster-workbench-navigation-20261029`使用，本輪HEAD=`b9c1e31d9`；先建／選專屬writer並安全收斂適用官方基線 | 保留效能任務與既有diff；共用profile／版本join及source可定位 |
-| P126-B Principal quick login | Platform DEV-021 issuer＋OrgMaster DEV-060 fixtures；替換legacy發行路徑、完成native registry與ack | 真PG登錄readback，pending／缺record／錯epoch與wrong company／scope拒絕 |
+| P126-B Principal quick login | Platform DEV-021 issuer＋OrgMaster DEV-060 fixtures；替換legacy發行路徑、完成native registry與ack；PR #563 已合併 | source corrective slice、required CI及固定`active` scenario已完成；真PG登錄readback、pending／缺record／錯epoch與wrong company／scope拒絕仍須以隔離環境逐案驗證 |
 | P126-C 九角色與provider | v7原定義＋既有PdmPermissionProvider | 九角色allow／deny、無grant、hash／profile mismatch、帳號切換／late response；三頁純換頁新增permission request=0 |
 | P126-D CRUD／reset | B、C及task-owned DB／repository | 圖號／料號讀取與合法CRUD、reset回baseline、舊session不復活、外部effect=0、失敗maintenance |
-| P126-E PR／CI／地端交付 | 相關source收斂；一個active PR | focused regressions、planner選定checks；SQL變更才DB boundary、受影響型別／build；required CI、protected main merge；1020／12020 Chrome旅程及交接 |
+| P126-E PR／CI／地端交付 | 相關source收斂；一個active PR；PR #563 已合併並由 main CI #41376437991 重驗 | quick-login corrective slice 的 source／required CI／protected main merge 已完成；1020／12020 Chrome旅程、完整本地依賴驗證及跨專案交接仍沿原分母追蹤 |
 | P126-F 真實鏈與發布準備 | 正式auth／data路徑受影響時完成真實非正式回歸；平台A～J的G／H | 正式與local issuer完全分隔、正式profile拒絕quick login／reset；舊正式SSO相容、回復baseline可用 |
 | P126-G 發布／驗收／結案 | 沿現行app-owned release spec §26、planner及required provider gate | exact source／artifact／native receipt、served version、正常正式PDM權限／受影響資料及local拒絕；依原owner recovery；任務與主控回填 |
 
