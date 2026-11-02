@@ -35,7 +35,7 @@
       "check:db-boundary": "node scripts/check-shared-database-boundary.mjs",
       "dev-117:release": "node scripts/dev117-ai-pdm-independent-release.mjs",
       "qc:dev-117:release-adapter": "node scripts/qc-dev-117-ai-pdm-independent-release.mjs",
-      "qc:production-deployment-pipeline": "node scripts/qc-production-deployment-pipeline.mjs",
+      "qc:production-deployment-pipeline": "node --test scripts/run-production-dependency-audit.test.mjs && node scripts/qc-production-deployment-pipeline.mjs",
       "test:dev-117:release-adapter": "node --test scripts/dev117-ai-pdm-independent-release.test.mjs",
       "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false"
     }
@@ -238,5 +238,5 @@
       "latest"
     ]
   },
-  "profileSha256": "bec327b3d8d0f774ec79e8c3dec8ce4762d26656b4b1d7301c5c19cf7b7be7a4"
+  "profileSha256": "1e0e506acea785f8068eaee723683e58c154ce993bce893f32b23e34076aa980"
 }

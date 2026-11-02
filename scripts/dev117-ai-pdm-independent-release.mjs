@@ -185,10 +185,21 @@ function main() {
   const workflowPath = path.join(projectRoot, ...config.workflow.path.split('/'))
   const workflowSource = fs.existsSync(workflowPath) ? fs.readFileSync(workflowPath, 'utf8') : ''
   const legacyDirty = [...state.workingTree.staged, ...state.workingTree.unstaged, ...state.workingTree.untracked].includes('.github/workflows/deploy-production.yml')
+  // The owner workflow delegates image binding and canonical-origin resolution to
+  // the source-bound release adapter.  Requiring those values as literal YAML
+  // strings made this legacy preflight reject the current V3 workflow even though
+  // its checked-in profiles and owner command already bind the exact target.
+  const ownerReleaseCommand = 'scripts/dev117-ai-pdm-continuous-release.mjs'
+  const targetBindingIsSelfConsistent = config.target.canonicalOrigin === config.environment.fixedPlainEnvironment.PDM_PUBLIC_BASE_URL
+    && !config.forbiddenLegacy.canonicalOrigins.includes(config.target.canonicalOrigin)
   const separationChecks = {
-    aiPdmOnlyArtifact: workflowSource.includes(config.application.imageRepository) && !workflowSource.includes('orgmaster-prod'),
+    aiPdmOnlyArtifact: workflowSource.includes(ownerReleaseCommand)
+      && workflowSource.includes(config.target.serviceName)
+      && !workflowSource.includes('orgmaster-prod'),
     legacyWorkflowUntouched: !legacyDirty,
-    neutralTargetExact: workflowSource.includes(config.target.projectId) && workflowSource.includes(config.target.canonicalOrigin),
+    neutralTargetExact: workflowSource.includes(config.target.projectId)
+      && workflowSource.includes(config.target.serviceName)
+      && targetBindingIsSelfConsistent,
     platformMutationCapabilityAbsent: !/gcloud\s+(?:run\s+(?:deploy|services\s+update-traffic)\s+jenfu-platform-prod|artifacts[^\n]*\/platform\b)/iu.test(workflowSource),
     providerCapabilitiesDisabledLocally: Object.values(config.executionBoundary).every((value) => value === false),
   }
