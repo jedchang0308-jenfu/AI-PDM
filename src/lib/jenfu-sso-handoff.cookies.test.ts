@@ -46,6 +46,7 @@ describe('SSO transaction cookie transport',()=>{
     expect(cookie.startsWith(`${name}=`)).toBe(true);
     expect(/; secure/iu.test(cookie)).toBe(secure);
     expect(cookie).toMatch(/; Path=\//iu);expect(cookie).toMatch(/; HttpOnly/iu);expect(cookie).toMatch(/; SameSite=lax/iu);
+    expect(cookie).toMatch(/; Max-Age=900/iu);
     expect(cookie).not.toMatch(/; Domain=/iu);
     const location=new URL(start.headers.get('location')!);
     const callback=new URL('/api/auth/jenfu-sso/callback',base);
@@ -66,5 +67,29 @@ describe('SSO transaction cookie transport',()=>{
     const result=await jenfuSsoCallback(new Request(callback,{headers:{cookie}}));
     expect(service).not.toHaveBeenCalled();
     expect(result.headers.get('location')).toContain('auth_error=sso_request_invalid');
+  });
+  it('restarts an expired 15-minute transaction with a fresh state and PKCE binding',async()=>{
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-11-02T00:00:00.000Z'));
+      const start=await jenfuSsoStart(new Request('http://127.0.0.1:3000/api/auth/jenfu-sso/start?returnTo=%2Fparts'));
+      const firstAuthorize=new URL(start.headers.get('location')!);
+      const callback=new URL('/api/auth/jenfu-sso/callback','http://127.0.0.1:3000');
+      callback.search=new URLSearchParams({code:'expired-code',state:firstAuthorize.searchParams.get('state')!,iss:'http://localhost:4000/api/sso'}).toString();
+      vi.advanceTimersByTime(15*60_000);
+
+      const restarted=await jenfuSsoCallback(new Request(callback,{headers:{cookie:start.headers.get('set-cookie')!.split(';')[0]}}));
+
+      expect(restarted.status).toBe(303);
+      const freshAuthorize=new URL(restarted.headers.get('location')!);
+      expect(freshAuthorize.origin).toBe('http://localhost:4000');
+      expect(freshAuthorize.pathname).toBe('/api/sso/authorize');
+      expect(freshAuthorize.searchParams.get('state')).not.toBe(firstAuthorize.searchParams.get('state'));
+      expect(freshAuthorize.searchParams.get('code_challenge')).not.toBe(firstAuthorize.searchParams.get('code_challenge'));
+      expect(restarted.headers.get('set-cookie')).toMatch(/Max-Age=900/iu);
+      expect(service).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
