@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, LockKeyhole, LogIn, X } from "lucide-react";
 import type { AuthMode, FirebaseWebConfig } from "@/lib/auth-config";
-import { LOCAL_QUICK_LOGIN_ACCOUNTS, type LocalQuickLoginAccount } from "@/lib/local-quick-login-config";
 import {
   exchangeFirebaseBffSession,
   firebaseLoginErrorMessage,
@@ -104,10 +103,8 @@ export default function LoginPage() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
-  const [localQuickLoginEnabled, setLocalQuickLoginEnabled] = useState(false);
   const [localPrincipalSandbox, setLocalPrincipalSandbox] = useState(false);
   const [ssoHandoffEnabled, setSsoHandoffEnabled] = useState(false);
-  const [quickLoginRole, setQuickLoginRole] = useState<string | null>(null);
   const [modeState, setModeState] = useState<LoginModeState>("loading");
   const modeRequestGeneration = useRef(0);
   const modeAbortController = useRef<AbortController | null>(null);
@@ -133,7 +130,6 @@ export default function LoginPage() {
     setAuthMode(null);
     setGoogleOAuthEnabled(false);
     setFirebaseConfig(null);
-    setLocalQuickLoginEnabled(false);
     setLocalPrincipalSandbox(false);
     setSsoHandoffEnabled(false);
     try {
@@ -145,7 +141,6 @@ export default function LoginPage() {
       setAuthMode(body.authMode);
       setGoogleOAuthEnabled(body.googleOAuth?.enabled === true);
       setFirebaseConfig(body.firebase?.config ?? null);
-      setLocalQuickLoginEnabled(body.localQuickLogin === true);
       setLocalPrincipalSandbox(body.localPrincipalSandbox === true);
       setSsoHandoffEnabled(body.ssoHandoffEnabled === true);
       setModeState("ready");
@@ -271,31 +266,6 @@ export default function LoginPage() {
     setNotice("");
   }
 
-  async function quickLogin(account: LocalQuickLoginAccount) {
-    setLoading(true);
-    setQuickLoginRole(account.role);
-    setError("");
-    setNotice("");
-    try {
-      const response = await fetch("/api/auth/local-quick-login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ role: account.role })
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(body.error ?? "本機快速登入失敗");
-        return;
-      }
-      window.location.href = loginReturnTo();
-    } catch {
-      setError("本機快速登入失敗，請確認地端伺服器仍在執行。");
-    } finally {
-      setLoading(false);
-      setQuickLoginRole(null);
-    }
-  }
-
   const employeeAliasLogin = authMode === "firebase_bff" && email.trim().length > 0 && !email.includes("@");
 
   return (
@@ -314,36 +284,6 @@ export default function LoginPage() {
               {loading ? "正在前往本機測試登入…" : "使用鉦富平台本機測試身分"}
             </button>
             <p className="login-provider-note">僅使用隔離 sandbox 的虛構身分與權限資料。</p>
-          </div>
-        ) : null}
-
-        {localQuickLoginEnabled && authMode !== "firebase_bff" ? (
-          <div className="local-quick-login-card" aria-label="地端快速登入">
-            <div className="local-quick-login-heading">
-              <span>地端快速登入</span>
-              <strong>選擇角色即可登入</strong>
-              <p>僅本機開發環境開放，不需要輸入密碼。</p>
-            </div>
-            <div className="local-quick-login-list">
-              {LOCAL_QUICK_LOGIN_ACCOUNTS.map((account) => (
-                <button
-                  className="local-quick-login-option"
-                  key={account.role}
-                  type="button"
-                  disabled={loading}
-                  aria-label={`以${account.label}角色快速登入`}
-                  onClick={() => quickLogin(account)}
-                >
-                  <span className="local-quick-login-option-copy">
-                    <strong>{account.label}</strong>
-                    <small>{account.role}</small>
-                  </span>
-                  <span className="local-quick-login-option-action">
-                    {quickLoginRole === account.role ? "登入中…" : "快速登入"}
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
         ) : null}
 

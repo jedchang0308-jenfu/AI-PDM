@@ -80,7 +80,7 @@ const identityProtocolRoutes = new Map([
   ["GET /api/auth/google/start", "beginGoogleOAuth"],
   ["GET /api/auth/jenfu-sso/callback", "jenfuSsoCallback"],
   ["GET /api/auth/jenfu-sso/start", "jenfuSsoStart"],
-  ["POST /api/auth/local-quick-login", "findLocalQuickLoginAccount"],
+  ["POST /api/auth/local-quick-login", "issueLocalPrincipalQuickLoginSession"],
   ["GET /api/auth/local-sandbox/callback", "issueLocalSandboxPrincipalSession"],
   ["GET /api/auth/local-sandbox/start", "createLocalSandboxLoginState"],
   ["GET /api/auth/login", "ensureDemoUserAsync"],

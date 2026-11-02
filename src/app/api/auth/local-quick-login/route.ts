@@ -1,37 +1,48 @@
 import { NextResponse } from "next/server";
-import { createAuditLogAsync } from "@/lib/audit-async";
-import { issueRegisteredLegacySessionCookieAsync } from "@/lib/account-session-registry";
-import { serializeAuthUserAsync } from "@/lib/company-context";
+import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
 import {
-  ensureLocalQuickLoginUserAsync,
-  findLocalQuickLoginAccount,
-  isLocalQuickLoginAvailable
+  createLocalPrincipalSessionCookie,
+  isLocalPrincipalSandboxRequested,
+} from "@/lib/local-sandbox-principal-runtime";
+import {
+  getLocalSandboxPrincipalRuntime,
+  isLocalQuickLoginAvailable,
+  issueLocalPrincipalQuickLoginSession,
 } from "@/lib/local-quick-login";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!isLocalQuickLoginAvailable(request)) {
-    return NextResponse.json({ error: "本機快速登入未開放" }, { status: 404 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const account = findLocalQuickLoginAccount(String(body.role ?? ""));
-  if (!account) return NextResponse.json({ error: "未知的快速登入角色" }, { status: 400 });
-
   try {
-    const user = await ensureLocalQuickLoginUserAsync(account);
-    await createAuditLogAsync({
-      actorId: user.id,
-      action: "Login",
-      detail: { email: user.email, role: user.role, source: "local-quick-login" }
-    });
-    return NextResponse.json(
-      { user: await serializeAuthUserAsync(user) },
-      { headers: { "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user }) } }
-    );
+    if (!isLocalPrincipalSandboxRequested() || !isLocalQuickLoginAvailable(request)) {
+      return NextResponse.json({ error: "本機 Principal v2 快速登入未開放" }, { status: 404,
+        headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+    }
+
+    const body = await request.clone().json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 0) {
+      return NextResponse.json({ error: "本機快速登入不接受角色或 claims" }, { status: 400,
+        headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+    }
+
+    const runtime = await getLocalSandboxPrincipalRuntime();
+    const issued = await issueLocalPrincipalQuickLoginSession(request, runtime);
+    const response = NextResponse.json({
+      authenticated: true,
+      principalId: issued.claims.principalId,
+      employeeId: issued.claims.employeeId,
+      sessionExpiresAt: new Date(issued.claims.expiresAt * 1000).toISOString(),
+    }, { headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+    response.headers.append("set-cookie", createLocalPrincipalSessionCookie(
+      issued.token,
+      runtime.config.sandboxId,
+      new Date(issued.claims.expiresAt * 1000).toISOString(),
+      runtime.config.origin,
+    ));
+    return response;
   } catch (error) {
-    console.error("[local-quick-login] failed", error);
-    return NextResponse.json({ error: "本機快速登入建立失敗，請查看地端伺服器記錄" }, { status: 500 });
+    reportLocalPrincipalDiagnostic("local_sandbox_quick_login", error);
+    return NextResponse.json({ error: "本機 Principal v2 快速登入暫時無法使用" }, { status: 503,
+      headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
   }
 }
