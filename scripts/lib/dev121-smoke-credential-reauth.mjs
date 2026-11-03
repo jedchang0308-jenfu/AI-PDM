@@ -119,14 +119,15 @@ export function assertExpectedPair(claims, expected) {
 }
 export function assertFreshAuthTime(claims, nowMs = Date.now(), maxAgeSeconds = EXPECTED.maxAuthAgeSeconds) {
   const nowSeconds = Math.floor(nowMs / 1000)
+  const authAgeSeconds = nowSeconds - claims?.auth_time
   if (!Number.isInteger(claims?.auth_time) || claims.auth_time > nowSeconds + 30 ||
-      nowSeconds - claims.auth_time < 0 || nowSeconds - claims.auth_time > maxAgeSeconds) fail('PASSWORD_AUTH_TIME_STALE')
+      authAgeSeconds < -30 || authAgeSeconds > maxAgeSeconds) fail('PASSWORD_AUTH_TIME_STALE')
   return true
 }
 export function resolveFreshPasswordAuthTime(claims, account, nowMs = Date.now(), maxAgeSeconds = EXPECTED.maxAuthAgeSeconds) {
   const nowSeconds = Math.floor(nowMs / 1000)
-  const fresh = (value) => Number.isInteger(value) && value <= nowSeconds + 30 &&
-    nowSeconds - value >= 0 && nowSeconds - value <= maxAgeSeconds
+  const fresh = (value) => Number.isInteger(value) && nowSeconds - value >= -30 &&
+    nowSeconds - value <= maxAgeSeconds
   if (fresh(claims?.auth_time)) return claims.auth_time
   const lastLoginAtMs = Number(account?.lastLoginAt)
   const lastLoginAtSeconds = Number.isFinite(lastLoginAtMs) ? Math.floor(lastLoginAtMs / 1000) : Number.NaN
