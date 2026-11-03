@@ -123,6 +123,16 @@ export function assertFreshAuthTime(claims, nowMs = Date.now(), maxAgeSeconds = 
       nowSeconds - claims.auth_time < 0 || nowSeconds - claims.auth_time > maxAgeSeconds) fail('PASSWORD_AUTH_TIME_STALE')
   return true
 }
+export function resolveFreshPasswordAuthTime(claims, account, nowMs = Date.now(), maxAgeSeconds = EXPECTED.maxAuthAgeSeconds) {
+  const nowSeconds = Math.floor(nowMs / 1000)
+  const fresh = (value) => Number.isInteger(value) && value <= nowSeconds + 30 &&
+    nowSeconds - value >= 0 && nowSeconds - value <= maxAgeSeconds
+  if (fresh(claims?.auth_time)) return claims.auth_time
+  const lastLoginAtMs = Number(account?.lastLoginAt)
+  const lastLoginAtSeconds = Number.isFinite(lastLoginAtMs) ? Math.floor(lastLoginAtMs / 1000) : Number.NaN
+  if (fresh(claims?.iat) && fresh(lastLoginAtSeconds)) return lastLoginAtSeconds
+  fail('PASSWORD_AUTH_TIME_STALE')
+}
 export function assertAccountLookup(account, expectedSubject) {
   if (!account || account.localId !== expectedSubject || account.disabled !== false || account.emailVerified !== true) fail('FIREBASE_ACCOUNT_STATE_INVALID')
   return true
@@ -283,10 +293,10 @@ export async function runReauthentication({
         signedIn.localId !== expected.subject) fail('PASSWORD_SIGN_IN_INVALID')
     const claims = await adapter.verifyIdToken(signedIn.idToken, now())
     assertExpectedPair(claims, expected)
-    assertFreshAuthTime(claims, now())
-    authTime = claims.auth_time
+    const account = await adapter.lookupAccount(signedIn.idToken)
+    assertAccountLookup(account, expected.subject)
+    authTime = resolveFreshPasswordAuthTime(claims, account, now())
     authenticatedAt = new Date(now()).toISOString()
-    assertAccountLookup(await adapter.lookupAccount(signedIn.idToken), expected.subject)
     const created = await adapter.createPlatformSession(signedIn.idToken)
     if (created?.status !== 200) fail('PLATFORM_SESSION_CREATE_FAILED')
     sessionCookie = safeCookie(created.cookie)
