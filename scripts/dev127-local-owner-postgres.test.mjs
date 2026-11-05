@@ -21,7 +21,10 @@ const root=new URL('../',import.meta.url)
 const alignmentSql=await readFile(new URL('db/postgres/local/097_dev127_local_owner_alignment.sql',root),'utf8')
 const migrationSource=await readFile(new URL('db/postgres/096_dev127_platform_super_admin_consumer.sql',root),'utf8')
 const migrationSql=deriveAiPdmMigration('db/postgres/096_dev127_platform_super_admin_consumer.sql',migrationSource).output
-const connect=async(database='postgres')=>{const value=new Client({connectionString:endpoint.href,database});await value.connect();return value}
+const connect=async(database='postgres')=>{
+  const owned=new URL(endpoint.href);owned.pathname=`/${database}`
+  const value=new Client({connectionString:owned.href});await value.connect();return value
+}
 
 test('CI disposable component repairs only exact local ownership/ACL, installs original096 atomically, preserves data and upgrades via CAS/receipt',async()=>{
   const admin=await connect();let client

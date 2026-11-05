@@ -49,7 +49,7 @@ export async function inspectLocalOwnerDatabase(database, target) {
   const relations = (await database.query(`SELECT c.oid,n.nspname||'.'||c.relname AS name,c.relkind,
     pg_get_userbyid(c.relowner) AS owner,coalesce(c.relacl::text,'') AS acl,c.relrowsecurity,c.relforcerowsecurity,c.reloptions,
     CASE WHEN c.relkind='v' THEN pg_get_viewdef(c.oid,true) ELSE NULL END AS definition,
-    (SELECT jsonb_agg(jsonb_build_object('number',a.attnum,'name',a.attname,'type',a.atttypid,'modifier',a.atttypmod,
+    (SELECT jsonb_agg(jsonb_build_object('number',a.attnum,'name',a.attname,'type',a.atttypid::integer,'modifier',a.atttypmod,
       'notNull',a.attnotnull,'default',pg_get_expr(d.adbin,d.adrelid)) ORDER BY a.attnum)
       FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
       WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped) AS columns,
