@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process'
 const H40 = /^[a-f0-9]{40}$/u
 
 export const MIGRATION_RUNNER_EXECUTABLE_INPUTS = Object.freeze([
+  'config/access-control/dev127-protected-policy-source.v1.json',
+  'config/access-control/role-policy-editor-registry.v3.json',
   'config/release/dev012-ai-pdm-production-data-cutover.json',
   'infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile',
   'infra/google-cloud/dev-117-production-release/migration-runner/package-lock.json',
@@ -15,6 +17,8 @@ export const MIGRATION_RUNNER_EXECUTABLE_INPUTS = Object.freeze([
   'scripts/lib/dev121-migration-fence.mjs',
   'scripts/lib/dev121-unlinked-profile-cleanup.mjs',
   'scripts/lib/dev122-rd-permission-state-readback.mjs',
+  'scripts/lib/dev127-role-policy-upgrade.mjs',
+  'scripts/lib/dev127-catalog-job.mjs',
 ])
 
 function fail(code) {

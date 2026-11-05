@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import roleCatalogJson from '../../config/access-control/jenfu-role-catalog.v7.json' with { type: 'json' }
-import registryJson from '../../config/access-control/role-policy-editor-registry.v2.json' with { type: 'json' }
+import registryJson from '../../config/access-control/role-policy-editor-registry.v3.json' with { type: 'json' }
 import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server'
 
-export const ROLE_POLICY_WORKSPACE_CONTRACT = 'ai-pdm.role-policy-workspace.v3' as const
-export const ROLE_POLICY_PUBLICATION_FORMAT = 'dynamic-policy-v1' as const
+export const ROLE_POLICY_WORKSPACE_CONTRACT = 'ai-pdm.role-policy-workspace.v4' as const
+export const ROLE_POLICY_PUBLICATION_FORMAT = 'dynamic-policy-v2' as const
 export const ROLE_POLICY_CANONICALIZATION = 'jenfu.canonical-json.v1' as const
 
 export type RolePolicyStatus = 'active' | 'inactive'
@@ -27,7 +27,7 @@ export type RolePolicyBusinessAction = {
   legacyOperationBindings: Array<{ kind: 'page' | 'action'; code: string }>;
 }
 export type RolePolicyRegistry = {
-  contractVersion: 'ai-pdm.role-policy-editor-registry.v2'; applicationId: 'ai-pdm';
+  contractVersion: 'ai-pdm.role-policy-editor-registry.v3'; applicationId: 'ai-pdm';
   roleSchemaId: 'ai-pdm.role-schema.flexible.v2'; roleProfileSchemaId: 'ai-pdm.role-profile-schema.v1';
   policyReaderCompatibilityId: 'ai-pdm.role-policy-reader.grouped.v2';
   limits: { maxRoles: number; maxChanges: number; maxRoleChanges: number; maxRequestBytes: number; maxCandidateBytes: number };
@@ -82,11 +82,23 @@ function withRoleHash(role: Omit<RolePolicyRole, 'roleDefinitionHash'>): RolePol
     roleDefinitionHash: sha256CanonicalJson(roleDefinitionPayload(role)) }
 }
 
+/** Source-owned management-only role. Assignment is exclusively an OrgMaster grant. */
+export const applicationAdministratorRole = withRoleHash({
+  stableRoleId: 'role-application-system-admin', roleCode: 'application_system_admin', displayName: '應用系統管理員',
+  assignable: false, risk: 'critical', subjectKind: 'principal', recommendationAllowed: false,
+  delegationAllowed: false, allowedScopeKinds: ['global'], assignmentTier: 'app_admin',
+  metadata: null, roleStatus: 'active', permissions: [
+    ...['settings.admin_matrix', 'pdm.drawing.view', 'pdm.part.view', 'pdm.model.view', 'pdm.transfer.view',
+      'pdm.shared_model.view', 'handoff.published.view', 'numbering.workspace.view'].map(code => ({ kind: 'action' as const, code, allowed: true })),
+    ...['numbering.drawings.view', 'numbering.request', 'numbering.tasks'].map(code => ({ kind: 'page' as const, code, allowed: true }))
+  ]
+})
+
 export function validateRolePolicyRegistry(value: RolePolicyRegistry = registry) {
-  if (value.contractVersion !== 'ai-pdm.role-policy-editor-registry.v2' || value.applicationId !== 'ai-pdm' ||
+  if (value.contractVersion !== 'ai-pdm.role-policy-editor-registry.v3' || value.applicationId !== 'ai-pdm' ||
       value.roleSchemaId !== 'ai-pdm.role-schema.flexible.v2' || value.roleProfileSchemaId !== 'ai-pdm.role-profile-schema.v1' ||
       value.policyReaderCompatibilityId !== 'ai-pdm.role-policy-reader.grouped.v2') throw new Error('ROLE_POLICY_REGISTRY_INVALID')
-  if (value.roleProfiles.length !== 9 || value.roleProfiles.filter(profile => profile.assignmentDisposition === 'selectable').length !== 7 ||
+  if (value.roleProfiles.length !== 10 || value.roleProfiles.filter(profile => profile.assignmentDisposition === 'selectable').length !== 7 ||
       value.businessActions.length !== 20 || value.legacyBindings.length !== 66 || value.protectedBindings.length !== 9) {
     throw new Error('ROLE_POLICY_REGISTRY_COVERAGE_INVALID')
   }
@@ -98,7 +110,7 @@ export function validateRolePolicyRegistry(value: RolePolicyRegistry = registry)
     }
     actionKeys.add(key)
   }
-  const baselineIds = baseCatalog.roles.map(role => role.stableRoleId)
+  const baselineIds = [...baseCatalog.roles.map(role => role.stableRoleId), 'role-application-system-admin']
   if (JSON.stringify(value.roleProfiles.map(profile => profile.stableRoleId)) !== JSON.stringify(baselineIds)) {
     throw new Error('ROLE_POLICY_REGISTRY_PROFILE_INVALID')
   }
@@ -137,6 +149,7 @@ function systemAdminPermissions() {
 }
 
 export const protectedPolicyHash = sha256CanonicalJson({
+  applicationAdministrator: applicationAdministratorRole,
   systemAdmin: { ...identity(baseCatalog.roles[8]), roleStatus: 'active', permissions: systemAdminPermissions() },
   frozenEntries: baseCatalog.roles.slice(0, 8).map(role => ({ stableRoleId: role.stableRoleId,
     permissions: normalizedPermissions(role.permissions) }))
@@ -148,7 +161,7 @@ function equalCanonical(left: unknown, right: unknown) {
 
 function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfile[]) {
   const invalid = (): never => { throw new Error('ROLE_POLICY_CANDIDATE_INVALID') }
-  if (!Array.isArray(roles) || !Array.isArray(profiles) || roles.length < baseCatalog.roles.length ||
+  if (!Array.isArray(roles) || !Array.isArray(profiles) || roles.length < baseCatalog.roles.length + 1 ||
       roles.length > rolePolicyRegistry.limits.maxRoles || profiles.length !== roles.length) invalid()
   const ids = new Set<string>(); const codes = new Set<string>(); const names = new Set<string>()
   const reservedNames = new Set([...baseCatalog.roles.map(role => role.displayName),
@@ -161,8 +174,11 @@ function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfi
         ids.has(role.stableRoleId) || codes.has(role.roleCode) || names.has(role.displayName) ||
         !['active', 'inactive'].includes(role.roleStatus) || !Array.isArray(role.permissions)) invalid()
     ids.add(role.stableRoleId); codes.add(role.roleCode); names.add(role.displayName)
+    const administrator = role.stableRoleId === applicationAdministratorRole.stableRoleId
     const builtin = baseCatalog.roles[index]
-    if (builtin) {
+    if (administrator) {
+      if (!equalCanonical(role, applicationAdministratorRole) || !equalCanonical(profile, rolePolicyRegistry.roleProfiles[9])) invalid()
+    } else if (builtin) {
       if (!equalCanonical(identity(role), identity(builtin)) ||
           !equalCanonical(profile, rolePolicyRegistry.roleProfiles[index])) invalid()
     } else {
@@ -173,7 +189,7 @@ function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfi
           !equalCanonical(identity(role), { stableRoleId: role.stableRoleId, roleCode: role.roleCode,
             displayName: role.displayName, ...template }) ||
           !equalCanonical(profile, { stableRoleId: role.stableRoleId, permissionRoleId: role.stableRoleId,
-            presentationName: role.displayName, presentationOrder: index - 2, assignmentDisposition: 'selectable' })) invalid()
+            presentationName: role.displayName, presentationOrder: index - 2 - (roles.slice(0, index).some(entry => entry.stableRoleId === applicationAdministratorRole.stableRoleId) ? 1 : 0), assignmentDisposition: 'selectable' })) invalid()
     }
     const permissionKeys = new Set<string>()
     for (const permission of role.permissions) {
@@ -182,7 +198,7 @@ function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfi
           typeof permission.allowed !== 'boolean' || permissionKeys.has(permissionKey(permission))) invalid()
       permissionKeys.add(permissionKey(permission))
       const action = actions.get(permissionKey(permission))
-      if (!builtin && (!action || permission.allowed !== true)) invalid()
+      if (!builtin && !administrator && action && permission.allowed !== true) invalid()
       if (action && role.stableRoleId === 'role-external-specialist' && action.actionId !== 'view') invalid()
     }
     if (role.stableRoleId === 'role-system-admin') {
@@ -195,7 +211,7 @@ function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfi
     if (role.stableRoleId === 'role-production-planning' &&
         role.permissions.some(permission => actions.has(permissionKey(permission)))) invalid()
   }
-  if (roles[4].roleStatus !== roles[5].roleStatus) invalid()
+  if (!ids.has(applicationAdministratorRole.stableRoleId) || roles[4].roleStatus !== roles[5].roleStatus) invalid()
 }
 
 function completeCandidate(roles: RolePolicyRole[], profiles: RolePolicyProfile[], candidateCatalogVersion: string): RolePolicyCandidate {
@@ -249,7 +265,15 @@ export function buildDefaultRolePolicyCandidate(candidateCatalogVersion = 'ai-pd
     const deduplicated = new Map(permissions.map(permission => [permissionKey(permission), permission]))
     return withRoleHash({ ...identity(source), permissions: [...deduplicated.values()], roleStatus: 'active' })
   })
-  return completeCandidate(roles, rolePolicyRegistry.roleProfiles, candidateCatalogVersion)
+  return completeCandidate([...roles, applicationAdministratorRole], rolePolicyRegistry.roleProfiles, candidateCatalogVersion)
+}
+
+export function upgradeRolePolicyCandidate(input: { roles: RolePolicyRole[]; roleProfiles: RolePolicyProfile[]; candidateCatalogVersion: string }) {
+  const existing = input.roles.find(role => role.stableRoleId === applicationAdministratorRole.stableRoleId)
+  if (existing && !equalCanonical(existing, applicationAdministratorRole)) throw new Error('ROLE_POLICY_PROTECTED_ROLE_CONFLICT')
+  const roles = existing ? input.roles : [...input.roles, applicationAdministratorRole]
+  const profiles = existing ? input.roleProfiles : [...input.roleProfiles, rolePolicyRegistry.roleProfiles[9]]
+  return rebuildRolePolicyCandidate({ roles, roleProfiles: profiles, candidateCatalogVersion: input.candidateCatalogVersion })
 }
 
 function normalizeName(value: string) {
@@ -357,7 +381,9 @@ export function applyRolePolicyDraftChanges(input: {
 /** Restore editable actions only; current identity, lifecycle and protected entries remain authoritative. */
 export function restoreRolePolicyHistory(current: RolePolicyCandidate, history: RolePolicyCandidate,
   candidateCatalogVersion: string) {
-  assertRolePolicyCandidate(current); assertRolePolicyCandidate(history)
+  assertRolePolicyCandidate(current)
+  if (String(history.format) === 'dynamic-policy-v1') history = upgradeRolePolicyCandidate(history)
+  assertRolePolicyCandidate(history)
   const historyRoles = new Map(history.roles.map(role => [role.stableRoleId, role]))
   const editable = new Set(rolePolicyRegistry.businessActions.map(action => 'action:' + action.code))
   const roles = current.roles.map(role => {

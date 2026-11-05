@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "type": "string",
+      "const": "orgmaster.administration-command.v1"
+    },
+    "commandId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "grant_platform_administrator",
+        "revoke_platform_administrator",
+        "grant_application_administrator",
+        "revoke_application_administrator",
+        "replace_application_administrator"
+      ]
+    },
+    "target": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "employeeId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "applicationId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "orgmaster",
+                    "ai-pdm",
+                    "financial-management-system"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "validFrom": {
+              "type": "string"
+            },
+            "validTo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "principalId",
+            "employeeId",
+            "applicationId",
+            "validFrom",
+            "validTo"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "grantId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "governanceRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "organizationRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "administrationVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "governanceRevision",
+        "organizationRevision",
+        "administrationVersion"
+      ],
+      "additionalProperties": false
+    },
+    "catalogBindings": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "orgmaster",
+          "ai-pdm",
+          "financial-management-system"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "catalogVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "contentSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "stableRoleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "roleDefinitionHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "catalogVersion",
+          "contentSha256",
+          "stableRoleId",
+          "roleDefinitionHash"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "previewHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "commandId",
+    "operation",
+    "target",
+    "grantId",
+    "reason",
+    "expected",
+    "catalogBindings"
+  ],
+  "additionalProperties": false
+}

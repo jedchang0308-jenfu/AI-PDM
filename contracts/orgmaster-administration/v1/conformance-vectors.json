@@ -1,0 +1,15 @@
+{
+  "contractVersion": "orgmaster.administration-conformance.v1",
+  "rootScope": "platform",
+  "rootValidUntil": null,
+  "appScope": "global",
+  "subjectKind": "principal",
+  "basis": "manual",
+  "allowedHumanAccountTypes": [
+    "human_personal",
+    "human_privileged"
+  ],
+  "minimumAal": "aal1",
+  "aliasSemantics": "same-principal-only",
+  "ordinaryWriterMayChangeAdministration": false
+}

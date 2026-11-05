@@ -98,6 +98,7 @@ function assertCurrent(expected: ActiveRolePolicyTuple, current: ActiveRolePolic
 function candidateFromRows(rows: CatalogRow[], candidateCatalogVersion: string, lifecycle: 'active' | 'retired' = 'active'): RolePolicyCandidate {
   try {
     const source = decodePublishedRolePolicyCandidateRows(rows, lifecycle)
+    if (String(source.format) === 'dynamic-policy-v1') return source
     return rebuildRolePolicyCandidate({ roles: source.roles, roleProfiles: source.roleProfiles, candidateCatalogVersion })
   } catch {
     throw new RolePolicyHttpError('ROLE_POLICY_CATALOG_INVALID', 503)
@@ -105,7 +106,7 @@ function candidateFromRows(rows: CatalogRow[], candidateCatalogVersion: string, 
 }
 
 function activeProjection(rows: CatalogRow[], catalogVersion: string) {
-  if (rows[0]?.publication_format === 'dynamic-policy-v1') return candidateFromRows(rows, catalogVersion)
+  if (['dynamic-policy-v1', 'dynamic-policy-v2'].includes(String(rows[0]?.publication_format))) return candidateFromRows(rows, catalogVersion)
   const catalog = decodePublishedPrincipalCatalogRows(rows)
   return { format: 'legacy-static-v1' as const,
     roles: catalog.roles.map(role => ({ ...role, metadata: role.metadata ?? null,
@@ -119,7 +120,7 @@ function activeProjection(rows: CatalogRow[], catalogVersion: string) {
 
 async function currentCatalog(client: AsyncDatabaseClient) {
   const rows = await client.query<CatalogRow>('SELECT ' + catalogColumns +
-    ' FROM ai_pdm_contract.v_application_role_catalog_v2 ORDER BY display_order')
+    ' FROM ai_pdm_contract.v_application_role_catalog_v3 ORDER BY display_order')
   try {
     // All current readers require active metadata, even when a draft is selected.
     // Historical lifecycle admission is explicit at the history call sites.
@@ -135,20 +136,15 @@ async function requireRolePolicyManager(client: AsyncDatabaseClient, verified: V
       principalId: verified.session.principalId, employeeId: verified.session.employeeId
     })
   const validAssuranceLevel = verified.session.assuranceLevel === 'aal1' || verified.session.assuranceLevel === 'aal2'
-  if (!validAssuranceLevel || !account || account.account_type !== 'human_privileged' || account.account_status !== 'active') {
+  if (!validAssuranceLevel || !account || !['human_personal', 'human_privileged'].includes(account.account_type) || account.account_status !== 'active') {
     throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
   }
-  const grants = await client.query<{ assignment_id: string }>(`
-    SELECT assignment_id FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
-    WHERE application_id='ai-pdm' AND principal_id=:principalId AND employee_id=:employeeId
-      AND stable_role_id='role-system-admin' AND role_code='system_admin'
-      AND subject_kind='principal' AND target_principal_id=:principalId
-      AND grant_kind='direct' AND delegation_id IS NULL
-      AND scope_kind='global' AND scope_key IS NULL
-      AND valid_from <= clock_timestamp()
-      AND (valid_until IS NULL OR valid_until > clock_timestamp())
-    LIMIT 2`, { principalId: verified.session.principalId, employeeId: verified.session.employeeId })
-  if (grants.length !== 1) throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+  const result = await client.queryOne<{ eligible: boolean }>(`
+    SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(
+      :principalId,:employeeId,:issuer,:subject) AS eligible`, {
+    principalId: verified.session.principalId, employeeId: verified.session.employeeId,
+    issuer: verified.session.identityIssuer, subject: verified.session.identitySubject })
+  if (result?.eligible !== true) throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
 }
 
 export async function canManageRolePolicy(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
@@ -201,7 +197,7 @@ export async function readRolePolicyWorkspace(client: AsyncDatabaseClient, selec
   const current = activeProjection(rows, active.catalogVersion)
   const draft = selectedDraftId ? draftResult(await draftById(client, uuid(selectedDraftId, 'DRAFT_ID_INVALID'))) : null
   const manage = verified ? await canManageRolePolicy(client, verified) : false
-  return { contractVersion: 'ai-pdm.role-policy-workspace.v3', applicationId: 'ai-pdm',
+  return { contractVersion: 'ai-pdm.role-policy-workspace.v4', applicationId: 'ai-pdm',
     actorPrincipalId: verified?.session.principalId ?? null, publicationFormat: current.format,
     active, registry: { hash: rolePolicyRegistryHash, roleSchemaId: rolePolicyRegistry.roleSchemaId,
       roleProfileSchemaId: rolePolicyRegistry.roleProfileSchemaId }, groups: rolePolicyRegistry.businessActions,
@@ -235,13 +231,13 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
   }
   const current = await currentCatalog(client); assertCurrent(expectedActive, current.active)
   const candidateCatalogVersion = 'ai-pdm.role-policy.' + draftId
-  let candidate = current.rows[0]?.publication_format === 'dynamic-policy-v1'
-    ? candidateFromRows(current.rows, candidateCatalogVersion) : buildDefaultRolePolicyCandidate(candidateCatalogVersion)
+  let candidate = current.rows[0]?.publication_format === 'dynamic-policy-v2'
+    ? candidateFromRows(current.rows, candidateCatalogVersion) : (() => { throw new RolePolicyHttpError('ROLE_POLICY_UPGRADE_REQUIRED', 503) })()
   if (sourceHistoryVersion !== null) {
     const historyRows = await client.query<CatalogRow>('SELECT ' + catalogColumns +
       " FROM ai_pdm_contract.v_role_policy_publications_v1 WHERE application_id='ai-pdm' AND catalog_version=:catalogVersion ORDER BY display_order", { catalogVersion: sourceHistoryVersion })
     if (!historyRows.length) throw new RolePolicyHttpError('PUBLICATION_NOT_FOUND', 404)
-    if (historyRows[0].publication_format !== 'dynamic-policy-v1') throw new RolePolicyHttpError('UNSUPPORTED_HISTORY_FORMAT', 422)
+    if (!['dynamic-policy-v1', 'dynamic-policy-v2'].includes(String(historyRows[0].publication_format))) throw new RolePolicyHttpError('UNSUPPORTED_HISTORY_FORMAT', 422)
     candidate = restoreRolePolicyHistory(candidate, candidateFromRows(historyRows, sourceHistoryVersion,
       historyRows[0].lifecycle === 'active' ? 'active' : 'retired'), candidateCatalogVersion)
   }
@@ -249,7 +245,7 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
     draftId, candidateVersion: candidateCatalogVersion, baseVersion: current.active.catalogVersion,
     baseHash: current.active.catalogSha256, registryHash: rolePolicyRegistryHash, candidate: storedCandidate(candidate),
     actor: verified.session.principalId, sourceHistoryVersion,
-    templateId: current.rows[0]?.publication_format === 'dynamic-policy-v1' ? null : rolePolicyRegistry.defaultTemplate.templateId })
+    templateId: current.rows[0]?.publication_format === 'dynamic-policy-v2' ? null : rolePolicyRegistry.defaultTemplate.templateId })
   return draftResult(await draftById(client, draftId))
 }
 export async function saveRolePolicyDraft(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
@@ -297,7 +293,7 @@ export async function applyRolePolicy(client: AsyncDatabaseClient, verified: Ver
   assertCurrent(expectedActive, preview.confirmation.expectedActive)
   if (preview.diff.policyTransition !== 'legacy-to-dynamic' && !preview.diff.roleChanges.length &&
       !preview.diff.capabilityChanges.length && !preview.diff.profileChanges.length) throw new RolePolicyHttpError('NO_CHANGE', 409)
-  const row = await client.queryOne<{ result: unknown }>('SELECT ai_pdm_core.role_policy_apply_v1(CAST(:requestId AS uuid),:actor,:sessionHash,:issuer,:subject,CAST(:draftId AS uuid),:expectedRevision,:catalogVersion,:catalogHash,:reason) AS result', {
+  const row = await client.queryOne<{ result: unknown }>('SELECT ai_pdm_core.role_policy_apply_v2(CAST(:requestId AS uuid),:actor,:sessionHash,:issuer,:subject,CAST(:draftId AS uuid),:expectedRevision,:catalogVersion,:catalogHash,:reason) AS result', {
     requestId, actor: verified.session.principalId,
     sessionHash: hashJenfuPrincipalSessionId(verified.session.sessionId),
     issuer: verified.session.identityIssuer, subject: verified.session.identitySubject, draftId, expectedRevision,
@@ -370,7 +366,7 @@ export async function readRolePolicyPublication(client: AsyncDatabaseClient, cat
       before_tuple: unknown; after_tuple: unknown; request_id: string }>(`
       SELECT actor_principal_id,reason,diff_json,before_tuple,after_tuple,request_id
       FROM ai_pdm_core.role_policy_commands WHERE catalog_version=:catalogVersion`, { catalogVersion }) : null
-  if (rows[0].publication_format === 'dynamic-policy-v1') candidateFromRows(rows, catalogVersion,
+  if (['dynamic-policy-v1', 'dynamic-policy-v2'].includes(String(rows[0].publication_format))) candidateFromRows(rows, catalogVersion,
     rows[0].lifecycle === 'active' ? 'active' : 'retired')
   else decodePublishedPrincipalCatalogRows(rows, { historical: true })
   return { catalogVersion, catalogSha256: String(rows[0].catalog_sha256), lifecycle: String(rows[0].lifecycle),

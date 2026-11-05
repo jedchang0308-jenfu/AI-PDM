@@ -13,7 +13,7 @@ type Handler = (client: AsyncDatabaseClient, company: PdmCompanyContext,
   verified: VerifiedPrincipalRequest) => Promise<unknown>
 
 function dataResponse(data: unknown, status = 200, correlationId = randomUUID()) {
-  return Response.json({ contractVersion: 'ai-pdm.role-policy-workspace.v3', data, correlationId }, { status, headers })
+  return Response.json({ contractVersion: 'ai-pdm.role-policy-workspace.v4', data, correlationId }, { status, headers })
 }
 
 export async function rolePolicyReadRoute(request: Request, routePath: string, handler: Handler) {

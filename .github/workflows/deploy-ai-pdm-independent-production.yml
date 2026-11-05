@@ -324,7 +324,7 @@ jobs:
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
       - id: finalize
-        name: Execute finalize
+        name: Execute finalize and sealed owner catalog upgrade
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"

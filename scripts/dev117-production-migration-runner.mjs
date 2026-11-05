@@ -3,6 +3,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
+import { DEV127_OPERATION } from './lib/dev127-role-policy-upgrade.mjs'
+import { runDev127CatalogJob } from './lib/dev127-catalog-job.mjs'
 import {
   assertMigrationBundle,
   assertRunnerTarget,
@@ -110,6 +112,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   const object = await readGcsObject({ uri: args.bundleRef, expectedBucket: TARGET.releaseBucket, expectedPrefix: 'source/migration-bundles', token, fetchImpl })
   let value
   try { value = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('MIGRATION_BUNDLE_JSON_INVALID') }
+  if (value?.schemaVersion === DEV127_OPERATION) return runDev127CatalogJob({value,object,args,environment,token,fetchImpl,Client,databaseOptions})
   const bundle = assertMigrationBundle(value, { target: TARGET, sourceRevision: args.sourceRevision, bundleSha256: args.bundleSha256, bytes: object.bytes })
   const cleanupEntry = assertUnlinkedProfileCleanupBundleBinding(bundle)
   const cleanup = cleanupEntry ? await readUnlinkedProfileCleanupOperation({
@@ -195,7 +198,10 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runMain().then((value) => {
-    const summary = value.unlinkedProfileCleanup
+    const summary = value.schemaVersion === 'ai-pdm.role-policy-catalog-upgrade-receipt.v1'
+      ? {schemaVersion:value.schemaVersion,phase:value.phase,state:value.state,commandId:value.commandId,
+        sourceRevision:value.sourceRevision,outputRef:value.outputRef,outputGeneration:value.outputGeneration,outputSha256:value.outputSha256}
+      : value.unlinkedProfileCleanup
       ? { status: value.status, ownerApplicationId: value.ownerApplicationId, sourceRevision: value.sourceRevision,
         outputRef: value.outputRef, outputGeneration: value.outputGeneration, outputSha256: value.outputSha256, receiptSha256: value.receiptSha256 }
       : value

@@ -47,6 +47,29 @@ function request() {
 afterEach(() => vi.clearAllMocks());
 
 describe("principal-keyed current account summary", () => {
+  it.each([
+    ['張仕杰','張仕杰'],['Win',null],['JFS0005',null],['one@example.com',null],['unavailable',null]
+  ])('adds the exact Chinese employee display without affecting normal login: %s', async (name, expected) => {
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('v_principal_display_profiles_v1')) {
+        if(name==='unavailable') throw Error('display projection temporarily unavailable');
+        return [{principal_id:'principal-one',employee_id:'JFS0005',employee_name:name}];
+      }
+      if(sql.includes('ai_pdm_core.companies')) return [{id:'company-jenfu',company_code:'JENFU',company_kind:'business',display_name:'Jenfu'}];
+      return [];
+    });
+    mocks.withVerified.mockImplementation(async(_input,evaluate)=>evaluate({kind:'postgres',transactionScope:'postgres',query},{
+      profile:{pdmUserId:'pdm-one',companyId:'company-jenfu'},
+      session:{principalId:'principal-one',employeeId:'JFS0005',contractVersion:'jenfu.ai-pdm-session.v2'}
+    }));
+    mocks.getUserById.mockResolvedValue({id:'pdm-one',display_name:'Win',email:'one@example.com',role:'Admin',company_id:'company-jenfu'});
+    const response=await GET(request());
+    expect(response.status).toBe(200);
+    expect((await response.json()).user).toMatchObject({id:'pdm-one',display_name:'Win',employee_name:expected,role:null});
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('principal_id=:principalId AND employee_id=:employeeId'),
+      {principalId:'principal-one',employeeId:'JFS0005'});
+  });
+
   it("rejects missing and legacy sessions before loading a profile", async () => {
     for (const cookie of [null, "__session=legacy-session"]) {
       const response = await GET(new Request("https://pdm.example/api/auth/me",

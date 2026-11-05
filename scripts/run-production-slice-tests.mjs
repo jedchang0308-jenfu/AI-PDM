@@ -21,6 +21,7 @@ const dryRun = args.includes('--dry-run')
 const plan = createProductionSlicePlanFromGit({ root, base: option('--base'), head: option('--head') })
 
 const CORE_TESTS = [
+  'scripts/lib/dev127-role-policy-release-gate.test.mjs',
   'scripts/dev123-role-policy-release-contract.test.mjs',
   'scripts/dev117-ai-pdm-continuous-release.test.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs',
@@ -37,6 +38,7 @@ const CORE_TESTS = [
 
 const DATABASE_TESTS = [
   'scripts/dev117-production-migration-runner.test.mjs',
+  'scripts/lib/dev127-local-owner-sql.test.mjs',
 ]
 
 const RD_PERMISSION_DATABASE_TESTS = [
@@ -45,6 +47,7 @@ const RD_PERMISSION_DATABASE_TESTS = [
 ]
 
 const AUTHORIZATION_TESTS = [
+  'scripts/dev127-consumer-contract.test.mjs',
   'scripts/dev123-build-role-policy-registry.test.mjs',
   'scripts/dev123-role-policy-contract.test.mjs',
   'scripts/lib/dev121-principal-fence-operator.test.mjs',

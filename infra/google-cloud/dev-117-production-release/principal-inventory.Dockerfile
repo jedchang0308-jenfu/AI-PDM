@@ -13,6 +13,8 @@ RUN npm ci --omit=dev --ignore-scripts \
 # source test and a broken production image.
 COPY scripts/lib/ scripts/lib/
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
+COPY config/access-control/dev127-protected-policy-source.v1.json config/access-control/dev127-protected-policy-source.v1.json
+COPY config/access-control/role-policy-editor-registry.v3.json config/access-control/role-policy-editor-registry.v3.json
 COPY scripts/dev121-production-principal-inventory-runner.mjs scripts/dev121-production-principal-inventory-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
 COPY src/lib/jenfu-principal-inventory-coverage.ts src/lib/jenfu-principal-inventory-coverage.ts

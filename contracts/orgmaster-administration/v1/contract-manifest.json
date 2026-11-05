@@ -1,0 +1,399 @@
+{
+  "contractVersion": "orgmaster.administration-manifest.v1",
+  "owner": "orgmaster",
+  "policyContract": "orgmaster.administration-policy.v1",
+  "commandContract": "orgmaster.administration-command.v1",
+  "files": {
+    "policy.schema.json": "69a421477beaacb052c176e45fce0ee0d98ca4f8c42ad83048b6f245148dca16",
+    "command.schema.json": "878bcb8e072c3fa70bb6aab5f8026b8bfaa6b0b4f41c601a461e538a68f7de61",
+    "errors.json": "500b14b840183f89c4a1a55d4c974b8b99260c766a4f07589cb45f41065974d5",
+    "projection-signatures.json": "ec94b40e4cc991970ca778d660a2fcbb708fe9c9d608184619177a4afa02ba41",
+    "conformance-vectors.json": "41b12e00e9bde89adabc049501883db010dfc0e4af395bdba585f3315748ea51"
+  },
+  "projections": {
+    "state": {
+      "contractVersion": "orgmaster.administration-state.v1",
+      "function": "orgmaster_contract.read_administration_state_v1()",
+      "columns": [
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "administration_version",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "initialized_by_command_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "published_policy_id",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "published_at",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "effective_root_count",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "recovery_required",
+          "type": "boolean",
+          "nullable": false
+        }
+      ],
+      "readers": [
+        "orgmaster",
+        "platform",
+        "orgmaster-owner-verifier"
+      ]
+    },
+    "root": {
+      "contractVersion": "orgmaster.platform-administrator-grants.v1",
+      "view": "orgmaster_contract.v_platform_administrator_grants_v1",
+      "columns": [
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "administration_version",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "grant_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "principal_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "employee_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "role_code",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "valid_until",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "published_policy_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "published_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "readers": [
+        "orgmaster",
+        "platform"
+      ]
+    },
+    "application": {
+      "contractVersion": "orgmaster.application-administrator-grants.v1",
+      "view": "orgmaster_contract.v_application_administrator_grants_v1",
+      "columns": [
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "administration_version",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "grant_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "application_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "principal_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "employee_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "role_code",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "subject_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "target_principal_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "basis",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_key",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "valid_until",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "created_by_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "catalog_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "catalog_content_sha256",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "stable_role_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "role_definition_hash",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "published_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "readers": [
+        "orgmaster"
+      ]
+    },
+    "pdm": {
+      "contractVersion": "jenfu.orgmaster.ai-pdm-principal-grants.v5",
+      "view": "orgmaster_contract.v_ai_pdm_principal_effective_grants_v5",
+      "columns": [
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "assignment_version_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "assignment_version",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "assignment_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "grant_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "delegation_id",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "application_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "principal_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "employee_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "subject_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "target_principal_id",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "stable_role_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "role_code",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "catalog_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_key",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "valid_until",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "published_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "source_assignment_id",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "source_grant_id",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "admin_catalog_sha256",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "role_definition_hash",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "readers": [
+        "ai-pdm",
+        "orgmaster-owner-verifier"
+      ]
+    },
+    "pdmManager": {
+      "eligibleFunction": "orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(text,text,text,text)",
+      "lockFunction": "orgmaster_contract.lock_ai_pdm_role_policy_authority_v2()",
+      "readers": [
+        "ai-pdm"
+      ]
+    },
+    "fms": {
+      "contractVersion": "jenfu.orgmaster.fms-authority.v3",
+      "view": "orgmaster_contract.v_fms_authority_v3",
+      "readers": [
+        "financial-management-system",
+        "orgmaster-owner-verifier"
+      ]
+    }
+  },
+  "ddl": [
+    "044_dev070_administration_projection_v1.sql",
+    "045_dev070_administration_commands_v1.sql"
+  ]
+}

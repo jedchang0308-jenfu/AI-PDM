@@ -2186,3 +2186,11 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
   - 同checkpoint的 Current program-only serving and retained READY worker：native只讀版本分離、source-bound serving／worker雙鏈核對及停寫前穩定readback，positive／drift／replay／recovery回歸；local與Production分界。
   - 上述 current-serving checkpoint 最終分類相容 focused10/10、native QC350/350／typecheck／isolated build PASS；本地證據與085／RD正式驗收分開。
+
+## DEV-127 — 平台與 AI-PDM 管理資格 consumer（IMPLEMENTING）
+
+來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`，branch=`codex/dev127-platform-super-admin-20261105`。程式／SQL受測source434f32925；PR571仍open draft。closed local wrapper及local097已實作，Node18自查與Linux required SQL component（1/1，0skip）PASS；[434 fresh CI42120180413](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42120180413) Linux／Windows兩項required checks均SUCCESS（full release candidate skipped）。e855只讀plan為PLANNED，沒有primary install／catalog commit；新source及Org前置後須重plan。production及同一指定本人兩環境正常Google/UI仍NOT_RUN。
+
+- [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
+- [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：source、synthetic/disposable SQL、真readonly plan、primary writes與真人UI分層；舊綠燈不改綁新source。
+- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：依已成功required CI收斂source review，再依owner前置由coordinator重plan；不以文件完成或CI當產品／發布完成。

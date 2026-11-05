@@ -479,6 +479,11 @@
         "order": 40,
         "path": "db/postgres/090_dev125_windows_device_owner_principal.sql",
         "sha256": "3cecca5f7d2d01e6f74885e8b103fbb94debf3dcb11d6daa60eb017eff8de36a"
+      },
+      {
+        "order": 41,
+        "path": "db/postgres/096_dev127_platform_super_admin_consumer.sql",
+        "sha256": "c5a064cffc6c5f9abef085e8ed14ff11ab11c2562ccaae41f19021e49f9bf9b1"
       }
     ]
   },

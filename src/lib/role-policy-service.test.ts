@@ -48,8 +48,9 @@ function param(params: Params, key: string) {
   return params && !Array.isArray(params) ? (params as Record<string, unknown>)[key] : undefined
 }
 
-function legacyV7Rows() {
-  const { baseCatalog } = rolePolicySource()
+function legacyV7Rows(dynamic = true) {
+  const { defaultCandidate: candidate } = rolePolicySource()
+  const baseCatalog = dynamic ? { roles: candidate.roles, catalogVersion: candidate.candidateCatalogVersion, catalogSha256: candidate.contentHash } : rolePolicySource().baseCatalog
   return baseCatalog.roles.map((role, displayOrder) => ({
     contract_version: 'jenfu.platform-entitlement.v1',
     application_id: 'ai-pdm',
@@ -70,20 +71,20 @@ function legacyV7Rows() {
     permissions: role.permissions,
     metadata: role.metadata,
     role_definition_hash: role.roleDefinitionHash,
-    publication_format: 'legacy-static-v1',
-    canonicalization_version: null,
-    role_schema_id: null,
-    baseline_role_identity_hash: null,
-    role_identity_hash: null,
-    protected_policy_hash: null,
-    registry_hash: null,
-    role_profile_schema_id: null,
-    role_profile_hash: null,
+    publication_format: dynamic ? candidate.format : 'legacy-static-v1',
+    canonicalization_version: 'jenfu.canonical-json.v1',
+    role_schema_id: candidate.roleSchemaId,
+    baseline_role_identity_hash: candidate.baselineRoleIdentityHash,
+    role_identity_hash: candidate.roleIdentityHash,
+    protected_policy_hash: candidate.protectedPolicyHash,
+    registry_hash: candidate.registryHash,
+    role_profile_schema_id: candidate.roleProfileSchemaId,
+    role_profile_hash: candidate.roleProfileHash,
     role_status: 'active',
-    permission_role_id: role.stableRoleId,
-    presentation_name: role.displayName,
-    presentation_order: displayOrder,
-    assignment_disposition: role.stableRoleId === 'role-system-admin' ? 'hidden-protected' : 'selectable',
+    permission_role_id: candidate.roleProfiles[displayOrder].permissionRoleId,
+    presentation_name: candidate.roleProfiles[displayOrder].presentationName,
+    presentation_order: candidate.roleProfiles[displayOrder].presentationOrder,
+    assignment_disposition: candidate.roleProfiles[displayOrder].assignmentDisposition,
     lifecycle: 'active'
   }))
 }
@@ -112,6 +113,7 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountTyp
 
   const queryOne = vi.fn(async (sql: string, params?: Params) => {
     querySql.push(sql)
+    if (sql.includes('manager_eligible_v2')) return { eligible: options.directGrant ?? authorizedManagers.has(String(param(params, 'principalId'))) }
     if (sql.includes('principal_accounts')) {
       return { account_type: options.accountType ?? 'human_privileged', account_status: 'active' }
     }
@@ -122,7 +124,7 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountTyp
       if (options.rejectCatalogOrDraft) throw new Error('replay must not consult draft')
       return drafts.get(String(param(params, 'draftId'))) ?? null
     }
-    if (sql.includes('role_policy_apply_v1')) {
+    if (sql.includes('role_policy_apply_v2')) {
       applyCalls.push({ sql, params })
       return { result: applyResult }
     }
@@ -132,11 +134,11 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountTyp
   const query = vi.fn(async (sql: string, params?: Params) => {
     querySql.push(sql)
     if (sql.includes('pg_advisory_xact_lock')) return []
-    if (sql.includes('v_application_role_catalog_v2')) {
+    if (sql.includes('v_application_role_catalog_v3')) {
       if (options.rejectCatalogOrDraft) throw new Error('replay must not consult current catalog')
       return currentRows
     }
-    if (sql.includes('v_ai_pdm_principal_effective_grants_v4')) {
+    if (sql.includes('manager_eligible_v2')) {
       return (options.directGrant ?? authorizedManagers.has(String(param(params, 'principalId'))))
         ? [{ assignment_id: 'direct-global-system-admin' }]
         : []
@@ -199,8 +201,8 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountTyp
 }
 
 function activeTuple() {
-  const { baseCatalog } = rolePolicySource()
-  return { catalogVersion: baseCatalog.catalogVersion, catalogSha256: baseCatalog.catalogSha256 }
+  const { defaultCandidate: candidate } = rolePolicySource()
+  return { catalogVersion: candidate.candidateCatalogVersion, catalogSha256: candidate.contentHash }
 }
 
 function applyBody(reason = '調整角色') {
@@ -246,7 +248,7 @@ describe('DEV-123 role-policy service contract', () => {
     expect(replay).toEqual(first)
     expect(fixture.executeSql.filter(sql => sql.includes('INSERT INTO ai_pdm_core.role_policy_drafts'))).toHaveLength(1)
     expect(fixture.querySql.some(sql => sql.includes('pg_advisory_xact_lock'))).toBe(true)
-    expect(fixture.querySql.filter(sql => sql.includes('v_application_role_catalog_v2'))).toHaveLength(1)
+    expect(fixture.querySql.filter(sql => sql.includes('v_application_role_catalog_v3'))).toHaveLength(1)
 
     await expect(createRolePolicyDraft(fixture.client as never, managerVerified(otherActor), body))
       .rejects.toMatchObject({ code: 'DRAFT_ID_REUSE', status: 409 })
@@ -265,13 +267,11 @@ describe('DEV-123 role-policy service contract', () => {
       expectedRevision: created.revision, roleChanges: [], changes: []
     })
     expect(saved.revision).toBe(created.revision)
-    expect(fixture.querySql.some(sql => sql.includes("grant_kind='direct'") &&
-      sql.includes('delegation_id IS NULL') && sql.includes("scope_kind='global'") &&
-      sql.includes('target_principal_id=:principalId'))).toBe(true)
+    expect(fixture.querySql.some(sql => sql.includes('manager_eligible_v2'))).toBe(true)
   })
 
   it.each([
-    ['ordinary account', { accountType: 'human_personal' }],
+    ['ordinary account', { accountType: 'human_personal', directGrant: false }],
     ['delegated grant', { directGrant: false }],
     ['workload account', { accountType: 'workload' }],
   ])('rejects a %s from role-policy management', async (_label, options) => {
@@ -316,7 +316,7 @@ describe('DEV-123 role-policy service contract', () => {
     const executeCount = fixture.executeSql.length
     const preview = await previewRolePolicyDraft(fixture.client as never, draftId, 1)
     expect(preview.confirmation).toEqual({ draftId, draftRevision: 1, expectedActive: activeTuple() })
-    expect(preview.diff.policyTransition).toBe('legacy-to-dynamic')
+    expect(preview.diff.policyTransition).toBe('dynamic-update')
     expect(JSON.stringify(fixture.drafts.get(draftId))).toBe(before)
     expect(fixture.executeSql).toHaveLength(executeCount)
   })
@@ -326,12 +326,14 @@ describe('DEV-123 role-policy service contract', () => {
     await createRolePolicyDraft(fixture.client as never, managerVerified(), {
       draftId, expectedActive: activeTuple()
     })
+    await saveRolePolicyDraft(fixture.client as never, managerVerified(), draftId, { expectedRevision: 1, roleChanges: [], changes: [{roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'edit',enabled:false}] })
     const body = applyBody()
+    body.confirmation.draftRevision = 2
     await expect(applyRolePolicy(fixture.client as never, managerVerified(), body))
       .resolves.toEqual(fixture.applyResult)
     expect(lockAndRevalidateRolePolicyApply).toHaveBeenCalledWith(fixture.client, expect.anything(), requestId, draftId)
     expect(fixture.applyCalls).toHaveLength(1)
-    expect(fixture.applyCalls[0].sql).toContain('ai_pdm_core.role_policy_apply_v1')
+    expect(fixture.applyCalls[0].sql).toContain('ai_pdm_core.role_policy_apply_v2')
     expect(fixture.querySql.some(sql => /readiness|compatibility|generation/iu.test(sql))).toBe(false)
   })
 
@@ -346,7 +348,7 @@ describe('DEV-123 role-policy service contract', () => {
     })
     await expect(applyRolePolicy(fixture.client as never, managerVerified(), body)).resolves.toEqual(original)
     expect(fixture.querySql.some(sql => sql.includes('role_policy_drafts'))).toBe(false)
-    expect(fixture.querySql.some(sql => sql.includes('v_application_role_catalog_v2'))).toBe(false)
+    expect(fixture.querySql.some(sql => sql.includes('v_application_role_catalog_v3'))).toBe(false)
     expect(fixture.applyCalls).toHaveLength(0)
   })
 
@@ -380,11 +382,12 @@ describe('DEV-123 role-policy service contract', () => {
     expect(fixture.querySql.filter(sql => sql.includes('principal_accounts'))).toHaveLength(0)
     await expect(readRolePolicyCommand(fixture.client as never, requestId, managerVerified('unauthorized-actor')))
       .rejects.toMatchObject({ code: 'ROLE_POLICY_MANAGER_REQUIRED', status: 403 })
-    expect(fixture.querySql.some(sql => sql.includes('v_ai_pdm_principal_effective_grants_v4'))).toBe(true)
+    expect(fixture.querySql.some(sql => sql.includes('manager_eligible_v2'))).toBe(true)
   })
 
   it('shows legacy v7 permissions exactly and does not inject the new default template', async () => {
     const fixture = unitClientFixture()
+    fixture.currentRows.splice(0, fixture.currentRows.length, ...legacyV7Rows(false))
     const source = rolePolicySource()
     const workspace = await readRolePolicyWorkspace(fixture.client as never)
     expect(workspace.roles[0].permissions).toEqual(source.baseCatalog.roles[0].permissions)

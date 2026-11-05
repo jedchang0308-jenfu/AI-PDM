@@ -5626,3 +5626,15 @@ QC 要求保留的 Supabase stop wording：
   gate正確結果。未呼叫GCP、未讀credential、未寫DB、未建artifact／candidate、未改DNS或traffic，legacy
   workflow與Jenfu-Platform repo均未修改。下一步為review／merge到clean `origin/main`後建立fresh release lock，
   再等待billing、DEV-010 shared receipts、DEV-116 R02、canonical evidence與獨立GO。
+
+<a id="dev-127-platform-super-admin-pdm-consumer"></a>
+
+## DEV-127：平台超級管理員的 AI-PDM consumer 契約
+
+來源：`JENFU/DEV-022#pdm-administration`。狀態 `IMPLEMENTING / REQUIRED_CI_PASS / PRIMARY_INSTALL_AND_REAL_ACTOR_NOT_RUN / PR_OPEN_DRAFT`。程式／SQL受測source=`434f32925ac23945aeedb6db2cef0a62287c379e`，writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`，branch=`codex/dev127-platform-super-admin-20261105`；[PR #571](https://github.com/jedchang0308-jenfu/AI-PDM/pull/571)仍open draft。
+
+[唯一契約／當前表](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)及[QA狀態](qa/DEV-127-platform-super-admin-verification-status.md)。新closed local wrapper與local097已實作；新Node18例／ESLint／PR-base DB boundary34 PASS。[434 CI42120180413](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42120180413)的Linux required與真SQL component（1/1，0skip）SUCCESS，兩項required checks均SUCCESS；Verify isolated application candidate成功、Full isolated release candidate skipped，不宣稱full release build。舊run只保留原source適用範圍。
+
+coordinator在e855真primary-local readonly plan已得PLANNED；它沒有install或catalog commit。source／known marker及Org044/045/ACL改變後須重plan，不能沿舊CAS。實際PDM primary install／catalog upgrade、production provider／DB／grant／traffic、同本人正常Google/UI均NOT_RUN。正式profile僅原40筆追加096為order41；local091–095及097不加入formal profile。自由DB URL commit仍在connect前拒絕；受控local入口不代表production release權限。
+
+下一步：434 requiredCI與bounded localbridge TLsource review已閉合（PR571記錄，非產品QC）；依各owner前置由coordinator以最終clean source重plan，再串接原子local install／catalog CAS與正常同本人UI；本次只更新文件，不執行primary寫入。跨owner僅經versioned contracts，各owner各驗source／DB／runtime。驗收固定同一Google個人帳號`jedchang0308@jenfu.com.tw`／張仕杰`JFS0005`，地端與production都需真AAL1最低、保留有效AAL2、正常Platform root/admin及PDM app-admin UI；legacy相容、business-write拒絕、中文名/reload分母不縮減。

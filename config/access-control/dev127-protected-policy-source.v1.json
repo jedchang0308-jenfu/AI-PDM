@@ -1,0 +1,80 @@
+{
+  "registryHash": "6266f9a82e549639affe668d7451cf93b672ff336be6125e7afc4bb61f76d8c5",
+  "baselineRoleIdentityHash": "265483921bbdadfdf8933f1d0cdcbebc1b4df42983c84784a7176fdd5f05d55c",
+  "protectedPolicyHash": "f00105d5295a3e4a3d29b639ba8b32644fff8e67dd2ae2505938e5ace2e1a700",
+  "roleProfileHash": "df8d107792fca320ca972e15bab67a6250457c0942cf12e759b12d8ef0e9f19a",
+  "applicationAdministratorRole": {
+    "stableRoleId": "role-application-system-admin",
+    "roleCode": "application_system_admin",
+    "displayName": "應用系統管理員",
+    "assignable": false,
+    "risk": "critical",
+    "subjectKind": "principal",
+    "recommendationAllowed": false,
+    "delegationAllowed": false,
+    "allowedScopeKinds": [
+      "global"
+    ],
+    "assignmentTier": "app_admin",
+    "metadata": null,
+    "roleStatus": "active",
+    "permissions": [
+      {
+        "kind": "action",
+        "code": "handoff.published.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "numbering.workspace.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "pdm.drawing.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "pdm.model.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "pdm.part.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "pdm.shared_model.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "pdm.transfer.view",
+        "allowed": true
+      },
+      {
+        "kind": "action",
+        "code": "settings.admin_matrix",
+        "allowed": true
+      },
+      {
+        "kind": "page",
+        "code": "numbering.drawings.view",
+        "allowed": true
+      },
+      {
+        "kind": "page",
+        "code": "numbering.request",
+        "allowed": true
+      },
+      {
+        "kind": "page",
+        "code": "numbering.tasks",
+        "allowed": true
+      }
+    ],
+    "roleDefinitionHash": "e7ff57ed1ca6d2d99e6e052f1f48829365093a32a1d6bb9f8503490a3e7bcbfc"
+  }
+}

@@ -90,3 +90,22 @@ test('principal inventory image binds source and includes every runtime import',
   assert.ok(seen.has('src/lib/jenfu-principal-inventory-registration.ts'))
   assert.deepEqual(copiedDirectories, ['scripts/lib/'])
 })
+
+test('principal cutover preview retains the migration runner transitive runtime closure',()=>{
+  const preview=fs.readFileSync(path.join(root,'infra/google-cloud/dev-117-production-release/principal-cutover-preview.Dockerfile'),'utf8')
+  const copies=new Set([...preview.matchAll(/^COPY\s+(\S+)\s+(\S+)\s*$/gmu)].map(([,source])=>source))
+  const queue=['scripts/dev117-production-migration-runner.mjs'],seen=new Set()
+  while(queue.length){
+    const relative=queue.shift()
+    if(seen.has(relative))continue
+    seen.add(relative)
+    assert(copies.has(relative),`preview image omits ${relative}`)
+    for(const specifier of runtimeImports(path.join(root,relative))){
+      if(specifier.startsWith('node:')||specifier==='pg')continue
+      const imported=localImport(path.join(root,relative),specifier)
+      assert(imported,`preview external dependency is not declared: ${specifier}`)
+      queue.push(path.relative(root,imported).replaceAll('\\','/'))
+    }
+  }
+  assert(seen.has('config/access-control/dev127-protected-policy-source.v1.json'))
+})

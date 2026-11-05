@@ -109,7 +109,7 @@ export type RoleCapabilityPrivilegedRole = {
 }
 
 export type RoleCapabilityManagementSurface = {
-  label: '前往 OrgMaster 角色指派'
+  label: '前往 OrgMaster 角色指派' | '前往 OrgMaster 平台管理員'
   href?: string
 }
 

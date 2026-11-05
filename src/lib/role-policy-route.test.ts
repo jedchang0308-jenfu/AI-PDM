@@ -68,7 +68,7 @@ describe('role policy route private actor binding', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(await response.json()).toMatchObject({
-      contractVersion: 'ai-pdm.role-policy-workspace.v3',
+      contractVersion: 'ai-pdm.role-policy-workspace.v4',
       data: { principalId: 'principal-one', body: { requestId: 'request-one' } },
       correlationId: expect.any(String)
     })
@@ -93,7 +93,7 @@ describe('role policy route private actor binding', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(await response.json()).toMatchObject({
-      contractVersion: 'ai-pdm.role-policy-workspace.v3',
+      contractVersion: 'ai-pdm.role-policy-workspace.v4',
       data: { workspace: true },
       correlationId: expect.any(String)
     })

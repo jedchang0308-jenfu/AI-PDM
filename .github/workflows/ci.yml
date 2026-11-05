@@ -78,6 +78,7 @@ jobs:
         run: |
           node scripts/qc-db-provider-postgres.mjs
           node --test scripts/dev012-production-data-cutover-postgres.test.mjs
+          node --test scripts/dev127-local-owner-postgres.test.mjs
 
   qc-full:
     name: Production Slice QC
@@ -157,7 +158,11 @@ jobs:
 
       - name: Verify role-policy editor and affected capability callers
         if: steps.slice.outputs.authorization == 'true'
-        run: npm run test:dev-123:contracts
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm run test:dev-123:contracts
+          npm run test:dev-127:contracts
 
       - name: Verify release and infrastructure slice
         if: steps.slice.outputs.infrastructure == 'true'
