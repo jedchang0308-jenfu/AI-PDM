@@ -196,6 +196,32 @@ try {
     TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
   sourceProof.push({ path:path086,sourceSha256:sha(source086),executedSqlSha256:sha(catalogV2ViewSql),
     scope:'exact v2 legacy-static-v1 projection only; no policy migration executed' });
+  // Current consumer requires v3 even while the active catalog remains legacy.
+  // Execute only the real 096 projection; this fixture does not upgrade policy
+  // or claim to replay the complete policy migrations/producer administration.
+  const path096='db/postgres/096_dev127_platform_super_admin_consumer.sql';
+  const source096=fs.readFileSync(path.join(root,path096),'utf8').replaceAll('\r\n','\n');
+  const viewV3Start=source096.indexOf('CREATE VIEW ai_pdm_contract.v_application_role_catalog_v3\n');
+  const viewV3End=source096.indexOf('\n\n\n-- Source-protected installation command:',viewV3Start);
+  assert.ok(viewV3Start>=0 && viewV3End>viewV3Start);
+  const catalogV3ViewSql=source096.slice(viewV3Start,viewV3End);
+  await database.query(catalogV3ViewSql);
+  await database.query(`GRANT SELECT ON ai_pdm_contract.v_application_role_catalog_v3
+    TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
+  sourceProof.push({path:path096,sourceSha256:sha(source096),executedSqlSha256:sha(catalogV3ViewSql),
+    scope:'exact v3 legacy-static-v1 projection only; no policy upgrade or complete096 replay'});
+  // Synthetic producer compatibility projection. Keep v4 for unchanged native
+  // 074/076 functions and expose ordinary legacy rows through additive v5.
+  await database.query(`CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v5 AS
+    SELECT 'jenfu.orgmaster.ai-pdm-principal-grants.v5'::text AS contract_version,
+      application_id,principal_id,employee_id,assignment_version_id,assignment_version,assignment_id,
+      stable_role_id,role_code,catalog_version,subject_kind,target_principal_id,grant_kind,delegation_id,
+      scope_kind,scope_key,valid_from,valid_until,published_at,
+      NULL::text AS source_assignment_id,NULL::uuid AS source_grant_id,
+      NULL::text AS admin_catalog_sha256,NULL::text AS role_definition_hash
+    FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4;
+    GRANT SELECT ON orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
+      TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
   await database.query(`INSERT INTO ai_pdm_core.role_catalog_publications
     (catalog_version,contract_version,application_id,published_at,catalog_sha256,status)
     VALUES ($1,$2,$3,$4,$5,'active')`,
@@ -219,6 +245,8 @@ try {
     VALUES ('ai-pdm',$1)`,[catalog.catalogVersion]);
   const v2Rows = (await database.query(`SELECT * FROM ai_pdm_contract.v_application_role_catalog_v2
     ORDER BY display_order`)).rows;
+  const v3Rows=(await database.query('SELECT * FROM ai_pdm_contract.v_application_role_catalog_v3 ORDER BY display_order')).rows;
+  assert.deepEqual(v3Rows,v2Rows,'real096 v3 must preserve the unchanged pre-upgrade legacy-static projection');
   assert.equal(v2Rows.length,catalog.roles.length);
   assert.equal(Object.keys(v2Rows[0]).length,34);
   for (const [order,row] of v2Rows.entries()) {
@@ -256,7 +284,7 @@ try {
   assert.equal((await database.query(`SELECT count(*)::integer AS count
     FROM ai_pdm_contract.v_application_role_catalog_v1`)).rows[0].count,catalog.roles.length,
   'legacy v1 projection remains available to 074/076');
-  checks.push('current v7 artifact is seeded in full source rows; exact 086 34-column v2 legacy-static-v1 projection and retained v1 consumer contract read back');
+  checks.push('current v7 artifact is seeded in full source rows; exact086 v2 and real096 v3 retain equal34-column legacy-static-v1 projection; synthetic additive grantsv5 and native v1/v4 contracts coexist');
   await database.query(`INSERT INTO ai_pdm_core.role_priority_versions VALUES ('active',$1)`,
     [JSON.stringify(catalog.roles.map(role => role.roleCode))]);
   await database.query(`INSERT INTO ai_pdm_core.companies VALUES ('company-jenfu');
