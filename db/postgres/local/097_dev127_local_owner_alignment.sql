@@ -7,6 +7,9 @@
 -- LOCAL ONLY. No formal profile entry. The source-owned wrapper supplies one
 -- atomic transaction, exact inventory CAS, ledger append and unknown readback.
 GRANT USAGE,CREATE ON SCHEMA ai_pdm_core,ai_pdm_contract TO jenfu_ai_pdm_migrator;
+-- 096 itself grants contract USAGE to its exact OrgMaster migrator reader.
+-- Keep schema ownership and every CREATE grant option with postgres.
+GRANT USAGE ON SCHEMA ai_pdm_contract TO jenfu_ai_pdm_migrator WITH GRANT OPTION;
 ALTER FUNCTION ai_pdm_core.role_policy_lock_apply_v1(uuid,uuid,text,text) OWNER TO jenfu_ai_pdm_migrator;
 ALTER FUNCTION ai_pdm_core.role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,char,text) OWNER TO jenfu_ai_pdm_migrator;
 ALTER VIEW ai_pdm_contract.v_role_policy_publications_v1 OWNER TO jenfu_ai_pdm_migrator;

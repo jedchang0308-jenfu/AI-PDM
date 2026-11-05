@@ -56,8 +56,20 @@ test('CI disposable component repairs only exact local ownership/ACL, installs o
     await client.query('BEGIN READ ONLY;SET LOCAL ROLE jenfu_ai_pdm_migrator')
     await assert.rejects(client.query('SELECT version FROM ai_pdm_core.schema_migrations'),{code:'42501'});await client.query('ROLLBACK')
     const originalRows=(await client.query('SELECT * FROM ai_pdm_core.role_catalog_entries ORDER BY catalog_version,display_order')).rows
-    const inventory=await inspectLocalOwnerDatabase(client,target)
+    let inventory
+    try{inventory=await inspectLocalOwnerDatabase(client,target)}
+    catch(error){
+      if(error.code==='DEV127_LOCAL_DATABASE_BOUNDARY_INVALID') console.log('DEV127_CI_SAFE_BOUNDARY='+JSON.stringify(error.boundary))
+      throw error
+    }
     const binding={source:{revision:'a'.repeat(40)},migrationSource}
+    const withoutGrantOption=alignmentSql.replace(/^GRANT USAGE ON SCHEMA ai_pdm_contract TO jenfu_ai_pdm_migrator WITH GRANT OPTION;\n/mu,'')
+    assert.notEqual(withoutGrantOption,alignmentSql)
+    await assert.rejects(installLocalDev127({database:client,plan:buildLocalInstallPlan(binding,inventory,withoutGrantOption,migrationSql),
+      alignmentSql:withoutGrantOption,migrationSql,
+      revalidate:async db=>buildLocalInstallPlan(binding,await inspectLocalOwnerDatabase(db,target),withoutGrantOption,migrationSql),
+      readAfterUnknown:async()=>assert.fail('a definite postcondition rejection must not read/retry unknown writes')}),/INSTALL_POSTCONDITIONS_INVALID/)
+    assert.deepEqual((await client.query('SELECT version FROM ai_pdm_core.schema_migrations')).rows,[{version:'synthetic-baseline'}])
     const plan=buildLocalInstallPlan(binding,inventory,alignmentSql,migrationSql)
     let unknownReads=0
     const disconnectAfterCommit={async query(sql,values){const result=await client.query(sql,values);if(sql==='COMMIT')throw new Error('synthetic disconnect after actual CI COMMIT');return result}}

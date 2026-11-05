@@ -42,7 +42,16 @@ export async function inspectLocalOwnerDatabase(database, target) {
       connection.major!==18 || connection.session_user!=='postgres' || connection.current_user!=='postgres' ||
       connection.rolcanlogin!==true || connection.runtime_member!==true ||
       ['rolsuper','rolcreaterole','rolcreatedb','rolreplication','rolbypassrls','runtime_owner','runtime_migrator',
-        'runtime_database_create','runtime_schema_create','runtime_unsafe','migrator_unsafe'].some(key=>connection[key]!==false)) fail('DATABASE_BOUNDARY_INVALID')
+        'runtime_database_create','runtime_schema_create','runtime_unsafe','migrator_unsafe'].some(key=>connection[key]!==false)) {
+    // The closed CLI prints only the code. CI may inspect this explicit
+    // allowlist to diagnose transport/role facts, never connection options.
+    const safe={}
+    for(const key of ['database','host','port','major','session_user','current_user','rolcanlogin','runtime_member','rolsuper',
+      'rolcreaterole','rolcreatedb','rolreplication','rolbypassrls','runtime_owner','runtime_migrator',
+      'runtime_database_create','runtime_schema_create','runtime_unsafe','migrator_unsafe']) safe[key]=connection?.[key]??null
+    safe.markerSha256=connection?.marker==null?null:hash(String(connection.marker))
+    throw Object.assign(new Error('DEV127_LOCAL_DATABASE_BOUNDARY_INVALID'),{code:'DEV127_LOCAL_DATABASE_BOUNDARY_INVALID',boundary:safe})
+  }
   const schemas = (await database.query(`SELECT n.oid,n.nspname AS name,pg_get_userbyid(n.nspowner) AS owner,
     coalesce(n.nspacl::text,'') AS acl FROM pg_namespace n
     WHERE n.nspname=ANY($1::text[]) ORDER BY n.nspname`,[['ai_pdm_core','ai_pdm_contract']])).rows
@@ -105,6 +114,26 @@ export function assertLocalOwnerContracts(inventory) {
   if (inventory.contracts.length!==3 || inventory.contracts.some(row=>!row.oid || row.executable!==true) ||
       inventory.usage.some(row=>row.usable!==true)) fail('CONTRACT_OWNER_PREREQUISITE_MISSING')
 }
+export async function assertLocalDev127Installation(database) {
+  const {rows}=await database.query(`SELECT
+    has_schema_privilege('jenfu_orgmaster_migrator','ai_pdm_contract','USAGE') AS org_namespace,
+    has_table_privilege('jenfu_orgmaster_migrator','ai_pdm_contract.v_application_role_catalog_v3','SELECT') AS org_catalog,
+    has_table_privilege('jenfu_orgmaster_migrator','ai_pdm_contract.v_role_policy_publications_v1','SELECT') AS org_history,
+    has_table_privilege('jenfu_ai_pdm_runtime','ai_pdm_contract.v_application_role_catalog_v3','SELECT') AS runtime_catalog,
+    has_function_privilege('jenfu_ai_pdm_runtime','ai_pdm_core.role_policy_lock_apply_v2(uuid,uuid,text,text)','EXECUTE') AS runtime_lock,
+    has_function_privilege('jenfu_ai_pdm_runtime','ai_pdm_core.role_policy_apply_v2(uuid,text,text,text,text,uuid,integer,text,character,text)','EXECUTE') AS runtime_apply,
+    has_function_privilege('jenfu_ai_pdm_runtime','ai_pdm_core.role_policy_lock_apply_v1(uuid,uuid,text,text)','EXECUTE') AS legacy_lock,
+    has_function_privilege('jenfu_ai_pdm_runtime','ai_pdm_core.role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,character,text)','EXECUTE') AS legacy_apply,
+    has_function_privilege('jenfu_ai_pdm_runtime','ai_pdm_core.role_policy_upgrade_v2(uuid,text,character,jsonb)','EXECUTE') AS runtime_owner_upgrade,
+    NOT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='ai_pdm_core' AND p.proname IN ('dev127_policy_definition_v2','dev127_assert_candidate_v2',
+        'role_policy_lock_apply_v2','role_policy_apply_v2','role_policy_upgrade_v2') AND pg_get_userbyid(p.proowner)<>'jenfu_ai_pdm_migrator') AS function_owners,
+    (SELECT pg_get_userbyid(c.relowner)='jenfu_ai_pdm_migrator' FROM pg_class c
+      WHERE c.oid='ai_pdm_contract.v_application_role_catalog_v3'::regclass) AS view_owner`)
+  const row=rows[0]
+  if(rows.length!==1 || ['org_namespace','org_catalog','org_history','runtime_catalog','runtime_lock','runtime_apply','function_owners','view_owner']
+    .some(key=>row[key]!==true) || ['legacy_lock','legacy_apply','runtime_owner_upgrade'].some(key=>row[key]!==false))fail('INSTALL_POSTCONDITIONS_INVALID')
+}
 export async function readLocalInstallReceipt(database, plan) {
   const all=(await database.query(`SELECT version,name,btrim(checksum_sha256) AS checksum,source_revision,applied_at::text
     FROM ai_pdm_core.schema_migrations ORDER BY applied_at,version`)).rows
@@ -138,6 +167,7 @@ export async function installLocalDev127({database,plan,alignmentSql,migrationSq
     await database.query(alignmentSql)
     await database.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
     await database.query(migrationSql)
+    await assertLocalDev127Installation(database)
     await database.query(`INSERT INTO ai_pdm_core.schema_migrations(version,name,checksum_sha256,source_revision)
       VALUES ($1,$2,$3,$4),($5,$6,$7,$8)`,[LOCAL_ALIGNMENT_VERSION,`${LOCAL_ALIGNMENT_NAME}_${plan.planSha256}`,plan.alignmentSha256,plan.binding.source.revision,
       MIGRATION_VERSION,MIGRATION_NAME,MIGRATION_APPLIED_SHA,plan.binding.source.revision])

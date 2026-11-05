@@ -19,10 +19,12 @@ const binding={source:{revision:'a'.repeat(40)},migrationSource}
 const inventory={ledger:[{version:'old',name:'old',checksum:'b'.repeat(64)}],
   contracts:[{oid:1,executable:true},{oid:2,executable:true},{oid:3,executable:true}],usage:[{usable:true},{usable:true}]}
 const plan=()=>buildLocalInstallPlan(binding,structuredClone(inventory),alignmentSql,migrationSql)
-function fixture({commitError=null,prior=[],changed=null,readback=null}={}) {
+function fixture({commitError=null,prior=[],changed=null,readback=null,postconditions={}}={}) {
   const calls=[];let freshReads=0
   const database={async query(sql,values){calls.push({sql,values});
     if(sql.startsWith('SELECT version,name'))return {rows:prior}
+    if(sql.includes('AS org_namespace'))return {rows:[{org_namespace:true,org_catalog:true,org_history:true,runtime_catalog:true,
+      runtime_lock:true,runtime_apply:true,function_owners:true,view_owner:true,legacy_lock:false,legacy_apply:false,runtime_owner_upgrade:false,...postconditions}]}
     if(sql==='COMMIT' && commitError)throw commitError
     return {rows:[]}
   }}
@@ -75,6 +77,16 @@ test('unknown COMMIT uses one new-session receipt read and never sends a second 
 test('definite transaction rejection rolls back without an unknown-outcome retry',async()=>{
   const f=fixture({commitError:Object.assign(new Error('denied'),{code:'42501'})})
   await assert.rejects(installLocalDev127(f.input),{code:'42501'});assert.equal(f.reads(),0)
+})
+test('a missing grant or wrong SECURITY DEFINER owner rolls the full install back before either ledger receipt',async()=>{
+  for(const postconditions of [{org_namespace:false},{org_catalog:false},{org_history:false},{function_owners:false},{view_owner:false},
+    {legacy_apply:true},{runtime_owner_upgrade:true}]){
+    const f=fixture({postconditions})
+    await assert.rejects(installLocalDev127(f.input),/INSTALL_POSTCONDITIONS_INVALID/)
+    assert.equal(f.calls.at(-1).sql,'ROLLBACK')
+    assert.ok(!f.calls.some(row=>row.sql.startsWith('INSERT INTO')))
+    assert.equal(f.reads(),0)
+  }
 })
 test('receipt readback requires both exact checksums, plan binding and source, rejecting partial or modified receipts',async()=>{
   const p=plan(),rows=[{version:LOCAL_ALIGNMENT_VERSION,name:`${LOCAL_ALIGNMENT_NAME}_${p.planSha256}`,checksum:p.alignmentSha256,source_revision:p.binding.source.revision},
