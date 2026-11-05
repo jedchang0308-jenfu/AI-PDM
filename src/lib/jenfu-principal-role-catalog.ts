@@ -1,3 +1,4 @@
+import { decodePublishedRolePolicyCandidateRows as decodeLegacyRolePolicyRows } from '@/lib/jenfu-principal-role-catalog-legacy-v1';
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { JenfuApplicationRole } from "@/lib/jenfu-entitlement-contract";
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
@@ -55,6 +56,7 @@ function legacyCatalog(rows: CatalogRow[], historical = false): PublishedPrincip
 }
 
 export function decodePublishedRolePolicyCandidateRows(rows: CatalogRow[], lifecycle: "active" | "retired" = "active") {
+  if (rows[0]?.publication_format === 'dynamic-policy-v1') return decodeLegacyRolePolicyRows(rows, lifecycle) as unknown as ReturnType<typeof rebuildRolePolicyCandidate>;
   if (rows.length < 1 || rows.length > rolePolicyRegistry.limits.maxRoles) invalid();
   const first = rows[0];
   if (first.publication_format !== ROLE_POLICY_PUBLICATION_FORMAT) invalid();
@@ -137,7 +139,7 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[], options:
 export async function requirePublishedPrincipalCatalog(snapshot: AsyncDatabaseClient): Promise<PublishedPrincipalCatalog> {
   try {
     const rows = await snapshot.query<CatalogRow>(`SELECT ${catalogColumns}
-      FROM ai_pdm_contract.v_application_role_catalog_v2 ORDER BY display_order`);
+      FROM ai_pdm_contract.v_application_role_catalog_v3 ORDER BY display_order`);
     return decodePublishedPrincipalCatalogRows(rows);
   } catch (error) {
     if (error instanceof JenfuPrincipalRequestError) throw error;

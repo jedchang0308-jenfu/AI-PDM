@@ -157,7 +157,11 @@ jobs:
 
       - name: Verify role-policy editor and affected capability callers
         if: steps.slice.outputs.authorization == 'true'
-        run: npm run test:dev-123:contracts
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm run test:dev-123:contracts
+          npm run test:dev-127:contracts
 
       - name: Verify release and infrastructure slice
         if: steps.slice.outputs.infrastructure == 'true'

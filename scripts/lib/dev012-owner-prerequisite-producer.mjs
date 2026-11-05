@@ -50,18 +50,18 @@ export function validateHistoricalBaselineIntent(value, profile, validateIntent)
       return value
     }
     const entries = profile.migrations?.entries
-    const currentHasDeferred085 = [35, 38, 39, 40].includes(entries?.length)
+    const knownSuffix = [
+      '086_dev123_role_policy_editor_v1.sql',
+      '087_dev123_role_policy_candidate_validation.sql',
+      '088_dev123_recognition_job_authority.sql',
+      '089_dev125_windows_service_devices.sql',
+      '090_dev125_windows_device_owner_principal.sql',
+      '096_dev127_platform_super_admin_consumer.sql',
+    ]
+    const currentHasDeferred085 = [35, 38, 39, 40, 41].includes(entries?.length)
       && entries[34]?.order === 35
       && entries[34]?.path === 'db/postgres/085_dev121_principal_role_catalog_v7.sql'
-      && (entries.length === 35 || [
-        '086_dev123_role_policy_editor_v1.sql',
-        '087_dev123_role_policy_candidate_validation.sql',
-        '088_dev123_recognition_job_authority.sql',
-      ].every((name, index) => entries[35 + index]?.order === 36 + index && entries[35 + index]?.path === `db/postgres/${name}`)
-        && (entries.length === 38 || (entries[38]?.order === 39 &&
-          entries[38]?.path === 'db/postgres/089_dev125_windows_service_devices.sql'
-          && (entries.length === 39 || (entries[39]?.order === 40 &&
-            entries[39]?.path === 'db/postgres/090_dev125_windows_device_owner_principal.sql')))))
+      && entries.slice(35).every((entry, index) => entry.order === 36 + index && entry.path === `db/postgres/${knownSuffix[index]}`)
     if (error?.code !== 'PROGRAM_ONLY_BASELINE_INVALID'
       || profile.application?.id !== 'ai-pdm'
       || !value?.programOnlyBaseline

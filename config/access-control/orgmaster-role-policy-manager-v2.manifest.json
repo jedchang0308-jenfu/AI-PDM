@@ -1,0 +1,20 @@
+{
+  "contractVersion": "ai-pdm.role-policy-manager.v2",
+  "producer": "orgmaster",
+  "consumer": "ai-pdm",
+  "eligibleFunction": "orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(text,text,text,text)",
+  "lockFunction": "orgmaster_contract.lock_ai_pdm_role_policy_authority_v2()",
+  "readers": [
+    "ai-pdm"
+  ],
+  "producerManifestSha256": "df24e788a8509339eb1c81fbaa751eb403d51fcecbf638ca1ba30db6ecfff1c6",
+  "parameters": [
+    "principalId",
+    "employeeId",
+    "identityIssuer",
+    "identitySubject"
+  ],
+  "result": "boolean",
+  "transaction": "read committed, read write",
+  "eligibility": "active human_personal or human_privileged direct exact app administrator; privileged legacy exact system_admin compatibility; AAL1 minimum accepts AAL2"
+}

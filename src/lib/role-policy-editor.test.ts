@@ -7,7 +7,7 @@ const fixedUuid = () => '11111111-1111-4111-8111-111111111111'
 
 describe('DEV-123 role policy domain', () => {
   it('binds the unpublished SQL definition to the actual semantic registry and profile source', () => {
-    const sql = readFileSync('db/postgres/087_dev123_role_policy_candidate_validation.sql', 'utf8')
+    const sql = readFileSync('db/postgres/096_dev127_platform_super_admin_consumer.sql', 'utf8')
     const literal = /SELECT '(.+)'::jsonb\r?\n\$definition\$/u.exec(sql)?.[1]
     expect(literal).toBeDefined()
     const definition = JSON.parse(literal!)
@@ -21,7 +21,7 @@ describe('DEV-123 role policy domain', () => {
     const source = rolePolicySource()
     expect(source.registry.businessActions).toHaveLength(20)
     expect(source.registry.roleProfiles.filter(profile => profile.assignmentDisposition === 'selectable')).toHaveLength(7)
-    expect(source.defaultCandidate.roles).toHaveLength(9)
+    expect(source.defaultCandidate.roles).toHaveLength(10)
     expect(source.defaultCandidate.roles[4].stableRoleId).toBe('role-production-planning')
     expect(source.defaultCandidate.roles[5].stableRoleId).toBe('role-procurement')
     expect(rolePolicyRegistryHash).toMatch(/^[a-f0-9]{64}$/u)
@@ -39,15 +39,15 @@ describe('DEV-123 role policy domain', () => {
     expect(rolePolicyDiff(before, result.candidate).roleChanges).toHaveLength(1)
   })
 
-  it('counts inactive identities in the 64-role bound and rejects oversized change batches without mutation',()=>{
+  it('counts inactive identities in the 65-role bound and rejects oversized change batches without mutation',()=>{
     let sequence=0
     const candidate=applyRolePolicyDraftChanges({candidate:buildDefaultRolePolicyCandidate(),changes:[],
       uuid:()=>`58000000-0000-4000-8000-${String(++sequence).padStart(12,'0')}`,
       roleChanges:Array.from({length:55},(_,index)=>({type:'create' as const,clientRoleId:`client-boundary-${index+1}`,displayName:`邊界角色 ${index+1}`})),
     }).candidate
-    const inactive=applyRolePolicyDraftChanges({candidate,changes:[],roleChanges:[{type:'deactivate',stableRoleId:candidate.roles[9].stableRoleId}]}).candidate
+    const inactive=applyRolePolicyDraftChanges({candidate,changes:[],roleChanges:[{type:'deactivate',stableRoleId:candidate.roles[10].stableRoleId}]}).candidate
     const before=structuredClone(inactive)
-    expect(inactive.roles).toHaveLength(64)
+    expect(inactive.roles).toHaveLength(65)
     expect(()=>applyRolePolicyDraftChanges({candidate:inactive,changes:[],uuid:fixedUuid,
       roleChanges:[{type:'create',clientRoleId:'client-over-limit',displayName:'超過上限'}]})).toThrow('ROLE_LIMIT_REACHED')
     expect(()=>applyRolePolicyDraftChanges({candidate:inactive,changes:[],roleChanges:Array.from({length:63},()=>({type:'deactivate' as const,stableRoleId:'role-rd'}))})).toThrow('ROLE_POLICY_CHANGE_LIMIT_REACHED')

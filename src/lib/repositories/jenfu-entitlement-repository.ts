@@ -1,6 +1,6 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
-import rolePolicyRegistryJson from "../../../config/access-control/role-policy-editor-registry.v2.json" with { type: "json" };
+import rolePolicyRegistryJson from "../../../config/access-control/role-policy-editor-registry.v3.json" with { type: "json" };
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
@@ -39,6 +39,10 @@ type AssignmentRow = {
   subject_kind: "employee" | "principal";
   target_principal_id: string | null;
   catalog_version: string;
+  source_assignment_id: string | null;
+  source_grant_id: string | null;
+  admin_catalog_sha256: string | null;
+  role_definition_hash: string | null;
 };
 
 export type JenfuEnforcedPermissionInput = {
@@ -132,8 +136,9 @@ export class JenfuEntitlementRepository {
                grant_kind, delegation_id, application_id,
                principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
-               valid_until::text, published_at::text
-        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
+               valid_until::text, published_at::text,
+               source_assignment_id, source_grant_id, admin_catalog_sha256, role_definition_hash
+        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
         WHERE application_id = :applicationId
           AND principal_id = :principalId
           AND employee_id = :employeeId
@@ -173,6 +178,20 @@ export class JenfuEntitlementRepository {
         throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       }
       grantKeys.add(grantKey);
+      if (row.stable_role_id === 'role-application-system-admin') {
+        let proof: { valid: boolean } | null;
+        try {
+          proof = await this.client.queryOne<{ valid: boolean }>(`
+            SELECT EXISTS (SELECT 1 FROM ai_pdm_contract.v_role_policy_publications_v1
+              WHERE application_id='ai-pdm' AND catalog_version=:catalogVersion
+                AND catalog_sha256=:catalogSha256 AND stable_role_id='role-application-system-admin'
+                AND role_code='application_system_admin' AND role_definition_hash=:roleDefinitionHash
+                AND publication_format='dynamic-policy-v2') AS valid`, {
+            catalogVersion: row.catalog_version, catalogSha256: row.admin_catalog_sha256,
+            roleDefinitionHash: row.role_definition_hash });
+        } catch { throw new JenfuEntitlementRepositoryError('entitlement_authority_unavailable'); }
+        if (proof?.valid !== true) throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch');
+      }
       assignments.push({
         contractVersion: JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
         assignmentVersionId: row.assignment_version_id,
@@ -192,7 +211,9 @@ export class JenfuEntitlementRepository {
         scopeKey: row.scope_key,
         validFrom: row.valid_from,
         validUntil: row.valid_until,
-        publishedAt: row.published_at
+        publishedAt: row.published_at,
+        sourceAssignmentId: row.source_assignment_id, sourceGrantId: row.source_grant_id,
+        adminCatalogSha256: row.admin_catalog_sha256, roleDefinitionHash: row.role_definition_hash
       });
     }
     return assignments;
@@ -250,7 +271,19 @@ export class JenfuEntitlementRepository {
           && assignment.grantKind === "direct"
           && assignment.delegationId === null
         );
-      if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || !role.assignable || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      const administrator = assignment.stableRoleId === 'role-application-system-admin';
+      if (administrator && (
+          role.roleCode !== 'application_system_admin' || role.assignable !== false || role.risk !== 'critical' ||
+          role.subjectKind !== 'principal' || role.assignmentTier !== 'app_admin' || role.recommendationAllowed || role.delegationAllowed ||
+          JSON.stringify(role.allowedScopeKinds) !== '["global"]' || assignment.subjectKind !== 'principal' ||
+          assignment.targetPrincipalId !== input.actor.principalId || assignment.grantKind !== 'direct' || assignment.delegationId !== null ||
+          assignment.scopeKind !== 'global' || assignment.scopeKey !== null ||
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(assignment.sourceGrantId ?? '') ||
+          assignment.sourceGrantId !== assignment.sourceAssignmentId || assignment.assignmentId !== assignment.sourceGrantId ||
+          !/^[a-f0-9]{64}$/u.test(assignment.adminCatalogSha256 ?? '') ||
+          assignment.roleDefinitionHash !== role.roleDefinitionHash || role.roleStatus === 'inactive'
+        )) throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch');
+      if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || (!role.assignable && !administrator) || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       const validationIssues = validateEffectiveRoleAssignment(assignment, input.actor, decisionAt);
       if (validationIssues.length) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       // Retain and validate tombstones, then omit only their authorization.
@@ -266,7 +299,9 @@ export class JenfuEntitlementRepository {
       for (const { assignment, role } of preparedAssignments) {
         if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
         const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
-        const requirements = dynamicPolicy
+        const administratorRead = assignment.stableRoleId === 'role-application-system-admin' &&
+          role.permissions.some(permission => permission.kind === candidate.permissionKind && permission.code === candidate.permissionCode && permission.allowed);
+        const requirements = administratorRead ? [{ kind: candidate.permissionKind, code: candidate.permissionCode }] : dynamicPolicy
           ? permissionRequirements(candidate.permissionKind, candidate.permissionCode,
             candidate.resourceGroup, candidate.resourceGroups)
           : [{ kind: candidate.permissionKind, code: candidate.permissionCode }];

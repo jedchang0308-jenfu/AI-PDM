@@ -52,7 +52,7 @@ describe('DEV-009 S3 AI-PDM privileged consumer', () => {
       managementKind: 'privileged_principal', effectiveHolderCount: 1, holderCountLabel: '特權身分 1 個',
       manualAssignments: [{ principalAdmissionId: 'admission-privileged-a', principalHint: 'privileged•••A7' }],
     })
-    expect(workspace.managementSurface?.href).toBe('http://localhost:5000/?panels=governance&focus=governance&details=none&governanceSection=assignments')
+    expect(workspace.managementSurface?.href).toBe('http://localhost:5000/?panels=governance&focus=governance&details=none&governanceSection=administrators')
     expect(JSON.stringify(workspace)).not.toMatch(/"(?:issuer|subject|token|cookie|fingerprint)"\s*:/iu)
   })
 

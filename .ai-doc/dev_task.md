@@ -5626,3 +5626,13 @@ QC 要求保留的 Supabase stop wording：
   gate正確結果。未呼叫GCP、未讀credential、未寫DB、未建artifact／candidate、未改DNS或traffic，legacy
   workflow與Jenfu-Platform repo均未修改。下一步為review／merge到clean `origin/main`後建立fresh release lock，
   再等待billing、DEV-010 shared receipts、DEV-116 R02、canonical evidence與獨立GO。
+
+<a id="dev-127-platform-super-admin-pdm-consumer"></a>
+
+## DEV-127：平台超級管理員的 AI-PDM consumer 契約
+
+來源：`JENFU/DEV-022#pdm-administration`。唯一契約：[DEV-127 PDM consumer contract](specs/DEV-127-platform-super-admin-consumer-contract.md)。狀態 `IMPLEMENTING / SOURCE_SELF_CHECKED / PROVIDER_AND_PRODUCT_ACCEPTANCE_NOT_RUN`；closed post-finalize owner bridge source已完成，但正式provider與產品驗收未執行。096撤runtime v1 writer EXECUTE而不改active catalog；隔離／升級前基線為v1，persistent target狀態未知，真實操作前須readback。先部署並正常驗證雙讀v1/v2的consumer，再執行owner additive CAS upgrade與OrgMaster app-scoped grant。保留legacy privileged直授system_admin相容，不將它或platform root自動升成新root／app管理權；app管理grant不授業務寫入或其他app權限。
+
+RD source與隔離 PG 自查已完成；DOM4因缺jsdom NOT_RUN，isolated build因capacity gate BLOCKED且無lease，未繞過或清未知capacity。正式profile在原40筆後追加096為order41，091–095未帶入；這不代表migration或catalog upgrade已執行。跨owner真044/045、持續地端local、Google/browser UI、正式DB/provider／grant／traffic與GitHub required CI仍未完成。中文employee-name projection只用OrgMaster正式投影，失效或不合法回退「員工」，optional view用SAVEPOINT隔離失敗。各 source 測試分母與當前缺口見唯一契約§6–§8。
+
+DEV-127 current-main整合（2026-11-06）：root `C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`／`a97524979`，source已收斂，GitHub交付狀態以draft PR與exact SHA checks為準。閉合post-finalize bridge已實作並通過source／隔離檢查，但provider仍NOT_RUN。Local proof CLI僅接受loopback disposable `dev127_*` DB；真正primary-local非disposable，不可放寬guard，受控local bridge仍待設計實作。DOM4 NOT_RUN、isolated build capacity-blocked，GitHub requiredCI、Google/browser UI、持續local／formal DB仍未驗。細節與未完成缺口保留於DEV-127唯一契約。

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NUMBERING_NAV_PERMISSION_BY_PATH, permitsNumberingNavigation, type NumberingPermissionResponse } from "@/lib/numbering-permission-codes";
+import { principalHeaderDisplayName } from "@/lib/principal-employee-display-name";
 
 type NavItem = {
   href: string;
@@ -51,6 +52,7 @@ type ProductionSliceClientStatus = {
 
 type SidebarUser = {
   display_name: string;
+  employee_name?: string | null;
   default_company?: {
     companyCode?: string;
     companyKind?: string;
@@ -201,7 +203,7 @@ export function SidebarNav() {
     fetch("/api/auth/me", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { user?: SidebarUser } | null) => {
-        if (!cancelled) setCurrentUser(body?.user?.display_name ? body.user : null);
+        if (!cancelled) setCurrentUser(body?.user ?? null);
       })
       .catch(() => {
         if (!cancelled) setCurrentUser(null);
@@ -306,7 +308,7 @@ export function SidebarNav() {
                   }
                   const signedInEntry = item.href === "/login" && currentUser;
                   const EntryIcon = signedInEntry ? LogOut : Icon;
-                  const label = signedInEntry ? currentUser.display_name : item.label;
+                  const label = signedInEntry ? principalHeaderDisplayName(currentUser) : item.label;
                   const active = hydrated && (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
                   const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
                   const hasBadge = typeof badgeCount === "number" && badgeCount > 0;
@@ -316,10 +318,10 @@ export function SidebarNav() {
                     ? `${label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
                     : signedInEntry
                       ? logoutState === "processing"
-                        ? `${currentUser.display_name}，登出中`
+                        ? `${label}，登出中`
                         : logoutState === "failed"
-                          ? `${currentUser.display_name}，登出未完成，請再試`
-                          : `${currentUser.display_name}，登出 AI PDM`
+                          ? `${label}，登出未完成，請再試`
+                          : `${label}，登出 AI PDM`
                     : hasBadge
                       ? `${label}，${badgeCount} 件待審`
                       : label;

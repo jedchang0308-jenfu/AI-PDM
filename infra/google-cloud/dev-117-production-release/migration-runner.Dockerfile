@@ -15,6 +15,10 @@ COPY scripts/lib/dev121-ai-pdm-quiescence.mjs scripts/lib/dev121-ai-pdm-quiescen
 COPY scripts/lib/dev121-migration-fence.mjs scripts/lib/dev121-migration-fence.mjs
 COPY scripts/lib/dev121-unlinked-profile-cleanup.mjs scripts/lib/dev121-unlinked-profile-cleanup.mjs
 COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
+COPY scripts/lib/dev127-role-policy-upgrade.mjs scripts/lib/dev127-role-policy-upgrade.mjs
+COPY scripts/lib/dev127-catalog-job.mjs scripts/lib/dev127-catalog-job.mjs
+COPY config/access-control/dev127-protected-policy-source.v1.json config/access-control/dev127-protected-policy-source.v1.json
+COPY config/access-control/role-policy-editor-registry.v3.json config/access-control/role-policy-editor-registry.v3.json
 COPY scripts/lib/dev012-production-data-cutover.mjs scripts/lib/dev012-production-data-cutover.mjs
 COPY scripts/dev012-production-data-cutover-runtime.mjs scripts/dev012-production-data-cutover-runtime.mjs
 COPY config/release/dev012-ai-pdm-production-data-cutover.json config/release/dev012-ai-pdm-production-data-cutover.json

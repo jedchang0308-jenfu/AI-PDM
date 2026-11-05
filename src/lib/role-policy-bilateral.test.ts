@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate } from '@/lib/role-policy-editor'
+import { applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate } from '@/lib/role-policy-editor-legacy-v1'
 
 describe('DEV-123 real OrgMaster handoff vector', () => {
   it('rebuilds the exact v7 vector consumed by the DEV-058 decoder', () => {

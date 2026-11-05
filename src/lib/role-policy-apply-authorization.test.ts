@@ -33,7 +33,7 @@ function fixture(overrides: { eligible?: boolean; epoch?: number; accountStatus?
         assurance_level: overrides.sessionAssuranceLevel ?? overrides.assuranceLevel ?? 'aal2' }
       if (text.includes('read_principal_auth_state_v3')) return { principal_id: 'principal-a',
         auth_epoch: overrides.epoch ?? 3, revoked_before: null }
-      if (text.includes('manager_eligible_v1')) return { eligible: overrides.eligible ?? true }
+      if (text.includes('manager_eligible_v2')) return { eligible: overrides.eligible ?? true }
       throw new Error('unexpected query')
     }) }
   const run = () => lockAndRevalidateRolePolicyApply(client as never, verified as never,
@@ -45,8 +45,8 @@ describe('DEV-123 post-wait apply admission', () => {
   it('locks first and separately revalidates account, session, epoch and the timed OrgMaster manager', async () => {
     const f = fixture()
     await expect(f.run()).resolves.toBeUndefined()
-    expect(f.sql[0]).toContain('role_policy_lock_apply_v1')
-    expect(f.sql.at(-1)).toContain('manager_eligible_v1')
+    expect(f.sql[0]).toContain('role_policy_lock_apply_v2')
+    expect(f.sql.at(-1)).toContain('manager_eligible_v2')
     expect(f.sql.findIndex(sql => sql.includes('principal_accounts'))).toBeGreaterThan(0)
   })
 
@@ -54,9 +54,13 @@ describe('DEV-123 post-wait apply admission', () => {
     await expect(fixture({ assuranceLevel: 'aal1' }).run()).resolves.toBeUndefined()
   })
 
+  it.each(['aal1', 'aal2'])('accepts active personal app administrator at %s', async assuranceLevel => {
+    await expect(fixture({ accountType: 'human_personal', assuranceLevel }).run()).resolves.toBeUndefined()
+  })
+
   it.each([
     ['revoked OrgMaster grant or identity', { eligible: false }],
-    ['ordinary account', { accountType: 'human_personal' }],
+    ['personal account without admin grant', { accountType: 'human_personal', eligible: false }],
     ['delegated OrgMaster grant', { eligible: false }],
     ['workload or agent grant', { eligible: false }],
     ['disabled PDM account', { accountStatus: 'suspended' }],

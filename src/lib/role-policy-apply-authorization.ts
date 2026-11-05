@@ -14,7 +14,7 @@ export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClie
   }
   const claims = verified.session
   const sessionHash = hashJenfuPrincipalSessionId(claims.sessionId)
-  await client.query(`SELECT ai_pdm_core.role_policy_lock_apply_v1(
+  await client.query(`SELECT ai_pdm_core.role_policy_lock_apply_v2(
     CAST(:requestId AS uuid),CAST(:draftId AS uuid),:principalId,:sessionHash)`,
   { requestId, draftId, principalId: claims.principalId, sessionHash })
 
@@ -46,7 +46,7 @@ export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, v
   const epoch = await new JenfuAuthEpochRepository(client).readCanonicalPrincipalState(claims.principalId)
   const now = Date.now()
   const validAssuranceLevel = claims.assuranceLevel === 'aal1' || claims.assuranceLevel === 'aal2'
-  if (!validAssuranceLevel || account.accountType !== 'human_privileged' ||
+  if (!validAssuranceLevel || !['human_personal', 'human_privileged'].includes(account.accountType) ||
       account.employeeId !== claims.employeeId || account.pdmUserId !== verified.profile.pdmUserId ||
       account.companyId !== verified.profile.companyId || account.lifecycleVersion !== claims.accountLifecycleVersion ||
       account.profileVersion !== claims.profileVersion ||
@@ -63,7 +63,7 @@ export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, v
     throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
   }
   const eligible = await client.queryOne<{ eligible: boolean }>(`
-    SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(
+    SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(
       :principalId,:employeeId,:issuer,:subject) AS eligible`, {
     principalId: claims.principalId, employeeId: claims.employeeId,
     issuer: claims.identityIssuer, subject: claims.identitySubject

@@ -15,6 +15,8 @@ const SLICE_ORDER = Object.freeze([
 ])
 
 const RELEASE_CONTROL = [
+  /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
+  /^scripts\/(?:lib\/)?dev127-role-policy-release-gate(?:\.|-)/u,
   /^\.github\/workflows\//u,
   /^(?:Dockerfile|\.dockerignore|\.gitattributes|\.gitignore|package(?:-lock)?\.json)$/u,
   /^config\/release\//u,
@@ -51,6 +53,8 @@ const WORKER = [
 ]
 
 const DATABASE = [
+  /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
+  /^scripts\/dev127-upgrade-role-policy\.mjs$/u,
   /^db\/postgres\//u,
   /^scripts\/.*(?:postgres|migration|database-boundary)/u,
   /^src\/lib\/(?:db|postgres|database|repositories)\//u,
@@ -63,6 +67,9 @@ const RD_PERMISSION_DATABASE = [
 ]
 
 const AUTHORIZATION = [
+  /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
+  /^contracts\/orgmaster-administration\/v1\//u,
+  /^scripts\/(?:lib\/)?dev127-(?:build-role-policy-registry|upgrade-role-policy|consumer-contract|consumer-postgres(?:-fixture)?)(?:\.|-)/u,
   /^scripts\/dev123-(?:build-role-policy-registry|role-policy)/u,
   /^src\/(?:lib\/role-policy-|components\/access-governance\/role-capability-settings|app\/api\/settings\/access\/role-policies\/)/u,
   /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,

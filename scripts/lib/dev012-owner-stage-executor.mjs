@@ -14,6 +14,8 @@ import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mj
 import { assertHistoricalPrincipalOnlyRecoveryReadback, assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, assertReconciledPrincipalAbortBinding, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
 import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, observationDeadline, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, assertSourceLock, parseAiPdmMigrationArchive, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
+import { usesDev127Consumer, dev127ConsumerInstallPlan, recordDev127CompatibleArtifact, requireDev127CompatibleRollback } from './dev127-role-policy-release-gate.mjs'
+import { executeDev127CatalogBridge } from './dev127-catalog-release-bridge.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
 import { assertDev125WindowsInstallerReceipt, verifyDev125WindowsInstallerArtifact } from './dev125-windows-installer-artifact.mjs'
 import { appliedRdPermissionSmokeSuite, assertAppliedContinuationRuntimeBinding, assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence, assertForwardAppliedMigrationContinuation, assertForwardAppliedMigrationGraph, forwardAppliedMigrationProofRefs, assertForwardMigrationAssociation } from './dev122-applied-migration-continuation.mjs'
@@ -841,6 +843,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     }
   }
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: capsuleSha256 }))
+  const dev127AppRelease = usesDev127Consumer(profile) && !requiresPrincipalOnlyRuntimeAuthority(intent)
 
   assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath })
   if (stage !== 'rollback') {
@@ -944,7 +947,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(existing.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       return existing
     }
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, releaseEvidence, ...(PREPARABLE_CONTINUATIONS.has(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    const administrationTransition = dev127ConsumerInstallPlan({ profile, readSource, sourceRevision: intent.sourceRevision })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, releaseEvidence, ...(administrationTransition ? { administrationTransition } : {}), ...(PREPARABLE_CONTINUATIONS.has(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {
@@ -1179,6 +1183,13 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   }
 
   if (stage === 'finalize') {
+    const released = await optionalNamedJson(transport, paths.terminal, profile)
+    if (dev127AppRelease && released?.value?.facts?.result === 'RELEASED') {
+      assertStage(released.value, profile, intent, 'terminal')
+      const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
+      await executeDev127CatalogBridge({transport,profile,intentRef,deployment,paths,readSource})
+      return released
+    }
     const canonical = await readStage(transport, paths, profile, intent, 'canonical')
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
     const migration = await optionalMigrationAdmission(transport, paths, profile, intent)
@@ -1186,6 +1197,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const migrationMode = migration.value.facts.disposition
     await transport.removeCandidateTag({ profile, tag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, expectedActiveRevision: candidate.value.facts.candidateRevision, deadlineAt: intent.deadlineAt })
     const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED' })
+    if (dev127AppRelease) await recordDev127CompatibleArtifact({ transport, profile, intent, candidate: candidate.value.facts,
+      canonical, finalized, readSource })
     const conformance = buildDev014ConsumerConformance({ appId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: candidate.value.facts.artifactDigest.split('@').at(-1), failSeekingEvidenceRef: canonical.ref.uri, verifiedAt: transport.now() })
     const conformanceResult = await transport.putJson(`gs://${profile.artifact.releaseBucket}/${paths.root}/dev014-consumer-conformance.json`, conformance, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
@@ -1202,9 +1215,18 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       assertPostLiveCleanupReceipt(cleanup.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
     }
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'FINALIZED', result: 'RELEASED', environment })
+    if (dev127AppRelease) {
+      const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
+      await executeDev127CatalogBridge({transport,profile,intentRef,deployment,paths,readSource})
+    }
     return terminalResult
   }
 
+  const released = await optionalNamedJson(transport, paths.terminal, profile)
+  if (dev127AppRelease && released?.value?.facts?.result === 'RELEASED') {
+    assertStage(released.value, profile, intent, 'terminal')
+    fail('POST_FINALIZE_OWNER_RECOVERY_REQUIRED')
+  }
   const candidate = await optionalNamedJson(transport, paths.candidate, profile)
   const entrypoint = await optionalNamedJson(transport, paths.entrypoint, profile)
   const prepare = await optionalNamedJson(transport, paths.prepare, profile)
@@ -1232,6 +1254,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const facts = candidate.value.facts
     let service = await transport.getService(profile)
     if (transport.effectiveRevision(service) === facts.candidateRevision) {
+      // Existing Principal-only DB-free maintenance recovery retains its own
+      // exact proof/readback path; ordinary application rollback needs v2.
+      if (!requiresPrincipalOnlyRuntimeAuthority(intent)) {
+        await requireDev127CompatibleRollback({ transport, profile, revision: rollbackRevision })
+      }
       service = await transport.setTraffic({ profile, revision: rollbackRevision, deadlineAt: intent.deadlineAt })
       disposition = 'ROLLED_BACK'
     }

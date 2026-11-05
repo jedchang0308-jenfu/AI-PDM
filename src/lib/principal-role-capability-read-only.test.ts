@@ -49,7 +49,7 @@ describe("Principal-only role governance display", () => {
     expect(result.dataState).toBe("current");
     expect(result.mutationAllowed).toBe(false);
     expect(result.managementSurface?.href).toBe(
-      "https://orgmaster.example.com/?panels=governance&focus=governance&details=none&governanceSection=assignments");
+      "https://orgmaster.example.com/?panels=governance&focus=governance&details=none&governanceSection=administrators");
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ mutationAllowed: false }));
   });
 });

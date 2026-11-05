@@ -40,7 +40,7 @@ async function requestData<T>(url: string, init?: RequestInit, actor?: string): 
     ...(init?.body ? { 'content-type': 'application/json' } : {}),
     ...(actor ? { 'x-pdm-policy-principal': actor } : {}), ...(init?.headers ?? {}) } })
   const body = await response.json().catch(() => null)
-  if (!response.ok || body?.contractVersion !== 'ai-pdm.role-policy-workspace.v3' || !body.data) {
+  if (!response.ok || body?.contractVersion !== 'ai-pdm.role-policy-workspace.v4' || !body.data) {
     throw new PolicyError(errorText(body?.code), response.ok ? 503 : response.status, body?.code)
   }
   return body.data as T
@@ -475,7 +475,7 @@ export function RoleCapabilitySettings() {
         <td>{new Date(String(h.publishedAt)).toLocaleString()}</td><td>{h.lifecycle === 'active' ? '目前生效' : '歷史版本'}</td>
         <td><div className="role-policy-history-actions"><button type="button" className="secondary-button" disabled={busy}
           onClick={() => void openHistoryDetail(String(h.catalogVersion))}>查看詳情</button>
-          {workspace.admission.edit && h.publicationFormat === 'dynamic-policy-v1' ? <button type="button" className="secondary-button" disabled={locked}
+          {workspace.admission.edit && ['dynamic-policy-v1', 'dynamic-policy-v2'].includes(h.publicationFormat) ? <button type="button" className="secondary-button" disabled={locked}
             onClick={() => void navigate(() => createDraft(String(h.catalogVersion)))}>以此建立草稿</button> : <span>既有版本</span>}</div></td></tr>)}</tbody></table>
       {historyCursor ? <button type="button" className="secondary-button role-policy-more" disabled={busy || loadingMoreHistory}
         onClick={() => void loadMoreHistory()}>{loadingMoreHistory ? '讀取中…' : '更多異動紀錄'}</button> : null}

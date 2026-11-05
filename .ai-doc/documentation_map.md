@@ -2186,3 +2186,9 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
   - 同checkpoint的 Current program-only serving and retained READY worker：native只讀版本分離、source-bound serving／worker雙鏈核對及停寫前穩定readback，positive／drift／replay／recovery回歸；local與Production分界。
   - 上述 current-serving checkpoint 最終分類相容 focused10/10、native QC350/350／typecheck／isolated build PASS；本地證據與085／RD正式驗收分開。
+
+## DEV-127 — 平台與 AI-PDM 管理資格 consumer（IMPLEMENTING）
+
+來源 `JENFU/DEV-022#pdm-administration`；[唯一契約](specs/DEV-127-platform-super-admin-consumer-contract.md)。Closed post-finalize owner bridge source已完成並通過source／隔離自查；096撤runtime舊v1 writer EXECUTE但不改active catalog。隔離／升級前基線為v1，persistent target狀態未知，真實操作前須readback；先部署並正常驗證dual-reader consumer，再做owner additive upgrade與OrgMaster app grant。保留legacy privileged直授system_admin相容，不自動升root，app-admin亦不放行business write。Formal provider、persistent local／production DB與正常Google/UI均未執行。
+
+DEV-127最新整合入口為 `C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`；profile只於原40筆後追加096為order41，未納local091–095；DOM4因缺jsdom NOT_RUN，isolated build capacity-blocked且無lease。Local CLI僅可用loopback disposable `dev127_*` DB；真正primary-local非disposable，受控local bridge仍待設計／實作。GitHub required CI、provider、Google/browser UI及formal DB未執行；source已收斂，GitHub交付狀態以draft PR與exact SHA checks為準。最新stage與剩餘缺口見[唯一契約](specs/DEV-127-platform-super-admin-consumer-contract.md) §6–§8。

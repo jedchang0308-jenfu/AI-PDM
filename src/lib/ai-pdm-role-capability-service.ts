@@ -6,7 +6,7 @@ import { getRoleCapabilityDisplaySnapshot, saveRoleCapabilityDisplaySnapshot } f
 
 const catalog = roleCatalog as RoleCapabilityCatalog
 const PRIVILEGED_SNAPSHOT_KEY = 'ai-pdm:role-system-admin'
-const ORGMASTER_ASSIGNMENTS_PATH = '/?panels=governance&focus=governance&details=none&governanceSection=assignments'
+const ORGMASTER_ASSIGNMENTS_PATH = '/?panels=governance&focus=governance&details=none&governanceSection=administrators'
 
 function unavailableCode(error: unknown) {
   if (error instanceof AiPdmRoleCapabilityRepositoryError) return error.code
@@ -48,7 +48,7 @@ function managementSurface() {
     const url = new URL(base)
     const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/' || (!local && url.protocol !== 'https:') || (local && process.env.NODE_ENV === 'production')) return undefined
-    return { label: '前往 OrgMaster 角色指派' as const, href: `${url.origin}${ORGMASTER_ASSIGNMENTS_PATH}` }
+    return { label: '前往 OrgMaster 平台管理員' as const, href: `${url.origin}${ORGMASTER_ASSIGNMENTS_PATH}` }
   } catch {
     return undefined
   }

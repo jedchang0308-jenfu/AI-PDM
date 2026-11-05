@@ -70,7 +70,7 @@ describe("DEV-121 principal workspace permission decision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     snapshot.query.mockImplementation(async (sql: string) =>
-      sql.includes("v_application_role_catalog_v2")
+      sql.includes("v_application_role_catalog_v3")
         ? publishedCatalogRows : [{ decision_at: "2026-09-24T12:00:00Z" }]);
     mocks.withVerified.mockImplementation(async (_request, evaluate) => evaluate(snapshot, verified));
     mocks.priority.mockResolvedValue(["system_admin", "rd_manager", "rd"]);
@@ -132,7 +132,7 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.catalogInput).toHaveBeenCalledWith(principalRoleCatalog);
 
     snapshot.query.mockImplementation(async (sql: string) =>
-      sql.includes("v_application_role_catalog_v2")
+      sql.includes("v_application_role_catalog_v3")
         ? [{ catalog_version: "ai-pdm.role-catalog.2026-09-03.v3" }]
         : [{ decision_at: "2026-09-24T12:00:00Z" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input))

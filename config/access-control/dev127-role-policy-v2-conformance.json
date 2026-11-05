@@ -1,0 +1,4008 @@
+{
+  "contractVersion": "ai-pdm.role-policy-v2-conformance.v1",
+  "evidenceScope": "SOURCE_DOMAIN_FIXTURE_NOT_PRODUCTION",
+  "publishedAt": "2026-11-05T00:00:00.000Z",
+  "baselineCatalogVersion": "ai-pdm.role-catalog.2026-10-10.v7",
+  "before": {
+    "format": "dynamic-policy-v1",
+    "applicationId": "ai-pdm",
+    "candidateCatalogVersion": "ai-pdm.role-policy.00000000-0000-4000-8000-000000000127",
+    "roleSchemaId": "ai-pdm.role-schema.flexible.v2",
+    "roleProfileSchemaId": "ai-pdm.role-profile-schema.v1",
+    "registryHash": "c2340c96a64004538b11fd59b1a1c4f03a88779c7db722f583037b4dc6c49869",
+    "baselineRoleIdentityHash": "265483921bbdadfdf8933f1d0cdcbebc1b4df42983c84784a7176fdd5f05d55c",
+    "roleIdentityHash": "d536ba9b3351644a67727bff48fe8ab9c48bd2bbcaa9b98039ad0a8af50537f4",
+    "roleProfileHash": "539ac3ff0a2995c67081af1c0692385d216952376263c61cb6982b77c002b4e9",
+    "protectedPolicyHash": "604184ece311dabaf4cc7c0fec8ac802425f79363933d2d66ea67c82369803a6",
+    "roles": [
+      {
+        "stableRoleId": "role-rd",
+        "roleCode": "rd",
+        "displayName": "研發人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.file_metadata.detect",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.request",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "997d22247718da2cd00810468594f611034470056539c7e61bd2ce84d970d331"
+      },
+      {
+        "stableRoleId": "role-rd-manager",
+        "roleCode": "rd_manager",
+        "displayName": "研發主管",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "approval.inbox.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.apply",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.cleanup",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.release",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.export.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "post_release_change",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.lifecycle.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.retry",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.share",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.request",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "478145bbb85436f022a8989356324f50dcc1d57051081ee74e13ff4a61b2bb11"
+      },
+      {
+        "stableRoleId": "role-qa",
+        "roleCode": "qa",
+        "displayName": "QA/QC",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "ec093ee6061c36fd259caa9d82d085b99cced98bd5c00447f7d15f3ffaaf473d"
+      },
+      {
+        "stableRoleId": "role-manufacturing",
+        "roleCode": "manufacturing",
+        "displayName": "生產人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "handoff.published.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "8d6cfe4c67433919cf9a2f45d7860278c8411d915cccd917aa408cc3a9e98304"
+      },
+      {
+        "stableRoleId": "role-production-planning",
+        "roleCode": "production_planning",
+        "displayName": "生管人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "handoff.published.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.tasks",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "0f937fd1b82958189f593c27d5e2fe06ca22d904ecffbdfc26a573b2c0e6dcfa"
+      },
+      {
+        "stableRoleId": "role-procurement",
+        "roleCode": "procurement",
+        "displayName": "採購",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "cfb23f7e3225d0d298e11362f8c9a42d4a44b747321063fd4554d6d76fdbf645"
+      },
+      {
+        "stableRoleId": "role-external-specialist",
+        "roleCode": "external_specialist",
+        "displayName": "外部專員",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": [
+          "project"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": {
+          "requiresManualDirect": true,
+          "requiresFiniteValidUntil": true
+        },
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "44169338f197e24bdd3e50d79ee20a1c929cce139cdddb6a005e953a89a11e59"
+      },
+      {
+        "stableRoleId": "role-pdm-admin",
+        "roleCode": "pdm_admin",
+        "displayName": "PDM管理員",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "accounts.identity.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.invitation.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.lifecycle.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.session.revoke",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.inbox.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.apply",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.cleanup",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.release",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.audit_report.generate",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.admin_confirm",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.export.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "obsolete_part_root",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.file_metadata.detect",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "post_release_change",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.admin_matrix",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.integration.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.secret.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.storage_evidence.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.lifecycle.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.retry",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.share",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "b38f8556c97adfe755335af40670e227cb53e83fd10686cb6616037cb72dd272"
+      },
+      {
+        "stableRoleId": "role-system-admin",
+        "roleCode": "system_admin",
+        "displayName": "系統管理員",
+        "assignable": true,
+        "risk": "critical",
+        "subjectKind": "principal",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": [
+          "global"
+        ],
+        "assignmentTier": "cross_app_override",
+        "metadata": {
+          "requiresHumanPrivilegedPrincipal": true,
+          "forbidSelfAssignment": true
+        },
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "accounts.identity.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.invitation.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.lifecycle.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.session.revoke",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.inbox.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.apply",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.cleanup",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "handoff.published.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "integration.procurement.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "integration.procurement.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.release",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.approval.batch.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.approval.request",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.attachments.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.audit_report.generate",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.candidate.review.submit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.admin_confirm",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.obsolete",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.duplicate_check",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.export.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.link_variant",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.notification.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.formalize",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.run",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.task.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.cancel",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "obsolete_part_root",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.file_metadata.detect",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.shared_model.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.shared_model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "post_release_change",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.admin_matrix",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.integration.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.secret.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.storage_evidence.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.lifecycle.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.retry",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.share",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.review.submit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.review.withdraw",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.view",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.drawings.view",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.reports",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.request",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.search",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.tasks",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "fc9ebba9e6d16688dbd577bf544bdeea9d014b1f3a01c65a7d9eb96cb8b88133"
+      },
+      {
+        "stableRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "roleCode": "custom_90000000000040008000000000000127",
+        "displayName": "既有自訂",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "311f2a06a2589a37a4b85157055cda9e10e1dd8c869e0e3297d5ba379703f604"
+      }
+    ],
+    "roleProfiles": [
+      {
+        "stableRoleId": "role-rd",
+        "permissionRoleId": "role-rd",
+        "presentationName": "RD",
+        "presentationOrder": 0,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-rd-manager",
+        "permissionRoleId": "role-rd-manager",
+        "presentationName": "RD主管",
+        "presentationOrder": 1,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-qa",
+        "permissionRoleId": "role-qa",
+        "presentationName": "QA/QC",
+        "presentationOrder": 2,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-manufacturing",
+        "permissionRoleId": "role-manufacturing",
+        "presentationName": "生產人員",
+        "presentationOrder": 3,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-production-planning",
+        "permissionRoleId": "role-procurement",
+        "presentationName": "採購／生管（舊生管指派）",
+        "presentationOrder": 4,
+        "assignmentDisposition": "legacy-only"
+      },
+      {
+        "stableRoleId": "role-procurement",
+        "permissionRoleId": "role-procurement",
+        "presentationName": "採購／生管",
+        "presentationOrder": 4,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-external-specialist",
+        "permissionRoleId": "role-external-specialist",
+        "presentationName": "外部專員",
+        "presentationOrder": 5,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-pdm-admin",
+        "permissionRoleId": "role-pdm-admin",
+        "presentationName": "PDM管理員",
+        "presentationOrder": 6,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-system-admin",
+        "permissionRoleId": "role-system-admin",
+        "presentationName": "系統管理員",
+        "presentationOrder": 8,
+        "assignmentDisposition": "hidden-protected"
+      },
+      {
+        "stableRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "permissionRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "presentationName": "既有自訂",
+        "presentationOrder": 7,
+        "assignmentDisposition": "selectable"
+      }
+    ],
+    "identityHashes": {
+      "role-rd": "8e0c0f4d3b9ec1766f3605adeb715725701d30a7e2671ac16509040686d2d4d9",
+      "role-rd-manager": "3c65b920c00f68d6a87a91682c48d88395c131e8c3e077a76896397fb0c6dea2",
+      "role-qa": "53fcf20b141077c7662c5f39b9898a4e4f776cf45e1c088ee09ba40c8ff165ed",
+      "role-manufacturing": "052f9efa3b021d7e76a65db82b5b8b8bfea883496ae7cd408800433b60eda807",
+      "role-production-planning": "d976633f5e2cf27f1c9211254af43b6a44ae3b6bc999d6c758c05bc3dbe256b0",
+      "role-procurement": "ce15bbad23a380fd012d1c8b2979674f5542a1c23e2ab75751d6b82b452ef01d",
+      "role-external-specialist": "34480faf9c3f3a511bce8ff0e3192534e4f854aa4f0ea18f4bb5c9e9fc918f4b",
+      "role-pdm-admin": "4d713823aadf525374ab361c9b9082f58768e6d4f29cff6329c13028aecc5063",
+      "role-system-admin": "9b53d29ad637b913b3c34e2ce646203b87a9d02b45a1f566277efd79f5d385c2",
+      "role-custom-90000000-0000-4000-8000-000000000127": "c6b451f0ee539f9fdf42f774c0e799214b6aef0b9ecc589ab260e13476ebd299"
+    },
+    "contentHash": "112e0bd7e590593e83c150890f43ade767e53d645d4dad4e954e6d2668e1c033"
+  },
+  "policy": {
+    "format": "dynamic-policy-v2",
+    "applicationId": "ai-pdm",
+    "candidateCatalogVersion": "ai-pdm.role-policy.10000000-0000-4000-8000-000000000127",
+    "roleSchemaId": "ai-pdm.role-schema.flexible.v2",
+    "roleProfileSchemaId": "ai-pdm.role-profile-schema.v1",
+    "registryHash": "6266f9a82e549639affe668d7451cf93b672ff336be6125e7afc4bb61f76d8c5",
+    "baselineRoleIdentityHash": "265483921bbdadfdf8933f1d0cdcbebc1b4df42983c84784a7176fdd5f05d55c",
+    "roleIdentityHash": "f9fba4eb936e27757a6fdf09da1a0ad215acb2db8921849a79d758d7a5c9d722",
+    "roleProfileHash": "81816c3fdb9b4ec3daf463338e563a57e13f4f6870e65f50584ab14cd8ca9770",
+    "protectedPolicyHash": "f00105d5295a3e4a3d29b639ba8b32644fff8e67dd2ae2505938e5ace2e1a700",
+    "roles": [
+      {
+        "stableRoleId": "role-rd",
+        "roleCode": "rd",
+        "displayName": "研發人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.file_metadata.detect",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.request",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "997d22247718da2cd00810468594f611034470056539c7e61bd2ce84d970d331"
+      },
+      {
+        "stableRoleId": "role-rd-manager",
+        "roleCode": "rd_manager",
+        "displayName": "研發主管",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "approval.inbox.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.apply",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.cleanup",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.release",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.export.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "post_release_change",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.lifecycle.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.retry",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.share",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.request",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "478145bbb85436f022a8989356324f50dcc1d57051081ee74e13ff4a61b2bb11"
+      },
+      {
+        "stableRoleId": "role-qa",
+        "roleCode": "qa",
+        "displayName": "QA/QC",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "ec093ee6061c36fd259caa9d82d085b99cced98bd5c00447f7d15f3ffaaf473d"
+      },
+      {
+        "stableRoleId": "role-manufacturing",
+        "roleCode": "manufacturing",
+        "displayName": "生產人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "handoff.published.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "8d6cfe4c67433919cf9a2f45d7860278c8411d915cccd917aa408cc3a9e98304"
+      },
+      {
+        "stableRoleId": "role-production-planning",
+        "roleCode": "production_planning",
+        "displayName": "生管人員",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "handoff.published.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.tasks",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "0f937fd1b82958189f593c27d5e2fe06ca22d904ecffbdfc26a573b2c0e6dcfa"
+      },
+      {
+        "stableRoleId": "role-procurement",
+        "roleCode": "procurement",
+        "displayName": "採購",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawings.view",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "cfb23f7e3225d0d298e11362f8c9a42d4a44b747321063fd4554d6d76fdbf645"
+      },
+      {
+        "stableRoleId": "role-external-specialist",
+        "roleCode": "external_specialist",
+        "displayName": "外部專員",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": [
+          "project"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": {
+          "requiresManualDirect": true,
+          "requiresFiniteValidUntil": true
+        },
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "44169338f197e24bdd3e50d79ee20a1c929cce139cdddb6a005e953a89a11e59"
+      },
+      {
+        "stableRoleId": "role-pdm-admin",
+        "roleCode": "pdm_admin",
+        "displayName": "PDM管理員",
+        "assignable": true,
+        "risk": "high",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "code": "accounts.identity.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.invitation.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.lifecycle.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "accounts.session.revoke",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.inbox.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.apply",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.cleanup",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "approval.request.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "integration.procurement.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.release",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "manufacturing.baseline.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.batch.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.approval.request",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.attachments.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.audit_report.generate",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.candidate.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.admin_confirm",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.obsolete",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.draft.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.duplicate_check",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.export.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.link_variant",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.notification.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.formalize",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.recognition.run",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.task.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.cancel",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.workspace.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "obsolete_part_root",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.file_metadata.detect",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "pdm.shared_model.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "code": "post_release_change",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.admin_matrix",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.integration.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.secret.manage",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "settings.storage_evidence.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.lifecycle.decide",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.retry",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.review",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.share",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "submission.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.create",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.publish",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.submit",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.review.withdraw",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.update",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "transfer.package.view",
+            "kind": "action",
+            "allowed": true
+          },
+          {
+            "code": "numbering.reports",
+            "kind": "page",
+            "allowed": true
+          },
+          {
+            "code": "numbering.search",
+            "kind": "page",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "b38f8556c97adfe755335af40670e227cb53e83fd10686cb6616037cb72dd272"
+      },
+      {
+        "stableRoleId": "role-system-admin",
+        "roleCode": "system_admin",
+        "displayName": "系統管理員",
+        "assignable": true,
+        "risk": "critical",
+        "subjectKind": "principal",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": [
+          "global"
+        ],
+        "assignmentTier": "cross_app_override",
+        "metadata": {
+          "requiresHumanPrivilegedPrincipal": true,
+          "forbidSelfAssignment": true
+        },
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "accounts.identity.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.invitation.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.lifecycle.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "accounts.session.revoke",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.inbox.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.apply",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.cleanup",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "approval.request.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "handoff.published.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "integration.procurement.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "integration.procurement.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.release",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "manufacturing.baseline.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.approval.batch.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.approval.request",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.attachments.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.audit_report.generate",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.candidate.review.submit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.admin_confirm",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.obsolete",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.draft.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.drawing_revision_lifecycle_review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.duplicate_check",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.export.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.link_variant",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.notification.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.formalize",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.recognition.run",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.task.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.cancel",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "obsolete_part_root",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.file_metadata.detect",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.shared_model.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.shared_model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.download",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.edit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "post_release_change",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.admin_matrix",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.integration.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.secret.manage",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.storage_evidence.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.lifecycle.decide",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.retry",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.review",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.share",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "submission.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.create",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.publish",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.review.submit",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.review.withdraw",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.update",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "transfer.package.view",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.drawings.view",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.reports",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.request",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.search",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.tasks",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "fc9ebba9e6d16688dbd577bf544bdeea9d014b1f3a01c65a7d9eb96cb8b88133"
+      },
+      {
+        "stableRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "roleCode": "custom_90000000000040008000000000000127",
+        "displayName": "既有自訂",
+        "assignable": true,
+        "risk": "normal",
+        "subjectKind": "employee",
+        "recommendationAllowed": true,
+        "delegationAllowed": true,
+        "allowedScopeKinds": [
+          "workspace"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "311f2a06a2589a37a4b85157055cda9e10e1dd8c869e0e3297d5ba379703f604"
+      },
+      {
+        "stableRoleId": "role-application-system-admin",
+        "roleCode": "application_system_admin",
+        "displayName": "應用系統管理員",
+        "assignable": false,
+        "risk": "critical",
+        "subjectKind": "principal",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": [
+          "global"
+        ],
+        "assignmentTier": "app_admin",
+        "metadata": null,
+        "permissions": [
+          {
+            "kind": "action",
+            "code": "handoff.published.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "numbering.workspace.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.drawing.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.part.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.shared_model.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "pdm.transfer.view",
+            "allowed": true
+          },
+          {
+            "kind": "action",
+            "code": "settings.admin_matrix",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.drawings.view",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.request",
+            "allowed": true
+          },
+          {
+            "kind": "page",
+            "code": "numbering.tasks",
+            "allowed": true
+          }
+        ],
+        "roleStatus": "active",
+        "roleDefinitionHash": "e7ff57ed1ca6d2d99e6e052f1f48829365093a32a1d6bb9f8503490a3e7bcbfc"
+      }
+    ],
+    "roleProfiles": [
+      {
+        "stableRoleId": "role-rd",
+        "permissionRoleId": "role-rd",
+        "presentationName": "RD",
+        "presentationOrder": 0,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-rd-manager",
+        "permissionRoleId": "role-rd-manager",
+        "presentationName": "RD主管",
+        "presentationOrder": 1,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-qa",
+        "permissionRoleId": "role-qa",
+        "presentationName": "QA/QC",
+        "presentationOrder": 2,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-manufacturing",
+        "permissionRoleId": "role-manufacturing",
+        "presentationName": "生產人員",
+        "presentationOrder": 3,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-production-planning",
+        "permissionRoleId": "role-procurement",
+        "presentationName": "採購／生管（舊生管指派）",
+        "presentationOrder": 4,
+        "assignmentDisposition": "legacy-only"
+      },
+      {
+        "stableRoleId": "role-procurement",
+        "permissionRoleId": "role-procurement",
+        "presentationName": "採購／生管",
+        "presentationOrder": 4,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-external-specialist",
+        "permissionRoleId": "role-external-specialist",
+        "presentationName": "外部專員",
+        "presentationOrder": 5,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-pdm-admin",
+        "permissionRoleId": "role-pdm-admin",
+        "presentationName": "PDM管理員",
+        "presentationOrder": 6,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-system-admin",
+        "permissionRoleId": "role-system-admin",
+        "presentationName": "系統管理員",
+        "presentationOrder": 8,
+        "assignmentDisposition": "hidden-protected"
+      },
+      {
+        "stableRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "permissionRoleId": "role-custom-90000000-0000-4000-8000-000000000127",
+        "presentationName": "既有自訂",
+        "presentationOrder": 7,
+        "assignmentDisposition": "selectable"
+      },
+      {
+        "stableRoleId": "role-application-system-admin",
+        "permissionRoleId": "role-application-system-admin",
+        "presentationName": "系統管理員",
+        "presentationOrder": 9,
+        "assignmentDisposition": "hidden-protected"
+      }
+    ],
+    "identityHashes": {
+      "role-rd": "8e0c0f4d3b9ec1766f3605adeb715725701d30a7e2671ac16509040686d2d4d9",
+      "role-rd-manager": "3c65b920c00f68d6a87a91682c48d88395c131e8c3e077a76896397fb0c6dea2",
+      "role-qa": "53fcf20b141077c7662c5f39b9898a4e4f776cf45e1c088ee09ba40c8ff165ed",
+      "role-manufacturing": "052f9efa3b021d7e76a65db82b5b8b8bfea883496ae7cd408800433b60eda807",
+      "role-production-planning": "d976633f5e2cf27f1c9211254af43b6a44ae3b6bc999d6c758c05bc3dbe256b0",
+      "role-procurement": "ce15bbad23a380fd012d1c8b2979674f5542a1c23e2ab75751d6b82b452ef01d",
+      "role-external-specialist": "34480faf9c3f3a511bce8ff0e3192534e4f854aa4f0ea18f4bb5c9e9fc918f4b",
+      "role-pdm-admin": "4d713823aadf525374ab361c9b9082f58768e6d4f29cff6329c13028aecc5063",
+      "role-system-admin": "9b53d29ad637b913b3c34e2ce646203b87a9d02b45a1f566277efd79f5d385c2",
+      "role-custom-90000000-0000-4000-8000-000000000127": "c6b451f0ee539f9fdf42f774c0e799214b6aef0b9ecc589ab260e13476ebd299",
+      "role-application-system-admin": "37faed64384fa0a8a8d62a887c016cb2a267571beeeb076274f9dd625b2545d5"
+    },
+    "contentHash": "016151219045963068c514611b201c09348d674101ab093da34667db322e87dc"
+  }
+}

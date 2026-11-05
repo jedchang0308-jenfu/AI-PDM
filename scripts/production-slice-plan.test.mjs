@@ -11,6 +11,31 @@ test('normalizes Windows paths before classification', () => {
   assert.equal(normalizeChangedPath('.\\src\\lib\\permissions.ts'), 'src/lib/permissions.ts')
 })
 
+test('DEV-127 reviewed administration consumer paths retain authorization and actual SQL responsibility', () => {
+  const plan = createProductionSlicePlan([
+    'contracts/orgmaster-administration/v1/contract-manifest.json',
+    'scripts/dev127-build-role-policy-registry.mjs',
+    'scripts/dev127-upgrade-role-policy.mjs',
+    'scripts/dev127-consumer-contract.test.mjs',
+    'scripts/dev127-consumer-postgres.mjs',
+    'scripts/lib/dev127-consumer-postgres-fixture.mjs',
+    'db/postgres/096_dev127_platform_super_admin_consumer.sql',
+  ])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.equal(plan.gates.authorization, true)
+  assert.equal(plan.gates.database, true)
+  assert.equal(plan.gates.worker, false)
+  const ownerUpgrade = createProductionSlicePlan(['scripts/dev127-upgrade-role-policy.mjs'])
+  assert.equal(ownerUpgrade.gates.authorization, true)
+  assert.equal(ownerUpgrade.gates.database, true)
+  const bridge = createProductionSlicePlan(['scripts/lib/dev127-catalog-release-bridge.mjs','scripts/lib/dev127-catalog-job.mjs','scripts/lib/dev127-role-policy-upgrade.mjs'])
+  assert.equal(bridge.classification, 'AFFECTED_SLICES')
+  assert.equal(bridge.gates.releaseCore, true)
+  assert.equal(bridge.gates.authorization, true)
+  assert.equal(bridge.gates.database, true)
+  assert.equal(createProductionSlicePlan(['contracts/orgmaster-administration/v2/unreviewed.json']).classification, 'FULL')
+})
+
 test('DEV-126 known local runtime inputs select app checks without inventing database work', () => {
   const plan = createProductionSlicePlan(['.env.example', 'scripts/start-localhost-3000.ps1', 'scripts/qc-local-dev-entrypoint.mjs', 'scripts/dev-local-process-ownership.test.mjs', 'vitest.config.ts'])
   assert.equal(plan.classification, 'AFFECTED_SLICES')
