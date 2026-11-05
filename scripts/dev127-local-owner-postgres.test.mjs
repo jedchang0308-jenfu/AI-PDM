@@ -11,12 +11,15 @@ import { executeDev127CatalogSql,DEV127_RECEIPT,DEV127_SOURCE_POLICY_SHA256,dev1
 
 // This component belongs exclusively to the existing CI service PostgreSQL.
 // Missing prerequisites fail the lane; there is no local/persistent fallback.
-if(process.env.DEV012_ISOLATED_POSTGRES!=='1' || process.env.CI!=='true')throw new Error('DEV127_COMPONENT_REQUIRES_CI_DISPOSABLE_POSTGRES')
+if(process.env.DEV012_ISOLATED_POSTGRES!=='1' || process.env.CI!=='true' || process.env.GITHUB_ACTIONS!=='true' ||
+  process.env.GITHUB_JOB!=='dev012-postgres-cutover' || process.env.GITHUB_REPOSITORY!=='jedchang0308-jenfu/AI-PDM')
+  throw new Error('DEV127_COMPONENT_REQUIRES_CI_DISPOSABLE_POSTGRES')
 const endpoint=new URL(process.env.PDM_POSTGRES_URL??'')
 if(endpoint.protocol!=='postgresql:' || endpoint.hostname!=='127.0.0.1' || endpoint.port!=='5432' || endpoint.pathname!=='/postgres' ||
-  endpoint.username!=='postgres' || endpoint.search || endpoint.hash)throw new Error('DEV127_COMPONENT_TARGET_INVALID')
+  endpoint.username!=='postgres' || endpoint.password!=='postgres' || endpoint.search || endpoint.hash)throw new Error('DEV127_COMPONENT_TARGET_INVALID')
 const suffix=randomBytes(5).toString('hex')
 const dbName=`dev127_local_component_${suffix}`,runtimeUser=`dev127_component_runtime_${suffix}`
+const databaseMarker=`DEV127_CI_OWNED:${suffix}`
 const root=new URL('../',import.meta.url)
 const alignmentSql=await readFile(new URL('db/postgres/local/097_dev127_local_owner_alignment.sql',root),'utf8')
 const migrationSource=await readFile(new URL('db/postgres/096_dev127_platform_super_admin_consumer.sql',root),'utf8')
@@ -33,7 +36,16 @@ test('CI disposable component repairs only exact local ownership/ACL, installs o
       await admin.query(`DO $$BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='${role}') THEN CREATE ROLE ${role} NOLOGIN; END IF;END$$`)
     await admin.query(`CREATE ROLE ${runtimeUser} LOGIN;GRANT jenfu_ai_pdm_runtime TO ${runtimeUser}`)
     await admin.query(`CREATE DATABASE ${dbName}`)
+    await admin.query(`COMMENT ON DATABASE ${dbName} IS '${databaseMarker}'`)
     client=await connect(dbName)
+    const {rows:[server]}=await client.query(`SELECT current_database() AS database,host(inet_server_addr()) AS host,
+      inet_server_port() AS port,shobj_description(d.oid,'pg_database') AS marker FROM pg_database d WHERE d.datname=current_database()`)
+    assert.equal(server.database,dbName);assert.equal(server.port,5432);assert.equal(server.marker,databaseMarker)
+    // The existing GitHub service descriptor uses Docker's private bridge.
+    // Bind its observed server endpoint; the real private wrapper still fixes
+    // target.host=127.0.0.1 from its pinned profile and verified OS postmaster.
+    assert.match(server.host,/^172\.(?:1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}$/u)
+    console.log('DEV127_CI_SERVICE_BINDING='+JSON.stringify({database:dbName,host:server.host,port:server.port,markerSha256:hash(databaseMarker)}))
     await client.query(`CREATE SCHEMA orgmaster_contract;CREATE SCHEMA platform_contract;
       GRANT USAGE ON SCHEMA orgmaster_contract,platform_contract TO jenfu_ai_pdm_migrator;
       CREATE FUNCTION orgmaster_contract.lock_ai_pdm_role_policy_authority_v2() RETURNS void LANGUAGE sql AS $$SELECT$$;
@@ -52,7 +64,7 @@ test('CI disposable component repairs only exact local ownership/ACL, installs o
     await client.query(`ALTER SCHEMA ai_pdm_core OWNER TO postgres;ALTER SCHEMA ai_pdm_contract OWNER TO postgres;
       REVOKE ALL ON SCHEMA ai_pdm_core,ai_pdm_contract FROM jenfu_ai_pdm_migrator;
       GRANT USAGE ON SCHEMA ai_pdm_core,ai_pdm_contract TO jenfu_ai_pdm_runtime`)
-    const target={database:dbName,port:5432,runtimeUser}
+    const target={database:dbName,host:server.host,port:5432,runtimeUser}
     await client.query('BEGIN READ ONLY;SET LOCAL ROLE jenfu_ai_pdm_migrator')
     await assert.rejects(client.query('SELECT version FROM ai_pdm_core.schema_migrations'),{code:'42501'});await client.query('ROLLBACK')
     const originalRows=(await client.query('SELECT * FROM ai_pdm_core.role_catalog_entries ORDER BY catalog_version,display_order')).rows

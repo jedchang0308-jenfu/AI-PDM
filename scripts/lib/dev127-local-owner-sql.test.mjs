@@ -158,7 +158,7 @@ test('exact DEV migrator Google payload and private nonprod quota are required; 
     assert.throws(()=>assertLocalAdcSnapshot({...adc,...change}),error=>error.message==='DEV127_LOCAL_ADC_INVALID')
 })
 test('actual operator target gate rejects runtime database CREATE, migrator membership and privileged/current-user drift',async()=>{
-  const target={database:'synthetic',port:61312,runtimeUser:'runtime'}
+  const target={database:'synthetic',host:'127.0.0.1',port:61312,runtimeUser:'runtime'}
   const connection={database:target.database,host:'127.0.0.1',port:target.port,major:18,session_user:'postgres',current_user:'postgres',rolcanlogin:true,runtime_member:true,
     ...Object.fromEntries(['rolsuper','rolcreaterole','rolcreatedb','rolreplication','rolbypassrls','runtime_owner','runtime_migrator',
       'runtime_database_create','runtime_schema_create','runtime_unsafe','migrator_unsafe'].map(key=>[key,false]))}
@@ -174,6 +174,8 @@ test('actual operator target gate rejects runtime database CREATE, migrator memb
     throw new Error('unexpected inventory query')
   }})
   assert.ok((await inspectLocalOwnerDatabase(db({}),target)).ledger.length)
+  assert.ok((await inspectLocalOwnerDatabase(db({host:'172.18.0.2'}),{...target,host:'172.18.0.2'})).ledger.length)
+  await assert.rejects(inspectLocalOwnerDatabase(db({}),{...target,host:undefined}),/DATABASE_BOUNDARY_INVALID/)
   for(const key of ['rolsuper','rolcreaterole','rolcreatedb','rolreplication','rolbypassrls','runtime_owner','runtime_migrator',
     'runtime_database_create','runtime_schema_create','runtime_unsafe','migrator_unsafe'])
     await assert.rejects(inspectLocalOwnerDatabase(db({[key]:true}),target),/DATABASE_BOUNDARY_INVALID/)
