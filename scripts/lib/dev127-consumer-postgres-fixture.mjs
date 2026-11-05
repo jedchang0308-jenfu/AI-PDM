@@ -5,7 +5,7 @@ import { join } from 'node:path'
  * Requires a task-owned disposable PG administrator connection and existing shared roles.
  * The nine legacy roles plus one custom role are retained by the tested owner upgrade.
  */
-export async function installDev127ConsumerFixture(client, { pdmRoot = process.cwd() } = {}) {
+export async function installDev127ConsumerFixture(client, { pdmRoot = process.cwd(), installConsumer = true } = {}) {
  const baseVersion='ai-pdm.role-policy.00000000-0000-4000-8000-000000000127'
  await client.query(`
   CREATE SCHEMA IF NOT EXISTS ai_pdm_core AUTHORIZATION jenfu_ai_pdm_migrator;
@@ -66,7 +66,7 @@ export async function installDev127ConsumerFixture(client, { pdmRoot = process.c
       role.delegationAllowed,JSON.stringify(role.allowedScopeKinds),role.assignmentTier,JSON.stringify(role.permissions),JSON.stringify(role.metadata),role.roleDefinitionHash])
   await install(base)
   await client.query(`INSERT INTO ai_pdm_core.active_role_catalog VALUES('ai-pdm',$1,clock_timestamp(),'fixture','synthetic fixture')`,[baseVersion])
-  await client.query(readFileSync(join(pdmRoot, 'db/postgres/096_dev127_platform_super_admin_consumer.sql'),'utf8'))
+  if (installConsumer) await client.query(readFileSync(join(pdmRoot, 'db/postgres/096_dev127_platform_super_admin_consumer.sql'),'utf8'))
 
  const request='10000000-0000-4000-8000-000000000127'
  const upgraded=fixture.upgraded

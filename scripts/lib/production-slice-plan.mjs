@@ -53,6 +53,7 @@ const WORKER = [
 ]
 
 const DATABASE = [
+  /^scripts\/(?:lib\/)?dev127-local-owner(?:-|\.)/u,
   /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
   /^scripts\/dev127-upgrade-role-policy\.mjs$/u,
   /^db\/postgres\//u,
@@ -67,6 +68,7 @@ const RD_PERMISSION_DATABASE = [
 ]
 
 const AUTHORIZATION = [
+  /^scripts\/(?:lib\/)?dev127-local-owner(?:-|\.)/u,
   /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
   /^contracts\/orgmaster-administration\/v1\//u,
   /^scripts\/(?:lib\/)?dev127-(?:build-role-policy-registry|upgrade-role-policy|consumer-contract|consumer-postgres(?:-fixture)?)(?:\.|-)/u,

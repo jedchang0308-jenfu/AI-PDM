@@ -33,6 +33,13 @@ test('DEV-127 reviewed administration consumer paths retain authorization and ac
   assert.equal(bridge.gates.releaseCore, true)
   assert.equal(bridge.gates.authorization, true)
   assert.equal(bridge.gates.database, true)
+  const local = createProductionSlicePlan(['scripts/dev127-local-owner.mjs','scripts/lib/dev127-local-owner-bridge.mjs',
+    'scripts/lib/dev127-local-owner-sql.test.mjs','scripts/dev127-local-owner-postgres.test.mjs',
+    'db/postgres/local/097_dev127_local_owner_alignment.sql'])
+  assert.equal(local.classification, 'AFFECTED_SLICES')
+  assert.equal(local.gates.authorization, true)
+  assert.equal(local.gates.database, true)
+  assert.equal(local.gates.worker, false)
   assert.equal(createProductionSlicePlan(['contracts/orgmaster-administration/v2/unreviewed.json']).classification, 'FULL')
 })
 
