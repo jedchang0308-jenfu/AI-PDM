@@ -20,6 +20,7 @@ const AUDIENCE='http://localhost:1020'
 const POINTER_SHA='daa4d4e1a7144377f965a4d39f28aefc6adc468258a8ffef904e515270d237ce'
 const SQL_SHA='7b88fa89e986fee033d6b3426a393188379f1061b1052c1f65f7373b15093c0f'
 const DATABASE='jenfu_local_first_admin_shijie_20261105_16930fa3'
+const DATABASE_MARKER='local-first-admin-corrected-genesis:16930fa3-b7cd-4c7c-947d-c3203e59178c'
 const INSPECTOR='scripts/lib/dev021-local-postgres-cluster.mjs'
 const NEUTRAL_PINS={
   [INSPECTOR]:'d321094cb62b8a0b7f84c80e9d6edb32302a78476555a70076a03c37f2960376',
@@ -155,7 +156,7 @@ async function context(profilePath) {
   const migrationSql=deriveAiPdmMigration(MIGRATION,migrationSource).output
   const binding={profilePath,profileSha256:pointerFile.sha256,sqlProfileSha256:sqlFile.sha256,adcSha256:adcFile.sha256,
     ownerRoot:root,source,neutralPins:NEUTRAL_PINS,clusterRecordSha256:clusterRecord.sha256,
-    target:{host:sql.host,port:sql.port,database:sql.database,runtimeUser:app.user},
+    target:{host:sql.host,port:sql.port,database:sql.database,marker:DATABASE_MARKER,runtimeUser:app.user},
     postmaster:{...cluster.postmaster,startToken:peer[0].startToken},identity:{issuer:identity.iss,email:EMAIL,subject:SUBJECT,audience:AUDIENCE}}
   return {binding,pointer,alignmentSql,migrationSql,migrationSource,
     operatorOptions:{...cluster.adminConnection,database:sql.database,ssl:false,connectionTimeoutMillis:5000,

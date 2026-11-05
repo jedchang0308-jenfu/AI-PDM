@@ -64,7 +64,7 @@ test('CI disposable component repairs only exact local ownership/ACL, installs o
     await client.query(`ALTER SCHEMA ai_pdm_core OWNER TO postgres;ALTER SCHEMA ai_pdm_contract OWNER TO postgres;
       REVOKE ALL ON SCHEMA ai_pdm_core,ai_pdm_contract FROM jenfu_ai_pdm_migrator;
       GRANT USAGE ON SCHEMA ai_pdm_core,ai_pdm_contract TO jenfu_ai_pdm_runtime`)
-    const target={database:dbName,host:server.host,port:5432,runtimeUser}
+    const target={database:dbName,host:server.host,marker:databaseMarker,port:5432,runtimeUser}
     await client.query('BEGIN READ ONLY;SET LOCAL ROLE jenfu_ai_pdm_migrator')
     await assert.rejects(client.query('SELECT version FROM ai_pdm_core.schema_migrations'),{code:'42501'});await client.query('ROLLBACK')
     const originalRows=(await client.query('SELECT * FROM ai_pdm_core.role_catalog_entries ORDER BY catalog_version,display_order')).rows

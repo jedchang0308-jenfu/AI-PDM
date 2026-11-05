@@ -38,7 +38,8 @@ export async function inspectLocalOwnerDatabase(database, target) {
     (SELECT rolcanlogin OR rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls
       FROM pg_roles WHERE rolname='jenfu_ai_pdm_migrator') AS migrator_unsafe
     FROM pg_database d JOIN pg_roles r ON r.rolname=$1 WHERE d.datname=current_database()`,[target.runtimeUser])
-  if (!connection || typeof target.host!=='string' || !target.host || connection.database!==target.database || connection.host!==target.host || connection.port!==target.port ||
+  if (!connection || typeof target.host!=='string' || !target.host || typeof target.marker!=='string' || !target.marker ||
+      connection.database!==target.database || connection.marker!==target.marker || connection.host!==target.host || connection.port!==target.port ||
       connection.major!==18 || connection.session_user!=='postgres' || connection.current_user!=='postgres' ||
       connection.rolcanlogin!==true || connection.runtime_member!==true ||
       ['rolsuper','rolcreaterole','rolcreatedb','rolreplication','rolbypassrls','runtime_owner','runtime_migrator',
