@@ -60,3 +60,25 @@ test('DEV-127 local proof CLI cannot open a production or persistent remote conn
     assert.doesNotMatch(result.stderr,/ECONNREFUSED|ENOTFOUND/u,'reject before opening any connection')
   }
 })
+
+test('DEV-127 direct CLI commit is removed before connecting even to same-name persistent or tunnel targets', () => {
+  for(const target of [
+    'postgres://synthetic@127.0.0.1:1/dev127_persistent',
+    'postgres://synthetic@localhost:1/dev127_same_name',
+    'postgres://synthetic@[::1]:1/dev127_tunnel',
+    'postgres://synthetic@example.invalid:1/dev127_same_name',
+    'not-a-database-url',
+    undefined,
+  ]) {
+    const environment={...process.env}
+    if(target===undefined)delete environment.PDM_DATABASE_URL
+    else environment.PDM_DATABASE_URL=target
+    const result=spawnSync(process.execPath,['--experimental-transform-types','--experimental-loader','./scripts/qc-ts-path-loader.mjs',
+      'scripts/dev127-upgrade-role-policy.mjs','commit','unused-synthetic-plan.json'],{encoding:'utf8',windowsHide:true,
+      env:environment,timeout:10000})
+    assert.equal(result.status,1)
+    assert.match(result.stderr,/DEV127_DIRECT_CLI_WRITE_REMOVED/u)
+    assert.doesNotMatch(result.stderr,/ECONNREFUSED|ENOTFOUND|PDM_DATABASE_URL_REQUIRED|Invalid URL/u,
+      'commit is rejected before URL parsing or connection, not inferred disposable from host/name')
+  }
+})

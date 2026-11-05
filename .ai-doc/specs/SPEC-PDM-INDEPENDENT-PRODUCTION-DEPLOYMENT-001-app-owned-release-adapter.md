@@ -645,7 +645,7 @@ Closed post-finalize實作=`dev127-catalog-release-bridge.mjs`＋`dev127-catalog
 
 Closed post-finalize bridge source已完成並通過source／隔離自查；這不是正式provider Job、持續地端／正式 DB、正常 Google/browser acceptance 或 catalog upgrade 的證據。096目前只在source profile中接在原40筆後作order41；persistent target狀態未知，任何正式操作前先provider／PG readback。隔離／升級前基線為v1，096本身不改active catalog；先部署並正常驗明dual-reader v1/v2 consumer，才執行owner additive upgrade，之後由OrgMaster授予app-scoped grant。
 
-`dev127-upgrade-role-policy.mjs` local proof CLI 僅接受loopback disposable PostgreSQL與`dev127_*` database；真正primary-local不屬disposable，不可弱化guard。需要受控local bridge，仍待設計／實作。Source／隔離結果不代表local privilege、正式資料或產品功能已完成；required CI、provider、正常登入與 UI 驗收各自保留未執行狀態。完整 owner-specific 結果與證據分母見[DEV-127 consumer contract](DEV-127-platform-super-admin-consumer-contract.md) §6–§8。
+`dev127-upgrade-role-policy.mjs`僅保留read-only plan/status（BEGIN READ ONLY）；已刪除自由DBURL writer，commit在URL解析／Client建構／connect前無條件拒絕。loopback與`dev127_*`名稱不是disposable證明，CLI亦無SET ROLE／upgrade呼叫。需要受控local bridge，仍待設計／實作。Source／隔離結果不代表local privilege、正式資料或產品功能已完成；required CI、provider、正常登入與 UI 驗收各自保留未執行狀態。完整 owner-specific 結果與證據分母見[DEV-127 consumer contract](DEV-127-platform-super-admin-consumer-contract.md) §6–§8。
 
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
