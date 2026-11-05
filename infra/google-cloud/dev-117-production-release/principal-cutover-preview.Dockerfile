@@ -29,6 +29,10 @@ COPY scripts/lib/dev015-gcc-applicability.mjs scripts/lib/dev015-gcc-applicabili
 COPY scripts/lib/dev015-gcc-aligned-new-applicability.mjs scripts/lib/dev015-gcc-aligned-new-applicability.mjs
 COPY scripts/lib/dev121-principal-candidate-smoke.mjs scripts/lib/dev121-principal-candidate-smoke.mjs
 COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
+COPY scripts/lib/dev127-role-policy-upgrade.mjs scripts/lib/dev127-role-policy-upgrade.mjs
+COPY scripts/lib/dev127-catalog-job.mjs scripts/lib/dev127-catalog-job.mjs
+COPY config/access-control/dev127-protected-policy-source.v1.json config/access-control/dev127-protected-policy-source.v1.json
+COPY config/access-control/role-policy-editor-registry.v3.json config/access-control/role-policy-editor-registry.v3.json
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-cutover-preview-runner.mjs scripts/dev121-production-principal-cutover-preview-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
