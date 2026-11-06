@@ -2195,4 +2195,4 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 - [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：只將closed own source create-only切既有buildertoken，receipt／control／Job／readback維持主身分；本slice為source-only，review／required CI後走新source新capsule正常attempt。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
-- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：先完成runner source refresh，再依OrgMaster ACL與clean source fresh plan；不以文件、immutable refs或CI當migration／部署／完整接受。
+- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：runner refresh／rotation已完成；接PR575 typed source writer的review／required CI／protected merge及新source新capsule正常attempt。primary-local依OrgMaster ACL與clean source fresh plan另接，不以文件、immutable refs或CI當catalog／完整接受。
