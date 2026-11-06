@@ -126,7 +126,7 @@ export class JenfuEntitlementRepository {
       accounts = await this.client.query<ActiveAccountRow>(`
         SELECT contract_version, principal_issuer, principal_subject, principal_id,
                employee_id, employee_status
-        FROM orgmaster_contract.v_active_principal_accounts_v1
+        FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)
         WHERE principal_id = :principalId
         ORDER BY principal_issuer, principal_subject
         LIMIT 3
@@ -138,7 +138,7 @@ export class JenfuEntitlementRepository {
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
                valid_until::text, published_at::text,
                source_assignment_id, source_grant_id, admin_catalog_sha256, role_definition_hash
-        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
+        FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(:principalId, :employeeId)
         WHERE application_id = :applicationId
           AND principal_id = :principalId
           AND employee_id = :employeeId

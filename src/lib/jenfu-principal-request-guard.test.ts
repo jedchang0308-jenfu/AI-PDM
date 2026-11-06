@@ -43,8 +43,8 @@ function database(overrides: Record<string, unknown> = {}) {
     execute: async () => undefined,
     query: async (sql: string) => {
       observed.queries.push(sql);
-      if (sql.includes("v_active_principal_accounts_v1") && overrides.typedReadError) throw overrides.typedReadError;
-      if (sql.includes("v_active_principal_accounts_v1")) return overrides.typed === undefined ? [{
+      if (sql.includes("read_ai_pdm_active_principal_") && overrides.typedReadError) throw overrides.typedReadError;
+      if (sql.includes("read_ai_pdm_active_principal_")) return overrides.typed === undefined ? [{
         contract_version: "organization.active-principal.v1", principal_issuer: claims.identityIssuer,
         principal_subject: claims.identitySubject, principal_id: claims.principalId,
         employee_id: claims.employeeId, employee_status: "active", account_type: "human_privileged",
@@ -59,7 +59,7 @@ function database(overrides: Record<string, unknown> = {}) {
       if (sql.includes("transaction_timestamp()")) return [{
         decision_at: new Date(now * 1000).toISOString()
       }];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v5")) return overrides.assignments ?? [{
+      if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) return overrides.assignments ?? [{
         contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v5",
         assignment_version_id: "version-one", assignment_version: 1,
         assignment_id: "assignment-one", grant_kind: "direct", delegation_id: null,

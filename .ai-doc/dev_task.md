@@ -5633,6 +5633,8 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-127：平台超級管理員的 AI-PDM consumer 契約
 
+本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
+
 來源：`JENFU/DEV-022#pdm-administration`。狀態 `IMPLEMENTING / APP_NATIVE_RELEASED / POST_FINALIZE_CATALOG_SOURCE_DENIED / PRIMARY_INSTALL_AND_REAL_ACTOR_NOT_ACCEPTED`。PR571 consumer／local bridge及PR572 runner builder已protected merge；前一正式attempt綁main54f。唯一writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`現於`codex/dev127-catalog-source-writer-20261106`補typed operation source writer，不能將本切片tree冒充既有protected release input。
 
 [唯一契約／當前表](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)及[QA狀態](qa/DEV-127-platform-super-admin-verification-status.md)。PR572／main54f兩required checks成功；PR571的CI42130771577及較早SQL component42120180413各保留原source／nonce／skipped界線，不改綁54f或本切片。typed source writer的review／required CI需由新PR續接。

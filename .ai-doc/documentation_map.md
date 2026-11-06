@@ -2194,6 +2194,7 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`。PR571／572已protected merge，54f required CI及normal runner build／APP_INFRA rotation完成。正常owner已apply096、native app RELEASED／新revision100%；post-finalize operation source upload DENIED，catalog Job未執行且完整接受仍未完成。current exact事實只見spec§8.4；primary install及本人兩環境Google/UI分母保留。
 
 - [Runner artifact builder](specs/DEV-127-platform-super-admin-consumer-contract.md#841-runner-image-refreshowner-artifact-builder-corrective-source)：原corrective已merge且正常build／rotation完成，保留17項closure與source／receipt provenance。
+- 本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
 - [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：只將closed own source create-only切既有buildertoken，receipt／control／Job／readback維持主身分；本slice為source-only，review／required CI後走新source新capsule正常attempt。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。

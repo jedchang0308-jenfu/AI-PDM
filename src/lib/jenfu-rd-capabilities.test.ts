@@ -26,8 +26,8 @@ const approvals = ["approval.request.decide", "submission.decide", "submission.l
   "manufacturing.baseline.release", "transfer.package.publish"];
 function snapshot(rows: unknown[] = [grant], accounts: unknown[] = [account], catalog = principalCatalog): AsyncDatabaseClient {
   return { kind: "postgres", async query<T>(sql: string): Promise<T[]> {
-    if (sql.includes("v_active_principal_accounts_v1")) return accounts as T[];
-    if (sql.includes("v_ai_pdm_principal_effective_grants_v5")) return rows as T[];
+    if (sql.includes("read_ai_pdm_active_principal_")) return accounts as T[];
+    if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) return rows as T[];
     if (sql.includes("v_application_role_catalog_v3")) return catalog.roles.map((role, index) => ({
       contract_version: catalog.contractVersion, application_id: catalog.applicationId,
       catalog_version: catalog.catalogVersion, catalog_sha256: catalog.catalogSha256, display_order: index,

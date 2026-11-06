@@ -222,6 +222,31 @@ try {
     FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4;
     GRANT SELECT ON orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
       TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
+  // Synthetic ABI fixtures for the additive OrgMaster 047 readers. The owner
+  // validates real projection equivalence in its disposable PostgreSQL suite;
+  // these functions exercise the real consumer binder/ACL/transaction path.
+  await database.query(`
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(target text)
+    RETURNS SETOF orgmaster_contract.v_active_principal_accounts_v1
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+      SELECT * FROM orgmaster_contract.v_active_principal_accounts_v1 WHERE principal_id=target $$;
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_active_principal_identity_v1(issuer text,subject text)
+    RETURNS SETOF orgmaster_contract.v_active_principal_accounts_v1
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+      SELECT * FROM orgmaster_contract.v_active_principal_accounts_v1
+      WHERE principal_issuer=issuer AND principal_subject=subject $$;
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(target text,employee text)
+    RETURNS SETOF orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+      SELECT * FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
+      WHERE principal_id=target AND employee_id=employee $$;
+    REVOKE ALL ON FUNCTION orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(text),
+      orgmaster_contract.read_ai_pdm_active_principal_identity_v1(text,text),
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text) FROM PUBLIC;
+    GRANT EXECUTE ON FUNCTION orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(text),
+      orgmaster_contract.read_ai_pdm_active_principal_identity_v1(text,text),
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text) TO jenfu_ai_pdm_runtime
+  `);
   await database.query(`INSERT INTO ai_pdm_core.role_catalog_publications
     (catalog_version,contract_version,application_id,published_at,catalog_sha256,status)
     VALUES ($1,$2,$3,$4,$5,'active')`,
