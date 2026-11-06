@@ -33,5 +33,6 @@ config/release/dev117-ai-pdm-independent-production-v3.json text eol=lf
 # Preserve the exact bytes of the already-applied local ACL migration.
 db/postgres/093_dev126_local_workbench_authority_acl.sql text eol=lf whitespace=-blank-at-eof
 db/postgres/local/097_dev127_local_owner_alignment.sql text eol=lf
+db/postgres/local/098_dev127_static_admin_catalog_v8.sql text eol=lf
 scripts/lib/dev127-local-owner*.mjs text eol=lf
 scripts/dev127-local-owner*.mjs text eol=lf

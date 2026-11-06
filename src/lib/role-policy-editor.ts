@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import {mappedRolePolicyDenyActions,legacyRolePolicySemanticChanges,ROLE_POLICY_SEMANTIC_DIFF_VERSION} from '@/lib/role-policy-permission-mapping'
 import roleCatalogJson from '../../config/access-control/jenfu-role-catalog.v7.json' with { type: 'json' }
 import registryJson from '../../config/access-control/role-policy-editor-registry.v3.json' with { type: 'json' }
 import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server'
@@ -276,6 +277,16 @@ export function upgradeRolePolicyCandidate(input: { roles: RolePolicyRole[]; rol
   return rebuildRolePolicyCandidate({ roles, roleProfiles: profiles, candidateCatalogVersion: input.candidateCatalogVersion })
 }
 
+/** A draft only: retain ordinary legacy permissions rather than applying the
+ * seven-role default grants. Protected system-admin policy and profile changes
+ * are explicit first-conversion diff; nothing changes the active publication. */
+export function buildLegacyRolePolicyDraft(input: { roles: RolePolicyRole[]; candidateCatalogVersion: string }) {
+  const roles = input.roles.map(role => withRoleHash({ ...identity(role), roleStatus: role.roleStatus ?? 'active',
+    permissions: role.stableRoleId === 'role-system-admin' ? systemAdminPermissions() : role.permissions }));
+  return upgradeRolePolicyCandidate({ roles, roleProfiles: rolePolicyRegistry.roleProfiles.slice(0, roles.length),
+    candidateCatalogVersion: input.candidateCatalogVersion });
+}
+
 function normalizeName(value: string) {
   const normalized = value.normalize('NFC').trim()
   if (!normalized || [...normalized].length > 80 || normalized.includes('\u0000')) throw new Error('ROLE_DISPLAY_NAME_INVALID')
@@ -289,11 +300,7 @@ function actionFor(groupId: string, actionId: string) {
 
 /** A read-only deny projection; never persist another permission overlay. */
 export function rolePolicyMappedDenyActions(roles: RolePolicyRole[], profiles: RolePolicyProfile[], permissionRoleId: string) {
-  const members = new Set(profiles.filter(profile => profile.permissionRoleId === permissionRoleId).map(profile => profile.stableRoleId))
-  const denied = new Set(roles.filter(role => members.has(role.stableRoleId)).flatMap(role =>
-    role.permissions.filter(permission => !permission.allowed).map(permissionKey)))
-  return rolePolicyRegistry.businessActions.filter(action => action.legacyOperationBindings.some(binding =>
-    denied.has(permissionKey({ ...binding, allowed: false })))).map(action => action.code)
+  return mappedRolePolicyDenyActions(roles,profiles,permissionRoleId)
 }
 
 export function applyRolePolicyDraftChanges(input: {
@@ -406,7 +413,7 @@ export function restoreRolePolicyHistory(current: RolePolicyCandidate, history: 
   return rebuildRolePolicyCandidate({ roles, roleProfiles: profiles, candidateCatalogVersion })
 }
 
-export function rolePolicyDiff(before: { roles: RolePolicyRole[]; format: 'legacy-static-v1' | typeof ROLE_POLICY_PUBLICATION_FORMAT }, after: RolePolicyCandidate) {
+export function rolePolicyDiff(before: { roles: RolePolicyRole[]; roleProfiles?: RolePolicyProfile[]; format: 'legacy-static-v1' | typeof ROLE_POLICY_PUBLICATION_FORMAT }, after: RolePolicyCandidate) {
   const beforeRoles = new Map(before.roles.map(role => [role.stableRoleId, role]))
   const roleChanges: Array<Record<string, unknown>> = []
   const capabilityChanges: Array<Record<string, unknown>> = []
@@ -422,7 +429,13 @@ export function rolePolicyDiff(before: { roles: RolePolicyRole[]; format: 'legac
         groupId: action.groupId, actionId: action.actionId, before: priorPermissions.get(key) === true, after: nextPermissions.get(key) === true })
     }
   }
-  return { roleChanges, capabilityChanges, profileChanges: [],
+  const profileChanges = before.roleProfiles ? after.roleProfiles.flatMap(profile => {
+    const prior=before.roleProfiles!.find(value=>value.stableRoleId===profile.stableRoleId)
+    return equalCanonical(prior??null,profile) ? [] : [{stableRoleId:profile.stableRoleId,before:prior??null,after:profile}]
+  }) : []
+  const semanticChanges=before.format==='legacy-static-v1'?legacyRolePolicySemanticChanges(before.roles,after.roles,after.roleProfiles):[]
+  return { roleChanges, capabilityChanges, profileChanges,semanticChanges,
+    semanticDiffVersion:before.format==='legacy-static-v1'?ROLE_POLICY_SEMANTIC_DIFF_VERSION:null,
     policyTransition: before.format === after.format ? 'dynamic-update' : 'legacy-to-dynamic',
     scopeImpact: 'application-global' as const }
 }

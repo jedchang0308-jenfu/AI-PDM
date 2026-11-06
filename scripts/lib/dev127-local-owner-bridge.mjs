@@ -8,8 +8,9 @@ import { deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 import { DEV127_RECEIPT,DEV127_SOURCE_POLICY_SHA256,dev127CommandId,executeDev127CatalogSql,
   readDev127CommandReceipt } from './dev127-role-policy-upgrade.mjs'
 import { assertDev127InstalledMigration } from './dev127-catalog-job.mjs'
+import {STATIC_V8_KIND,STATIC_V8_MIGRATION,planLocalStaticV8,assertLocalStaticV8Plan,commitLocalStaticV8,readLocalStaticV8Receipt} from './dev127-local-owner-static-catalog.mjs'
 import { hash,fail,inspectLocalOwnerDatabase,buildLocalInstallPlan,assertLocalInstallPlan,
-  installLocalDev127,readLocalInstallReceipt,assertLocalOwnerContracts,inspectLocalDev127Catalog,MIGRATION_SOURCE_SHA } from './dev127-local-owner-sql.mjs'
+  installLocalDev127,readLocalInstallReceipt,assertLocalOwnerContracts,inspectLocalDev127Catalog,MIGRATION_SOURCE_SHA,LOCAL_ALIGNMENT_VERSION } from './dev127-local-owner-sql.mjs'
 
 const PROJECT='jenfu-platform-nonprod'
 const RUNTIME_EMAIL=`dev010-aipdm-runtime@${PROJECT}.iam.gserviceaccount.com`
@@ -35,6 +36,7 @@ const SOURCE_FILES=['scripts/lib/dev127-local-owner-bridge.mjs','scripts/lib/dev
   'config/platform/dev-010-n1c-ai-pdm.json','config/access-control/dev127-protected-policy-source.v1.json',
   'config/access-control/role-policy-editor-registry.v3.json',
   'config/access-control/jenfu-role-catalog.v7.json',
+  'config/access-control/jenfu-role-catalog.v8.json','scripts/lib/dev127-local-owner-static-catalog.mjs',STATIC_V8_MIGRATION,
   'config/access-control/ai-pdm-role-policy-contract-v3.manifest.json','src/lib/jenfu-principal-role-catalog.ts',ALIGNMENT,MIGRATION]
 const H64=/^[a-f0-9]{64}$/u
 const exact=(value,keys)=>value && Object.getPrototypeOf(value)===Object.prototype &&
@@ -159,7 +161,8 @@ async function context(profilePath) {
     ownerRoot:root,source,neutralPins:NEUTRAL_PINS,clusterRecordSha256:clusterRecord.sha256,
     target:{host:sql.host,port:sql.port,database:sql.database,marker:DATABASE_MARKER,runtimeUser:app.user},
     postmaster:{...cluster.postmaster,startToken:peer[0].startToken},identity:{issuer:identity.iss,email:EMAIL,subject:SUBJECT,audience:AUDIENCE}}
-  return {binding,pointer,alignmentSql,migrationSql,migrationSource,
+  const staticMigrationSql=(await bytes(path.join(root,STATIC_V8_MIGRATION),2*1024*1024)).toString('utf8')
+  return {binding,pointer,alignmentSql,migrationSql,migrationSource,staticMigrationSql,
     operatorOptions:{...cluster.adminConnection,database:sql.database,ssl:false,connectionTimeoutMillis:5000,
       statement_timeout:30000,query_timeout:35000,options:'-c search_path=pg_catalog'}}
 }
@@ -243,6 +246,48 @@ export async function runDev127LocalOwner({profilePath,phase,planSha256}) {
       const result=await inspectLocalDev127Catalog(database)
       return {phase,state:'INSPECTED',summary:result.summary,
         ...await save(state,'catalog-inspect',{binding:state.binding,...result})}
+    }
+    if(phase==='catalog-plan') {
+      const header=await readonly(database,async()=>{
+        await database.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+        return (await database.query('SELECT publication_format FROM ai_pdm_contract.v_application_role_catalog_v3 ORDER BY display_order LIMIT 1')).rows[0]
+      })
+      if(header?.publication_format==='legacy-static-v1') {
+        const alignment=currentInventory.ledger.find(row=>row.version===LOCAL_ALIGNMENT_VERSION)
+        if(alignment?.checksum!==hash(state.alignmentSql) || !/^dev127_local_owner_alignment_[a-f0-9]{64}$/u.test(alignment?.name??'') ||
+          !/^[a-f0-9]{40}$/u.test(alignment?.source_revision??''))fail('STATIC_V8_ALIGNMENT_REQUIRED')
+        const ref={sha256:hash({binding:state.binding,operation:STATIC_V8_KIND})}
+        const plan=await planLocalStaticV8(database,{commandId:dev127CommandId(ref),sourceRevision:state.binding.source.revision,bindingSha256:hash(state.binding)})
+        return {phase,state:plan.state,diff:plan.diff,
+          ...await save(state,'catalog-plan',{binding:state.binding,inventorySha256:hash(currentInventory),plan})}
+      }
+    } else {
+      const stored=await load(state,'catalog-plan',planSha256)
+      assertBinding(state,stored.binding)
+      if(stored.plan?.operation===STATIC_V8_KIND) {
+        assertLocalStaticV8Plan(stored.plan)
+        if(stored.plan.sourceRevision!==state.binding.source.revision || stored.plan.bindingSha256!==hash(state.binding) ||
+          stored.plan.migrationSha256!==hash(state.staticMigrationSql) ||
+          stored.plan.commandId!==dev127CommandId({sha256:hash({binding:state.binding,operation:STATIC_V8_KIND})}))fail('STATIC_V8_PLAN_BINDING_CHANGED')
+        if(stored.plan.state==='ALREADY_CURRENT') {
+          const current=await planLocalStaticV8(database,{commandId:stored.plan.commandId,sourceRevision:state.binding.source.revision,bindingSha256:hash(state.binding)})
+          if(current.state!=='ALREADY_CURRENT')fail('STATIC_V8_CURRENT_CHANGED')
+          return {phase,state:'ALREADY_CURRENT',...await save(state,'catalog-result',{binding:state.binding,result:current})}
+        }
+        const freshReceipt=async()=>withContext(profilePath,async(fresh,current)=>{
+          assertBinding(current,state.binding);await readonly(fresh,async()=>inspect(fresh,current));await assertDev127InstalledMigration(fresh)
+          return readLocalStaticV8Receipt(fresh,stored.plan)
+        })
+        const result=phase==='catalog-status'
+          ? {state:'READ_ONLY_COMMAND_STATUS',result:await readLocalStaticV8Receipt(database,stored.plan)}
+          : await commitLocalStaticV8({database,plan:stored.plan,migrationSql:state.staticMigrationSql,
+            revalidate:async db=>{
+              const current=await context(profilePath);assertBinding(current,state.binding)
+              const inventory=await inspect(db,current);assertLocalOwnerContracts(inventory)
+              if(hash(inventory)!==stored.inventorySha256)fail('STATIC_V8_PLAN_DRIFT')
+            },readAfterUnknown:freshReceipt})
+        return {phase,...result,...await save(state,'catalog-result',{binding:state.binding,planSha256,result})}
+      }
     }
     const releaseCapsuleRef={uri:`local:dev127/${state.binding.profileSha256}/${state.binding.source.revision}`,sha256:hash(state.binding)}
     const operation={phase:phase==='catalog-plan'?'plan':phase==='catalog-commit'?'commit':'status',

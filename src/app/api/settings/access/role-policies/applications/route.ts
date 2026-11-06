@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 const path = 'src/app/api/settings/access/role-policies/applications/route.ts'
 export async function POST(request: Request) {
   return rolePolicyWriteRoute(request, path, async (client, _company, verified, body) => {
-    assertExactKeys(body, ['requestId', 'confirmation', 'reason'])
+    assertExactKeys(body, ['requestId', 'confirmation', 'reason'], ['semanticDiffVersion'])
     return applyRolePolicy(client, verified, body)
   })
 }

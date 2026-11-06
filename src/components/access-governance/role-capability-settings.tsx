@@ -1,6 +1,7 @@
 'use client'
 
 import { pdmPermissionFetch as fetch, invalidatePdmPermissions } from "@/lib/pdm-permission-client";
+import {approvalActionLabel} from '@/lib/approval-rule-summary'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ArrowLeft, History, LoaderCircle, Plus, RefreshCw, Save } from 'lucide-react'
@@ -22,13 +23,17 @@ type Page<T> = { items: T[]; nextCursor: string | null }
 type PublicationAudit = { actorPrincipalId: string; reason: string; diff: unknown; before: unknown; after: unknown; requestId: string }
 type PublicationDetail = PublicationSummary & { roles: Role[]; audit: PublicationAudit | null }
 type Preview = { confirmation: { draftId: string; draftRevision: number; expectedActive: ActiveTuple };
-  diff: { roleChanges: Array<Record<string, unknown>>; capabilityChanges: Array<Record<string, unknown>>; policyTransition: string } }
+  diff: { roleChanges: Array<Record<string, unknown>>; capabilityChanges: Array<Record<string, unknown>>;
+    profileChanges?: Array<{stableRoleId:string;before:Profile|null;after:Profile}>;
+    semanticDiffVersion?:string|null;semanticChanges?:Array<{stableRoleId:string;permissionKind:'page'|'action';permissionCode:string;
+      before:'allowed'|'explicit_deny'|'not_granted';after:'allowed'|'explicit_deny'|'not_granted';contexts:Array<string[]|null>}>;policyTransition: string } }
 type Pending = { requestId?: string; operation: 'create' | 'save' | 'apply'; draftId: string; actorPrincipalId: string; body?: string; url?: string }
 const pendingKey = 'pdm-role-policy-pending'
 class PolicyError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) { super(message) }
 }
 function errorText(code?: string) {
+  if(code==='ROLE_POLICY_SEMANTIC_DIFF_REQUIRED'||code==='ROLE_POLICY_SEMANTIC_DIFF_UNAVAILABLE')return '請重新預覽完整權限差異後再套用；目前生效權限未變。'
   if (code?.includes('CONFLICT')) return '版本或登入身分已變更，請重新讀取；未保存修改仍保留。'
   if (code?.includes('MANAGER') || code?.includes('denied')) return '目前帳號沒有這項管理權限。'
   if (code?.includes('DISPLAY_NAME')) return '角色名稱已存在或格式不正確。'
@@ -343,9 +348,14 @@ export function RoleCapabilitySettings() {
   }
   async function apply() {
     if (!preview || locked) return
+    if(preview.diff.policyTransition==='legacy-to-dynamic' &&
+      (preview.diff.semanticDiffVersion!=='ai-pdm.role-policy-semantic-diff.v1'||!Array.isArray(preview.diff.semanticChanges))) {
+      setError(errorText('ROLE_POLICY_SEMANTIC_DIFF_REQUIRED'));return
+    }
     setBusy(true); setError(null)
     try {
-      await mutation('/api/settings/access/role-policies/applications', { confirmation: preview.confirmation, reason }, 'apply', preview.confirmation.draftId)
+      await mutation('/api/settings/access/role-policies/applications', { confirmation: preview.confirmation, reason,
+        ...(preview.diff.policyTransition==='legacy-to-dynamic'?{semanticDiffVersion:preview.diff.semanticDiffVersion}:{}) }, 'apply', preview.confirmation.draftId)
       invalidatePdmPermissions("permissions-changed")
       setReason(''); await load(); confirmButton.current?.focus()
     } catch (failure) { setError(failure instanceof Error ? failure.message : '套用結果待確認。') }
@@ -512,15 +522,29 @@ export function RoleCapabilitySettings() {
           <button type="button" className="secondary-button" disabled={!dirty || locked} onClick={() => { discardLocalChanges(); void load(workspace.selectedDraft?.draftId).catch(() => undefined) }}>取消未保存修改</button>
           <button ref={confirmButton} type="button" className="primary-button" disabled={locked || !editable} onClick={() => void save(true)}>確認差異</button></div> : null}
         {preview ? <div className="access-feedback role-policy-confirmation" role="region" aria-label="套用前差異">
-          {preview.diff.policyTransition === 'legacy-to-dynamic' ? <p>首次套用將使用七角色分組權限；既有指派與範圍保留。</p> : null}
+          {preview.diff.policyTransition === 'legacy-to-dynamic' ? <p>首次套用將使用七角色分組權限；既有指派與範圍保留。保存草稿不會變更生效權限。</p> : null}
           <ul>{preview.diff.roleChanges.map((c, i) => <li key={'r' + i}>
             {profiles.find(p => p.stableRoleId === c.stableRoleId)?.presentationName ?? String(c.displayName ?? c.stableRoleId)}：
             {c.type === 'create' ? '新增' : c.type === 'deactivate' ? '停用' : '恢復'}</li>)}
-            {preview.diff.capabilityChanges.map((c, i) => <li key={'c' + i}>{profiles.find(p => p.stableRoleId === c.stableRoleId)?.presentationName ?? String(c.stableRoleId)}
+            {(preview.diff.policyTransition==='legacy-to-dynamic'&&preview.diff.semanticDiffVersion==='ai-pdm.role-policy-semantic-diff.v1'?[]:preview.diff.capabilityChanges).map((c, i) => <li key={'c' + i}>{profiles.find(p => p.stableRoleId === c.stableRoleId)?.presentationName ?? String(c.stableRoleId)}
               {' '}{workspace.groups.find(a => a.groupId === c.groupId && a.actionId === c.actionId)?.groupLabel}
-              {' '}{workspace.groups.find(a => a.groupId === c.groupId && a.actionId === c.actionId)?.actionLabel}：{c.before ? '允許' : '未授予'} → {c.after ? '允許' : '未授予'}</li>)}</ul>
+              {' '}{workspace.groups.find(a => a.groupId === c.groupId && a.actionId === c.actionId)?.actionLabel}：{c.before ? '允許' : '未授予'} → {c.after ? '允許' : '未授予'}</li>)}
+            {preview.diff.profileChanges?.map(c=><li key={'p'+c.stableRoleId}>
+              {c.before?.presentationName??'新增角色'} → {c.after.presentationName}
+              {c.before?.permissionRoleId!==c.after.permissionRoleId ? `；權限改依「${profiles.find(p=>p.stableRoleId===c.after.permissionRoleId)?.presentationName??c.after.presentationName}」` : ''}
+              {c.after.assignmentDisposition==='legacy-only' ? '；保留既有指派，不再新增' : ''}</li>)}</ul>
+          {preview.diff.semanticChanges?.length ? <details open><summary>有效操作權限變更（{preview.diff.semanticChanges.length}）</summary><ul>
+            {preview.diff.semanticChanges.map((change,index)=><li key={'s'+index}>
+              {profiles.find(p=>p.stableRoleId===change.stableRoleId)?.presentationName??'角色'}／{workspace.groups.some(a=>a.code===change.permissionCode)
+                ?workspace.groups.filter(a=>a.code===change.permissionCode).map(a=>a.groupLabel+'／'+a.actionLabel).join('、'):approvalActionLabel(change.permissionCode)}：
+              {change.before==='allowed'?'允許':change.before==='explicit_deny'?'明確拒絕':'未授予'} → {change.after==='allowed'?'允許':change.after==='explicit_deny'?'明確拒絕':'未授予'}
+              {'（'}{change.contexts.map(groups=>groups===null?'整體操作':groups.map(group=>workspace.groups.find(a=>a.groupId===group)?.groupLabel??'作業').join('＋')).join('、')}{'）'}
+            </li>)}
+          </ul></details> : null}
+          {preview.diff.policyTransition==='legacy-to-dynamic' && (preview.diff.semanticDiffVersion!=='ai-pdm.role-policy-semantic-diff.v1'||!Array.isArray(preview.diff.semanticChanges)) ? <p>{errorText('ROLE_POLICY_SEMANTIC_DIFF_REQUIRED')}</p> : null}
           <label>異動原因<input value={reason} maxLength={240} disabled={locked} onChange={e => setReason(e.target.value)} /></label>
-          <button type="button" className="primary-button" disabled={locked || !workspace.admission.apply || !reason.trim()} onClick={() => void apply()}>套用權限</button></div> : null}
+          <button type="button" className="primary-button" disabled={locked || !workspace.admission.apply || !reason.trim() ||
+            preview.diff.policyTransition==='legacy-to-dynamic' && (preview.diff.semanticDiffVersion!=='ai-pdm.role-policy-semantic-diff.v1'||!Array.isArray(preview.diff.semanticChanges))} onClick={() => void apply()}>套用權限</button></div> : null}
       </>}
     <dialog ref={addRoleDialog} aria-labelledby="role-policy-add-role-title" className="role-policy-leave-dialog"
       onCancel={() => setNewRoleName('')}>

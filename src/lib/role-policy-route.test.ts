@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
-  write: vi.fn()
+  write: vi.fn(),
+  apply: vi.fn()
 }))
 
 vi.mock('@/lib/principal-company-read', () => ({
   withPrincipalCompanyRead: mocks.read,
   withPrincipalCompanyWrite: mocks.write
 }))
+vi.mock('@/lib/role-policy-service', () => ({ applyRolePolicy: mocks.apply }))
 
 import { rolePolicyReadRoute, rolePolicyWriteRoute } from '@/lib/role-policy-route'
+import { POST as applyPost } from '@/app/api/settings/access/role-policies/applications/route'
 
 const routePath = 'src/app/api/settings/access/role-policies/drafts/route.ts'
 const routeUrl = 'https://ai-pdm.test/api/settings/access/role-policies/drafts'
@@ -109,5 +112,36 @@ describe('role policy route private actor binding', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(await response.json()).toEqual({ code: 'auth_session_invalid' })
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  const originalApplyBody = { requestId: '10000000-0000-4000-8000-000000000001',
+    confirmation: { draftId: '10000000-0000-4000-8000-000000000002', draftRevision: 1,
+      expectedActive: { catalogVersion: 'legacy-v8', catalogSha256: 'a'.repeat(64) } }, reason: '確認完整差異' }
+  function applyRequest(body: Record<string, unknown>) {
+    return new Request('https://ai-pdm.test/api/settings/access/role-policies/applications', {
+      method: 'POST', headers: { origin: 'https://ai-pdm.test', 'content-type': 'application/json',
+        'x-pdm-policy-principal': 'principal-one' }, body: JSON.stringify(body)
+    })
+  }
+  it('lets the actual applications POST deliver a first-conversion semantic version to the apply service', async () => {
+    const body = { ...originalApplyBody, semanticDiffVersion: 'ai-pdm.role-policy-semantic-diff.v1' }
+    mocks.apply.mockResolvedValue({ status: 'APPLIED' })
+    const response = await applyPost(applyRequest(body))
+    expect(response.status).toBe(200)
+    expect(mocks.apply).toHaveBeenCalledExactlyOnceWith(snapshot, verified, body)
+  })
+  it('keeps an old apply body unchanged so the actual applications POST can return its durable receipt', async () => {
+    const receipt = { commandId: originalApplyBody.requestId, status: 'APPLIED', catalogVersion: 'original-publication' }
+    mocks.apply.mockResolvedValue(receipt)
+    const response = await applyPost(applyRequest(originalApplyBody))
+    expect(response.status).toBe(200)
+    expect(mocks.apply).toHaveBeenCalledExactlyOnceWith(snapshot, verified, originalApplyBody)
+    expect(await response.json()).toMatchObject({ data: receipt })
+  })
+  it('rejects unknown actual applications POST fields before the apply service', async () => {
+    const response = await applyPost(applyRequest({ ...originalApplyBody, semanticDiffVersion: 'ai-pdm.role-policy-semantic-diff.v1', extra: true }))
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({ code: 'REQUEST_SCHEMA_INVALID' })
+    expect(mocks.apply).not.toHaveBeenCalled()
   })
 })

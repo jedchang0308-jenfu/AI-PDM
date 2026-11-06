@@ -2,7 +2,7 @@ import { decodePublishedPrincipalCatalogRows, decodePublishedRolePolicyCandidate
 import type { AsyncDatabaseClient } from '@/lib/db-async-provider'
 import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard'
 import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server'
-import { applyRolePolicyDraftChanges, assertRolePolicyCandidate, buildDefaultRolePolicyCandidate,
+import { applyRolePolicyDraftChanges, assertRolePolicyCandidate, buildLegacyRolePolicyDraft,
   rebuildRolePolicyCandidate, restoreRolePolicyHistory, rolePolicyDiff, rolePolicyRegistry,
   rolePolicyRegistryHash, type ActiveRolePolicyTuple, type RolePolicyCandidate,
   type RolePolicyCapabilityChange, type RolePolicyProfile, type RolePolicyRole, type RolePolicyRoleChange } from '@/lib/role-policy-editor'
@@ -10,6 +10,7 @@ import { assertExactKeys, RolePolicyHttpError } from '@/lib/role-policy-http'
 import { lockAndRevalidateRolePolicyApply, revalidateRolePolicyManager } from '@/lib/role-policy-apply-authorization'
 import { hashJenfuPrincipalSessionId } from '@/lib/jenfu-principal-session-registry'
 import { isVerifiedLocalTestAdmin } from '@/lib/local-test-admin'
+import {ROLE_POLICY_SEMANTIC_DIFF_VERSION} from '@/lib/role-policy-permission-mapping'
 
 type CatalogRow = Record<string, unknown>
 type DraftRow = {
@@ -113,9 +114,10 @@ function activeProjection(rows: CatalogRow[], catalogVersion: string) {
     roles: catalog.roles.map(role => ({ ...role, metadata: role.metadata ?? null,
       roleStatus: 'active' as const })) as RolePolicyRole[],
     roleProfiles: catalog.roles.map((role, index): RolePolicyProfile => ({
-      stableRoleId: role.stableRoleId, permissionRoleId: role.stableRoleId,
-      presentationName: role.displayName, presentationOrder: index,
-      assignmentDisposition: role.stableRoleId === 'role-system-admin' ? 'hidden-protected' : 'selectable'
+      stableRoleId: role.stableRoleId, permissionRoleId: String(rows[index].permission_role_id ?? role.stableRoleId),
+      presentationName: String(rows[index].presentation_name ?? role.displayName), presentationOrder: Number(rows[index].presentation_order ?? index),
+      assignmentDisposition: (rows[index].assignment_disposition ??
+        (['role-system-admin','role-application-system-admin'].includes(role.stableRoleId) ? 'hidden-protected' : 'selectable')) as RolePolicyProfile['assignmentDisposition']
     })) }
 }
 
@@ -206,7 +208,7 @@ export async function readRolePolicyWorkspace(client: AsyncDatabaseClient, selec
     actorPrincipalId: verified?.session.principalId ?? null, publicationFormat: current.format,
     active, registry: { hash: rolePolicyRegistryHash, roleSchemaId: rolePolicyRegistry.roleSchemaId,
       roleProfileSchemaId: rolePolicyRegistry.roleProfileSchemaId }, groups: rolePolicyRegistry.businessActions,
-    roles: (draft?.candidate ?? current).roles, roleProfiles: draft?.candidate.roleProfiles ?? (current.format === 'legacy-static-v1' ? rolePolicyRegistry.roleProfiles : current.roleProfiles),
+    roles: (draft?.candidate ?? current).roles, roleProfiles: draft?.candidate.roleProfiles ?? current.roleProfiles,
     selectedDraft: draft, admission: { read: true, edit: manage, apply: manage } }
 }
 function storedCandidate(candidate: RolePolicyCandidate) {
@@ -237,7 +239,9 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
   const current = await currentCatalog(client); assertCurrent(expectedActive, current.active)
   const candidateCatalogVersion = 'ai-pdm.role-policy.' + draftId
   let candidate = current.rows[0]?.publication_format === 'dynamic-policy-v2'
-    ? candidateFromRows(current.rows, candidateCatalogVersion) : (() => { throw new RolePolicyHttpError('ROLE_POLICY_UPGRADE_REQUIRED', 503) })()
+    ? candidateFromRows(current.rows, candidateCatalogVersion) : current.rows[0]?.publication_format === 'legacy-static-v1'
+      ? buildLegacyRolePolicyDraft({roles:activeProjection(current.rows,current.active.catalogVersion).roles,candidateCatalogVersion})
+      : (() => { throw new RolePolicyHttpError('ROLE_POLICY_UPGRADE_REQUIRED', 503) })()
   if (sourceHistoryVersion !== null) {
     const historyRows = await client.query<CatalogRow>('SELECT ' + catalogColumns +
       " FROM ai_pdm_contract.v_role_policy_publications_v1 WHERE application_id='ai-pdm' AND catalog_version=:catalogVersion ORDER BY display_order", { catalogVersion: sourceHistoryVersion })
@@ -250,7 +254,7 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
     draftId, candidateVersion: candidateCatalogVersion, baseVersion: current.active.catalogVersion,
     baseHash: current.active.catalogSha256, registryHash: rolePolicyRegistryHash, candidate: storedCandidate(candidate),
     actor: verified.session.principalId, sourceHistoryVersion,
-    templateId: current.rows[0]?.publication_format === 'dynamic-policy-v2' ? null : rolePolicyRegistry.defaultTemplate.templateId })
+    templateId: current.rows[0]?.publication_format === 'legacy-static-v1' ? 'ai-pdm.legacy-preserving-first-draft.v1' : null })
   return draftResult(await draftById(client, draftId))
 }
 export async function saveRolePolicyDraft(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
@@ -294,7 +298,14 @@ export async function applyRolePolicy(client: AsyncDatabaseClient, verified: Ver
   const requestHash = commandHash('apply', verified.session.principalId, payload)
   const replay = await replayCommand(client, requestId, verified.session.principalId, 'apply', requestHash)
   if (replay) return replay
+  // Version is UI admission only. Keep the original SQL/body request hash and
+  // resolve durable receipts before requiring a newly rendered preview.
   const preview = await previewRolePolicyDraft(client, draftId, expectedRevision)
+  if(preview.diff.policyTransition==='legacy-to-dynamic' &&
+    (preview.diff.semanticDiffVersion!==ROLE_POLICY_SEMANTIC_DIFF_VERSION || !Array.isArray(preview.diff.semanticChanges)))
+    throw new RolePolicyHttpError('ROLE_POLICY_SEMANTIC_DIFF_UNAVAILABLE',503)
+  if(preview.diff.policyTransition==='legacy-to-dynamic' && body.semanticDiffVersion!==ROLE_POLICY_SEMANTIC_DIFF_VERSION)
+    throw new RolePolicyHttpError('ROLE_POLICY_SEMANTIC_DIFF_REQUIRED',409)
   assertCurrent(expectedActive, preview.confirmation.expectedActive)
   if (preview.diff.policyTransition !== 'legacy-to-dynamic' && !preview.diff.roleChanges.length &&
       !preview.diff.capabilityChanges.length && !preview.diff.profileChanges.length) throw new RolePolicyHttpError('NO_CHANGE', 409)

@@ -8,6 +8,7 @@ import { deriveAiPdmMigration } from './dev010-n1c-ai-pdm-package.mjs'
 import { hash,TABLES,FUNCTIONS,inspectLocalOwnerDatabase,buildLocalInstallPlan,installLocalDev127,
   readLocalInstallReceipt } from './lib/dev127-local-owner-sql.mjs'
 import { executeDev127CatalogSql,DEV127_RECEIPT,DEV127_SOURCE_POLICY_SHA256,dev127CommandId } from './lib/dev127-role-policy-upgrade.mjs'
+import {runDev127StaticV8Proof} from './dev127-local-owner-static-catalog-postgres.mjs'
 
 // This component belongs exclusively to the existing CI service PostgreSQL.
 // Missing prerequisites fail the lane; there is no local/persistent fallback.
@@ -28,6 +29,12 @@ const connect=async(database='postgres')=>{
   const owned=new URL(endpoint.href);owned.pathname=`/${database}`
   const value=new Client({connectionString:owned.href});await value.connect();return value
 }
+
+test('CI disposable static-v8 owner publication preserves legacy permissions/history/ACL and exact unknown-commit replay',async()=>{
+  const admin=await connect()
+  try{const proof=await runDev127StaticV8Proof({admin,connect});assert.equal(proof.legacyPermissionChanges,0);assert.equal(proof.assignmentWrites,0)}
+  finally{await admin.end()}
+})
 
 test('CI disposable component repairs only exact local ownership/ACL, installs original096 atomically, preserves data and upgrades via CAS/receipt',async()=>{
   const admin=await connect();let client

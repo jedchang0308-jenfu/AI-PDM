@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { restoreRolePolicyHistory, assertRolePolicyCandidate, rebuildRolePolicyCandidate, applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate, rolePolicyDiff,
+import { restoreRolePolicyHistory, assertRolePolicyCandidate, rebuildRolePolicyCandidate, applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate, buildLegacyRolePolicyDraft, rolePolicyDiff,
   rolePolicyMappedDenyActions, rolePolicyRegistryHash, rolePolicySource } from '@/lib/role-policy-editor'
 
 const fixedUuid = () => '11111111-1111-4111-8111-111111111111'
 
 describe('DEV-123 role policy domain', () => {
+  it('creates a first dynamic DRAFT without default business grants or mutation of the static nine-role source',()=>{
+    const before=structuredClone(rolePolicySource().baseCatalog);
+    const draft=buildLegacyRolePolicyDraft({roles:before.roles.map(role=>({...role,metadata:role.metadata??null,roleStatus:'active'})) as never,
+      candidateCatalogVersion:'ai-pdm.role-policy.10000000-0000-4000-8000-000000000088'});
+    expect(before).toEqual(rolePolicySource().baseCatalog);
+    for(let index=0;index<8;index++)expect(draft.roles[index].permissions).toEqual(before.roles[index].permissions);
+    expect(draft.roles).toHaveLength(10);
+    expect(draft.roles[9]).toEqual(rolePolicySource().defaultCandidate.roles[9]);
+    expect(draft.roles[0].permissions.some(p=>p.code==='pdm.drawing.edit')).toBe(false);
+    expect(draft.roles[8].permissions.filter(p=>p.code.startsWith('pdm.')&&!before.roles[8].permissions.some(old=>old.code===p.code))).toHaveLength(20);
+    expect(assertRolePolicyCandidate(draft)).toEqual(draft);
+  });
   it('binds the unpublished SQL definition to the actual semantic registry and profile source', () => {
     const sql = readFileSync('db/postgres/096_dev127_platform_super_admin_consumer.sql', 'utf8')
     const literal = /SELECT '(.+)'::jsonb\r?\n\$definition\$/u.exec(sql)?.[1]
