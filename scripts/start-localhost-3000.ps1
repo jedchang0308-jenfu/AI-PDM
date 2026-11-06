@@ -359,7 +359,7 @@ if ($TestAdmin) {
     "JENFU_LOCAL_SANDBOX_DATABASE_URL", "JENFU_LOCAL_SANDBOX_RUNTIME_ROLE", "PDM_DB_PROVIDER",
     "PDM_POSTGRES_URL", "PDM_POSTGRES_POOLER_MODE", "PDM_AUTH_MODE", "PDM_LOCAL_TEST_ADMIN",
     "PDM_LOCAL_PRINCIPAL_SANDBOX", "PDM_JENFU_PLATFORM_AUTH_MODE", "PDM_JENFU_ENTITLEMENT_MODE",
-    "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "NODE_ENV", "JENFU_FIREBASE_PROJECT_ID",
+    "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_PUBLIC_BASE_URL", "NODE_ENV", "JENFU_FIREBASE_PROJECT_ID",
     "JENFU_IDENTITY_ISSUER", "JENFU_IDENTITY_AUDIENCE", "PDM_FIREBASE_PROJECT_ID",
     "PDM_FIREBASE_API_KEY", "PDM_FIREBASE_AUTH_DOMAIN", "PDM_FIREBASE_APP_ID",
     "PDM_JENFU_SSO_BROKER_ORIGIN", "PDM_JENFU_SSO_HANDOFF_MODE"
@@ -385,12 +385,13 @@ if ($TestAdmin) {
     $env:PDM_JENFU_ENTITLEMENT_MODE = "enforce"
     $env:PDM_DATA_DIR = $DataDir
     $env:PDM_REPOSITORY_DIR = $RepositoryDir
+    $env:PDM_PUBLIC_BASE_URL = [string]$SandboxProfile.origin
     $env:NODE_ENV = "development"
     $env:PDM_JENFU_SSO_HANDOFF_MODE = "off"
     foreach ($key in @("JENFU_FIREBASE_PROJECT_ID", "JENFU_IDENTITY_ISSUER", "JENFU_IDENTITY_AUDIENCE",
       "PDM_FIREBASE_PROJECT_ID", "PDM_FIREBASE_API_KEY", "PDM_FIREBASE_AUTH_DOMAIN", "PDM_FIREBASE_APP_ID",
       "PDM_JENFU_SSO_BROKER_ORIGIN")) {
-      Remove-Item -Path "Env:$key" -ErrorAction SilentlyContinue
+      [Environment]::SetEnvironmentVariable($key, " ", "Process")
     }
     $process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
   }

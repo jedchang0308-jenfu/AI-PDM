@@ -14,12 +14,12 @@ import {
   isLocalPrincipalSandboxRequested,
 } from "@/lib/local-sandbox-principal-runtime";
 import { assertLocalSandboxRequest, LocalSandboxError } from "../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
-import { isLocalTestAdminRequested, readLocalTestAdminCookie, logoutLocalTestAdmin } from "@/lib/local-test-admin";
+import { isLocalTestAdminRequested, logoutLocalTestAdmin } from "@/lib/local-test-admin";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request)) {
+  if (isLocalTestAdminRequested()) {
     try { return await logoutLocalTestAdmin(request); }
     catch (error) {
       if (error instanceof LocalSandboxError && error.status === 403) {

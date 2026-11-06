@@ -4,7 +4,7 @@ import type { PrincipalRequestInput, VerifiedPrincipalRequest } from "@/lib/jenf
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession, type JenfuPrincipalSessionClaims } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
-import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAccountError, JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
 import { getLocalSandboxPrincipalRuntime, isLocalPrincipalSandboxRequested } from "@/lib/local-sandbox-principal-runtime";
 import { LOCAL_SANDBOX_PRINCIPAL_TRUST_POLICY } from "@/lib/local-sandbox-principal-session";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
@@ -111,7 +111,13 @@ function fixedClaims(claims: JenfuPrincipalSessionClaims) {
 
 async function requireAccount(snapshot: AsyncDatabaseClient) {
   const identity = LOCAL_TEST_ADMIN_IDENTITY;
-  const account = await new JenfuPrincipalAccountRepository(snapshot).requireActive(identity.principalId);
+  let account;
+  try { account = await new JenfuPrincipalAccountRepository(snapshot).requireActive(identity.principalId); }
+  catch (error) {
+    if (error instanceof JenfuPrincipalAccountError &&
+      ["principal_account_inactive", "principal_account_missing"].includes(error.code)) fail();
+    throw error;
+  }
   if (account.pdmUserId !== identity.pdmUserId || account.employeeId !== identity.employeeId ||
     account.companyId !== identity.companyId || account.accountType !== "human_personal") fail();
   const profile = await snapshot.queryOne<{ id: string; company_id: string; account_status: string; role: string; system_role_enabled: number }>(

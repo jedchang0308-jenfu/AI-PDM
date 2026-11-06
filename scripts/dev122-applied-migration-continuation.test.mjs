@@ -262,7 +262,7 @@ test('C96 production-shaped applied migration continuation selects ledger35 and 
   assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
 })
 
-test('DEV-123 authenticates the installed35 prefix while current38 remains a real forward migration', async () => {
+test('DEV-123 authenticates the installed35 prefix while the current declared profile remains a real forward migration', async () => {
   const f = fixture()
   const current = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), currentSource)
   const runnerCurrent = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSource)
@@ -278,7 +278,7 @@ test('DEV-123 authenticates the installed35 prefix while current38 remains a rea
   assert.equal(f.reads.some(uri => uri.includes('/openswx-worker/')), false)
 })
 
-test('both continuation consumers authenticate a current38 profile through the same closed35 readback boundary', () => {
+test('both continuation consumers authenticate the current declared profile through the same closed35 readback boundary', () => {
   const f = fixture()
   const result = f.objects.get(f.resultRef.uri)
   const readbackIntent = f.objects.get(result.readbackIntentRef.uri)
@@ -287,8 +287,8 @@ test('both continuation consumers authenticate a current38 profile through the s
     ancestorRunner: () => true, compatibilityRunner: () => true }
   const validated = assertAppliedMigrationReadbackSource(input)
   assert.deepEqual(validated.probes, buildRdLedgerProbeBundles(f.runnerFull))
-  assert.equal(fullMigration.bundle.entries.length, 40)
-  assert.equal(profile.migrations.entries.length, 40)
+  assert.equal(fullMigration.bundle.entries.length, profile.migrations.entries.length)
+  assert.ok(fullMigration.bundle.entries.length > f.runnerFull.bundle.entries.length)
   assert.throws(() => assertAppliedMigrationReadbackSource({ ...input, installedBundle: undefined }),
     /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
   const changed = structuredClone(profile)

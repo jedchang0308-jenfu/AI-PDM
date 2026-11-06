@@ -29,7 +29,7 @@ import {
 export function principalSessionTokenFromRequest(request: Request): string | null {
   let token: string | null;
   try {
-    if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request)) {
+    if (isLocalTestAdminRequested()) {
       token = readLocalTestAdminCookie(request);
     } else if (isLocalPrincipalSandboxRequested()) {
       token = readLocalPrincipalSessionCookie(request, process.env.JENFU_LOCAL_SANDBOX_ID ?? "");
@@ -64,7 +64,8 @@ function unverifiedIdentityIssuer(token: string): string | null {
 
 export async function principalRequestInput(token: string, request: Request): Promise<PrincipalRequestInput> {
   const tokenIdentityIssuer = unverifiedIdentityIssuer(token);
-  if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request) === token) {
+  if (isLocalTestAdminRequested()) {
+    if (readLocalTestAdminCookie(request) !== token) throw new JenfuPrincipalRequestError("auth_session_invalid");
     return resolveLocalTestAdminRequestInput(token, request);
   }
   if (tokenIdentityIssuer === LOCAL_TEST_ADMIN_IDENTITY.identityIssuer) {

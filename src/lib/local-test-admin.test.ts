@@ -13,13 +13,18 @@ vi.mock("@/lib/local-sandbox-principal-runtime", () => ({
   getLocalSandboxPrincipalRuntime: () => { state.sourceLoad(); return Promise.resolve(state.runtime); },
   isLocalPrincipalSandboxRequested: (env: Record<string, string | undefined>) => env.PDM_LOCAL_PRINCIPAL_SANDBOX === "1",
 }));
-vi.mock("@/lib/jenfu-principal-account-repository", () => ({
-  JenfuPrincipalAccountRepository: class { async requireActive() {
-    if (state.account.accountStatus !== "active" || !state.account.systemRoleEnabled) throw new Error("inactive");
-    return state.account;
-  } },
-  JenfuPrincipalAccountError: class extends Error {},
-}));
+vi.mock("@/lib/jenfu-principal-account-repository", () => {
+  class AccountError extends Error { constructor(readonly code: string) { super(code); } }
+  return {
+    JenfuPrincipalAccountRepository: class { async requireActive() {
+      if (state.account.accountStatus !== "active" || !state.account.systemRoleEnabled) {
+        throw new AccountError("principal_account_inactive");
+      }
+      return state.account;
+    } },
+    JenfuPrincipalAccountError: AccountError,
+  };
+});
 vi.mock("@/lib/jenfu-principal-session-registry", () => ({
   JenfuPrincipalSessionRegistry: class {
     async register(claims: unknown) { state.register(claims); state.active = true; }
@@ -134,6 +139,15 @@ describe("PDM independent local test administrator", () => {
     expect(() => isLocalTestAdminRequested({ NODE_ENV: "production", PDM_LOCAL_TEST_ADMIN: "1", PDM_LOCAL_PRINCIPAL_SANDBOX: "1" })).toThrow();
     expect(() => isLocalTestAdminRequested({ NODE_ENV: "development", PDM_LOCAL_TEST_ADMIN: "1" })).toThrow();
   });
+  it("never falls back to an existing SSO cookie, including after local logout", async () => {
+    const result = await issueLocalTestAdminSession(makeRequest());
+    const oldSsoRequest = makeRequest("GET", `pdm_local_principal_test-admin=${result.token}`);
+    expect(principalSessionTokenFromRequest(oldSsoRequest)).toBeNull();
+    await expect(principalRequestInput(result.token, oldSsoRequest)).rejects.toThrow("auth_session_invalid");
+    const logout = await logoutRoute(makeRequest("POST", `pdm_local_principal_test-admin=${result.token}`));
+    expect(logout.status).toBe(200);
+    expect(state.upstream).not.toHaveBeenCalled();
+  });
   it.each(["K_SERVICE", "K_REVISION", "FUNCTION_TARGET", "FUNCTION_NAME", "FIREBASE_CONFIG"])("rejects cloud marker %s", key => {
     vi.stubEnv(key, "present");
     expect(isLocalTestAdminAvailable(makeRequest())).toBe(false);
@@ -228,6 +242,14 @@ describe("PDM independent local test administrator", () => {
     await expect(withVerifiedLocalTestAdminRequest(input, async () => true)).rejects.toThrow();
     state.account.lifecycleVersion = 1; state.active = false;
     await expect(withVerifiedLocalTestAdminRequest(input, async () => true)).rejects.toThrow();
+  });
+  it("returns an authentication denial for a locally suspended account", async () => {
+    const issued = await issueLocalTestAdminSession(makeRequest());
+    state.account.accountStatus = "suspended";
+    const response = await meRoute(makeRequest("GET", issued.cookie.split(";", 1)[0]));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+    expect(state.upstream).not.toHaveBeenCalled();
   });
   it("logout revokes native registry and expires only its dedicated cookie", async () => {
     const result = await issueLocalTestAdminSession(makeRequest());
