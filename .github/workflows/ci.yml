@@ -197,6 +197,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           npm run test:dev-123:contracts
           npm run test:dev-127:contracts
+          npm run test:local-test-admin
 
       - name: Verify release and infrastructure slice
         if: steps.slice.outputs.infrastructure == 'true'

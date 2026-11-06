@@ -115,7 +115,7 @@ describe("PDM independent local test administrator", () => {
     const me = await meRoute(request);
     expect(me.status).toBe(200);
     expect(await me.json()).toMatchObject({ localTestAdmin: true,
-      user: { display_name: "PDM 本機測試超級管理員", employee_name: "PDM 本機測試超級管理員" } });
+      user: { display_name: "PDM 本機測試超級管理員", employee_name: "本機測試超級管理員" } });
     const input = await principalRequestInput(token, request);
     const permissions = [
       ...NUMBERING_PAGE_PERMISSION_CODES.map(permissionCode => ({ permissionKind: "page" as const, permissionCode })),

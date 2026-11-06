@@ -22,12 +22,18 @@ for (const candidate of [sandboxRoot, path.dirname(profilePath), profilePath]) {
     'LOCAL_TEST_ADMIN_PROFILE_LINK_FORBIDDEN')
 }
 assert.ok((await lstat(profilePath)).size <= 64 * 1024, 'LOCAL_TEST_ADMIN_PROFILE_INVALID')
-const profile = JSON.parse(await readFile(profilePath, 'utf8'))
+let profile
+try { profile = JSON.parse(await readFile(profilePath, 'utf8')) }
+catch { throw new Error('LOCAL_TEST_ADMIN_PROFILE_INVALID') }
 assert.equal(profile.applicationId, 'ai-pdm')
 assert.match(profile.sandboxId, /^[a-z][a-z0-9-]{2,63}$/u)
 assert.equal(path.resolve(profile.sandboxRoot).toLowerCase(), path.resolve(sandboxRoot).toLowerCase())
-const endpoint = new URL(process.env.PDM_LOCAL_TEST_ADMIN_INSTALL_URL ?? '')
-const runtimeEndpoint = new URL(profile.databaseUrl)
+let endpoint, runtimeEndpoint
+try {
+  assert.ok(process.env.PDM_LOCAL_TEST_ADMIN_INSTALL_URL)
+  endpoint = new URL(process.env.PDM_LOCAL_TEST_ADMIN_INSTALL_URL)
+  runtimeEndpoint = new URL(profile.databaseUrl)
+} catch { throw new Error('LOCAL_TEST_ADMIN_INSTALL_URL_REQUIRED_OR_INVALID') }
 assert.ok(['postgres:','postgresql:'].includes(endpoint.protocol) && ['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname),
   'LOCAL_TEST_ADMIN_INSTALL_TARGET_INVALID')
 assert.equal(endpoint.username, 'postgres', 'LOCAL_TEST_ADMIN_LOCAL_OWNER_REQUIRED')
