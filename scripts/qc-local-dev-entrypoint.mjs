@@ -28,6 +28,7 @@ function assertNotIncludes(label, content, needles) {
 const packageJson = JSON.parse(read("package.json"));
 const scripts = packageJson.scripts ?? {};
 const launcher = read("scripts/start-localhost-3000.ps1");
+const localTestAdminLauncher = read("scripts/start-local-test-admin.ps1");
 const stateFlowStatusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
 const cleanNext = read("scripts/clean-next.mjs");
 const nextConfig = read("next.config.mjs");
@@ -41,18 +42,36 @@ if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 1020") {
 if (scripts["dev"] !== "npm run dev:local") {
   failures.push("package.json scripts.dev must route daily startup through the managed launcher");
 }
-if (!String(scripts["dev:local"] ?? "").includes("scripts/start-localhost-3000.ps1")) {
-  failures.push("package.json scripts.dev:local must route through scripts/start-localhost-3000.ps1");
+if (!String(scripts["dev:local"] ?? "").includes("scripts/start-local-test-admin.ps1")) {
+  failures.push("package.json scripts.dev:local must route through the fixed test-admin and PostgreSQL entrypoint");
 }
-if (!String(scripts["dev:local:check"] ?? "").includes("-CheckOnly")) {
-  failures.push("package.json scripts.dev:local:check must run the managed launcher in CheckOnly mode");
+if (!String(scripts["dev:local:check"] ?? "").includes("scripts/start-local-test-admin.ps1") ||
+  !String(scripts["dev:local:check"] ?? "").includes("-CheckOnly")) {
+  failures.push("package.json scripts.dev:local:check must run the fixed entrypoint in CheckOnly mode");
 }
-if (!String(scripts["dev:local:restart"] ?? "").includes("-RestartProjectProcess")) {
+if (!String(scripts["dev:local:restart"] ?? "").includes("scripts/start-local-test-admin.ps1") ||
+  !String(scripts["dev:local:restart"] ?? "").includes("-RestartProjectProcess")) {
   failures.push("package.json scripts.dev:local:restart must explicitly opt into restarting project processes");
 }
 if (!String(scripts["dev:local:restart"] ?? "").includes("-CleanNext")) {
   failures.push("package.json scripts.dev:local:restart must clean .next during stale-server recovery");
 }
+
+assertIncludes("fixed test-admin launcher", localTestAdminLauncher, [
+  "$Port = 1020",
+  "$DatabasePort = 58420",
+  "test-admin-1020",
+  "sandbox\\control\\ai-pdm-runtime.json",
+  '"postgres.exe"',
+  "postmaster.pid",
+  '$pidLines[3] -ne "$DatabasePort"',
+  "Get-NetTCPConnection -LocalPort $DatabasePort -State Listen",
+  '$_.LocalAddress -ne "127.0.0.1"',
+  '$launcherParameters = @{ TestAdmin = $true; SandboxRoot = $SandboxRoot; Port = $Port }',
+  "$RestartProjectProcess",
+  "$CheckOnly",
+  "start-localhost-3000.ps1"
+]);
 
 assertIncludes("Next config watch scope", nextConfig, [
   'distDir === ".next" ? "tsconfig.next.json"',

@@ -355,6 +355,8 @@ npm run local:test-admin:install
 npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12020
 ```
 
+使用者指定的固定地端環境為 `localhost:1020`。完成既有環境的一次性初始化後，`npm run dev:local` 是標準啟動入口：由專案根目錄向上定位受控的 `.local/AI_PDM/test-admin-1020` profile，確認綁定的 PostgreSQL 18 資料目錄與 loopback listener，資料庫停止時以同一個隔離 cluster 自動啟動，再以固定 profile 啟動 1020 TestAdmin。重開終端或 Windows 後仍使用同一資料庫、sandbox 與登入方式。`npm run dev:local:check` 只讀檢查兩個程序；`npm run dev:local:restart` 重啟已驗明屬於該工作樹的 1020 網頁程序，保留資料庫。不可刪除或移動 `.local/AI_PDM/test-admin-1020` 與固定工作樹。
+
 埠必須與 profile origin 相符，可用 1020 或 12020；既有非本模式或非本工作樹程序不會被替換。安裝僅接受兩個固定 source，source hash 與本機 receipt 原子提交；未知結果先 fresh readback，不重放 DDL。登入頁顯示「以測試超級管理員登入」，不要求帳密或轉向 SSO。
 
-驗證入口為 `npm run test:local-test-admin`。本機已有依賴的針對性驗證、鎖定依賴 CI、純 PDM PostgreSQL component、真人 UI 與持續地端安裝分開記錄；未啟用到既有 1020 前不能宣稱使用者目前頁面已可登入。本途徑不能作正式 SSO／角色授權通過證據，也不授予正式發布或正式資料寫入。
+驗證入口為 `npm run test:local-test-admin`。本機已有依賴的針對性驗證、鎖定依賴 CI、純 PDM PostgreSQL component、真人 UI 與持續地端安裝分開記錄；啟用證據以實際登入及本機隔離目標 readback 為準。本途徑不能作正式 SSO／角色授權通過證據，也不授予正式發布或正式資料寫入。
