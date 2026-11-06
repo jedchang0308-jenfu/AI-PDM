@@ -81,6 +81,7 @@ const identityProtocolRoutes = new Map([
   ["GET /api/auth/jenfu-sso/callback", "jenfuSsoCallback"],
   ["GET /api/auth/jenfu-sso/start", "jenfuSsoStart"],
   ["POST /api/auth/local-quick-login", "issueLocalPrincipalQuickLoginSession"],
+  ["POST /api/auth/local-test-admin", "issueLocalTestAdminSession"],
   ["GET /api/auth/local-sandbox/callback", "issueLocalSandboxPrincipalSession"],
   ["GET /api/auth/local-sandbox/start", "createLocalSandboxLoginState"],
   ["GET /api/auth/login", "ensureDemoUserAsync"],
@@ -225,6 +226,36 @@ const workerCapabilityGuard = /\b(?:authenticateWorkerService)\s*\(/u;
 function containsAll(source, needles, label) {
   for (const needle of needles) {
     if (!source.includes(needle)) throw new Error(`${label}: required boundary implementation missing ${needle}`);
+  }
+}
+
+/** This identity issuer is deliberately local-only; it is not a permission bypass for API routes. */
+export function validateLocalTestAdminIdentityBoundary(routeSource, helperSource) {
+  const sourceFile = (name, source) => ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const route = functionGraph(sourceFile("local-test-admin/route.ts", routeSource), "POST");
+  const helper = sourceFile("local-test-admin.ts", helperSource);
+  containsAll(route, ["isLocalTestAdminAvailable(request)", "issueLocalTestAdminSession(request)", "status: 404"],
+    "local test identity route");
+  containsAll(functionGraph(helper, "isLocalTestAdminRequested"), [
+    'environment.PDM_LOCAL_TEST_ADMIN !== "1"', 'environment.NODE_ENV !== "development"',
+    "environment.K_SERVICE", "environment.K_REVISION", "environment.FUNCTION_TARGET",
+    "environment.FUNCTION_NAME", "environment.FIREBASE_CONFIG", "isLocalPrincipalSandboxRequested(environment)",
+  ], "local test development boundary");
+  containsAll(functionGraph(helper, "isLocalTestAdminAvailable"), [
+    "isLocalTestAdminRequested()", "isLoopbackHost(new URL(request.url).hostname)",
+  ], "local test loopback boundary");
+  containsAll(functionGraph(helper, "getLocalTestAdminRuntime"), [
+    "getLocalSandboxPrincipalRuntime()", "assertLocalSandboxRequest(request, runtime.config",
+    "listenAddress: runtime.listenAddress", "runtime.target.generation", "runtime.target.fixtureHash",
+    "runtime.target.targetFingerprint", "inet_server_addr()", "shobj_description", "AS target_valid",
+  ], "local test origin and isolated target boundary");
+  containsAll(functionGraph(helper, "issueLocalTestAdminSession"), [
+    'request.method !== "POST"', "getLocalTestAdminRuntime(request, { browserMutation: true })",
+    "readLocalJsonBody(request)", "ensure_local_test_admin_v1", "issueJenfuPrincipalSession",
+    "JenfuPrincipalSessionRegistry(snapshot).register(claims)",
+  ], "local test native session issuance");
+  if (/\bfetch\s*\(|\b(?:runtime|local)\.(?:client|ports)\s*(?:\.|\[)|\b(?:orgmaster|platform)_contract\./u.test(helperSource)) {
+    throw new Error("local test identity issuer must not call SSO/HTTP or upstream authority");
   }
 }
 
@@ -439,6 +470,9 @@ function main() {
       const identityMarker = identityProtocolRoutes.get(key);
       if (identityMarker) {
         if (!graph.includes(identityMarker)) throw new Error(`${key}: identity protocol handler lost ${identityMarker}`);
+        if (key === "POST /api/auth/local-test-admin") {
+          validateLocalTestAdminIdentityBoundary(text, readFileSync(join(appRoot, "src/lib/local-test-admin.ts"), "utf8"));
+        }
         if (key === "POST /api/auth/logout" &&
             /(?:verifyJenfuPlatformSessionV1|verifyPlatformSessionV2|getLegacySessionPayload|getSessionUserAsync)\s*\(/u.test(graph)) {
           throw new Error("POST /api/auth/logout: retired session authorization restored");

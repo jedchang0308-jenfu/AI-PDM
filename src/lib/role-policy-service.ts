@@ -9,6 +9,7 @@ import { applyRolePolicyDraftChanges, assertRolePolicyCandidate, buildDefaultRol
 import { assertExactKeys, RolePolicyHttpError } from '@/lib/role-policy-http'
 import { lockAndRevalidateRolePolicyApply, revalidateRolePolicyManager } from '@/lib/role-policy-apply-authorization'
 import { hashJenfuPrincipalSessionId } from '@/lib/jenfu-principal-session-registry'
+import { isVerifiedLocalTestAdmin } from '@/lib/local-test-admin'
 
 type CatalogRow = Record<string, unknown>
 type DraftRow = {
@@ -130,6 +131,10 @@ async function currentCatalog(client: AsyncDatabaseClient) {
 }
 
 async function requireRolePolicyManager(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  if (isVerifiedLocalTestAdmin(verified, client)) {
+    await revalidateRolePolicyManager(client, verified)
+    return
+  }
   const account = await client.queryOne<{ account_type: string; account_status: string }>(`
     SELECT account_type,account_status FROM ai_pdm_core.principal_accounts
     WHERE principal_id=:principalId AND employee_id=:employeeId`, {
@@ -293,7 +298,9 @@ export async function applyRolePolicy(client: AsyncDatabaseClient, verified: Ver
   assertCurrent(expectedActive, preview.confirmation.expectedActive)
   if (preview.diff.policyTransition !== 'legacy-to-dynamic' && !preview.diff.roleChanges.length &&
       !preview.diff.capabilityChanges.length && !preview.diff.profileChanges.length) throw new RolePolicyHttpError('NO_CHANGE', 409)
-  const row = await client.queryOne<{ result: unknown }>('SELECT ai_pdm_core.role_policy_apply_v2(CAST(:requestId AS uuid),:actor,:sessionHash,:issuer,:subject,CAST(:draftId AS uuid),:expectedRevision,:catalogVersion,:catalogHash,:reason) AS result', {
+  const applyFunction = isVerifiedLocalTestAdmin(verified, client)
+    ? 'role_policy_apply_local_test_admin_v1' : 'role_policy_apply_v2'
+  const row = await client.queryOne<{ result: unknown }>(`SELECT ai_pdm_core.${applyFunction}(CAST(:requestId AS uuid),:actor,:sessionHash,:issuer,:subject,CAST(:draftId AS uuid),:expectedRevision,:catalogVersion,:catalogHash,:reason) AS result`, {
     requestId, actor: verified.session.principalId,
     sessionHash: hashJenfuPrincipalSessionId(verified.session.sessionId),
     issuer: verified.session.identityIssuer, subject: verified.session.identitySubject, draftId, expectedRevision,

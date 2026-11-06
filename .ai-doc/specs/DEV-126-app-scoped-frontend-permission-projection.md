@@ -334,3 +334,27 @@ OrgMaster同步相同版本定義，產生虛構任用；不同角色的permissi
 2026-10-30 增量：[canonical work R2](../qa/DEV126-LOCAL-CANONICAL-WORK-20261030-R2.json)（receipt `95d25525-a99e-4e57-a337-e7028aac53fa`）驗證既有Principal v2工作草稿路徑。active情境正常建立料號201；catalog-system-admin經正常Platform SSO建立change-work200、自動保存PATCH200，GET為rowVersion2且工作頁完整重載觀察到更新品名。runtime中斷後，Platform安全續啟同一隔離PG，原generation與已保存工作版本2保留；fresh SSO後由正常確認畫面取消200，該work讀回404，工作台與完整重載只剩原formal主檔、未核准草稿沒有覆寫正式品名。create／save／cancel各自綁定其實際idempotency key；初始讀取等待、selector／response-observation失敗保留，沒有因未知結果重送mutation。
 
 這個有界CRUD旅程不用未遷移的root PATCH；其503 `principal_route_not_migrated`仍不記PASS。另九角色27項讀取與跨公司403見R1，reset／舊session失效／新登入及公開fresh native111步、五階段postnative／唯讀resume見主控DEV-021 R2／R4。這些補上對應子路徑，不代表全v7寫入矩陣、external project-scoped allow、所有lifecycle／drift／recover、固定埠、PR合併或真實非正式／production完成。P126-A～G與原managed-identity撤權DEFERRED分母維持。
+
+<a id="local-test-super-admin"></a>
+
+## 14. PDM 獨立本機測試超級管理員（2026-11-06）
+
+使用者明確要求在權限功能施工期間，以 PDM 自有、全部 PDM 權限的測試帳戶一鍵登入，與 SSO 分開。本節新增獨立開發途徑；§13 的 SSO／Central session 契約及原驗收分母維持原範圍。
+
+- 固定顯示名稱為「PDM 本機測試超級管理員」，固定 PDM profile／Principal／Employee，只存在受控隔離資料庫。登入、帳戶讀取、權限投影、政策管理及登出均不讀 Platform／OrgMaster 授權或呼叫其 HTTP 服務。
+- `PDM_LOCAL_TEST_ADMIN=1`、development、已驗明的 loopback listener、既有隔離 runtime profile／DB marker／target generation 必須同時成立。沿用 sandbox 的路徑與資料隔離驗證，profile 只作本機設定來源；不需要啟動 Platform／OrgMaster。禁止 production／cloud marker、primary target、DB owner／migrator runtime。
+- 獨立 identity issuer、派生簽章 key、token issuer／audience、cookie namespace；generation、fixture 或 target 改變即失效。只允許空 JSON POST，不接受自選角色、Principal 或 claims。既有帳戶停權不會被登入動作恢復。
+- 全權只由已驗 token、PDM account／profile 及 native session registry 的 callback／snapshot 內可信身分啟動；不依角色文字、header 或 issuer 字串提權。全部 PDM page／action 回傳允許；公司邊界、資料外鍵、工作流狀態、CAS、idempotency 與必要欄位仍有效。未完成的業務功能及外部業務資料不會因此變成已實作。
+- local-only `098` 建立固定帳戶函式，`099` 提供純 PDM policy lock／apply；兩者皆不加入 formal migration profile，不修改任何已套 migration。政策 mutation core 與正式路徑的 validation／CAS／receipt 相同，但使用本機 account／session 授權。
+
+一次性安裝先選已有、完成 PDM schema 初始化的隔離 sandbox。由該隔離資料庫 owner 在程序環境提供 `JENFU_LOCAL_SANDBOX_ROOT` 與 `PDM_LOCAL_TEST_ADMIN_INSTALL_URL`；owner URL 必須匹配 profile 的本機 host／port／database，不能使用 primary。連線值不寫入文件或 Git。
+
+```powershell
+npm run local:test-admin:plan
+npm run local:test-admin:install
+npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12020
+```
+
+埠必須與 profile origin 相符，可用 1020 或 12020；既有非本模式或非本工作樹程序不會被替換。安裝僅接受兩個固定 source，source hash 與本機 receipt 原子提交；未知結果先 fresh readback，不重放 DDL。登入頁顯示「以測試超級管理員登入」，不要求帳密或轉向 SSO。
+
+驗證入口為 `npm run test:local-test-admin`。本機已有依賴的針對性驗證、鎖定依賴 CI、純 PDM PostgreSQL component、真人 UI 與持續地端安裝分開記錄；未啟用到既有 1020 前不能宣稱使用者目前頁面已可登入。本途徑不能作正式 SSO／角色授權通過證據，也不授予正式發布或正式資料寫入。

@@ -4,6 +4,7 @@ import { JenfuPrincipalAccountError, JenfuPrincipalAccountRepository } from '@/l
 import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard'
 import { hashJenfuPrincipalSessionId } from '@/lib/jenfu-principal-session-registry'
 import { RolePolicyHttpError } from '@/lib/role-policy-http'
+import { isVerifiedLocalTestAdmin } from '@/lib/local-test-admin'
 
 /** Policy writes use READ COMMITTED. Hold owner fences through commit, then
  * recheck the signed identity, current account/session/epoch and exact manager. */
@@ -14,7 +15,9 @@ export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClie
   }
   const claims = verified.session
   const sessionHash = hashJenfuPrincipalSessionId(claims.sessionId)
-  await client.query(`SELECT ai_pdm_core.role_policy_lock_apply_v2(
+  const lockFunction = isVerifiedLocalTestAdmin(verified, client)
+    ? 'role_policy_lock_apply_local_test_admin_v1' : 'role_policy_lock_apply_v2'
+  await client.query(`SELECT ai_pdm_core.${lockFunction}(
     CAST(:requestId AS uuid),CAST(:draftId AS uuid),:principalId,:sessionHash)`,
   { requestId, draftId, principalId: claims.principalId, sessionHash })
 
@@ -43,7 +46,11 @@ export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, v
       authenticated_at,assurance_level,revoked_at FROM ai_pdm_core.principal_session_records
     WHERE principal_id=:principalId AND session_id_hash=:sessionHash`,
   { principalId: claims.principalId, sessionHash })
-  const epoch = await new JenfuAuthEpochRepository(client).readCanonicalPrincipalState(claims.principalId)
+  // This brand is issued only after the separate local account/session verifier.
+  // A caller-supplied issuer, role or boolean never selects this authority path.
+  const localAdmin = isVerifiedLocalTestAdmin(verified, client)
+  const epoch = localAdmin ? { authEpoch: 0, revokedBefore: null }
+    : await new JenfuAuthEpochRepository(client).readCanonicalPrincipalState(claims.principalId)
   const now = Date.now()
   const validAssuranceLevel = claims.assuranceLevel === 'aal1' || claims.assuranceLevel === 'aal2'
   if (!validAssuranceLevel || !['human_personal', 'human_privileged'].includes(account.accountType) ||
@@ -62,6 +69,7 @@ export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, v
       !Number.isFinite(Date.parse(claims.expiresAt)) || Date.parse(claims.expiresAt) <= now) {
     throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
   }
+  if (localAdmin) return
   const eligible = await client.queryOne<{ eligible: boolean }>(`
     SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(
       :principalId,:employeeId,:issuer,:subject) AS eligible`, {

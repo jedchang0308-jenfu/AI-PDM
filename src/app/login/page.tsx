@@ -24,6 +24,7 @@ type LoginModeResponse = {
   firebase: { config: FirebaseWebConfig | null };
   localQuickLogin: boolean;
   localPrincipalSandbox: boolean;
+  localTestAdmin?: boolean;
 };
 
 function isAuthMode(value: unknown): value is AuthMode {
@@ -35,6 +36,7 @@ function isLoginModeResponse(value: unknown): value is LoginModeResponse {
   const body = value as Partial<LoginModeResponse>;
   if (!isAuthMode(body.authMode) || typeof body.ssoHandoffEnabled !== "boolean"
     || typeof body.localQuickLogin !== "boolean" || typeof body.localPrincipalSandbox !== "boolean" ||
+    (body.localTestAdmin !== undefined && typeof body.localTestAdmin !== "boolean") ||
     typeof body.googleOAuth?.enabled !== "boolean"
     || !body.firebase || typeof body.firebase !== "object") return false;
   const config = body.firebase.config;
@@ -104,6 +106,7 @@ export default function LoginPage() {
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
   const [localPrincipalSandbox, setLocalPrincipalSandbox] = useState(false);
+  const [localTestAdmin, setLocalTestAdmin] = useState(false);
   const [ssoHandoffEnabled, setSsoHandoffEnabled] = useState(false);
   const [modeState, setModeState] = useState<LoginModeState>("loading");
   const modeRequestGeneration = useRef(0);
@@ -131,6 +134,7 @@ export default function LoginPage() {
     setGoogleOAuthEnabled(false);
     setFirebaseConfig(null);
     setLocalPrincipalSandbox(false);
+    setLocalTestAdmin(false);
     setSsoHandoffEnabled(false);
     try {
       const response = await fetch("/api/auth/mode", { cache: "no-store", signal: controller.signal });
@@ -142,6 +146,10 @@ export default function LoginPage() {
       setGoogleOAuthEnabled(body.googleOAuth?.enabled === true);
       setFirebaseConfig(body.firebase?.config ?? null);
       setLocalPrincipalSandbox(body.localPrincipalSandbox === true);
+      setLocalTestAdmin(body.localTestAdmin === true);
+      if (body.localTestAdmin === true && new URLSearchParams(window.location.search).get("auth_error")?.startsWith("sso_")) {
+        setError("");
+      }
       setSsoHandoffEnabled(body.ssoHandoffEnabled === true);
       setModeState("ready");
     } catch {
@@ -259,6 +267,24 @@ export default function LoginPage() {
     }
   }
 
+  async function submitLocalTestAdmin() {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/auth/local-test-admin", {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "本機測試登入暫時無法使用。");
+      window.location.assign(loginReturnTo());
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "本機測試登入暫時無法使用。");
+      setLoading(false);
+    }
+  }
+
   function fillTestAccount(account: (typeof TEST_ACCOUNTS)[number]) {
     setEmail(account.email);
     setPassword(account.password);
@@ -273,10 +299,17 @@ export default function LoginPage() {
       <section className="login-panel">
         <div className={`login-heading ${authMode === "demo" && !localPrincipalSandbox ? "is-demo" : "is-managed"}`}>
           <h1>AI PDM 登入</h1>
-          <p>{localPrincipalSandbox ? "本機 Principal sandbox 使用鉦富平台的虛構測試身分。" : authMode === "demo" ? "請使用測試帳號登入，依角色權限檢視系統。" : "請使用公司帳號登入；若尚未有帳號，請向系統管理員索取邀請連結。"}</p>
+          <p>{localTestAdmin ? "本機隔離測試環境" : localPrincipalSandbox ? "本機 Principal sandbox 使用鉦富平台的虛構測試身分。" : authMode === "demo" ? "請使用測試帳號登入，依角色權限檢視系統。" : "請使用公司帳號登入；若尚未有帳號，請向系統管理員索取邀請連結。"}</p>
         </div>
 
-        {modeState === "ready" && localPrincipalSandbox ? (
+        {modeState === "ready" && localTestAdmin ? (
+          <div className="google-auth-choice">
+            <button className="primary-button" type="button" disabled={loading} onClick={() => void submitLocalTestAdmin()}>
+              <LogIn size={16} aria-hidden="true" />
+              {loading ? "正在登入…" : "以測試超級管理員登入"}
+            </button>
+          </div>
+        ) : modeState === "ready" && localPrincipalSandbox ? (
           <div className="google-auth-choice" aria-label="本機 Principal sandbox 登入">
             <button className="primary-button" type="button" disabled={loading}
               onClick={() => window.location.assign("/api/auth/local-sandbox/start")}>

@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { lockAndRevalidateRolePolicyApply } from '@/lib/role-policy-apply-authorization'
 
+const localAdmins = vi.hoisted(() => new WeakSet<object>())
+vi.mock('@/lib/local-test-admin', () => ({ isVerifiedLocalTestAdmin: (value: object) => localAdmins.has(value) }))
+
 afterEach(() => vi.restoreAllMocks())
 
 function fixture(overrides: { eligible?: boolean; epoch?: number; accountStatus?: string;
   accountType?: string; revoked?: boolean; expiryMs?: number; waitMs?: number; lifecycleVersion?: number;
-  profileVersion?: number; assuranceLevel?: string; sessionAssuranceLevel?: string } = {}) {
+  profileVersion?: number; assuranceLevel?: string; sessionAssuranceLevel?: string; localAdmin?: boolean;
+  sessionEpoch?: number } = {}) {
   const started = Date.parse('2026-10-21T00:00:00Z')
   let now = started
   vi.spyOn(Date, 'now').mockImplementation(() => now)
@@ -14,9 +18,10 @@ function fixture(overrides: { eligible?: boolean; epoch?: number; accountStatus?
   const verified = { profile: { pdmUserId: 'profile-a', companyId: 'company-jenfu' }, session: {
     sessionId: 'test-session-00000001', principalId: 'principal-a', employeeId: 'employee-a',
     identityIssuer: 'test-issuer', identitySubject: 'test-subject', assuranceLevel: overrides.assuranceLevel ?? 'aal2',
-    accountLifecycleVersion: 1, profileVersion: overrides.profileVersion ?? 1, authEpoch: 3,
+    accountLifecycleVersion: 1, profileVersion: overrides.profileVersion ?? 1, authEpoch: overrides.localAdmin ? 0 : 3,
     issuedAt, authenticatedAt: issuedAt, expiresAt
   } }
+  if (overrides.localAdmin) localAdmins.add(verified)
   const sql: string[] = []
   const client = { kind: 'postgres', transactionScope: 'postgres',
     query: vi.fn(async (text: string) => { sql.push(text); now += overrides.waitMs ?? 0; return [] }),
@@ -27,7 +32,7 @@ function fixture(overrides: { eligible?: boolean; epoch?: number; accountStatus?
         lifecycle_version: overrides.lifecycleVersion ?? 1, profile_version: overrides.profileVersion ?? 1,
         account_status: overrides.accountStatus ?? 'active', system_role_enabled: true,
         minimum_assurance: 'aal1', session_invalid_before: null }
-      if (text.includes('principal_session_records')) return { principal_auth_epoch: 3, lifecycle_version: 1,
+      if (text.includes('principal_session_records')) return { principal_auth_epoch: overrides.sessionEpoch ?? (overrides.localAdmin ? 0 : 3), lifecycle_version: 1,
         profile_version: 1, issued_at: issuedAt, authenticated_at: issuedAt, expires_at: expiresAt,
         revoked_at: overrides.revoked ? issuedAt : null,
         assurance_level: overrides.sessionAssuranceLevel ?? overrides.assuranceLevel ?? 'aal2' }
@@ -81,5 +86,34 @@ describe('DEV-123 post-wait apply admission', () => {
     f.client.transactionScope = 'unscoped'
     await expect(f.run()).rejects.toMatchObject({ code: 'ROLE_POLICY_TRANSACTION_UNAVAILABLE', status: 503 })
     expect(f.sql).toHaveLength(0)
+  })
+
+  it('uses only native PDM session/account authority for the verified local administrator', async () => {
+    const f = fixture({ localAdmin: true })
+    await expect(f.run()).resolves.toBeUndefined()
+    expect(f.sql[0]).toContain('role_policy_lock_apply_local_test_admin_v1')
+    expect(f.sql.join('\n')).not.toMatch(/platform_contract|orgmaster_contract/u)
+    expect(f.sql.join('\n')).toContain('principal_session_records')
+  })
+
+  it.each([
+    ['account suspension', { accountStatus: 'suspended' }],
+    ['lifecycle change', { lifecycleVersion: 2 }],
+    ['session revocation', { revoked: true }],
+    ['foreign epoch', { sessionEpoch: 3 }],
+    ['session expiry while waiting', { expiryMs: 500, waitMs: 1000 }]
+  ])('local authority still rejects %s', async (_label, options) => {
+    await expect(fixture({ ...options, localAdmin: true }).run()).rejects.toMatchObject({
+      code: 'ROLE_POLICY_MANAGER_REQUIRED', status: 403
+    })
+  })
+
+  it('does not select local authority for caller supplied local identity strings', async () => {
+    const f = fixture({ eligible: false })
+    f.verified.session.identityIssuer = 'urn:ai-pdm:local-test-admin'
+    f.verified.session.identitySubject = 'pdm-local-test-admin'
+    await expect(f.run()).rejects.toMatchObject({ code: 'ROLE_POLICY_MANAGER_REQUIRED' })
+    expect(f.sql[0]).toContain('role_policy_lock_apply_v2')
+    expect(f.sql.join('\n')).toContain('platform_contract')
   })
 })

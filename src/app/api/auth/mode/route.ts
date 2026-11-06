@@ -3,10 +3,19 @@ import { getAuthMode, getFirebaseWebConfig, getJenfuSsoHandoffEntryState } from 
 import { getGoogleOAuthPublicStatus } from "@/lib/google-oauth";
 import { isLocalQuickLoginAvailable } from "@/lib/local-quick-login";
 import { isLocalPrincipalSandboxRequested } from "@/lib/local-sandbox-principal-runtime";
+import { isLocalTestAdminAvailable } from "@/lib/local-test-admin";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  if (isLocalTestAdminAvailable(request)) {
+    return NextResponse.json({
+      authMode: "firebase_bff", ssoHandoffEnabled: false, accountInvitations: false,
+      localQuickLogin: false, localPrincipalSandbox: true, localTestAdmin: true,
+      googleOAuth: { enabled: false, provider: "local-test" },
+      firebase: { enabled: false, config: null },
+    }, { headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+  }
   let localPrincipalSandbox = false;
   let authMode: ReturnType<typeof getAuthMode> = "demo";
   try {

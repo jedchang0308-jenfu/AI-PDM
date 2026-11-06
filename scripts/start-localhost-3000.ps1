@@ -5,6 +5,8 @@ param(
   [switch]$StopForeignProcess,
   [switch]$CleanNext,
   [switch]$CheckOnly,
+  [switch]$TestAdmin,
+  [string]$SandboxRoot = $env:JENFU_LOCAL_SANDBOX_ROOT,
   [int]$TimeoutSeconds = 60
 )
 
@@ -12,9 +14,70 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ProjectRootLower = $ProjectRoot.ToLowerInvariant()
+$SandboxProfile = $null
+if ($TestAdmin) {
+  if ($env:NODE_ENV -eq "production" -or $env:K_SERVICE -or $env:K_REVISION -or
+    $env:FUNCTION_TARGET -or $env:FUNCTION_NAME -or $env:FIREBASE_CONFIG) {
+    throw "-TestAdmin is forbidden in production or a cloud runtime environment."
+  }
+  if ([string]::IsNullOrWhiteSpace($SandboxRoot)) {
+    throw "-TestAdmin requires an existing sandbox profile. Provide -SandboxRoot <path>."
+  }
+  if (-not [IO.Path]::IsPathRooted($SandboxRoot) -or -not (Test-Path -LiteralPath $SandboxRoot -PathType Container)) {
+    throw "-TestAdmin requires an existing sandbox root. Provide -SandboxRoot <absolute path>."
+  }
+  $sandboxRootItem = Get-Item -LiteralPath $SandboxRoot -Force
+  if (($sandboxRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw "-TestAdmin sandbox root must not be a symbolic link or junction."
+  }
+  $SandboxRoot = $sandboxRootItem.FullName
+  if ([IO.Path]::GetFullPath($SandboxRoot).TrimEnd('\') -ieq $ProjectRoot.TrimEnd('\')) {
+    throw "-TestAdmin SandboxRoot cannot be the AI_PDM project directory."
+  }
+  $controlDirectory = Join-Path $SandboxRoot "control"
+  if (-not (Test-Path -LiteralPath $controlDirectory -PathType Container) -or
+    ((Get-Item -LiteralPath $controlDirectory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw "-TestAdmin requires a regular control directory under SandboxRoot."
+  }
+  $profilePath = Join-Path $SandboxRoot "control\ai-pdm-runtime.json"
+  if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+    throw "-TestAdmin requires control\ai-pdm-runtime.json under SandboxRoot. Provide -SandboxRoot <path>."
+  }
+  $profileItem = Get-Item -LiteralPath $profilePath -Force
+  if (($profileItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $profileItem.Length -lt 2 -or $profileItem.Length -gt 65536) {
+    throw "-TestAdmin sandbox profile is invalid."
+  }
+  try { $SandboxProfile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json }
+  catch { throw "-TestAdmin sandbox profile is invalid JSON." }
+  $profileRoot = [IO.Path]::GetFullPath([string]$SandboxProfile.sandboxRoot).TrimEnd('\')
+  if ($profileRoot -ine $SandboxRoot.TrimEnd('\') -or $SandboxProfile.applicationId -cne "ai-pdm" -or
+    $SandboxProfile.profileVersion -cne "ai-pdm.local-runtime.v1") {
+    throw "-TestAdmin sandbox profile does not match the supplied SandboxRoot."
+  }
+  try { $profileOrigin = [Uri]::new([string]$SandboxProfile.origin) }
+  catch { throw "-TestAdmin sandbox origin is invalid." }
+  if (-not $profileOrigin.IsLoopback -or $profileOrigin.Scheme -cne "http" -or $profileOrigin.Port -ne $Port -or
+    $profileOrigin.AbsolutePath -cne "/" -or $profileOrigin.Query -or $profileOrigin.Fragment -or
+    $profileOrigin.UserInfo) {
+    throw "-TestAdmin sandbox origin must be a local HTTP origin matching port $Port (1020 or 12020)."
+  }
+  foreach ($directoryValue in @([string]$SandboxProfile.dataDirectory, [string]$SandboxProfile.repositoryDirectory)) {
+    if ([string]::IsNullOrWhiteSpace($directoryValue) -or -not [IO.Path]::IsPathRooted($directoryValue) -or
+      $directoryValue.Replace('/', '\').Split('\') -contains '..') {
+      throw "-TestAdmin sandbox data and repository directories must be absolute controlled paths."
+    }
+    $directoryFullPath = [IO.Path]::GetFullPath($directoryValue).TrimEnd('\')
+    if (-not $directoryFullPath.StartsWith($SandboxRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+      throw "-TestAdmin sandbox data and repository directories must remain under SandboxRoot."
+    }
+  }
+  $DataDir = [IO.Path]::GetFullPath([string]$SandboxProfile.dataDirectory)
+  $RepositoryDir = [IO.Path]::GetFullPath([string]$SandboxProfile.repositoryDirectory)
+}
 $BindHost = "127.0.0.1"
 $PublicHost = "localhost"
 $Url = "http://${PublicHost}:$Port/"
+if ($TestAdmin) { $Url = ([string]$SandboxProfile.origin).TrimEnd('/') + '/' }
 $RuntimeRoot = Join-Path $ProjectRoot "tmp\local-dev"
 $RuntimeDir = Join-Path $RuntimeRoot ([string]$Port)
 $PidFile = Join-Path $RuntimeDir "ai-pdm-$Port.pid"
@@ -145,6 +208,14 @@ function Test-LocalHttpHealth {
   return @{ Healthy = -not $failure; StatusCode = if ($failure) { $failure.statusCode } else { 200 }; Routes = $results }
 }
 
+function Test-LocalTestAdminMode {
+  if (-not $TestAdmin) { return $true }
+  try {
+    $mode = Invoke-RestMethod -Uri "http://${BindHost}:$Port/api/auth/mode" -TimeoutSec 4
+    return [bool]($mode.localTestAdmin -eq $true)
+  } catch { return $false }
+}
+
 function Write-RuntimeStatus {
   param([string]$State, [int]$LauncherProcessId = 0, [int]$PortOwnerProcessId = 0, $PortOwnerProcessInfo = $null, $Health = $null, [string]$Message = "")
   [ordered]@{
@@ -223,6 +294,9 @@ if ($owners.Count -gt 0) {
   }
   else {
     $health = Test-LocalHttpHealth
+    if ($TestAdmin -and -not (Test-LocalTestAdminMode)) {
+      throw "Port $Port is owned by this project but is not running in local TestAdmin mode; refusing reuse or termination."
+    }
     $ownersAfterHealth = @(Get-CurrentPortOwner)
     $unverifiedOwners = @(Get-UnverifiedPortOwners -Owners $ownersAfterHealth)
     if ($unverifiedOwners.Count -gt 0) {
@@ -266,8 +340,10 @@ if ($CleanNext) {
   finally { Pop-Location }
 }
 
-$env:PDM_DATA_DIR = $DataDir
-$env:PDM_REPOSITORY_DIR = $RepositoryDir
+if (-not $TestAdmin) {
+  $env:PDM_DATA_DIR = $DataDir
+  $env:PDM_REPOSITORY_DIR = $RepositoryDir
+}
 $env:PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 = "true"
 $env:PDM_PART_PREVIEW_V1 = "true"
 $env:PDM_WORKBENCH_PRODUCTION_RD_LANES_V1 = "true"
@@ -276,7 +352,60 @@ Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile, $StatusFile -ErrorAct
 
 Write-Host "Starting AI_PDM local web server."
 Write-Host "DEV-125 Windows service is installed and managed separately; dev:local does not start or stop a fallback worker."
-$process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+if ($TestAdmin) {
+  $childEnvironmentKeys = @(
+    "JENFU_LOCAL_SANDBOX_ROOT", "JENFU_LOCAL_SANDBOX_ENABLED", "JENFU_LOCAL_SANDBOX_ID",
+    "JENFU_LOCAL_SANDBOX_ORIGIN", "JENFU_LOCAL_SANDBOX_PLATFORM_ORIGIN", "JENFU_LOCAL_SANDBOX_BIND_HOST",
+    "JENFU_LOCAL_SANDBOX_DATABASE_URL", "JENFU_LOCAL_SANDBOX_RUNTIME_ROLE", "PDM_DB_PROVIDER",
+    "PDM_POSTGRES_URL", "PDM_POSTGRES_POOLER_MODE", "PDM_AUTH_MODE", "PDM_LOCAL_TEST_ADMIN",
+    "PDM_LOCAL_PRINCIPAL_SANDBOX", "PDM_JENFU_PLATFORM_AUTH_MODE", "PDM_JENFU_ENTITLEMENT_MODE",
+    "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_PUBLIC_BASE_URL", "NODE_ENV", "JENFU_FIREBASE_PROJECT_ID",
+    "JENFU_IDENTITY_ISSUER", "JENFU_IDENTITY_AUDIENCE", "PDM_FIREBASE_PROJECT_ID",
+    "PDM_FIREBASE_API_KEY", "PDM_FIREBASE_AUTH_DOMAIN", "PDM_FIREBASE_APP_ID",
+    "PDM_JENFU_SSO_BROKER_ORIGIN", "PDM_JENFU_SSO_HANDOFF_MODE"
+  )
+  $savedChildEnvironment = @{}
+  foreach ($key in $childEnvironmentKeys) { $savedChildEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, "Process") }
+  try {
+    $env:JENFU_LOCAL_SANDBOX_ROOT = $SandboxRoot
+    $env:JENFU_LOCAL_SANDBOX_ENABLED = "1"
+    $env:JENFU_LOCAL_SANDBOX_ID = [string]$SandboxProfile.sandboxId
+    $env:JENFU_LOCAL_SANDBOX_ORIGIN = [string]$SandboxProfile.origin
+    $env:JENFU_LOCAL_SANDBOX_PLATFORM_ORIGIN = [string]$SandboxProfile.platformOrigin
+    $env:JENFU_LOCAL_SANDBOX_BIND_HOST = [string]$SandboxProfile.bindHost
+    $env:JENFU_LOCAL_SANDBOX_DATABASE_URL = [string]$SandboxProfile.databaseUrl
+    $env:JENFU_LOCAL_SANDBOX_RUNTIME_ROLE = [string]$SandboxProfile.runtimeRole
+    $env:PDM_DB_PROVIDER = "postgres"
+    $env:PDM_POSTGRES_URL = [string]$SandboxProfile.databaseUrl
+    $env:PDM_POSTGRES_POOLER_MODE = "off"
+    $env:PDM_AUTH_MODE = "firebase_bff"
+    $env:PDM_LOCAL_TEST_ADMIN = "1"
+    $env:PDM_LOCAL_PRINCIPAL_SANDBOX = "1"
+    $env:PDM_JENFU_PLATFORM_AUTH_MODE = "on"
+    $env:PDM_JENFU_ENTITLEMENT_MODE = "enforce"
+    $env:PDM_DATA_DIR = $DataDir
+    $env:PDM_REPOSITORY_DIR = $RepositoryDir
+    $env:PDM_PUBLIC_BASE_URL = [string]$SandboxProfile.origin
+    $env:NODE_ENV = "development"
+    $env:PDM_JENFU_SSO_HANDOFF_MODE = "off"
+    foreach ($key in @("JENFU_FIREBASE_PROJECT_ID", "JENFU_IDENTITY_ISSUER", "JENFU_IDENTITY_AUDIENCE",
+      "PDM_FIREBASE_PROJECT_ID", "PDM_FIREBASE_API_KEY", "PDM_FIREBASE_AUTH_DOMAIN", "PDM_FIREBASE_APP_ID",
+      "PDM_JENFU_SSO_BROKER_ORIGIN")) {
+      [Environment]::SetEnvironmentVariable($key, " ", "Process")
+    }
+    $process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+  }
+  finally {
+    foreach ($key in $childEnvironmentKeys) {
+      $value = $savedChildEnvironment[$key]
+      if ($null -eq $value) { Remove-Item -Path "Env:$key" -ErrorAction SilentlyContinue }
+      else { [Environment]::SetEnvironmentVariable($key, $value, "Process") }
+    }
+  }
+}
+else {
+  $process = Start-Process -FilePath $NodeExe -ArgumentList $npmArguments -WorkingDirectory $ProjectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+}
 Set-Content -LiteralPath $PidFile -Value ([string]$process.Id) -Encoding ascii
 Write-RuntimeStatus -State "starting" -LauncherProcessId $process.Id -Message "Waiting for local HTTP health."
 
