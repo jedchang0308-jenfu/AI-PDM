@@ -21,6 +21,7 @@ const dryRun = args.includes('--dry-run')
 const plan = createProductionSlicePlanFromGit({ root, base: option('--base'), head: option('--head') })
 
 const CORE_TESTS = [
+  'scripts/dev117-migration-runner-build.test.mjs',
   'scripts/lib/dev127-role-policy-release-gate.test.mjs',
   'scripts/dev123-role-policy-release-contract.test.mjs',
   'scripts/dev117-ai-pdm-continuous-release.test.mjs',
@@ -65,6 +66,7 @@ const WORKER_TESTS = [
 const groups = [{ name: 'planner', tests: ['scripts/production-slice-plan.test.mjs'] }]
 if (plan.gates.full) {
   groups.push(...fullContinuousGroups(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']))
+  groups.push({ name: 'migration-runner-build', tests: ['scripts/dev117-migration-runner-build.test.mjs'] })
 } else {
   if (plan.gates.releaseCore) groups.push({ name: 'release-core', tests: CORE_TESTS })
   if (plan.gates.database) groups.push({ name: 'database', tests: [

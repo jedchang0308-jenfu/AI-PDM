@@ -964,32 +964,155 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     }
   }
 
-  async function createBuild({ profile, intent, sourceObject, deadlineAt, windowsInstaller = null }) {
+  async function createBuild({ profile, intent, sourceObject, deadlineAt, reuseOnly = false, windowsInstaller = null }) {
     assertImmutableRef(sourceObject.ref, profile.artifact.releaseBucket, ['source'])
-    if (!/^[1-9][0-9]*$/u.test(String(sourceObject.metadata?.generation ?? '')) || profile.build?.dockerBuilderImage !== 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c' || !/^[A-Za-z0-9._/-]+$/u.test(profile.build?.dockerfile ?? '') || !/^[A-Za-z0-9._-]+$/u.test(profile.build?.dockerTarget ?? '')) fail('BUILD_PROFILE_INVALID')
+    if (!Number.isFinite(Date.parse(deadlineAt)) || Date.parse(deadlineAt) <= Date.now()
+      || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '')
+      || !/^[1-9][0-9]*$/u.test(String(sourceObject.metadata?.generation ?? ''))
+      || profile.build?.dockerBuilderImage !== 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c'
+      || !/^[A-Za-z0-9._/-]+$/u.test(profile.build?.dockerfile ?? '')
+      || !/^[A-Za-z0-9._-]+$/u.test(profile.build?.dockerTarget ?? '')) fail('BUILD_PROFILE_INVALID')
+    const runnerBuild = profile.application.id === 'ai-pdm'
+      && profile.artifact.uri === 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner'
+    if (runnerBuild && (profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
+      || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
+      || profile.identities.builder !== 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com'
+      || profile.build.dockerfile !== 'infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile'
+      || profile.build.dockerTarget !== 'runtime' || windowsInstaller !== null)) fail('BUILD_PROFILE_INVALID')
+    const installer = profile.application.id === 'ai-pdm' && !runnerBuild
+      ? assertDev125WindowsInstallerBuildInput(windowsInstaller, intent.sourceRevision) : null
     const parsed = parseGsUri(sourceObject.ref.uri, profile.artifact.releaseBucket, 'source')
     const tag = `${profile.artifact.uri}:release-${intent.sourceRevision}`
-    const installer = profile.application.id === 'ai-pdm'
-      ? assertDev125WindowsInstallerBuildInput(windowsInstaller, intent.sourceRevision)
-      : null
-    const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen',
-      ...(installer ? ['--build-arg', 'DEV125_INSTALLER_REQUIRED=true'] : []), '--tag', tag, '.']
+    // OCI version identifies the built source; releaseId stays in attempt receipts.
+    const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.sourceRevision}`, '--build-arg', 'SOURCE_STATE=frozen', ...(installer ? ['--build-arg', 'DEV125_INSTALLER_REQUIRED=true'] : []), '--tag', tag, '.']
     const body = {
       source: { storageSource: { bucket: parsed.bucket, object: parsed.object, generation: String(sourceObject.metadata.generation) } },
       steps: [{ name: profile.build.dockerBuilderImage, dir: 'source', args }],
-      images: [tag],
-      timeout: '1800s',
-      queueTtl: '300s',
+      images: [tag], timeout: '1800s', queueTtl: '300s',
       logsBucket: `gs://${profile.artifact.releaseBucket}/logs/cloud-build`,
       serviceAccount: `projects/${profile.target.projectId}/serviceAccounts/${profile.identities.builder}`,
       options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', requestedVerifyOption: 'VERIFIED' },
-      tags: ['dev-012', profile.application.id, intent.releaseId.toLowerCase()],
     }
-    const operation = await request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    const build = await waitBuild(operation, deadlineAt, profile.target.projectId, profile.target.region)
-    const result = build.results?.images?.find((row) => row.name === tag)
-    if (build.status !== 'SUCCESS' || build.projectId !== profile.target.projectId || build.serviceAccount !== body.serviceAccount || build.options?.requestedVerifyOption !== 'VERIFIED' || build.sourceProvenance?.resolvedStorageSource?.bucket !== parsed.bucket || build.sourceProvenance?.resolvedStorageSource?.object !== parsed.object || String(build.sourceProvenance?.resolvedStorageSource?.generation) !== String(sourceObject.metadata.generation) || !/^sha256:[a-f0-9]{64}$/u.test(result?.digest ?? '')) fail('BUILD_READBACK_MISMATCH')
-    return { build, request: body, tag, artifactDigest: `${profile.artifact.uri}@${result.digest}`,
+    const buildInputSha256 = sha256(canonicalize({ ownerApplicationId: profile.application.id,
+      sourceArchiveSha256: sourceObject.ref.sha256, request: body }))
+    const inputTag = `owner-build-${buildInputSha256}`
+    body.tags = ['dev-012', profile.application.id, inputTag, intent.releaseId.toLowerCase()]
+    const endpoint = `https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds`
+    const assertBuildInputs = build => {
+      const step = build?.steps?.[0]
+      const storage = build?.source?.storageSource
+      const submissions = (build?.tags ?? []).filter(value => value.startsWith('owner-submission-'))
+      if (!/^[a-f0-9]{8}-[a-f0-9-]{27}$/u.test(build?.id ?? '')
+        || build.projectId !== profile.target.projectId || build.serviceAccount !== body.serviceAccount
+        || build.steps?.length !== 1 || step?.name !== body.steps[0].name || step.dir !== 'source'
+        || canonicalize(step.args) !== canonicalize(args) || step.entrypoint || step.script
+        || (step.env?.length ?? 0) || (step.secretEnv?.length ?? 0) || (step.volumes?.length ?? 0)
+        || step.automapSubstitutions === true || build.availableSecrets || build.secrets?.length
+        || Object.keys(build.substitutions ?? {}).length || build.options?.pool?.name
+        || (build.options?.env?.length ?? 0) || (build.options?.secretEnv?.length ?? 0)
+        || (build.options?.volumes?.length ?? 0) || build.options?.automapSubstitutions === true
+        || build.options?.requestedVerifyOption !== 'VERIFIED'
+        || build.options?.logging !== 'GCS_ONLY' || build.options?.logStreamingOption !== 'STREAM_OFF'
+        || build.timeout !== body.timeout || build.queueTtl !== body.queueTtl
+        || build.logsBucket !== body.logsBucket || canonicalize(build.images) !== canonicalize(body.images)
+        || submissions.length !== 1 || !/^owner-submission-[1-3]$/u.test(submissions[0])
+        || !build.tags?.includes(inputTag) || storage?.bucket !== parsed.bucket || storage.object !== parsed.object
+        || String(storage.generation) !== String(sourceObject.metadata.generation)) fail('BUILD_REUSE_INPUT_MISMATCH')
+    }
+    const findBuilds = async () => {
+      const query = new URLSearchParams({ pageSize: '4', filter: `tags="${inputTag}"` })
+      const result = await request(`${endpoint}?${query}`)
+      if (result.nextPageToken || (result.builds?.length ?? 0) > 3) fail('BUILD_RETRY_LIMIT')
+      const matches = result.builds ?? []
+      for (const build of matches) assertBuildInputs(build)
+      if (new Set(matches.map(build => build.id)).size !== matches.length
+        || new Set(matches.map(build => build.tags.find(value => value.startsWith('owner-submission-')))).size !== matches.length) fail('BUILD_REUSE_CARDINALITY_INVALID')
+      return matches
+    }
+    const matches = await findBuilds()
+    const successful = matches.filter(build => build.status === 'SUCCESS')
+    const active = matches.filter(build => ['QUEUED', 'WORKING', 'PENDING'].includes(build.status))
+    if (successful.length > 1 || active.length > 1 || (successful.length && active.length)) fail('BUILD_REUSE_CARDINALITY_INVALID')
+    let build = successful[0] ?? active[0] ?? null
+    let reused = Boolean(build)
+    if (!build) {
+      if (reuseOnly) fail('BUILD_REUSE_NOT_FOUND')
+      // Only provider internal/queue-expiry failures are automatic retries, at most 3 submissions.
+      if (matches.some(item => !['INTERNAL_ERROR', 'EXPIRED'].includes(item.status))) fail('BUILD_RETRY_REQUIRES_INPUT_FIX', matches.map(item => `${item.id}/${item.status}`).join(','))
+      let submission = 1
+      // Definite rejected POSTs never created a build; count them toward the same retry bound.
+      for (; submission <= 3; submission += 1) {
+        if (matches.some(item => item.tags.includes(`owner-submission-${submission}`))) continue
+        const rejectionUri = `gs://${profile.artifact.releaseBucket}/receipts/build-inputs/${buildInputSha256}/submission-${submission}-rejected.json`
+        let rejection
+        try { rejection = await readBytes(rejectionUri) } catch (error) {
+          if (!(error instanceof OwnerReleaseError) || error.code !== 'MISSING') throw error
+          break
+        }
+        let value
+        try { value = JSON.parse(rejection.bytes.toString('utf8')) } catch { fail('BUILD_SUBMISSION_FENCE_INVALID') }
+        const expectedClaim = { schemaVersion: 'jenfu.dev012.build-submission.v1', ownerApplicationId: profile.application.id,
+          buildInputSha256, sourceArchiveSha256: sourceObject.ref.sha256, submission, inputTag }
+        const claimBytes = await readBytes(rejectionUri.replace('-rejected.json', '.json'))
+        if (!claimBytes.bytes.equals(Buffer.from(`${canonicalize(expectedClaim)}\n`, 'utf8'))
+          || value.schemaVersion !== 'jenfu.dev012.build-submission-rejected.v1'
+          || value.claimSha256 !== claimBytes.ref.sha256 || value.buildInputSha256 !== buildInputSha256
+          || !['400', '401', '403', '429'].includes(value.httpStatus)) fail('BUILD_SUBMISSION_FENCE_INVALID')
+      }
+      if (submission > 3) fail('BUILD_RETRY_LIMIT')
+      const claimUri = `gs://${profile.artifact.releaseBucket}/receipts/build-inputs/${buildInputSha256}/submission-${submission}.json`
+      const claim = { schemaVersion: 'jenfu.dev012.build-submission.v1', ownerApplicationId: profile.application.id,
+        buildInputSha256, sourceArchiveSha256: sourceObject.ref.sha256, submission, inputTag }
+      let existingClaim = null
+      try { existingClaim = await readBytes(claimUri) } catch (error) {
+        if (!(error instanceof OwnerReleaseError) || error.code !== 'MISSING') throw error
+      }
+      if (existingClaim) {
+        if (!existingClaim.bytes.equals(Buffer.from(`${canonicalize(claim)}\n`, 'utf8'))) fail('BUILD_SUBMISSION_FENCE_INVALID')
+        // A prior write may still become visible. Never interpret one empty list as failed submission.
+        for (let attempt = 0; attempt < 3 && !build; attempt += 1) {
+          if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+          await sleep(1000 * (attempt + 1))
+          const readback = await findBuilds()
+          const newMatches = readback.filter(item => !matches.some(previous => previous.id === item.id))
+          if (newMatches.length > 1) fail('BUILD_REUSE_CARDINALITY_INVALID')
+          build = newMatches[0] ?? null
+        }
+        if (!build) fail('BUILD_SUBMISSION_OUTCOME_UNRESOLVED', claimUri)
+        reused = true
+      } else {
+        if (matches.length) await sleep(1000 * submission)
+        if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+        const fence = await putJson(claimUri, claim, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+        if (fence.reused) fail('BUILD_SUBMISSION_OUTCOME_UNRESOLVED', claimUri)
+        body.tags.push(`owner-submission-${submission}`)
+        // On an unknown POST outcome the durable fence survives; the next call only reads back.
+        let operation
+        try {
+          operation = await request(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+        } catch (error) {
+          if (error instanceof OwnerReleaseError && ['400', '401', '403', '429'].includes(error.detail)
+            && ['PROVIDER_REQUEST_FAILED', 'AUTH_REQUIRED', 'DENIED', 'QUOTA_OR_RATE_LIMIT'].includes(error.code)) {
+            await putJson(claimUri.replace('.json', '-rejected.json'), { schemaVersion: 'jenfu.dev012.build-submission-rejected.v1',
+              buildInputSha256, claimSha256: fence.ref.sha256, httpStatus: error.detail }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+          }
+          throw error
+        }
+        build = await waitBuild(operation, deadlineAt, profile.target.projectId, profile.target.region)
+      }
+    }
+    if (['QUEUED', 'WORKING', 'PENDING'].includes(build.status)) {
+      build = await waitBuild({ name: `${endpoint}/${build.id}`, metadata: { build: { id: build.id } } }, deadlineAt, profile.target.projectId, profile.target.region)
+    }
+    assertBuildInputs(build)
+    if (build.status !== 'SUCCESS') fail('BUILD_EXECUTION_FAILED', `${build.id}/${build.status}`)
+    const result = build.results?.images?.find(row => row.name === tag)
+    if (build.results?.images?.length !== 1 || build.sourceProvenance?.resolvedStorageSource?.bucket !== parsed.bucket
+      || build.sourceProvenance?.resolvedStorageSource?.object !== parsed.object
+      || String(build.sourceProvenance?.resolvedStorageSource?.generation) !== String(sourceObject.metadata.generation)
+      || !/^sha256:[a-f0-9]{64}$/u.test(result?.digest ?? '')) fail('BUILD_READBACK_MISMATCH')
+    return { build, request: body, tag, artifactDigest: `${profile.artifact.uri}@${result.digest}`, buildInputSha256,
+      reused, disposition: reused ? 'REUSED_PROVIDER_BUILD' : 'BUILT', sourceArchiveSha256: sourceObject.ref.sha256,
       ...(installer ? { windowsInstaller: installer.receipt } : {}) }
   }
 

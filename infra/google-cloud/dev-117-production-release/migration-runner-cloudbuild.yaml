@@ -6,6 +6,8 @@ steps:
       - --no-cache
       - --file
       - infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile
+      - --target
+      - runtime
       - --build-arg
       - SOURCE_REVISION=${_SOURCE_REVISION}
       - --tag

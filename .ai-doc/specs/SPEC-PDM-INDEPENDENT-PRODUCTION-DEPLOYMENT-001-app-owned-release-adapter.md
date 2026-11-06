@@ -645,7 +645,17 @@ Closed post-finalize實作=`dev127-catalog-release-bridge.mjs`＋`dev127-catalog
 
 Closed post-finalize bridge source已完成並通過source／隔離自查；這不是正式provider Job、持續地端／正式 DB、正常 Google/browser acceptance 或 catalog upgrade 的證據。096目前只在source profile中接在原40筆後作order41；persistent target狀態未知，任何正式操作前先provider／PG readback。隔離／升級前基線為v1，096本身不改active catalog；先部署並正常驗明dual-reader v1/v2 consumer，才執行owner additive upgrade，之後由OrgMaster授予app-scoped grant。
 
-`dev127-upgrade-role-policy.mjs`僅保留read-only plan/status（BEGIN READ ONLY）；已刪除自由DBURL writer，commit在URL解析／Client建構／connect前無條件拒絕。loopback與`dev127_*`名稱不是disposable證明，CLI亦無SET ROLE／upgrade呼叫。需要受控local bridge，仍待設計／實作。Source／隔離結果不代表local privilege、正式資料或產品功能已完成；required CI、provider、正常登入與 UI 驗收各自保留未執行狀態。完整 owner-specific 結果與證據分母見[DEV-127 consumer contract](DEV-127-platform-super-admin-consumer-contract.md) §6–§8。
+`dev127-upgrade-role-policy.mjs`僅保留read-only plan/status（BEGIN READ ONLY）；已刪除自由DBURL writer，commit在URL解析／Client建構／connect前無條件拒絕。loopback與`dev127_*`名稱不是disposable證明，CLI亦無SET ROLE／upgrade呼叫。受控local bridge已隨PR #571 protected merge；primary install／catalog仍未執行，current owner status見DEV-127 §8.4。Source／隔離結果不代表local privilege、正式資料或產品功能已完成；required CI、provider、正常登入與 UI 驗收各自保留未執行狀態。完整 owner-specific 結果與證據分母見[DEV-127 consumer contract](DEV-127-platform-super-admin-consumer-contract.md) §6–§8。
+
+#### 2026-11-06 owner migration-runner artifact builder
+
+Runner executable-input refresh必先建own tool artifact，再由既有APP_INFRA rotation綁定digest；normal app `build_only`仍先prepare，不能繞過`MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED`或把app build當runner build。
+
+AI-PDM唯一standalone入口為 `node scripts/dev117-build-migration-runner.mjs --source-lock-ref 'gs://jenfu-platform-prod-aipdm-release/receipts/<existing>.json#sha256=<hash>'`。只讀既有immutable source-lock；own checkout固定為CLI所在repo，必為clean exact protected-main merge來源。CLI重算Git tree identity／tree、source-locked profile與完整migration manifest，以原生official-source verifier向GitHub確認唯一merged PR、ruleset及exact-SHA兩required CI。沒有actor輸入的source／review／CI替代權威、任意root／profile／image／target／SQL／role或自由env override。
+
+只將驗過own profile的artifact URI改為既有 `ai-pdm-migration-runner`、Dockerfile改為own `migration-runner.Dockerfile`、target=`runtime`，沿own `createOwnerTransport.createBuild`／Artifact Registry／scan／SBOM入口。builder固定 `aipdm-prod-builder`，repository／bucket只限 `aipdm-release`／`jenfu-platform-prod-aipdm-release`。Dockerfile新增stage名稱與YAML target不改runtime內容；原16項runner inputs全保留，YAML recipe加入compatibility closure為17項。共用createBuild仍強制app DEV-125 installer；同入口以request/source archive hash作provider lookup與immutable submission fence，僅provider INTERNAL_ERROR／EXPIRED或已證實400／401／403／429拒絕可在三次總界線內續接；unknown先bounded provider readback，查不到維持UNKNOWN，不重新POST。
+
+成功後封存own content-addressed runner-build receipt，記source-lock/generation、profile與實際recipe/input hashes、source archive/generation/CRC、原Cloud Build request/provenance、immutable digest、Artifact Registry與當次scan／SBOM。相同input重用原build；不同source不能改寫既有build的source/provenance。此入口只建立source／artifact／receipt，不執行Job apply、SQL、runtime、traffic、IAM／Secret；後續APP_INFRA與normal owner release仍須各自既有gate及provider readback。本輪source/mock結果不是正式runner rotation、catalog upgrade或§6.3真人接受。
 
 ## 27. R25 provider-proven IAM correction（current additive authority）
 

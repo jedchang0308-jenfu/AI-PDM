@@ -2189,8 +2189,9 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
 ## DEV-127 — 平台與 AI-PDM 管理資格 consumer（IMPLEMENTING）
 
-來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`，branch=`codex/dev127-platform-super-admin-20261105`。程式／SQL受測source434f32925；PR571仍open draft。closed local wrapper及local097已實作，Node18自查與Linux required SQL component（1/1，0skip）PASS；[434 fresh CI42120180413](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42120180413) Linux／Windows兩項required checks均SUCCESS（full release candidate skipped）。e855只讀plan為PLANNED，沒有primary install／catalog commit；新source及Org前置後須重plan。production及同一指定本人兩環境正常Google/UI仍NOT_RUN。
+來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`。PR571 protected MERGED至main `2d66b9ffdec00af91638f8771ea3e6edee00b869`；[合併後CI42130771577](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42130771577)兩required jobs SUCCESS。Formal profile為41 entries/order41=096，排除local-only 091–095／097。Owner準備包refs已provider-verified；首個相容性gate `MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED`，待`APP_INFRA` normal runner image rotation。尚無migration／runtime／traffic／grant或primary install/catalog；95f plan不沿用。本人兩環境正常Google/UI完整分母仍NOT_RUN。
 
+- [Runner artifact builder corrective source](specs/DEV-127-platform-super-admin-consumer-contract.md#841-runner-image-refreshowner-artifact-builder-corrective-source)：own immutable source-lock CLI，normal build lookup／fence／unknown readback及scan／SBOM receipt；目前source/mock自查，正式build／APP_INFRA rotation仍NOT_RUN。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
-- [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：source、synthetic/disposable SQL、真readonly plan、primary writes與真人UI分層；舊綠燈不改綁新source。
-- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：依已成功required CI收斂source review，再依owner前置由coordinator重plan；不以文件完成或CI當產品／發布完成。
+- [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
+- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：先完成runner source refresh，再依OrgMaster ACL與clean source fresh plan；不以文件、immutable refs或CI當migration／部署／完整接受。

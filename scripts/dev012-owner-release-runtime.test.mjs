@@ -100,61 +100,92 @@ test('owner transport reads a generation-bound object from any explicitly allowe
   assert.equal(result.bytes.equals(bytes), true)
 })
 
-test('Cloud Build gets the exact regional build resource, pinned builder, source generation and verified provenance', async () => {
-  const sourceUri = `gs://${bucket}/source/releases/R/source.tgz`
-  const buildTag = `${profile.artifact.uri}:release-${H40}`
-  const seen = []
-  const build = {
-    status: 'SUCCESS', projectId: profile.target.projectId,
-    serviceAccount: `projects/${profile.target.projectId}/serviceAccounts/${profile.identities.builder}`,
-    options: { requestedVerifyOption: 'VERIFIED' },
-    sourceProvenance: { resolvedStorageSource: { bucket, object: 'source/releases/R/source.tgz', generation: '9' } },
-    results: { images: [{ name: buildTag, digest: `sha256:${H64}` }] },
-  }
-  const fetchImpl = async (url, options = {}) => {
+function buildProviderFixture(ownerProfile, sourceUri, mutate = value => value) {
+  const builds = [], seen = []
+  const fetchImpl = migrationReceiptStorage(async (url, options = {}) => {
+    const target = new URL(url)
     seen.push({ url: String(url), method: options.method ?? 'GET', body: options.body ? JSON.parse(options.body) : null })
-    if (options.method === 'POST') return json({ name: 'operations/build/NTU1NGU2YTktMWMwZi00OGJkLTg3N2EtN2YwNGQ2NTE5MTVl', metadata: { build: { id: '5554e6a9-1c0f-48bd-877a-7f04d651915e' } } })
-    return json(build)
-  }
-  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
-  const result = await transport.createBuild({ profile, intent: { sourceRevision: H40, sourceSha256: H64, releaseId: 'REL-001' }, sourceObject: { ref: { uri: sourceUri, sha256: H64 }, metadata: { generation: '9' } }, deadlineAt: '2999-01-01T00:00:00.000Z' })
+    if (options.method === 'POST') {
+      const request = JSON.parse(options.body)
+      const build = mutate({ ...request, id: '5554e6a9-1c0f-48bd-877a-7f04d651915e',
+        name: 'projects/jenfu-platform-prod/locations/asia-east1/builds/5554e6a9-1c0f-48bd-877a-7f04d651915e',
+        projectId: ownerProfile.target.projectId, status: 'SUCCESS',
+        sourceProvenance: { resolvedStorageSource: request.source.storageSource },
+        results: { images: [{ name: request.images[0], digest: `sha256:${H64}` }] } })
+      builds.push(build)
+      return json({ name: 'operations/build/5554e6a9-1c0f-48bd-877a-7f04d651915e', metadata: { build: { id: build.id } } })
+    }
+    if (target.pathname.endsWith('/builds')) return json({ builds })
+    return json(builds[0])
+  })
+  return { fetchImpl, seen, builds, input: { profile: ownerProfile,
+    intent: { sourceRevision: H40, sourceSha256: H64, releaseId: 'REL-001' },
+    sourceObject: { ref: { uri: sourceUri, sha256: H64 }, metadata: { generation: '9' } }, deadlineAt: '2999-01-01T00:00:00.000Z' } }
+}
+
+test('Cloud Build pins request/provenance and reuses exact inputs across attempts', async () => {
+  const f = buildProviderFixture(profile, `gs://${bucket}/source/releases/R/source.tgz`)
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: f.fetchImpl, sleep: async () => undefined })
+  const result = await transport.createBuild(f.input)
   assert.equal(result.artifactDigest, `${profile.artifact.uri}@sha256:${H64}`)
-  assert.equal(seen[1].url, 'https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/5554e6a9-1c0f-48bd-877a-7f04d651915e')
-  assert.equal(seen[0].body.steps[0].name, profile.build.dockerBuilderImage)
-  assert.equal(seen[0].body.steps[0].dir, 'source')
-  assert.equal(seen[0].body.source.storageSource.generation, '9')
-  assert.ok(seen[0].body.steps[0].args.includes(`SOURCE_VERSION=${H40}`))
-  assert.ok(!seen[0].body.steps[0].args.some((value) => value === 'SOURCE_VERSION=REL-001'))
+  assert.equal(result.disposition, 'BUILT')
+  const post = f.seen.find(row => row.method === 'POST')
+  assert.equal(post.body.steps[0].name, profile.build.dockerBuilderImage)
+  assert.equal(post.body.source.storageSource.generation, '9')
+  assert.ok(post.body.steps[0].args.includes(`SOURCE_VERSION=${H40}`))
+  const second = await transport.createBuild({ ...f.input, intent: { ...f.input.intent, releaseId: 'REL-002' } })
+  assert.equal(second.reused, true)
+  assert.equal(second.buildInputSha256, result.buildInputSha256)
+  assert.equal(second.build.id, result.build.id)
+  assert.equal(f.seen.filter(row => row.method === 'POST').length, 1)
 })
 
-test('AI-PDM Cloud Build requires and returns the exact DEV-125 installer binding', async () => {
+test('AI-PDM app Cloud Build still requires the exact DEV-125 installer binding', async () => {
   const aiProfile = { ...profile, application: { ...profile.application, id: 'ai-pdm' } }
-  const sourceUri = `gs://${bucket}/source/releases/R/source.tgz`
-  const buildTag = `${aiProfile.artifact.uri}:release-${H40}`
-  const seen = []
-  const build = {
-    status: 'SUCCESS', projectId: aiProfile.target.projectId,
-    serviceAccount: `projects/${aiProfile.target.projectId}/serviceAccounts/${aiProfile.identities.builder}`,
-    options: { requestedVerifyOption: 'VERIFIED' },
-    sourceProvenance: { resolvedStorageSource: { bucket, object: 'source/releases/R/source.tgz', generation: '9' } },
-    results: { images: [{ name: buildTag, digest: `sha256:${H64}` }] },
-  }
-  const fetchImpl = async (url, options = {}) => {
-    seen.push({ url: String(url), body: options.body ? JSON.parse(options.body) : null })
-    if (options.method === 'POST') return json({ name: 'operations/build/5554e6a9-1c0f-48bd-877a-7f04d651915e', metadata: { build: { id: '5554e6a9-1c0f-48bd-877a-7f04d651915e' } } })
-    return json(build)
-  }
-  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
-  const input = { profile: aiProfile, intent: { sourceRevision: H40, sourceSha256: H64, releaseId: 'REL-DEV125' },
-    sourceObject: { ref: { uri: sourceUri, sha256: H64 }, metadata: { generation: '9' } }, deadlineAt: '2999-01-01T00:00:00.000Z' }
-  await assert.rejects(transport.createBuild(input), /DEV125_INSTALLER_BUILD_INPUT_INVALID/u)
+  const f = buildProviderFixture(aiProfile, `gs://${bucket}/source/releases/R/source.tgz`)
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: f.fetchImpl, sleep: async () => undefined })
+  await assert.rejects(transport.createBuild(f.input), /DEV125_INSTALLER_BUILD_INPUT_INVALID/u)
+  assert.equal(f.seen.length, 0)
   const windowsInstaller = { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1,
     sha256: 'b'.repeat(64), fileName: 'AI-PDM-Windows-Setup-0.1.0-test.exe', size: 12345 }
-  const result = await transport.createBuild({ ...input, windowsInstaller })
-  assert.deepEqual(result.windowsInstaller, { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1,
-    sha256: 'b'.repeat(64) })
-  assert.ok(seen.find(row => row.body)?.body.steps[0].args.includes('DEV125_INSTALLER_REQUIRED=true'))
+  const result = await transport.createBuild({ ...f.input, windowsInstaller })
+  assert.deepEqual(result.windowsInstaller, { sourceRevision: H40, version: '0.1.0-test', protocolVersion: 1, sha256: 'b'.repeat(64) })
+  assert.ok(f.seen.find(row => row.body)?.body.steps[0].args.includes('DEV125_INSTALLER_REQUIRED=true'))
 })
+
+test('Cloud Build unknown submission reads back and never repeats an unresolved POST', async () => {
+  const f = buildProviderFixture(profile, `gs://${bucket}/source/releases/R/source.tgz`)
+  let posts = 0, hide = true
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => undefined,
+    fetchImpl: async (url, options = {}) => {
+      if (String(url).startsWith('https://cloudbuild.googleapis.com/') && options.method === 'POST') {
+        posts++; await f.fetchImpl(url, options); throw Error('lost response')
+      }
+      if (hide && new URL(url).pathname.endsWith('/builds')) return json({ builds: [] })
+      return f.fetchImpl(url, options)
+    } })
+  await assert.rejects(transport.createBuild(f.input), /OUTCOME_UNKNOWN/u)
+  await assert.rejects(transport.createBuild(f.input), /BUILD_SUBMISSION_OUTCOME_UNRESOLVED/u)
+  assert.equal(posts, 1)
+  hide = false
+  assert.equal((await transport.createBuild(f.input)).reused, true)
+  assert.equal(posts, 1)
+})
+
+for (const mutation of ['recipe', 'generation', 'foreign-image', 'foreign-builder', 'secret']) {
+  test(`Cloud Build refuses reused provider drift: ${mutation}`, async () => {
+    const f = buildProviderFixture(profile, `gs://${bucket}/source/releases/R/source.tgz`)
+    const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: f.fetchImpl, sleep: async () => undefined })
+    await transport.createBuild(f.input)
+    if (mutation === 'recipe') f.builds[0].steps[0].args.push('--privileged')
+    if (mutation === 'generation') f.builds[0].source.storageSource.generation = '88'
+    if (mutation === 'foreign-image') f.builds[0].images = ['foreign/image']
+    if (mutation === 'foreign-builder') f.builds[0].serviceAccount = 'foreign@example.com'
+    if (mutation === 'secret') f.builds[0].availableSecrets = { secretManager: [] }
+    await assert.rejects(transport.createBuild(f.input), /BUILD_REUSE_INPUT_MISMATCH/u)
+    assert.equal(f.seen.filter(row => row.method === 'POST').length, 1)
+  })
+}
 
 test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed', async () => {
   const digest = `${profile.artifact.uri}@sha256:${H64}`
