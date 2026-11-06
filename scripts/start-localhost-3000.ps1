@@ -84,8 +84,10 @@ $PidFile = Join-Path $RuntimeDir "ai-pdm-$Port.pid"
 $StatusFile = Join-Path $RuntimeDir "ai-pdm-$Port.status.json"
 $StdoutLog = Join-Path $RuntimeDir "ai-pdm-$Port.out.log"
 $StderrLog = Join-Path $RuntimeDir "ai-pdm-$Port.err.log"
-$DataDir = Join-Path $RuntimeDir "data"
-$RepositoryDir = Join-Path $RuntimeDir "repository"
+if (-not $TestAdmin) {
+  $DataDir = Join-Path $RuntimeDir "data"
+  $RepositoryDir = Join-Path $RuntimeDir "repository"
+}
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
