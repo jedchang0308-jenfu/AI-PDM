@@ -7,17 +7,28 @@ import { verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
-import { principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import {
   clearLocalPrincipalSessionCookie,
   getLocalSandboxPrincipalRuntime,
   isLocalPrincipalSandboxRequested,
 } from "@/lib/local-sandbox-principal-runtime";
-import { assertLocalSandboxRequest } from "../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { assertLocalSandboxRequest, LocalSandboxError } from "../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { isLocalTestAdminRequested, readLocalTestAdminCookie, logoutLocalTestAdmin } from "@/lib/local-test-admin";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request)) {
+    try { return await logoutLocalTestAdmin(request); }
+    catch (error) {
+      if (error instanceof LocalSandboxError && error.status === 403) {
+        return NextResponse.json({ code: "local_test_admin_origin_invalid" },
+          { status: 403, headers: { "cache-control": "no-store" } });
+      }
+      return principalRequestFailure(error);
+    }
+  }
   let localSandbox = false;
   try { localSandbox = isLocalPrincipalSandboxRequested(); }
   catch {

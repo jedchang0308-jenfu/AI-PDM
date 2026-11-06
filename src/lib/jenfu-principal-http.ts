@@ -6,6 +6,12 @@ import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
+import {
+  isLocalTestAdminRequested,
+  readLocalTestAdminCookie,
+  resolveLocalTestAdminRequestInput,
+  LOCAL_TEST_ADMIN_IDENTITY,
+} from "@/lib/local-test-admin";
 import { LocalSandboxError } from "../../contracts/local-principal-sandbox/v1/client.mjs";
 import { LOCAL_IDENTITY_ISSUER } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
 import {
@@ -23,7 +29,9 @@ import {
 export function principalSessionTokenFromRequest(request: Request): string | null {
   let token: string | null;
   try {
-    if (isLocalPrincipalSandboxRequested()) {
+    if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request)) {
+      token = readLocalTestAdminCookie(request);
+    } else if (isLocalPrincipalSandboxRequested()) {
       token = readLocalPrincipalSessionCookie(request, process.env.JENFU_LOCAL_SANDBOX_ID ?? "");
     } else {
       token = getSessionCookieToken(request);
@@ -56,6 +64,12 @@ function unverifiedIdentityIssuer(token: string): string | null {
 
 export async function principalRequestInput(token: string, request: Request): Promise<PrincipalRequestInput> {
   const tokenIdentityIssuer = unverifiedIdentityIssuer(token);
+  if (isLocalTestAdminRequested() && readLocalTestAdminCookie(request) === token) {
+    return resolveLocalTestAdminRequestInput(token, request);
+  }
+  if (tokenIdentityIssuer === LOCAL_TEST_ADMIN_IDENTITY.identityIssuer) {
+    throw new JenfuPrincipalRequestError("auth_session_invalid");
+  }
   let localSandboxRequested = false;
   try { localSandboxRequested = isLocalPrincipalSandboxRequested(); }
   catch { throw new JenfuPrincipalRequestError("principal_dependency_unavailable"); }

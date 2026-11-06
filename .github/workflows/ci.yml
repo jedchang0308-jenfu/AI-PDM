@@ -80,6 +80,40 @@ jobs:
           node --test scripts/dev012-production-data-cutover-postgres.test.mjs
           node --test scripts/dev127-local-owner-postgres.test.mjs
 
+      - name: Verify PDM-only local administrator against owned loopback PostgreSQL
+        if: steps.slice.outputs.database == 'true'
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/dev126-local-test-admin-postgres-ci.test.mjs scripts/dev126-local-test-admin-policy.test.mjs
+          marker="aipdm-local-admin-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          container="$marker"
+          cleanup() {
+            if [ "$(docker inspect --format '{{ index .Config.Labels "ai-pdm.local-admin-ci" }}' "$container" 2>/dev/null || true)" = "$marker" ]; then
+              docker rm --force "$container"
+            fi
+          }
+          trap cleanup EXIT
+          # Use a separate postmaster: the ordinary service's bridge address
+          # intentionally cannot satisfy local-only SQL loopback admission.
+          docker run --detach --name "$container" --network host \
+            --label "ai-pdm.local-admin-ci=$marker" \
+            --tmpfs /var/lib/postgresql:rw,size=256m \
+            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=aipdm-local-admin-ci-only \
+            postgres:18-bookworm -c listen_addresses=127.0.0.1 -c port=55478 \
+            -c "cluster_name=$marker" -c shared_buffers=16MB -c max_connections=16
+          ready=false
+          for attempt in $(seq 1 30); do
+            if docker exec "$container" pg_isready -h 127.0.0.1 -p 55478 -U postgres -d postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = true ]
+          node scripts/dev126-local-test-admin-postgres-ci.mjs
+
   qc-full:
     name: Production Slice QC
     runs-on: windows-latest

@@ -13,6 +13,9 @@ import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server
 import { rolePolicySource, type RolePolicyCandidate } from '@/lib/role-policy-editor'
 import { lockAndRevalidateRolePolicyApply } from '@/lib/role-policy-apply-authorization'
 
+const localAdmins = vi.hoisted(() => new WeakSet<object>())
+vi.mock('@/lib/local-test-admin', () => ({ isVerifiedLocalTestAdmin: (value: object) => localAdmins.has(value) }))
+
 vi.mock('@/lib/role-policy-apply-authorization', () => ({
   lockAndRevalidateRolePolicyApply: vi.fn(async () => undefined),
   revalidateRolePolicyManager: vi.fn(async () => undefined)
@@ -124,7 +127,7 @@ function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountTyp
       if (options.rejectCatalogOrDraft) throw new Error('replay must not consult draft')
       return drafts.get(String(param(params, 'draftId'))) ?? null
     }
-    if (sql.includes('role_policy_apply_v2')) {
+    if (sql.includes('role_policy_apply_v2') || sql.includes('role_policy_apply_local_test_admin_v1')) {
       applyCalls.push({ sql, params })
       return { result: applyResult }
     }
@@ -268,6 +271,27 @@ describe('DEV-123 role-policy service contract', () => {
     })
     expect(saved.revision).toBe(created.revision)
     expect(fixture.querySql.some(sql => sql.includes('manager_eligible_v2'))).toBe(true)
+  })
+
+  it('creates, saves, previews, applies and reads a local admin draft without upstream authority', async () => {
+    const fixture = unitClientFixture({ directGrant: false })
+    const verified = managerVerified()
+    localAdmins.add(verified)
+    await createRolePolicyDraft(fixture.client as never, verified, { draftId, expectedActive: activeTuple() })
+    const saved = await saveRolePolicyDraft(fixture.client as never, verified, draftId, {
+      expectedRevision: 1, roleChanges: [],
+      changes: [{ roleRef: { stableRoleId: 'role-rd' }, groupId: 'drawing', actionId: 'edit', enabled: false }]
+    })
+    expect(saved.revision).toBe(2)
+    const preview = await previewRolePolicyDraft(fixture.client as never, draftId, 2)
+    await expect(applyRolePolicy(fixture.client as never, verified, {
+      requestId, confirmation: preview.confirmation, reason: '本機管理測試'
+    })).resolves.toEqual(fixture.applyResult)
+    expect((await readRolePolicyDraft(fixture.client as never, draftId)).revision).toBe(2)
+    expect(fixture.applyCalls[0].sql).toContain('role_policy_apply_local_test_admin_v1')
+    expect(fixture.querySql.join('\n')).not.toMatch(/orgmaster_contract|platform_contract/u)
+    const workspace = await readRolePolicyWorkspace(fixture.client as never, draftId, verified)
+    expect(workspace.admission).toEqual({ read: true, edit: true, apply: true })
   })
 
   it.each([

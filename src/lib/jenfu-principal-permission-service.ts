@@ -9,6 +9,7 @@ import {
 import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-async-repository";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
+import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 
 export type PrincipalWorkspacePermission = {
   permissionKind: "page" | "action";
@@ -44,6 +45,9 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
   verified: VerifiedPrincipalRequest,
   permissions: readonly PrincipalWorkspacePermission[]
 ): Promise<PrincipalWorkspaceDecision[]> {
+  if (isVerifiedLocalTestAdmin(verified, snapshot)) {
+    return localTestAdminPermissions(verified, permissions);
+  }
   return evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(snapshot, {
     identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
     principalId: verified.session.principalId, employeeId: verified.session.employeeId,
@@ -58,12 +62,29 @@ export async function evaluatePrincipalResourcePermissionsInSnapshot(
   permissions: readonly PrincipalWorkspacePermission[],
   resource: PrincipalResourceScope
 ): Promise<PrincipalWorkspaceDecision[]> {
+  if (isVerifiedLocalTestAdmin(verified, snapshot)) {
+    return localTestAdminPermissions(verified, permissions);
+  }
   return evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(snapshot, {
     identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
     principalId: verified.session.principalId, employeeId: verified.session.employeeId,
     localPrincipalId: verified.profile.pdmUserId, companyId: verified.profile.companyId,
     sessionSchemaVersion: 2
   }, permissions, resource);
+}
+
+function localTestAdminPermissions(verified: VerifiedPrincipalRequest,
+  permissions: readonly PrincipalWorkspacePermission[]): PrincipalWorkspaceDecision[] {
+  if (permissions.length === 0 || permissions.some(({ permissionCode }) =>
+    !permissionCode || permissionCode !== permissionCode.trim())) {
+    throw new JenfuPrincipalRequestError("auth_session_invalid");
+  }
+  return permissions.map(({ permissionCode }) => ({
+    allowed: true, permissionCode, decisionCode: "allowed", roleCode: "system_admin",
+    assignmentId: "pdm-local-test-admin", principalId: verified.session.principalId,
+    // This development authority has no OrgMaster publication.
+    publishedAssignmentVersion: 0,
+  }));
 }
 
 /** Server-only core. The caller must freshly admit the actor in this same snapshot. */

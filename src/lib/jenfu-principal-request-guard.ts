@@ -11,6 +11,7 @@ import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-reg
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
 import { LOCAL_IDENTITY_ISSUER } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { isLocalTestAdminRequestInput, withVerifiedLocalTestAdminRequest } from "@/lib/local-test-admin";
 
 export class JenfuPrincipalRequestError extends Error {
   constructor(readonly code: "auth_session_invalid" | "auth_epoch_stale" | "principal_dependency_unavailable") {
@@ -60,6 +61,9 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
   evaluate: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) => Promise<TResult>,
   options: { readOnly?: boolean; isolationLevel?: "read_committed" | "repeatable_read" | "serializable" } = {}
 ): Promise<TResult> {
+  if (isLocalTestAdminRequestInput(input)) {
+    return withVerifiedLocalTestAdminRequest(input, evaluate, options);
+  }
   const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
   let claims;
   try {
