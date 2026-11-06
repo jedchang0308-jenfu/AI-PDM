@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs'
 import { applicationAdministratorRole, applyRolePolicyDraftChanges, upgradeRolePolicyCandidate, rebuildRolePolicyCandidate } from '@/lib/role-policy-editor'
 import * as legacy from '@/lib/role-policy-editor-legacy-v1'
 import { JenfuEntitlementRepository } from '@/lib/repositories/jenfu-entitlement-repository'
+import staticV8 from '../../config/access-control/jenfu-role-catalog.v8.json' with {type:'json'}
 
 const id = '10000000-0000-4000-8000-000000000001'
 const version = 'ai-pdm.role-policy.' + id
 const actor = { identityIssuer: 'test-issuer', identitySubject: 'test-subject', principalId: 'principal-a', employeeId: 'employee-a', localPrincipalId: 'user-a', companyId: 'company-a' }
 
-function fixture(changes: Record<string, unknown> = {}, proof = true) {
+function fixture(changes: Record<string, unknown> = {}, proof = true,staticPublication=false) {
   const grant = { contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v5', assignment_version_id: 'publication-a', assignment_version: 3,
     assignment_id: id, grant_kind: 'direct', delegation_id: null, application_id: 'ai-pdm', principal_id: actor.principalId,
     employee_id: actor.employeeId, subject_kind: 'principal', target_principal_id: actor.principalId,
@@ -21,8 +22,15 @@ function fixture(changes: Record<string, unknown> = {}, proof = true) {
   const account = { contract_version: 'organization.active-principal.v1', principal_issuer: actor.identityIssuer,
     principal_subject: actor.identitySubject, principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: 'active' }
   const client = { kind: 'postgres', query: async (sql: string) => sql.includes('read_ai_pdm_active_principal_') ? [account] : [grant],
-    queryOne: async () => ({ valid: proof }) }
-  return new JenfuEntitlementRepository(client as never, { catalogVersion: version,
+    queryOne: async (sql:string,params?:Record<string,unknown>) => {
+      if(staticPublication) {
+        expect(sql).toContain("publication_format='legacy-static-v1'")
+        expect(params?.staticVersion).toBe(staticV8.catalogVersion)
+        expect(params?.staticHash).toBe(staticV8.catalogSha256)
+      }
+      return { valid: proof }
+    } }
+  return new JenfuEntitlementRepository(client as never, { catalogVersion: staticPublication?staticV8.catalogVersion:version,
     roles: [{ ...applicationAdministratorRole, allowedScopeKinds: ['global'], metadata: undefined }] })
 }
 function permission(repository: JenfuEntitlementRepository, code: string, kind: 'page'|'action' = 'action') {
@@ -30,6 +38,13 @@ function permission(repository: JenfuEntitlementRepository, code: string, kind: 
 }
 
 describe('DEV-127 exact application administrator authority', () => {
+  it('admits exact static-v8 issuance only with the same direct Principal grant proof and still denies business writes',async()=>{
+    const repo=fixture({catalog_version:staticV8.catalogVersion,admin_catalog_sha256:staticV8.catalogSha256},true,true)
+    await expect(permission(repo,'settings.admin_matrix')).resolves.toMatchObject({decisionCode:'allowed'})
+    await expect(permission(repo,'pdm.drawing.edit')).rejects.toMatchObject({code:'permission_not_granted'})
+    await expect(permission(fixture({catalog_version:staticV8.catalogVersion,admin_catalog_sha256:staticV8.catalogSha256},false,true),'settings.admin_matrix'))
+      .rejects.toMatchObject({code:'entitlement_contract_mismatch'})
+  })
   it('accepts immutable issuance provenance after an unrelated catalog publication and grants only management/read', async () => {
     for (const code of ['settings.admin_matrix', 'pdm.drawing.view', 'pdm.shared_model.view', 'handoff.published.view']) {
       await expect(permission(fixture(), code)).resolves.toMatchObject({ decisionCode: 'allowed' })

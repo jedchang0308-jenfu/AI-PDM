@@ -5,6 +5,9 @@ import { applyRolePolicyDraftChanges, buildDefaultRolePolicyCandidate,
 import legacyV5 from "../../config/access-control/jenfu-role-catalog.v5.json" with { type: "json" };
 import legacyV6 from "../../config/access-control/jenfu-role-catalog.v6.json" with { type: "json" };
 import legacyV7 from "../../config/access-control/jenfu-role-catalog.v7.json" with { type: "json" };
+import staticV8 from "../../config/access-control/jenfu-role-catalog.v8.json" with { type: "json" };
+import {rolePolicyRegistry} from '@/lib/role-policy-editor';
+import {sha256CanonicalJson} from '@/lib/role-capability-canonical-hash.server';
 
 type CatalogRow = Record<string, unknown>;
 type CatalogPermission = { kind: "page" | "action"; code: string; allowed: boolean };
@@ -69,6 +72,28 @@ function legacyRows(catalog: LegacyArtifact) {
 }
 
 describe("DEV-123 dynamic principal catalog reader", () => {
+  it('accepts only exact static v8, keeps the nine legacy roles/profiles and rejects any field/hash/admin drift', () => {
+    expect(staticV8.roles.slice(0,9)).toEqual(legacyV7.roles);
+    const profiles=staticV8.roles.map((role,index)=>index<9?{stableRoleId:role.stableRoleId,permissionRoleId:role.stableRoleId,
+      presentationName:role.displayName,presentationOrder:index,assignmentDisposition:role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable'}:rolePolicyRegistry.roleProfiles[9]);
+    const projection=legacyRows(staticV8).map((row,index)=>({...row,lifecycle:'active',role_profile_schema_id:'ai-pdm.static-role-profiles.v1',
+      role_profile_hash:sha256CanonicalJson(profiles),permission_role_id:profiles[index].permissionRoleId,presentation_name:profiles[index].presentationName,
+      presentation_order:profiles[index].presentationOrder,assignment_disposition:profiles[index].assignmentDisposition,
+      canonicalization_version:null,role_schema_id:null,baseline_role_identity_hash:null,role_identity_hash:null,protected_policy_hash:null,registry_hash:null}));
+    const decoded=decodePublishedPrincipalCatalogRows(projection);
+    expect(decoded.roles.slice(0,9)).toEqual(legacyV7.roles);
+    expect(decoded.catalogVersion.startsWith('ai-pdm.role-policy.')).toBe(false);
+    for(const mutate of [
+      (rows:CatalogRow[])=>{rows[0].permissions=[{kind:'action',code:'pdm.drawing.edit',allowed:true}]},
+      (rows:CatalogRow[])=>{rows[4].permission_role_id='role-procurement'},
+      (rows:CatalogRow[])=>{rows[9].assignable=true},
+      (rows:CatalogRow[])=>{rows[9].assignment_disposition='selectable'},
+      (rows:CatalogRow[])=>{rows[0].role_profile_hash='f'.repeat(64)},
+      (rows:CatalogRow[])=>{rows[0].lifecycle='retired'},
+      (rows:CatalogRow[])=>{rows[0].registry_hash='f'.repeat(64)},
+    ]) {const bad=structuredClone(projection);mutate(bad);expect(()=>decodePublishedPrincipalCatalogRows(bad)).toThrow()}
+    expect(decodePublishedPrincipalCatalogRows(projection.map(row=>({...row,lifecycle:'retired'})),{historical:true}).catalogVersion).toBe(staticV8.catalogVersion);
+  });
   it("uses the canonical permission role for the legacy planning identity and admits active custom roles", () => {
     const version = "ai-pdm.role-policy.10000000-0000-4000-8000-000000000009";
     const { candidate } = applyRolePolicyDraftChanges({

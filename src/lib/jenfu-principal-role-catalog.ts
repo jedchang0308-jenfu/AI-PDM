@@ -4,12 +4,14 @@ import type { JenfuApplicationRole } from "@/lib/jenfu-entitlement-contract";
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
 import { baselineRoleIdentityHash, protectedPolicyHash, rebuildRolePolicyCandidate,
   ROLE_POLICY_CANONICALIZATION, ROLE_POLICY_PUBLICATION_FORMAT, rolePolicyRegistry,
-  rolePolicyRegistryHash, rolePolicyMappedDenyActions, type RolePolicyProfile, type RolePolicyRole } from "@/lib/role-policy-editor";
+  rolePolicyRegistryHash, type RolePolicyProfile, type RolePolicyRole } from "@/lib/role-policy-editor";
 import type { JenfuEntitlementRoleCatalog } from "@/lib/repositories/jenfu-entitlement-repository";
 import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v7.json" with { type: "json" };
 import legacyV5 from "../../config/access-control/jenfu-role-catalog.v5.json" with { type: "json" };
 import legacyV6 from "../../config/access-control/jenfu-role-catalog.v6.json" with { type: "json" };
+import staticV8 from "../../config/access-control/jenfu-role-catalog.v8.json" with { type: "json" };
 import { sha256CanonicalJson } from "@/lib/role-capability-canonical-hash.server";
+import {projectRolePolicyPermissions} from '@/lib/role-policy-permission-mapping';
 
 export const principalCatalog = principalRoleCatalog as JenfuEntitlementRoleCatalog & {
   contractVersion: string; applicationId: string; catalogVersion: string; catalogSha256: string;
@@ -37,7 +39,7 @@ function json<T>(value: unknown): T {
 }
 function same(value: unknown, expected: unknown) { return JSON.stringify(value) === JSON.stringify(expected); }
 function legacyCatalog(rows: CatalogRow[], historical = false): PublishedPrincipalCatalog {
-  const approved = historical ? [legacyV5, legacyV6, principalCatalog] : [principalCatalog];
+  const approved = historical ? [legacyV5, legacyV6, principalCatalog, staticV8] : [principalCatalog, staticV8];
   const source = approved.find(item => item.catalogVersion === rows[0]?.catalog_version);
   if (!source || rows.length !== source.roles.length || rows.some((row, index) => {
     const role = source.roles[index];
@@ -51,6 +53,19 @@ function legacyCatalog(rows: CatalogRow[], historical = false): PublishedPrincip
       sha256CanonicalJson(json(row.allowed_scope_kinds)) !== sha256CanonicalJson(role.allowedScopeKinds) ||
       sha256CanonicalJson(json(row.permissions)) !== sha256CanonicalJson(role.permissions) ||
       sha256CanonicalJson(row.metadata == null ? null : json(row.metadata)) !== sha256CanonicalJson(role.metadata ?? null);
+  })) invalid();
+  const profiles = staticV8.roles.map((role,index) => index < 9 ? { stableRoleId: role.stableRoleId, permissionRoleId: role.stableRoleId,
+      presentationName: role.displayName, presentationOrder: index,
+      assignmentDisposition: role.stableRoleId === 'role-system-admin' ? 'hidden-protected' : 'selectable' }
+      : rolePolicyRegistry.roleProfiles[9]);
+  if (source.catalogVersion === staticV8.catalogVersion && rows.some((row, index) => {
+    const profile = profiles[index];
+    const validLifecycle = historical ? ['active','retired'].includes(String(row.lifecycle)) : row.lifecycle === 'active';
+    return !validLifecycle || row.role_profile_schema_id !== 'ai-pdm.static-role-profiles.v1' ||
+      row.role_profile_hash !== sha256CanonicalJson(profiles) ||
+      ['canonicalization_version','role_schema_id','baseline_role_identity_hash','role_identity_hash','protected_policy_hash','registry_hash'].some(key => row[key] !== null) ||
+      row.permission_role_id !== profile.permissionRoleId || row.presentation_name !== profile.presentationName ||
+      row.presentation_order !== profile.presentationOrder || row.assignment_disposition !== profile.assignmentDisposition;
   })) invalid();
   return source as PublishedPrincipalCatalog;
 }
@@ -115,17 +130,14 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[], options:
       if (!same(profile, expected)) invalid();
     } else if (!profile.stableRoleId.startsWith("role-custom-") || profile.permissionRoleId !== profile.stableRoleId ||
         profile.presentationName !== identityRole.displayName || profile.assignmentDisposition !== "selectable") invalid();
-    const permissions = new Map(permissionRole.permissions.map(permission => [`${permission.kind}:${permission.code}`, permission]));
-    for (const code of rolePolicyMappedDenyActions(rebuilt.roles, rebuilt.roleProfiles, profile.permissionRoleId)) {
-      permissions.set(`action:${code}`, { kind: "action", code, allowed: false });
-    }
+    const effective=projectRolePolicyPermissions(identityRole,permissionRole,rebuilt.roles,rebuilt.roleProfiles);
     effectiveRoles.push({
-      roleStatus: identityRole.roleStatus === "inactive" || permissionRole.roleStatus === "inactive" ? "inactive" : "active",
+      roleStatus: effective.roleStatus,
       stableRoleId: identityRole.stableRoleId, roleCode: identityRole.roleCode, displayName: identityRole.displayName,
       assignable: identityRole.assignable, risk: identityRole.risk, subjectKind: identityRole.subjectKind,
       recommendationAllowed: identityRole.recommendationAllowed, delegationAllowed: identityRole.delegationAllowed,
       allowedScopeKinds: identityRole.allowedScopeKinds as JenfuApplicationRole["allowedScopeKinds"],
-      assignmentTier: identityRole.assignmentTier, permissions: [...permissions.values()],
+      assignmentTier: identityRole.assignmentTier, permissions: effective.permissions,
       metadata: (identityRole.metadata ?? undefined) as JenfuApplicationRole["metadata"],
       roleDefinitionHash: identityRole.roleDefinitionHash
     });

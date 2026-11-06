@@ -12,6 +12,7 @@ import {
 import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server'
 import { rolePolicySource, type RolePolicyCandidate } from '@/lib/role-policy-editor'
 import { lockAndRevalidateRolePolicyApply } from '@/lib/role-policy-apply-authorization'
+import staticV8 from '../../config/access-control/jenfu-role-catalog.v8.json' with {type:'json'}
 
 const localAdmins = vi.hoisted(() => new WeakSet<object>())
 vi.mock('@/lib/local-test-admin', () => ({ isVerifiedLocalTestAdmin: (value: object) => localAdmins.has(value) }))
@@ -84,10 +85,10 @@ function legacyV7Rows(dynamic = true) {
     role_profile_schema_id: candidate.roleProfileSchemaId,
     role_profile_hash: candidate.roleProfileHash,
     role_status: 'active',
-    permission_role_id: candidate.roleProfiles[displayOrder].permissionRoleId,
-    presentation_name: candidate.roleProfiles[displayOrder].presentationName,
-    presentation_order: candidate.roleProfiles[displayOrder].presentationOrder,
-    assignment_disposition: candidate.roleProfiles[displayOrder].assignmentDisposition,
+    permission_role_id: dynamic ? candidate.roleProfiles[displayOrder].permissionRoleId : role.stableRoleId,
+    presentation_name: dynamic ? candidate.roleProfiles[displayOrder].presentationName : role.displayName,
+    presentation_order: dynamic ? candidate.roleProfiles[displayOrder].presentationOrder : displayOrder,
+    assignment_disposition: dynamic ? candidate.roleProfiles[displayOrder].assignmentDisposition : role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable',
     lifecycle: 'active'
   }))
 }
@@ -104,10 +105,27 @@ function managerVerified(principalId = actor, assuranceLevel: 'aal1' | 'aal2' = 
   } as never
 }
 
-function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountType?: string; directGrant?: boolean } = {}) {
+function unitClientFixture(options: { rejectCatalogOrDraft?: boolean; accountType?: string; directGrant?: boolean; staticV8?: boolean } = {}) {
   const drafts = new Map<string, DraftRow>()
   const commands = new Map<string, Record<string, unknown>>()
   const currentRows = legacyV7Rows()
+  if(options.staticV8) {
+    const first=currentRows[0]
+    currentRows.splice(0,currentRows.length,...staticV8.roles.map((role,index)=>{
+      const profile=index<9?{permissionRoleId:role.stableRoleId,presentationName:role.displayName,presentationOrder:index,
+        assignmentDisposition:role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable'}:rolePolicySource().registry.roleProfiles[9]
+      const profiles=staticV8.roles.map((r,i)=>i<9?{stableRoleId:r.stableRoleId,permissionRoleId:r.stableRoleId,presentationName:r.displayName,
+        presentationOrder:i,assignmentDisposition:r.stableRoleId==='role-system-admin'?'hidden-protected':'selectable'}:rolePolicySource().registry.roleProfiles[9])
+      return {...first,catalog_version:staticV8.catalogVersion,catalog_sha256:staticV8.catalogSha256,display_order:index,stable_role_id:role.stableRoleId,
+        role_code:role.roleCode,display_name:role.displayName,assignable:role.assignable,risk:role.risk,subject_kind:role.subjectKind,
+        recommendation_allowed:role.recommendationAllowed,delegation_allowed:role.delegationAllowed,allowed_scope_kinds:role.allowedScopeKinds,
+        assignment_tier:role.assignmentTier,permissions:role.permissions,metadata:role.metadata??null,role_definition_hash:role.roleDefinitionHash,
+        publication_format:'legacy-static-v1',canonicalization_version:null,role_schema_id:null,baseline_role_identity_hash:null,role_identity_hash:null,
+        protected_policy_hash:null,registry_hash:null,role_profile_schema_id:'ai-pdm.static-role-profiles.v1',role_profile_hash:sha256CanonicalJson(profiles),
+        permission_role_id:profile.permissionRoleId,presentation_name:profile.presentationName,presentation_order:profile.presentationOrder,
+        assignment_disposition:profile.assignmentDisposition,role_status:'active',lifecycle:'active'}
+    }) as never[])
+  }
   const authorizedManagers = new Set([actor, otherActor])
   const querySql: string[] = []
   const executeSql: string[] = []
@@ -230,6 +248,51 @@ function commandHashForApply(principalId: string, body: ReturnType<typeof applyB
 beforeEach(() => vi.clearAllMocks())
 
 describe('DEV-123 role-policy service contract', () => {
+  it('creates/saves/reloads a first DRAFT from exact static v8 without publishing business policy or changing active profiles',async()=>{
+    const fixture=unitClientFixture({staticV8:true}),activeBefore=structuredClone(fixture.currentRows)
+    const tuple={catalogVersion:staticV8.catalogVersion,catalogSha256:staticV8.catalogSha256}
+    const workspace=await readRolePolicyWorkspace(fixture.client as never,undefined,managerVerified())
+    expect(workspace.roles).toHaveLength(10)
+    expect(workspace.roleProfiles[4].permissionRoleId).toBe('role-production-planning')
+    expect(workspace.roleProfiles[9].assignmentDisposition).toBe('hidden-protected')
+    const created=await createRolePolicyDraft(fixture.client as never,managerVerified(actor,'aal1'),{draftId,expectedActive:tuple})
+    const saved=await saveRolePolicyDraft(fixture.client as never,managerVerified(actor,'aal1'),draftId,{expectedRevision:created.revision,
+      roleChanges:[],changes:[{roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'view',enabled:true}]})
+    const reload=await readRolePolicyDraft(fixture.client as never,draftId)
+    const {changed:_changed,...savedFields}=saved
+    expect(reload).toEqual(savedFields)
+    expect(fixture.drafts.get(draftId)?.status).toBe('OPEN')
+    expect(fixture.drafts.get(draftId)?.template_id).toBe('ai-pdm.legacy-preserving-first-draft.v1')
+    expect(fixture.currentRows).toEqual(activeBefore)
+    expect(fixture.applyCalls).toHaveLength(0)
+    expect(fixture.commands.size).toBe(0)
+    expect(fixture.executeSql.every(sql=>sql.includes('role_policy_drafts'))).toBe(true)
+    const preview=await previewRolePolicyDraft(fixture.client as never,draftId,saved.revision)
+    expect(preview.diff.policyTransition).toBe('legacy-to-dynamic')
+    expect(preview.diff.profileChanges.length).toBeGreaterThan(0)
+    expect(preview.diff.semanticChanges).toContainEqual(expect.objectContaining({stableRoleId:'role-rd',permissionCode:'numbering.approval.request',before:'allowed',after:'not_granted'}))
+  })
+  it('requires a fresh semantic-preview capability only for a new first-conversion apply, without changing the durable body hash',async()=>{
+    const fixture=unitClientFixture({staticV8:true})
+    const tuple={catalogVersion:staticV8.catalogVersion,catalogSha256:staticV8.catalogSha256}
+    await createRolePolicyDraft(fixture.client as never,managerVerified(),{draftId,expectedActive:tuple})
+    const body={requestId,confirmation:{draftId,draftRevision:1,expectedActive:tuple},reason:'明確確認逐操作差異'}
+    await expect(applyRolePolicy(fixture.client as never,managerVerified(),body)).rejects.toMatchObject({code:'ROLE_POLICY_SEMANTIC_DIFF_REQUIRED',status:409})
+    expect(fixture.applyCalls).toHaveLength(0)
+    const preview=await previewRolePolicyDraft(fixture.client as never,draftId,1)
+    await expect(applyRolePolicy(fixture.client as never,managerVerified(),{...body,semanticDiffVersion:preview.diff.semanticDiffVersion})).resolves.toEqual(fixture.applyResult)
+    expect(fixture.applyCalls).toHaveLength(1)
+    expect(fixture.applyCalls[0].params).not.toHaveProperty('semanticDiffVersion')
+  })
+  it('static v8 does not make a root-only or business-only Principal a policy manager',async()=>{
+    const fixture=unitClientFixture({staticV8:true,directGrant:false})
+    const workspace=await readRolePolicyWorkspace(fixture.client as never,undefined,managerVerified())
+    expect(workspace.admission).toEqual({read:true,edit:false,apply:false})
+    await expect(createRolePolicyDraft(fixture.client as never,managerVerified(),{draftId,
+      expectedActive:{catalogVersion:staticV8.catalogVersion,catalogSha256:staticV8.catalogSha256}}))
+      .rejects.toMatchObject({code:'ROLE_POLICY_MANAGER_REQUIRED'})
+    expect(fixture.drafts.size).toBe(0);expect(fixture.executeSql).toHaveLength(0)
+  })
   it('rejects strict nested payloads and the retired ActiveTuple fields', () => {
     expect(() => rolePolicyInput.assertTuple({
       ...activeTuple(), activationGeneration: '0'
@@ -375,6 +438,15 @@ describe('DEV-123 role-policy service contract', () => {
     expect(fixture.querySql.some(sql => sql.includes('v_application_role_catalog_v3'))).toBe(false)
     expect(fixture.applyCalls).toHaveLength(0)
   })
+  it('replays an old first-conversion receipt with the original body and no semantic version or current preview',async()=>{
+    const fixture=unitClientFixture({rejectCatalogOrDraft:true})
+    const body={...applyBody(),confirmation:{...applyBody().confirmation,expectedActive:{catalogVersion:staticV8.catalogVersion,catalogSha256:staticV8.catalogSha256}}}
+    const original={commandId:requestId,status:'APPLIED',catalogVersion:'original-first-conversion'}
+    fixture.commands.set(requestId,{actor_principal_id:actor,request_hash:commandHashForApply(actor,body),result_json:original})
+    await expect(applyRolePolicy(fixture.client as never,managerVerified(),body)).resolves.toEqual(original)
+    expect(fixture.applyCalls).toHaveLength(0)
+    expect(fixture.querySql.some(sql=>sql.includes('v_application_role_catalog_v3')||sql.includes('role_policy_drafts'))).toBe(false)
+  })
 
   it('rejects a reused request ID when payload or actor differs', async () => {
     const fixture = unitClientFixture({ rejectCatalogOrDraft: true })
@@ -417,6 +489,8 @@ describe('DEV-123 role-policy service contract', () => {
     expect(workspace.roles[0].permissions).toEqual(source.baseCatalog.roles[0].permissions)
     expect(workspace.roles[8].permissions.some(permission => /^pdm\.(drawing|part|model|transfer)\./u.test(permission.code))).toBe(false)
     expect(workspace.admission).toEqual({ read: true, edit: false, apply: false })
-    expect(workspace.roleProfiles).toEqual(source.registry.roleProfiles)
+    expect(workspace.roleProfiles).toEqual(source.baseCatalog.roles.map((role,index)=>({stableRoleId:role.stableRoleId,
+      permissionRoleId:role.stableRoleId,presentationName:role.displayName,presentationOrder:index,
+      assignmentDisposition:role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable'})))
   })
 })

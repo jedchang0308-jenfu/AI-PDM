@@ -19,6 +19,7 @@ test('DEV-127 hash-bound package, registry, manifest and SQL bytes stay LF on ev
     'config/access-control/dev127-role-policy-v2-conformance.json',
     'config/release/dev117-ai-pdm-independent-production-v3.json',
     'db/postgres/096_dev127_platform_super_admin_consumer.sql',
+    'db/postgres/local/098_dev127_static_admin_catalog_v8.sql',
   ]
   for (const path of paths) assert.equal(readFileSync(path).includes(13), false, path)
   const attributes = execFileSync('git', ['check-attr', '-z', 'text', 'eol', '--', ...paths], { encoding: 'utf8', windowsHide: true }).split('\0')

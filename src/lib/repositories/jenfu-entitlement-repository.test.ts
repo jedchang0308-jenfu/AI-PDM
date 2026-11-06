@@ -3,7 +3,11 @@ import {
   JenfuEntitlementRepository,
   type JenfuEntitlementRoleCatalog
 } from "@/lib/repositories/jenfu-entitlement-repository";
-import { buildDefaultRolePolicyCandidate, rolePolicyMappedDenyActions } from "@/lib/role-policy-editor";
+import { buildDefaultRolePolicyCandidate, rolePolicyMappedDenyActions, buildLegacyRolePolicyDraft, applyRolePolicyDraftChanges, rolePolicyDiff, type RolePolicyRole } from "@/lib/role-policy-editor";
+import {projectRolePolicyPermissions} from '@/lib/role-policy-permission-mapping';
+import staticV7 from '../../../config/access-control/jenfu-role-catalog.v7.json' with {type:'json'};
+import staticV8 from '../../../config/access-control/jenfu-role-catalog.v8.json' with {type:'json'};
+import registry from '../../../config/access-control/role-policy-editor-registry.v3.json' with {type:'json'};
 
 const actor = {
   identityIssuer: "https://securetoken.google.com/jenfu-test",
@@ -94,6 +98,46 @@ function fakeClient(options: FakeClientOptions = {}) {
 function repository(options: FakeClientOptions = {}, activeCatalog?: JenfuEntitlementRoleCatalog) {
   return new JenfuEntitlementRepository(fakeClient(options), activeCatalog);
 }
+
+it('static-v8 leaves all 774 legacy-role × known permission decisions unchanged and grants nobody the new administrator role',async()=>{
+  let compared=0
+  for(const role of staticV7.roles) {
+    const row={...assignment,stable_role_id:role.stableRoleId,role_code:role.roleCode,subject_kind:role.subjectKind,
+      target_principal_id:role.subjectKind==='principal'?actor.principalId:null,
+      scope_kind:role.allowedScopeKinds[0],scope_key:role.allowedScopeKinds[0]==='workspace'?'current':role.allowedScopeKinds[0]==='project'?'project-001':null}
+    const options={assignmentRows:[row]}
+    const input=[...registry.legacyBindings,...registry.businessActions].map(p=>({actor,rolePriority:[role.roleCode],
+      permissionKind:p.kind as 'page'|'action',permissionCode:p.code,workspaceCode:actor.companyId,projectCode:'project-001'}))
+    const before=await repository(options,staticV7 as unknown as JenfuEntitlementRoleCatalog).evaluatePermissions(input)
+    const after=await repository(options,staticV8 as unknown as JenfuEntitlementRoleCatalog).evaluatePermissions(input)
+    expect(after.map(r=>r.decisionCode)).toEqual(before.map(r=>r.decisionCode))
+    expect(after.flatMap(r=>r.assignments).every(a=>a.stableRoleId!=='role-application-system-admin')).toBe(true)
+    compared+=input.length
+  }
+  expect(compared).toBe(774)
+})
+
+it('first-conversion alias preview agrees with actual grant/scoped runtime evaluation for both gained and lost operations',async()=>{
+  const beforeRoles=staticV8.roles.map(role=>({...role,metadata:role.metadata??null,roleStatus:'active'})) as RolePolicyRole[]
+  const candidate=applyRolePolicyDraftChanges({candidate:buildLegacyRolePolicyDraft({roles:beforeRoles,candidateCatalogVersion:'ai-pdm.role-policy.10000000-0000-4000-8000-000000000077'}),
+    roleChanges:[],changes:[{roleRef:{stableRoleId:'role-procurement'},groupId:'transfer',actionId:'view',enabled:true},
+      {roleRef:{stableRoleId:'role-procurement'},groupId:'transfer',actionId:'download',enabled:true}]}).candidate
+  const effective=candidate.roleProfiles.map(profile=>{
+    const identity=candidate.roles.find(role=>role.stableRoleId===profile.stableRoleId)!,permission=candidate.roles.find(role=>role.stableRoleId===profile.permissionRoleId)!
+    return {...identity,...projectRolePolicyPermissions(identity,permission,candidate.roles,candidate.roleProfiles)}
+  })
+  const options={assignmentRows:[{...assignment,stable_role_id:'role-production-planning',role_code:'production_planning'}]}
+  const inputs=[{kind:'action' as const,code:'integration.procurement.view'},{kind:'page' as const,code:'numbering.tasks'},{kind:'action' as const,code:'pdm.transfer.download'}]
+    .map(permission=>({actor,rolePriority:['production_planning'],permissionKind:permission.kind,permissionCode:permission.code,workspaceCode:actor.companyId}))
+  const original=await repository(options,staticV8 as unknown as JenfuEntitlementRoleCatalog).evaluatePermissions(inputs)
+  const next=await repository(options,{catalogVersion:candidate.candidateCatalogVersion,roles:effective} as unknown as JenfuEntitlementRoleCatalog).evaluatePermissions(inputs)
+  const changes=rolePolicyDiff({roles:beforeRoles,format:'legacy-static-v1'},candidate).semanticChanges
+  for(const [index,input] of inputs.entries()) {
+    const change=changes.find(row=>row.stableRoleId==='role-production-planning'&&row.permissionCode===input.permissionCode&&row.contexts.includes(null))!
+    const decision=(code:string)=>code==='allowed'?'allowed':code==='permission_explicit_deny'?'explicit_deny':'not_granted'
+    expect(change.before).toBe(decision(original[index].decisionCode));expect(change.after).toBe(decision(next[index].decisionCode))
+  }
+})
 
 type DynamicPermission = { kind: "action"; code: string; allowed: boolean };
 function dynamicRole(stableRoleId: string, roleCode: string, permissions: DynamicPermission[], roleStatus: "active" | "inactive" = "active") {
