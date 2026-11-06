@@ -49,7 +49,7 @@ export class JenfuPrincipalCandidateRepository {
                employee_id,employee_status,account_type,mapping_version,
                pg_catalog.to_char(published_at AT TIME ZONE 'UTC',
                  :publishedAtFormat) AS published_at
-        FROM orgmaster_contract.v_active_principal_accounts_v1
+        FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)
         WHERE principal_id=:principalId
         ORDER BY principal_issuer,principal_subject
         FETCH FIRST 33 ROWS ONLY

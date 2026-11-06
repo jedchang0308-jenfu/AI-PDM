@@ -15,7 +15,7 @@ const row = {
 
 const reader = (rows: object[], onQuery?: (sql: string, parameters: unknown) => void) => new JenfuPrincipalAdmissionRepository({
   kind: "postgres", query: async (sql: string, parameters?: unknown) => {
-    expect(sql).toContain("orgmaster_contract.v_active_principal_accounts_v1");
+    expect(sql).toContain("orgmaster_contract.read_ai_pdm_active_principal_identity_v1");
     onQuery?.(sql, parameters);
     return rows;
   }
@@ -29,6 +29,20 @@ const roleNeutralReader = (rows: object[], onQuery?: (sql: string, parameters: u
 } as never);
 
 describe("DEV-121 exact typed principal admission", () => {
+  it("fails closed without a roster fallback when the provider typed reader has not been deployed", async () => {
+    const queries: string[] = [];
+    const source = new JenfuPrincipalAdmissionRepository({ kind: "postgres", query: async (sql: string) => {
+      queries.push(sql);
+      if (sql.includes("read_ai_pdm_active_principal_identity_v1")) {
+        throw Object.assign(new Error("typed reader unavailable"), { code: "42883" });
+      }
+      return [row];
+    } } as never);
+    await expect(source.requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
+      .rejects.toMatchObject({ code: "principal_directory_unavailable" });
+    expect(queries).toHaveLength(1);
+  });
+
   it("reads one active typed principal from the producer contract", async () => {
     await expect(reader([row]).requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
       .resolves.toMatchObject({ principalId: "principal-one", employeeId: "employee-one",

@@ -73,7 +73,7 @@ function fakeClient(options: FakeClientOptions = {}) {
         return (options.authorityRows ?? [authorityRow]) as T[];
       }
       if (options.failAssignments) throw new Error("assignment database unavailable");
-      if (sql.includes("v_active_principal_accounts_v1")) {
+      if (sql.includes("read_ai_pdm_active_principal_accounts_v1")) {
         return (options.activeAccountRows ?? [activeAccount]) as T[];
       }
       if (options.requireApplicationIdParam) {
@@ -119,19 +119,28 @@ describe("DEV-005 EntitlementRepository", () => {
       .listEffectiveAssignments(actor)).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 
-  it("does not retry v3 when the required v4 producer is unavailable", async () => {
+  it("does not fall back to a roster view when the required typed V5 reader is unavailable", async () => {
     const client = fakeClient();
     const read = client.query.bind(client);
     const observed: string[] = [];
     client.query = async <T>(sql: string, params?: unknown): Promise<T[]> => {
       observed.push(sql);
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v5")) throw new Error("v4 unavailable");
+      if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) throw Object.assign(new Error("typed reader unavailable"), { code: "42883" });
       return read<T>(sql, params);
     };
     await expect(new JenfuEntitlementRepository(client).listEffectiveAssignments(actor))
       .rejects.toMatchObject({ code: "entitlement_authority_unavailable" });
-    expect(observed.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toBe(true);
+    expect(observed.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(true);
     expect(observed.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(false);
+    expect(observed.some((sql) => sql.includes("FROM orgmaster_contract.v_ai_pdm_principal_effective_grants"))).toBe(false);
+  });
+
+  it("rereads effective grants after revocation on the same repository instance", async () => {
+    const options = { assignmentRows: [assignment] };
+    const source = new JenfuEntitlementRepository(fakeClient(options));
+    expect(await source.listEffectiveAssignments(actor)).toHaveLength(1);
+    options.assignmentRows = [];
+    expect(await source.listEffectiveAssignments(actor)).toEqual([]);
   });
 
   it("allows an explicit active workspace permission even when catalogVersion is provenance-only", async () => {

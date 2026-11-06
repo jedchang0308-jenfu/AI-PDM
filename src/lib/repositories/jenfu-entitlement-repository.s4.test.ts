@@ -47,7 +47,7 @@ function fakeClient(input: { assignmentsByPrincipal?: Record<string, unknown[]>;
         operation_id: null
       }] as T[];
       const values = params && typeof params === "object" && !Array.isArray(params) ? params as Record<string, unknown> : {};
-      if (sql.includes("v_active_principal_accounts_v1")) return [{
+      if (sql.includes("read_ai_pdm_active_principal_accounts_v1")) return [{
         contract_version: "organization.active-principal.v1",
         principal_issuer: identityIssuer,
         principal_subject: String(values.principalId) === privilegedActor.principalId

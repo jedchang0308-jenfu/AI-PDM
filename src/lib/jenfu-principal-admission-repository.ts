@@ -48,7 +48,7 @@ const SELECT_ACTIVE_TYPED_PRINCIPAL_SQL = `
          employee_id, employee_status, mapping_version, account_type,
          pg_catalog.to_char(published_at AT TIME ZONE 'UTC',
            :publishedAtFormat) AS published_at
-  FROM orgmaster_contract.v_active_principal_accounts_v1
+  FROM orgmaster_contract.read_ai_pdm_active_principal_identity_v1(:identityIssuer, :identitySubject)
   WHERE principal_issuer = :identityIssuer
     AND principal_subject = :identitySubject
   ORDER BY principal_id, employee_id

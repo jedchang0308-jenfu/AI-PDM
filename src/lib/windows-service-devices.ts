@@ -341,7 +341,7 @@ export class WindowsServiceDeviceRepository {
         principal_issuer: string; principal_subject: string; principal_id: string; employee_id: string;
       }>(`
         SELECT principal_issuer,principal_subject,principal_id,employee_id
-        FROM orgmaster_contract.v_active_principal_accounts_v1
+        FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)
         WHERE principal_id=:principalId AND employee_id=:employeeId
         ORDER BY principal_issuer,principal_subject
         FETCH FIRST 2 ROWS ONLY

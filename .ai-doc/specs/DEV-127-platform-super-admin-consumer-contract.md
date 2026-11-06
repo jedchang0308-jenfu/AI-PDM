@@ -332,3 +332,15 @@ local-only forward append `db/postgres/local/097_dev127_local_owner_alignment.sq
 | Windows unit fixture的open-file rename回EPERM | fixture明示區分Windows OS阻擋與reader inode拒絕；Linux分支驗實際rename | 不稱Windows已走reader inode branch |
 
 實際private target的expected DB marker固定為`local-first-admin-corrected-genesis:16930fa3-b7cd-4c7c-947d-c3203e59178c`；不是自由input。pure SQL component比對caller-bound host與marker，private wrapper只產pinned127／known DB／fixed marker，CI用其create-only nonce。缺marker或同名wrong-restore一律拒絕；不改private DBcomment。所有原applied migration bytes與舊plan均保留，新source／Org ACL後必須重plan。
+
+
+<a id="dev127-scoped-principal-readers"></a>
+### 8.7 OrgMaster 047 typed Principal reader consumer（2026-11-06）
+
+本slice把 `jenfu-entitlement-repository`、`jenfu-principal-admission-repository`、`windows-service-devices` 與 `jenfu-principal-candidate-repository` 的上述即時讀取改為固定versioned owner functions：`orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)`、`read_ai_pdm_active_principal_identity_v1(:identityIssuer,:identitySubject)`、`read_ai_pdm_principal_effective_grants_v5(:principalId,:employeeId)`。既有application=`ai-pdm`／Principal／Employee條件、LIMIT與排序、tuple/schema／alias／grant驗證及原request transaction保持。沒有跨request cache、舊roster fallback、刪除revocation check、AAL1變更或worker輪詢頻率變更。缺provider function／SQL dependency error仍fail closed，provider047必須先走OrgMaster normal owner發布，再部署本PDM source。
+
+OrgMaster migration047（formal order43）提供原V1／V5回傳tuple並保留legacy API；PDM不建立OrgMaster objects或自行GRANT。其global malformed administration／eligible catalog dependency及target ambiguity等價性由OrgMaster pre047 oracle的380次差分與4個NULL收緊案證明；accounts／identity不增加administration dependency。來源見[OrgMaster DEV070 §25](https://github.com/jedchang0308-jenfu/OrgMaster/blob/master/ai-doc/specs/DEV-070-platform-super-admin-authority-contract.md#dev070-scoped-principal-readers)。
+
+PDM本機自查：9個focused Vitest files／127例PASS，涵蓋typed reader缺失不fallback、同repository grant撤銷後重讀與原principal／worker deny cases；typecheck:app通過。既有required CI的 `dev121-principal-source-precision-postgres.mjs` 補三個明示synthetic ABI fixtures，實際consumer binder／ACL／transaction／lifecycle／settings／share路徑亦在task-owned PostgreSQL18.4執行通過，finally確認clusterStopped／portReleased／tempRemoved。這不是OrgMaster producer或production17.11驗收。沒有新增PDM migration或改寫已套用096、任何舊release／source403首敗收據。
+
+既有Cloud Insights query execution attribution與500人口PG18.4效能對照支持source成本改善候選，沒有替代正式CPU量測。source先review／既有required CI／protected merge，再由coordinator正常各owner發布；原capacity CPU FAIL與本人Google/UI驗收分母維持，沒有本slice production／primary／IAM／Secret mutation。

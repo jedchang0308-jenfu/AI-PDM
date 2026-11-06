@@ -17,11 +17,27 @@ describe("principal candidate source", () => {
       .listByPrincipal("principal-one");
     expect(result).toHaveLength(2);
     expect(result.map((item) => item.identitySubject)).toEqual(["subject-one", "subject-two"]);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE principal_id=:principalId"),
+    expect(query).toHaveBeenCalledWith(expect.stringContaining(
+      "FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)"),
       { principalId: "principal-one", publishedAtFormat: 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"' });
+    expect(query.mock.calls[0][0]).toContain("WHERE principal_id=:principalId");
+    expect(query.mock.calls[0][0]).toContain("FETCH FIRST 33 ROWS ONLY");
+    expect(query.mock.calls[0][0]).not.toContain("orgmaster_contract.v_active_principal_accounts_v1");
     expect(query.mock.calls[0][0]).not.toMatch(/email|firebase_uid|pdm_user_id/u);
     expect(query.mock.calls[0][0]).toContain("pg_catalog.to_char(published_at AT TIME ZONE 'UTC'");
     expect(query.mock.calls[0][0]).toContain(":publishedAtFormat) AS published_at");
+  });
+
+  it("fails closed when the typed reader is unavailable without querying the legacy view", async () => {
+    const query = vi.fn(async (_sql: string, _params: Record<string, unknown>) => {
+      throw new Error("typed reader unavailable");
+    });
+    const repository = new JenfuPrincipalCandidateRepository({ kind: "postgres", query } as never);
+    await expect(repository.listByPrincipal("principal-one"))
+      .rejects.toMatchObject({ code: "principal_candidate_unavailable" });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain("read_ai_pdm_active_principal_accounts_v1(:principalId)");
+    expect(query.mock.calls[0][0]).not.toContain("orgmaster_contract.v_active_principal_accounts_v1");
   });
 
   it.each([

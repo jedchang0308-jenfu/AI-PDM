@@ -57,7 +57,7 @@ function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_a
         mapping_version: 4,
         published_at: "2026-01-01T00:00:00.000Z"
       }] as T[];
-      if (sql.includes("v_active_principal_accounts_v1")) return [{
+      if (sql.includes("read_ai_pdm_active_principal_")) return [{
         contract_version: "organization.active-principal.v1",
         principal_issuer: actor.identityIssuer,
         principal_subject: actor.identitySubject,
@@ -78,7 +78,7 @@ function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_a
         updated_at: "2026-09-23T00:00:00.000Z",
         operation_id: null
       }] as T[];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v5")) return [assignmentRow] as T[];
+      if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) return [assignmentRow] as T[];
       if (sql.includes("FROM user_role_assignments")) return [{ role_code: "rd" }] as T[];
       if (sql.includes("FROM approval_delegations")) return [] as T[];
       if (sql.includes("FROM roles") && sql.includes("WHERE enabled = 1")) return [{
@@ -164,7 +164,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(client.queries.some((sql) => sql.includes("v_active_principal_mappings_v1"))).toBe(true);
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toBe(true);
+    expect(client.queries.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(true);
     expect(client.execute).not.toHaveBeenCalled();
     log.mockRestore();
   });
@@ -183,7 +183,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(denied).toMatchObject({ allowed: false, decisionCode: "permission_not_granted" });
     expect(client.transaction).toHaveBeenCalledTimes(1);
     expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toHaveLength(0);
-    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toHaveLength(1);
+    expect(client.queries.filter((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toHaveLength(1);
     log.mockRestore();
   });
 
@@ -195,7 +195,7 @@ describe("DEV-121 authorization snapshot", () => {
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_session_invalid" });
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(false);
   });
 
   it("ignores historical authority rows and authorizes only the published Principal grant", async () => {
@@ -210,7 +210,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.queries.some((sql) => sql.includes("FROM user_role_assignments"))).toBe(false);
     expect(client.queries.some((sql) => sql.includes("FROM role_permissions p"))).toBe(false);
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toBe(true);
+    expect(client.queries.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(true);
   });
 
   it("does not fall back when the active priority contract is missing", async () => {
@@ -220,6 +220,6 @@ describe("DEV-121 authorization snapshot", () => {
     const result = await checkNumberingPermissionAsync(requestInput());
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unavailable" });
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v5"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(false);
   });
 });

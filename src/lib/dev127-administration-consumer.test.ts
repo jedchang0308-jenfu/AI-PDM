@@ -20,7 +20,7 @@ function fixture(changes: Record<string, unknown> = {}, proof = true) {
     role_definition_hash: applicationAdministratorRole.roleDefinitionHash, ...changes }
   const account = { contract_version: 'organization.active-principal.v1', principal_issuer: actor.identityIssuer,
     principal_subject: actor.identitySubject, principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: 'active' }
-  const client = { kind: 'postgres', query: async (sql: string) => sql.includes('v_active_principal_accounts_v1') ? [account] : [grant],
+  const client = { kind: 'postgres', query: async (sql: string) => sql.includes('read_ai_pdm_active_principal_') ? [account] : [grant],
     queryOne: async () => ({ valid: proof }) }
   return new JenfuEntitlementRepository(client as never, { catalogVersion: version,
     roles: [{ ...applicationAdministratorRole, allowedScopeKinds: ['global'], metadata: undefined }] })
