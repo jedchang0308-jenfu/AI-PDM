@@ -63,7 +63,7 @@ test('S1B-20 migration runner image carries the exact source revision into runti
   assert.match(fs.readFileSync(path.join('infra', 'google-cloud', 'dev-117-production-release', 'migration.tf'), 'utf8'), /name\s*=\s*"PDM_SOURCE_REVISION"[\s\S]*?value\s*=\s*var\.source_revision/u)
   assert.match(dockerfile, /org\.opencontainers\.image\.revision="\$\{SOURCE_REVISION\}"/u)
   assert.match(cloudBuild, /SOURCE_REVISION=\$\{_SOURCE_REVISION\}/u)
-  for (const pathname of MIGRATION_RUNNER_EXECUTABLE_INPUTS.filter((value) => !value.endsWith('migration-runner.Dockerfile'))) {
+  for (const pathname of MIGRATION_RUNNER_EXECUTABLE_INPUTS.filter((value) => !value.endsWith('migration-runner.Dockerfile') && !value.endsWith('migration-runner-cloudbuild.yaml'))) {
     assert.equal(dockerfile.includes(pathname), true, pathname)
   }
 })

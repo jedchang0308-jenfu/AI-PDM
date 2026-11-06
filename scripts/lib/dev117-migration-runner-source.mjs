@@ -7,6 +7,7 @@ export const MIGRATION_RUNNER_EXECUTABLE_INPUTS = Object.freeze([
   'config/access-control/role-policy-editor-registry.v3.json',
   'config/release/dev012-ai-pdm-production-data-cutover.json',
   'infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile',
+  'infra/google-cloud/dev-117-production-release/migration-runner-cloudbuild.yaml',
   'infra/google-cloud/dev-117-production-release/migration-runner/package-lock.json',
   'infra/google-cloud/dev-117-production-release/migration-runner/package.json',
   'scripts/dev012-production-data-cutover-runtime.mjs',
