@@ -5,6 +5,40 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
+test('Windows launcher preserves sandbox data paths while ordinary startup uses its task directories', { skip: process.platform !== 'win32' }, () => {
+  const temporary = fs.mkdtempSync(path.join(process.cwd(), 'tmp', 'dev126-launcher-paths-'));
+  try {
+    const scriptDirectory = path.join(temporary, 'scripts');
+    const sandbox = path.join(temporary, 'sandbox');
+    fs.mkdirSync(scriptDirectory, { recursive: true });
+    fs.mkdirSync(path.join(sandbox, 'control'), { recursive: true });
+    const dataDirectory = path.join(sandbox, 'data');
+    const repositoryDirectory = path.join(sandbox, 'repository');
+    fs.writeFileSync(path.join(sandbox, 'control', 'ai-pdm-runtime.json'), JSON.stringify({
+      profileVersion: 'ai-pdm.local-runtime.v1', applicationId: 'ai-pdm', sandboxRoot: sandbox,
+      origin: 'http://localhost:1020', dataDirectory, repositoryDirectory,
+    }));
+    const source = fs.readFileSync('scripts/start-localhost-3000.ps1', 'utf8');
+    const healthChecks = source.indexOf('$HealthChecks = @(');
+    assert.ok(healthChecks > 0);
+    const probe = path.join(scriptDirectory, 'paths.ps1');
+    fs.writeFileSync(probe, source.slice(0, healthChecks) +
+      '[ordered]@{dataDir=$DataDir;repositoryDir=$RepositoryDir}|ConvertTo-Json -Compress\n');
+    const run = (args) => JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', probe, ...args], {
+      encoding: 'utf8', windowsHide: true,
+      env: { ...process.env, NODE_ENV: 'development', K_SERVICE: '', K_REVISION: '', FUNCTION_TARGET: '', FUNCTION_NAME: '', FIREBASE_CONFIG: '' },
+    }));
+    assert.deepEqual(run(['-TestAdmin', '-SandboxRoot', sandbox]), { dataDir: dataDirectory, repositoryDir: repositoryDirectory });
+    assert.deepEqual(run([]), {
+      dataDir: path.join(temporary, 'tmp', 'local-dev', '1020', 'data'),
+      repositoryDir: path.join(temporary, 'tmp', 'local-dev', '1020', 'repository'),
+    });
+  } finally {
+    assert.ok(temporary.startsWith(path.join(process.cwd(), 'tmp') + path.sep));
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
 test('Windows launcher proves external dependency workers through the recorded npm process instance', { skip: process.platform !== 'win32' }, () => {
   const root = process.cwd();
   const temporary = path.join(root, 'tmp', `dev126-owner-test-${randomUUID()}`);
