@@ -344,3 +344,13 @@ OrgMaster migration047（formal order43）提供原V1／V5回傳tuple並保留le
 PDM本機自查：9個focused Vitest files／127例PASS，涵蓋typed reader缺失不fallback、同repository grant撤銷後重讀與原principal／worker deny cases；typecheck:app通過。既有required CI的 `dev121-principal-source-precision-postgres.mjs` 補三個明示synthetic ABI fixtures，實際consumer binder／ACL／transaction／lifecycle／settings／share路徑亦在task-owned PostgreSQL18.4執行通過，finally確認clusterStopped／portReleased／tempRemoved。這不是OrgMaster producer或production17.11驗收。沒有新增PDM migration或改寫已套用096、任何舊release／source403首敗收據。
 
 既有Cloud Insights query execution attribution與500人口PG18.4效能對照支持source成本改善候選，沒有替代正式CPU量測。source先review／既有required CI／protected merge，再由coordinator正常各owner發布；原capacity CPU FAIL與本人Google/UI驗收分母維持，沒有本slice production／primary／IAM／Secret mutation。
+
+### 8.8 Primary-local catalog-inspect（source preparation，native facts pending）
+
+Primary-local 已由 coordinator 正常安裝原096／local097並讀回兩筆 ledger／owner／ACL；其後原 `catalog-plan` 在產生 plan 前回 `DEV127_DYNAMIC_CATALOG_REQUIRED`。安裝成功不表示 active catalog 已升級，source v7 也不能代替 actual publication。既有 DEV127 upgrade 只接受 dynamic-v1/v2，app draft 只接受 dynamic-v2；DEV123 首轉範本仍是須列明差異的新政策，不能 silent 套80 grants或只改format。
+
+新增唯一診斷 phase：`scripts/dev127-local-owner.mjs --profile <原private profile> --phase catalog-inspect`。沿原同一 canonical private context、Google migrator 身分、owned postmaster／target、runtime 無DDL／owner能力、clean exact source與096 ledger guard；不接受 SQL／URL／role／actor或plan override。以單一 `REPEATABLE READ READ ONLY` transaction、固定 `SET LOCAL ROLE jenfu_ai_pdm_migrator` 讀 v3 catalog、own active/publication/profile metadata、role identities，以及 publication／dynamic publication／open draft／command counts。固定 query 的 rows 上界與數字形狀不符、權限或SQL錯誤均 rollback，不重試、不寫DB。
+
+Console只回允許的version／hash／format／status、NULL標示、count與source-v7 tuple／roles／profiles／identities等價bool及snapshot hash。完整role snapshot連同原source/target binding，只create-only存於原private `dev127-local-owner/catalog-inspect-<hash>.json`；不打印role內容、業務或個人rows，不提供private DB/session輸出。source binding另包含被比較的原v7 catalog bytes。`INSPECTED`僅表示已完成唯讀盤點，不是catalog plan、publication、grant、管理任用或UI PASS。
+
+本段只準備取得actual facts；沒有首次publication、schema／applied096097變動、授權擴張、provider或DB寫入。待clean reviewed local source正常inspect後，另以真tuple與角色／deny差異決定同一DEV127切片的最小legacy-preserving轉換；不把範本或合成fixture當primary資料，不改正式PDM release clone來源。

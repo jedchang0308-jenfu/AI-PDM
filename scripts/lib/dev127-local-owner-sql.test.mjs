@@ -6,10 +6,11 @@ import path from 'node:path'
 import { deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 import { parseDev127LocalOwnerArgs } from '../dev127-local-owner.mjs'
 import { localClusterRecordPath,readLocalBoundedBytes,readLocalBoundedHandle,
-  assertLocalMigratorIdentity,assertLocalAdcSnapshot } from './dev127-local-owner-bridge.mjs'
+  assertLocalMigratorIdentity,assertLocalAdcSnapshot,runDev127LocalOwner } from './dev127-local-owner-bridge.mjs'
 import { hash,buildLocalInstallPlan,installLocalDev127,readLocalInstallReceipt,
   LOCAL_ALIGNMENT_VERSION,LOCAL_ALIGNMENT_NAME,MIGRATION_VERSION,MIGRATION_NAME,MIGRATION_APPLIED_SHA,
-  inspectLocalOwnerDatabase,TABLES,FUNCTIONS } from './dev127-local-owner-sql.mjs'
+  inspectLocalOwnerDatabase,inspectLocalDev127Catalog,TABLES,FUNCTIONS } from './dev127-local-owner-sql.mjs'
+import sourceV7 from '../../config/access-control/jenfu-role-catalog.v7.json' with { type: 'json' }
 
 const root=new URL('../../',import.meta.url)
 const alignmentSql=await readFile(new URL('db/postgres/local/097_dev127_local_owner_alignment.sql',root),'utf8')
@@ -19,6 +20,119 @@ const binding={source:{revision:'a'.repeat(40)},migrationSource}
 const inventory={ledger:[{version:'old',name:'old',checksum:'b'.repeat(64)}],
   contracts:[{oid:1,executable:true},{oid:2,executable:true},{oid:3,executable:true}],usage:[{usable:true},{usable:true}]}
 const plan=()=>buildLocalInstallPlan(binding,structuredClone(inventory),alignmentSql,migrationSql)
+
+function catalogInspectionFixture() {
+  const catalogRows=sourceV7.roles.map((role,index)=>({
+    contract_version:sourceV7.contractVersion,application_id:'ai-pdm',catalog_version:sourceV7.catalogVersion,
+    catalog_sha256:sourceV7.catalogSha256,display_order:index,stable_role_id:role.stableRoleId,role_code:role.roleCode,
+    display_name:role.displayName,assignable:role.assignable,risk:role.risk,subject_kind:role.subjectKind,
+    recommendation_allowed:role.recommendationAllowed,delegation_allowed:role.delegationAllowed,
+    allowed_scope_kinds:role.allowedScopeKinds,assignment_tier:role.assignmentTier,permissions:role.permissions,
+    metadata:role.metadata??null,role_definition_hash:role.roleDefinitionHash,role_status:'active',
+    permission_role_id:role.stableRoleId,presentation_name:role.displayName,presentation_order:index,
+    assignment_disposition:role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable',
+    publication_format:'legacy-static-v1',lifecycle:'active',published_at:'2026-10-10T00:00:00+00:00',
+  }))
+  const identities=sourceV7.roles.map(role=>{
+    const {permissions:_permissions,roleDefinitionHash:_hash,...identity}=role
+    identity.metadata??=null
+    return {stable_role_id:role.stableRoleId,identity_json:identity,identity_hash:hash(identity),first_catalog_version:sourceV7.catalogVersion}
+  })
+  const publications=[{application_id:'ai-pdm',catalog_version:sourceV7.catalogVersion,publication_catalog_version:sourceV7.catalogVersion,
+    contract_version:sourceV7.contractVersion,catalog_sha256:sourceV7.catalogSha256,status:'active',publication_format:null,role_profiles:null}]
+  const counts={active_pointers:'1',publications:'1',dynamic_publications:'0',open_drafts:'0',commands:'0',identities:'9'}
+  const calls=[]
+  const fixture={catalogRows,identities,publications,counts,calls,errorAt:null}
+  fixture.database={async query(sql,values){
+    calls.push({sql,values})
+    if(fixture.errorAt && sql.includes(fixture.errorAt))throw Object.assign(new Error('synthetic SQL denial'),{code:'42501'})
+    if(sql.includes('SELECT to_jsonb(catalog)'))return {rows:fixture.catalogRows.map(row=>({row}))}
+    if(sql.includes('SELECT active.application_id'))return {rows:fixture.publications}
+    if(sql.includes('SELECT stable_role_id,identity_json'))return {rows:fixture.identities}
+    if(sql.includes('AS active_pointers'))return {rows:[fixture.counts]}
+    assert.ok(['BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY','SET LOCAL ROLE jenfu_ai_pdm_migrator','COMMIT','ROLLBACK'].includes(sql))
+    return {rows:[]}
+  }}
+  return fixture
+}
+
+test('catalog-inspect reads one repeatable-read migrator snapshot and reports exact source-v7 facts without a write',async()=>{
+  const f=catalogInspectionFixture(),result=await inspectLocalDev127Catalog(f.database)
+  assert.deepEqual(result.summary.sourceV7,{catalogVersion:sourceV7.catalogVersion,catalogSha256:sourceV7.catalogSha256,
+    tupleMatches:true,rolesMatch:true,profilesMatch:true,identitiesMatch:true})
+  assert.deepEqual(result.summary.counts,{active_pointers:1,publications:1,dynamic_publications:0,open_drafts:0,commands:0,identities:9,catalog_rows:9})
+  assert.equal(result.summary.active.publicationFormat,null)
+  assert.equal(result.summary.active.publicationFormatIsNull,true)
+  assert.equal(result.summary.active.roleProfilesIsNull,true)
+  assert.equal(result.summary.catalogRowsSha256,hash(result.snapshot.catalogRows))
+  assert.equal(result.summary.snapshotSha256,hash(result.snapshot))
+  assert.deepEqual(f.calls.slice(0,2).map(row=>row.sql),['BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY','SET LOCAL ROLE jenfu_ai_pdm_migrator'])
+  assert.equal(f.calls.at(-1).sql,'COMMIT')
+  assert.ok(f.calls.slice(2,-1).every(row=>/^SELECT\b/u.test(row.sql) && row.values===undefined))
+  assert.equal(f.calls.filter(row=>row.sql.includes('LIMIT 66')).length,2)
+})
+
+test('catalog-inspect distinguishes actual tuple, permission, status, profile and identity drift without guessing source truth',async()=>{
+  for(const [field,mutate] of [
+    ['tupleMatches',f=>{f.publications[0].catalog_sha256='f'.repeat(64)}],
+    ['rolesMatch',f=>{f.catalogRows[0].permissions=structuredClone(f.catalogRows[0].permissions);f.catalogRows[0].permissions[0].allowed=!f.catalogRows[0].permissions[0].allowed}],
+    ['rolesMatch',f=>{f.catalogRows[0].role_status='inactive'}],
+    ['profilesMatch',f=>{f.catalogRows[0].permission_role_id='role-pdm-admin'}],
+    ['identitiesMatch',f=>{f.identities[0].identity_hash='f'.repeat(64)}],
+  ]) {
+    const f=catalogInspectionFixture();mutate(f)
+    assert.equal((await inspectLocalDev127Catalog(f.database)).summary.sourceV7[field],false)
+  }
+})
+
+test('catalog-inspect prints only allowlisted metadata, booleans, hashes and counts; full role data remains in its private snapshot',async()=>{
+  const f=catalogInspectionFixture(),sentinel='PRIVATE-ROLE-CONTENT-SENTINEL'
+  f.catalogRows[0].metadata={private:sentinel}
+  f.publications[0].role_profiles=[{presentationName:sentinel}]
+  f.publications[0].catalog_version=sentinel
+  f.publications[0].publication_format=sentinel
+  const result=await inspectLocalDev127Catalog(f.database)
+  assert.doesNotMatch(JSON.stringify(result.summary),new RegExp(sentinel))
+  assert.match(JSON.stringify(result.snapshot),new RegExp(sentinel))
+  assert.equal(result.summary.active.catalogVersion,null)
+  assert.equal(result.summary.active.publicationFormat,null)
+  assert.equal(result.summary.active.publicationFormatIsNull,false)
+  assert.equal(result.summary.active.roleProfilesIsNull,false)
+})
+
+test('catalog-inspect reports dynamic history/drafts/commands and missing active state as facts, without publishing or claiming v7',async()=>{
+  const f=catalogInspectionFixture()
+  f.counts={...f.counts,active_pointers:'0',publications:'3',dynamic_publications:'2',open_drafts:'4',commands:'5'}
+  f.publications=[];f.catalogRows=[]
+  const result=await inspectLocalDev127Catalog(f.database)
+  assert.equal(result.summary.sourceV7.tupleMatches,false)
+  assert.equal(result.summary.sourceV7.rolesMatch,false)
+  assert.equal(result.summary.counts.dynamic_publications,2)
+  assert.equal(result.summary.counts.open_drafts,4)
+  assert.equal(result.summary.counts.commands,5)
+  assert.equal(result.summary.active.catalogVersion,null)
+})
+
+test('catalog-inspect fails closed on query denial or bounded-shape corruption, rolls back and never retries',async()=>{
+  for(const mutate of [f=>{f.errorAt='FROM ai_pdm_core.role_policy_role_identities'},
+    f=>{f.catalogRows=Array(66).fill(f.catalogRows[0])},f=>{f.identities=Array(66).fill(f.identities[0])},
+    f=>{f.counts.commands='invalid'},f=>{f.counts.commands=null},f=>{f.counts.commands=true},f=>{f.counts.identities='10'}]) {
+    const f=catalogInspectionFixture();mutate(f)
+    await assert.rejects(inspectLocalDev127Catalog(f.database),/synthetic SQL denial|CATALOG_INSPECTION_INVALID/)
+    assert.equal(f.calls.at(-1).sql,'ROLLBACK')
+    assert.equal(f.calls.filter(row=>row.sql==='BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY').length,1)
+    assert.ok(!f.calls.some(row=>row.sql==='COMMIT'))
+  }
+})
+
+test('catalog-inspect is a closed CLI phase; SQL/URL/role and invented phases cannot reach private context',async()=>{
+  assert.deepEqual(parseDev127LocalOwnerArgs(['--profile','private','--phase','catalog-inspect']),{profilePath:'private',phase:'catalog-inspect'})
+  for(const option of ['--database-url','--sql','--role'])
+    assert.throws(()=>parseDev127LocalOwnerArgs(['--profile','private','--phase','catalog-inspect',option,'unsafe']),/ARGUMENT_INVALID/)
+  await assert.rejects(runDev127LocalOwner({phase:'catalog-inspect; SELECT unsafe',profilePath:'private'}),/PHASE_INVALID/)
+  await assert.rejects(runDev127LocalOwner({phase:'catalog-inspect',profilePath:'private',planSha256:'a'.repeat(64)}),/ARGUMENT_INVALID/)
+})
+
 function fixture({commitError=null,prior=[],changed=null,readback=null,postconditions={}}={}) {
   const calls=[];let freshReads=0
   const database={async query(sql,values){calls.push({sql,values});

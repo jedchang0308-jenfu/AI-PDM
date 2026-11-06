@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalize } from './dev012-production-migration-runner.mjs'
+import sourceV7 from '../../config/access-control/jenfu-role-catalog.v7.json' with { type: 'json' }
 
 export const LOCAL_ALIGNMENT_VERSION = 'ai-pdm-local-dev127-owner-alignment-v1'
 export const LOCAL_ALIGNMENT_NAME = 'dev127_local_owner_alignment'
@@ -20,6 +21,82 @@ const CONTRACTS = ['orgmaster_contract.lock_ai_pdm_role_policy_authority_v2()',
 export const hash = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : canonicalize(value)).digest('hex')
 export const fail = code => { throw Object.assign(new Error(`DEV127_LOCAL_${code}`), {code:`DEV127_LOCAL_${code}`}) }
 const same = (a,b) => canonicalize(a) === canonicalize(b)
+
+/** Closed diagnostic only. All catalog data is read in one migrator snapshot;
+ * the private wrapper persists snapshot, while only summary may be printed. */
+export async function inspectLocalDev127Catalog(database) {
+  await database.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
+  try {
+    await database.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+    const catalogRows=(await database.query(`SELECT to_jsonb(catalog) AS row
+      FROM ai_pdm_contract.v_application_role_catalog_v3 catalog ORDER BY display_order LIMIT 66`)).rows.map(row=>row.row)
+    const publications=(await database.query(`SELECT active.application_id,active.catalog_version,
+      publication.catalog_version AS publication_catalog_version,publication.contract_version,publication.catalog_sha256,
+      publication.status,publication.publication_format,publication.canonicalization_version,publication.role_schema_id,
+      publication.role_profile_schema_id,publication.baseline_role_identity_hash,publication.role_identity_hash,
+      publication.role_profile_hash,publication.protected_policy_hash,publication.registry_hash,publication.role_profiles,
+      publication.base_catalog_version,publication.base_catalog_sha256
+      FROM ai_pdm_core.active_role_catalog active LEFT JOIN ai_pdm_core.role_catalog_publications publication
+        ON publication.application_id=active.application_id AND publication.catalog_version=active.catalog_version
+      WHERE active.application_id='ai-pdm' ORDER BY active.catalog_version LIMIT 2`)).rows
+    const identities=(await database.query(`SELECT stable_role_id,identity_json,btrim(identity_hash) AS identity_hash,first_catalog_version
+      FROM ai_pdm_core.role_policy_role_identities ORDER BY stable_role_id LIMIT 66`)).rows
+    const {rows:[rawCounts]}=await database.query(`SELECT
+      (SELECT count(*) FROM ai_pdm_core.active_role_catalog WHERE application_id='ai-pdm') AS active_pointers,
+      (SELECT count(*) FROM ai_pdm_core.role_catalog_publications WHERE application_id='ai-pdm') AS publications,
+      (SELECT count(*) FROM ai_pdm_core.role_catalog_publications WHERE application_id='ai-pdm'
+        AND publication_format IN ('dynamic-policy-v1','dynamic-policy-v2')) AS dynamic_publications,
+      (SELECT count(*) FROM ai_pdm_core.role_policy_drafts WHERE status='OPEN') AS open_drafts,
+      (SELECT count(*) FROM ai_pdm_core.role_policy_commands) AS commands,
+      (SELECT count(*) FROM ai_pdm_core.role_policy_role_identities) AS identities`)
+    const counts=Object.fromEntries(['active_pointers','publications','dynamic_publications','open_drafts','commands','identities']
+      .map(key=>{const value=rawCounts?.[key]
+        return [key,typeof value==='number' || typeof value==='string' && /^(?:0|[1-9][0-9]*)$/u.test(value)?Number(value):NaN]}))
+    if(catalogRows.length>65 || identities.length>65 || catalogRows.some(row=>!row || typeof row!=='object') ||
+      Object.values(counts).some(value=>!Number.isSafeInteger(value)||value<0) || counts.identities!==identities.length ||
+      publications.length!==Math.min(counts.active_pointers,2))fail('CATALOG_INSPECTION_INVALID')
+    const identity=role=>Object.fromEntries(['stableRoleId','roleCode','displayName','assignable','risk','subjectKind',
+      'recommendationAllowed','delegationAllowed','allowedScopeKinds','assignmentTier','metadata']
+      .map(key=>[key,role[key]??(key==='metadata'?null:undefined)]))
+    const projectRole=row=>({stableRoleId:row.stable_role_id,roleCode:row.role_code,displayName:row.display_name,
+      assignable:row.assignable,risk:row.risk,subjectKind:row.subject_kind,recommendationAllowed:row.recommendation_allowed,
+      delegationAllowed:row.delegation_allowed,allowedScopeKinds:row.allowed_scope_kinds,assignmentTier:row.assignment_tier,
+      permissions:row.permissions,metadata:row.metadata??null,roleDefinitionHash:row.role_definition_hash})
+    const expectedRoles=sourceV7.roles.map(role=>({...role,metadata:role.metadata??null}))
+    const active=publications.length===1?publications[0]:null
+    const tupleMatches=active?.application_id==='ai-pdm' && active.catalog_version===sourceV7.catalogVersion &&
+      active.publication_catalog_version===sourceV7.catalogVersion && active.contract_version===sourceV7.contractVersion &&
+      active.catalog_sha256===sourceV7.catalogSha256 && active.status==='active'
+    const rolesMatch=catalogRows.length===expectedRoles.length && same(catalogRows.map(projectRole),expectedRoles) &&
+      catalogRows.every((row,index)=>row.contract_version===sourceV7.contractVersion && row.application_id==='ai-pdm' &&
+        row.catalog_version===sourceV7.catalogVersion && row.catalog_sha256===sourceV7.catalogSha256 &&
+        row.display_order===index && row.role_status==='active' && row.publication_format==='legacy-static-v1' && row.lifecycle==='active')
+    const profilesMatch=catalogRows.length===sourceV7.roles.length && catalogRows.every((row,index)=>{
+      const role=sourceV7.roles[index]
+      return row.permission_role_id===role.stableRoleId && row.presentation_name===role.displayName &&
+        row.presentation_order===index && row.assignment_disposition===(role.stableRoleId==='role-system-admin'?'hidden-protected':'selectable')
+    })
+    const identitiesMatch=identities.length===sourceV7.roles.length && sourceV7.roles.every(role=>{
+      const actual=identities.find(row=>row.stable_role_id===role.stableRoleId),expected=identity(role)
+      return actual && same(actual.identity_json,expected) && actual.identity_hash===hash(expected) &&
+        actual.first_catalog_version===sourceV7.catalogVersion
+    })
+    const rawFormat=active?.publication_format??null
+    const safeVersion=value=>typeof value==='string' && /^ai-pdm\.(?:role-catalog\.[0-9.-]+\.v[0-9]+|role-policy\.[a-f0-9-]{36})$/u.test(value)?value:null
+    const snapshot={catalogRows,publications,identities,counts}
+    const summary={schemaVersion:'ai-pdm.dev127.local-catalog-inspection.v1',
+      active:{catalogVersion:safeVersion(active?.catalog_version),catalogSha256:/^[a-f0-9]{64}$/u.test(active?.catalog_sha256??'')?active.catalog_sha256:null,
+        status:['active','retired'].includes(active?.status)?active.status:null,
+        publicationFormat:['legacy-static-v1','dynamic-policy-v1','dynamic-policy-v2'].includes(rawFormat)?rawFormat:null,
+        publicationFormatIsNull:active!==null&&rawFormat===null,metadataSha256:hash(publications),
+        roleProfilesIsNull:active!==null&&active.role_profiles===null},
+      counts:{...counts,catalog_rows:catalogRows.length},sourceV7:{catalogVersion:sourceV7.catalogVersion,catalogSha256:sourceV7.catalogSha256,
+        tupleMatches,rolesMatch,profilesMatch,identitiesMatch},
+      catalogRowsSha256:hash(catalogRows),identitiesSha256:hash(identities),snapshotSha256:hash(snapshot)}
+    await database.query('COMMIT')
+    return {summary,snapshot}
+  }catch(error){await database.query('ROLLBACK').catch(()=>{});throw error}
+}
 
 export async function inspectLocalOwnerDatabase(database, target) {
   const {rows:[connection]} = await database.query(`SELECT current_database() AS database,session_user,current_user,

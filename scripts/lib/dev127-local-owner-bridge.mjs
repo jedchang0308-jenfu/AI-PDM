@@ -9,7 +9,7 @@ import { DEV127_RECEIPT,DEV127_SOURCE_POLICY_SHA256,dev127CommandId,executeDev12
   readDev127CommandReceipt } from './dev127-role-policy-upgrade.mjs'
 import { assertDev127InstalledMigration } from './dev127-catalog-job.mjs'
 import { hash,fail,inspectLocalOwnerDatabase,buildLocalInstallPlan,assertLocalInstallPlan,
-  installLocalDev127,readLocalInstallReceipt,assertLocalOwnerContracts,MIGRATION_SOURCE_SHA } from './dev127-local-owner-sql.mjs'
+  installLocalDev127,readLocalInstallReceipt,assertLocalOwnerContracts,inspectLocalDev127Catalog,MIGRATION_SOURCE_SHA } from './dev127-local-owner-sql.mjs'
 
 const PROJECT='jenfu-platform-nonprod'
 const RUNTIME_EMAIL=`dev010-aipdm-runtime@${PROJECT}.iam.gserviceaccount.com`
@@ -34,6 +34,7 @@ const SOURCE_FILES=['scripts/lib/dev127-local-owner-bridge.mjs','scripts/lib/dev
   'scripts/lib/dev012-production-migration-runner.mjs','scripts/dev010-n1c-ai-pdm-package.mjs',
   'config/platform/dev-010-n1c-ai-pdm.json','config/access-control/dev127-protected-policy-source.v1.json',
   'config/access-control/role-policy-editor-registry.v3.json',
+  'config/access-control/jenfu-role-catalog.v7.json',
   'config/access-control/ai-pdm-role-policy-contract-v3.manifest.json','src/lib/jenfu-principal-role-catalog.ts',ALIGNMENT,MIGRATION]
 const H64=/^[a-f0-9]{64}$/u
 const exact=(value,keys)=>value && Object.getPrototypeOf(value)===Object.prototype &&
@@ -210,7 +211,8 @@ function assertBinding(state,binding) {
 }
 
 export async function runDev127LocalOwner({profilePath,phase,planSha256}) {
-  if(!['plan','install','install-status','catalog-plan','catalog-commit','catalog-status'].includes(phase))fail('PHASE_INVALID')
+  if(!['plan','install','install-status','catalog-plan','catalog-commit','catalog-status','catalog-inspect'].includes(phase))fail('PHASE_INVALID')
+  if(phase==='catalog-inspect' && planSha256!==undefined)fail('ARGUMENT_INVALID')
   return withContext(profilePath,async(database,state)=>{
     if(phase==='plan') {
       const plan=await readonly(database,async()=>installPlan(state,await inspect(database,state)))
@@ -237,6 +239,11 @@ export async function runDev127LocalOwner({profilePath,phase,planSha256}) {
     const currentInventory=await readonly(database,async()=>inspect(database,state))
     if(phase==='catalog-commit')assertLocalOwnerContracts(currentInventory)
     await assertDev127InstalledMigration(database)
+    if(phase==='catalog-inspect') {
+      const result=await inspectLocalDev127Catalog(database)
+      return {phase,state:'INSPECTED',summary:result.summary,
+        ...await save(state,'catalog-inspect',{binding:state.binding,...result})}
+    }
     const releaseCapsuleRef={uri:`local:dev127/${state.binding.profileSha256}/${state.binding.source.revision}`,sha256:hash(state.binding)}
     const operation={phase:phase==='catalog-plan'?'plan':phase==='catalog-commit'?'commit':'status',
       commandId:dev127CommandId(releaseCapsuleRef),sourceRevision:state.binding.source.revision,releaseCapsuleRef,
