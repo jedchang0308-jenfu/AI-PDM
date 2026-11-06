@@ -2191,9 +2191,10 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
 ## DEV-127 — 平台與 AI-PDM 管理資格 consumer（IMPLEMENTING）
 
-來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`。PR571 protected MERGED至main `2d66b9ffdec00af91638f8771ea3e6edee00b869`；[合併後CI42130771577](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42130771577)兩required jobs SUCCESS。Formal profile為41 entries/order41=096，排除local-only 091–095／097。Owner準備包refs已provider-verified；首個相容性gate `MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED`，待`APP_INFRA` normal runner image rotation。尚無migration／runtime／traffic／grant或primary install/catalog；95f plan不沿用。本人兩環境正常Google/UI完整分母仍NOT_RUN。
+來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`。PR571／572已protected merge，54f required CI及normal runner build／APP_INFRA rotation完成。正常owner已apply096、native app RELEASED／新revision100%；post-finalize operation source upload DENIED，catalog Job未執行且完整接受仍未完成。current exact事實只見spec§8.4；primary install及本人兩環境Google/UI分母保留。
 
-- [Runner artifact builder corrective source](specs/DEV-127-platform-super-admin-consumer-contract.md#841-runner-image-refreshowner-artifact-builder-corrective-source)：own immutable source-lock CLI，normal build lookup／fence／unknown readback及scan／SBOM receipt；目前source/mock自查，正式build／APP_INFRA rotation仍NOT_RUN。
+- [Runner artifact builder](specs/DEV-127-platform-super-admin-consumer-contract.md#841-runner-image-refreshowner-artifact-builder-corrective-source)：原corrective已merge且正常build／rotation完成，保留17項closure與source／receipt provenance。
+- [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：只將closed own source create-only切既有buildertoken，receipt／control／Job／readback維持主身分；本slice為source-only，review／required CI後走新source新capsule正常attempt。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
-- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：先完成runner source refresh，再依OrgMaster ACL與clean source fresh plan；不以文件、immutable refs或CI當migration／部署／完整接受。
+- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：runner refresh／rotation已完成；接PR575 typed source writer的review／required CI／protected merge及新source新capsule正常attempt。primary-local依OrgMaster ACL與clean source fresh plan另接，不以文件、immutable refs或CI當catalog／完整接受。

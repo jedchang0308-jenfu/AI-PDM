@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { recordDev127CompatibleArtifact, requireDev127DeployedConsumer,
   establishDev127ActivationFence, requireDev127CompatibleRollback, dev127ConsumerInstallPlan } from './dev127-role-policy-release-gate.mjs'
-import { canonicalize, sha256, releasePaths, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { canonicalize, sha256, releasePaths, stageReceipt, createOwnerTransport } from './dev012-owner-release-runtime.mjs'
+import { crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { executeDev127CatalogBridge } from './dev127-catalog-release-bridge.mjs'
 import { assertDev127JobBasis } from './dev127-catalog-job.mjs'
 import { DEV127_JOB,DEV127_SERVICE,DEV127_MIGRATOR,DEV127_RECEIPT,dev127UpgradeRequestHash,assertDev127Operation } from './dev127-role-policy-upgrade.mjs'
@@ -124,6 +125,50 @@ test('DEV-127 finalize bridge uses one capsule and the fixed Job, sealed plan th
   assert.equal(result.value.state,'SUCCEEDED');assert.deepEqual(f.phases,['plan','commit'])
   await f.run();assert.deepEqual(f.phases,['plan','commit'],'receipt replay does not run a second Job')
   assert(f.mutations.some(uri=>uri.endsWith('/role-policy-v2-activation.json')))
+})
+
+test('DEV-127 real publication transport crosses deployer/source IAM boundary without leaking builder to receipts or repeating unknown writes',async t=>{
+  for(const mode of ['success','missing-builder','unknown-source-create'])await t.test(mode,async()=>{
+    const f=await bridgeFixture(),calls=[]
+    const primary='MODELED-PRIMARY-DEPLOYER-TOKEN',builder='MODELED-SECONDARY-BUILDER-TOKEN'
+    const response=(value,status=200)=>new Response(JSON.stringify(value),{status})
+    const transport=createOwnerTransport({token:primary,builderReadbackToken:mode==='missing-builder'?null:builder,
+      fetchImpl:async(url,options={})=>{
+        const target=new URL(url),upload=target.pathname.startsWith('/upload/storage/v1/')
+        const object=upload?target.searchParams.get('name'):decodeURIComponent(target.pathname.split('/o/')[1])
+        const uri=`gs://${f.profile.artifact.releaseBucket}/${object}`
+        const actor=options.headers.authorization===`Bearer ${primary}`?'deployer':options.headers.authorization===`Bearer ${builder}`?'builder':'unknown'
+        calls.push({actor,object,method:options.method??'GET'})
+        if(upload){
+          const source=object.startsWith('source/')
+          if(actor!==(source?'builder':'deployer'))return response({},403)
+          assert.equal(target.searchParams.get('ifGenerationMatch'),'0')
+          if(f.objects.has(uri))return response({},412)
+          const row=f.store(uri,JSON.parse(Buffer.from(options.body).toString('utf8')))
+          if(source&&mode==='unknown-source-create')throw Error('modeled lost response')
+          return response({generation:row.metadata.generation})
+        }
+        assert.equal(actor,'deployer')
+        const row=f.objects.get(uri)
+        if(!row)return response({},404)
+        return target.searchParams.get('alt')==='media'?new Response(row.bytes)
+          :response({generation:row.metadata.generation,size:String(row.bytes.length),crc32c:crc32cBase64(row.bytes)})
+      }})
+    f.transport.putJson=transport.putJson
+    if(mode==='success'){
+      assert.equal((await f.run()).value.state,'SUCCEEDED')
+      assert.deepEqual(f.phases,['plan','commit'])
+      assert.equal(calls.filter(call=>call.actor==='builder').length,2)
+      assert(calls.filter(call=>call.actor==='builder').every(call=>call.method==='POST'&&call.object.startsWith('source/migration-bundles/dev127/')))
+      await f.run()
+      assert.deepEqual(f.phases,['plan','commit'])
+      assert.equal(calls.filter(call=>call.actor==='builder').length,2,'cached phase receipts cause no new source submission')
+    }else{
+      await assert.rejects(f.run(),{code:mode==='missing-builder'?'DEV127_SOURCE_WRITER_TOKEN_REQUIRED':'OUTCOME_UNKNOWN'})
+      assert.deepEqual(f.phases,[],'source admission/unknown blocks all dependent Job submissions')
+      assert.equal(calls.filter(call=>call.actor==='builder').length,mode==='missing-builder'?0:1)
+    }
+  })
 })
 
 test('DEV-127 unknown owner commit performs provider-guarded read-only status and never resubmits a writer',async()=>{

@@ -2,7 +2,11 @@
 
 更新：2026-11-06（Asia/Taipei）。本頁只記錄可追溯證據及未完成範圍，不宣稱獨立QC或產品驗收。唯一工程契約與current status見[spec §8.4](../specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)，完整接受分母見[spec §6.3](../specs/DEV-127-platform-super-admin-consumer-contract.md#63-normal-ui-acceptance)。
 
-官方source：[PR #571](https://github.com/jedchang0308-jenfu/AI-PDM/pull/571)已protected merge至`main@2d66b9ffdec00af91638f8771ea3e6edee00b869`，PR head=`95f4f5fec370c533b8f89d53adc745ab7ab0e462`；合併後required CI為42130771577。其後corrective source只修owner runner artifact建置入口與共用build transport，沒有修改SQL／產品授權行為；未執行primary-local或production寫入。
+現行正式attempt由主控讀回：[PR #572](https://github.com/jedchang0308-jenfu/AI-PDM/pull/572)已protected merge54f並通過required CI，normal runner build／85-address rotation已完成；[workflow42155111795](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42155111795)正常migrate replay40／apply096、ledger41，app native terminal RELEASED／service gen368／新revision100%。後置catalog source upload DENIED，basis／fence保留，operation、submission與plan／commit／status皆MISSING、沒有catalog Job execution；workflow因此FAIL，不能把native app RELEASED延伸成catalog／完整接受PASS。exact source／capsule／digest與partial事實只由[spec §8.4](../specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)維護。
+
+本次[typed source writer corrective](../specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)只改normal transport：closed DEV127 source create-only用既有builder token，readback／receipt／control／Job及原sealed guard保持主身分；未更動17項runner closure或SQL，也未執行provider／DB／Job／runtime／traffic。RD focused61／61、affected-slice planner22＋release-core275共297／297 PASS，targeted ESLint／syntax／diff PASS；fixture涵蓋primary source403、closed source builder成功、wrong owner/path/hash/schema/token寫前拒絕、412 exact reuse／hash conflict、unknown不重送與cached phase replay。fixture刻意限縮secondary能力，不冒稱actual builder IAM無receipt權限；不是獨立QC或正式結果。review／required CI由本切片PR續接。
+
+以下表格保留PR571與原runner builder corrective在54f正式attempt前的證據快照；其中NOT_RUN／待合併描述為當時狀態，現行事實以上段與spec §8.4為準，不改寫舊immutable refs或將較早CI改綁新source。
 
 | 證據層 | 判定 | 支持的行為／限制 |
 |---|---|---|
@@ -23,7 +27,7 @@
 
 下一步依序為：
 
-1. 先完成runner artifact builder corrective source的review、protected merge及exact-main required CI；再以其clean own checkout、既有immutable source-lock執行standalone builder。`APP_INFRA`接續既有normal image rotation，fresh provider readback後重跑compatibility gate；本機mock不代替正式artifact。
+1. 完成本次typed source writer corrective的review、protected merge及exact-main required CI。正常新source／新capsule attempt由原gate判斷reuse／build及runner compatibility；不得偽造舊workflowSHA，不重播已APPLIED096或原normal rotation，不增recovery mode。
 2. 各owner完成並提供OrgMaster 044/045及三個versioned contract ACL證據；coordinator以clean merged source、同profile／known marker與真migrator OIDC重做readonly plan。
-3. gate和owner前置通過後，按既有sealed workflow執行正式release；primary-local bridge另循atomic install→ledger readback→catalog plan/CAS/receipt。unknown先fresh readonly readback，不重送writer。
+3. 依normal sealed workflow完成後置catalog與原receipt readback，保留前一app terminal與v2 rollback fence；primary-local bridge另循atomic install→ledger readback→catalog plan/CAS/receipt。unknown先fresh readonly readback，不重送writer，未驗catalog仍NOT_RUN／NOT_ACCEPTED。
 4. 以同一指定本人經正常Google/UI完成地端與production完整分母。維持AAL1最低／有效AAL2、權威中文名、Platform root／AI-PDM app-admin／business權限分離。

@@ -7,6 +7,7 @@ import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest }
 import { readAiPdmReleaseObservation, verifyOwnerProviderReadback, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
 import { fetchProviderBytes, fetchProviderRead } from './dev012-read-retry.mjs'
 import { assertDev125WindowsInstallerReceipt } from './dev125-windows-installer-artifact.mjs'
+import { DEV127_OPERATION, DEV127_BUCKET, assertDev127Operation } from './dev127-role-policy-upgrade.mjs'
 import {
   ownerPrivateObjectMediaWindow,
   OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
@@ -395,13 +396,13 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     return { ...result, value }
   }
 
-  async function putBytes(uri, bytes, { bucket, prefix, contentType = 'application/octet-stream', ifGenerationMatch = '0' }) {
+  async function writeBytes(uri, bytes, { bucket, prefix, contentType = 'application/octet-stream', ifGenerationMatch = '0' }, writeHeaders) {
     parseGsUri(uri, bucket, prefix)
     const object = uri.slice(`gs://${bucket}/`.length)
     const endpoint = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(object)}&ifGenerationMatch=${encodeURIComponent(ifGenerationMatch)}`
     let response
     try {
-      response = await fetchImpl(endpoint, { method: 'POST', headers: { ...authHeaders, 'content-type': contentType }, body: bytes, signal: AbortSignal.timeout(60_000) })
+      response = await fetchImpl(endpoint, { method: 'POST', headers: { ...writeHeaders, 'content-type': contentType }, body: bytes, signal: AbortSignal.timeout(60_000) })
     } catch (error) {
       fail('OUTCOME_UNKNOWN', error?.name ?? 'gcs-write')
     }
@@ -417,8 +418,28 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     return { ...readback, reused: false }
   }
 
+  async function putBytes(uri, bytes, options) {
+    return writeBytes(uri, bytes, options, authHeaders)
+  }
+
   async function putJson(uri, value, options) {
-    return putBytes(uri, Buffer.from(`${canonicalize(value)}\n`, 'utf8'), { ...options, contentType: 'application/json' })
+    const canonical = canonicalize(value)
+    const bytes = Buffer.from(`${canonical}\n`, 'utf8')
+    let writeHeaders = authHeaders
+    if (value?.schemaVersion === DEV127_OPERATION || uri?.includes('/source/migration-bundles/dev127/')) {
+      if (options?.bucket !== DEV127_BUCKET || options.prefix !== 'source' || options.ifGenerationMatch !== '0' ||
+          uri !== `gs://${DEV127_BUCKET}/source/migration-bundles/dev127/${sha256(canonical)}.json`) fail('DEV127_SOURCE_PUBLICATION_INVALID')
+      assertDev127Operation(value, { bytes, sha256: sha256(bytes), sourceRevision: value.sourceRevision,
+        runnerSourceRevision: value.migrationRunnerSourceRevision, outputRef: value.outputRef })
+      for (const ref of [value.releaseCapsuleRef, value.deploymentCapsuleRef, value.basisRef,
+        ...(value.planReceiptRef ? [value.planReceiptRef] : [])]) parseGsUri(ref.uri, DEV127_BUCKET, 'receipts')
+      parseGsUri(value.outputRef, DEV127_BUCKET, 'receipts')
+      if (typeof builderReadbackToken !== 'string' || builderReadbackToken.trim().length < 20) fail('DEV127_SOURCE_WRITER_TOKEN_REQUIRED')
+      // This existing builder identity may publish only the closed operation source.
+      // Receipt/control writes, provider requests and all readbacks stay primary.
+      writeHeaders = { authorization: `Bearer ${builderReadbackToken.trim()}` }
+    }
+    return writeBytes(uri, bytes, { ...options, contentType: 'application/json' }, writeHeaders)
   }
 
   async function deleteBytes(uri, { bucket, prefix, expectedGeneration }) {
@@ -1421,8 +1442,8 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  // Source/build evidence is observation only. Optional builder authentication
-  // is isolated to the proof reader's exact Build/Registry GETs; request stays primary.
+  // Source/build evidence is observation only. Builder authentication for proof
+  // reads stays isolated here; putJson separately admits only closed DEV127 source creation.
   async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false, readSource = null }) {
     if (profile.application.id !== 'ai-pdm' || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
       || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'

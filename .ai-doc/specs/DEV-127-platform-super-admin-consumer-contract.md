@@ -139,7 +139,7 @@ OrgMaster v4 contract manifest 實際有 **19 欄**：`contract_version, assignm
 
 ### 3.3 Forward-only PDM migration
 
-`db/postgres` 實作前 latest 為 local-only `095_dev126_local_abandoned_registration.sql`；本次新增 `096_dev127_platform_super_admin_consumer.sql` 並在 disposable PG 驗證，production profile 已於原40筆後追加order41；096 尚未套持續地端／正式 DB。096 additive 建立 v3 current catalog view／v2 manager guard／v2 apply entrypoints 與 exact grants；同時撤銷 `jenfu_ai_pdm_runtime` 對既有 `role_policy_lock_apply_v1(uuid,uuid,text,text)` 與 `role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,char,text)` 的 `EXECUTE`，保留舊函式定義及歷史唯讀路徑。這不會升級或改寫 active v1 catalog，也不會授予管理任用；部署後先暫停 policy writes，直到雙讀 v1/v2 consumer 經正常登入驗證並完成 owner additive upgrade。不得修改已套用的 `087_dev123_role_policy_candidate_validation.sql`，不改 OrgMaster schema，不讀寫 sibling `*_core`。
+`db/postgres` 實作前 latest 為 local-only `095_dev126_local_abandoned_registration.sql`；本次新增 `096_dev127_platform_super_admin_consumer.sql` 並在 disposable PG 驗證，production profile 已於原40筆後追加order41；正式096已由54f的normal owner attempt套用（詳§8.4）；持續地端尚未安裝。096 additive 建立 v3 current catalog view／v2 manager guard／v2 apply entrypoints 與 exact grants；同時撤銷 `jenfu_ai_pdm_runtime` 對既有 `role_policy_lock_apply_v1(uuid,uuid,text,text)` 與 `role_policy_apply_v1(uuid,text,text,text,text,uuid,integer,text,char,text)` 的 `EXECUTE`，保留舊函式定義及歷史唯讀路徑。這不會升級或改寫 active v1 catalog，也不會授予管理任用；部署後先暫停 policy writes，直到雙讀 v1/v2 consumer 經正常登入驗證並完成 owner additive upgrade。不得修改已套用的 `087_dev123_role_policy_candidate_validation.sql`，不改 OrgMaster schema，不讀寫 sibling `*_core`。
 
 v2 SQL entrypoints 保持 v1 既有 positional API shape：`ai_pdm_core.role_policy_lock_apply_v2(uuid,uuid,text,text)` 參數為 `p_request_id uuid, p_draft_id uuid, p_actor_principal_id text, p_session_id_hash text`；`ai_pdm_core.role_policy_apply_v2(uuid,text,text,text,text,uuid,integer,text,char,text)` 參數依序為 `p_request_id uuid, p_actor_principal_id text, p_session_id_hash text, p_identity_issuer text, p_identity_subject text, p_draft_id uuid, p_expected_revision integer, p_expected_catalog_version text, p_expected_catalog_sha256 char(64), p_reason text`（PostgreSQL identity signature 中 `char(64)` 顯示為 `char`）。Lock 維持 READ COMMITTED 同交易，先取得 OrgMaster v2 administration/manager authority fence，再鎖 Principal account/session、request idempotency row、active catalog/publication、draft；鎖後新快照核 exact principal/account/session/epoch、AAL1-or-AAL2、validity window 及 `ai_pdm_role_policy_manager_eligible_v2`。`apply_v2` 必須直接重驗，runtime 不能靠直接呼叫 SQL function 繞過 PDM manager gate。`create/save` 仍由 policy service 在寫前及 row/advisory lock wait 後重驗同一 v2 eligibility；不得只改 UI disabled。v2 eligibility 保留 active `human_privileged` 的 exact direct global legacy `role-system-admin / system_admin` 例外。
 
@@ -246,25 +246,26 @@ Source交付PR為AI-PDM #571。首輪GitHub run `42072326926`（source `0745ba2d
 
 ### 8.4 唯一當前進度與下一步
 
-截至2026-11-06，本次文件整理不改產品 source／SQL，也不執行primary-local或production寫入。正式狀態以 protected merge、合併後 required CI 及本次 owner-preparation evidence 分開判讀：
+截至2026-11-06，本切片只修 owner transport 的 DEV127 operation source 發布身分，不改產品授權／SQL，也不執行primary-local或production寫入。下表包含主控已讀回的前一正式 attempt；app native RELEASED、catalog upgrade與完整真人接受分開判讀。
 
 | 層級／項目 | 當前判定 | 已有證據與界線 |
 |---|---|---|
-| 官方 source／PR | PROTECTED MERGED | [PR #571](https://github.com/jedchang0308-jenfu/AI-PDM/pull/571)以 merge commit `2d66b9ffdec00af91638f8771ea3e6edee00b869` 進入 `main`；PR head `95f4f5fe`。閉合的 local wrapper、local-only 097、原096、known marker、exact DEV migrator、target/ledger/CAS/unknown readback 已在合併 source。434 bounded local-bridge TL review 無未解 P1/P2，非獨立產品QC |
-| 合併後 required CI | 兩個 required jobs SUCCESS | [CI42130771577](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42130771577)對 exact merge SHA。`DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 成功；同 run 的 isolated application candidate 成功，但 isolated runtime candidate build step 與 full isolated release candidate 均 skipped，不能寫成完整 release build／部署驗收 |
+| 官方 release source／PR | PROTECTED MERGED | [PR #571](https://github.com/jedchang0308-jenfu/AI-PDM/pull/571)的consumer／local bridge及[PR #572](https://github.com/jedchang0308-jenfu/AI-PDM/pull/572)的normal runner builder已合併；本次正式attempt綁 `54f6bc93cf7cf7a14b3d39675727024ce81d26d2`。本source corrective自該基底新branch開發，不將其後main的local-login變更冒稱本切片已review；正常merge與main CI涵蓋其交會 |
+| 合併後 required CI | PR572／main54f兩required SUCCESS | 主控已核54f的 `DEV-012 Isolated PostgreSQL Cutover`與`Production Slice QC`；前一[CI42130771577](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42130771577)只綁PR571 merge2d66，保留自己的candidate／skipped界線，不改綁54f。本source corrective仍需自己的required CI，source CI不是catalog或真人接受證據 |
 | RD／SQL component 證據 | PASS；來源各自綁定 | Node18 source 自查及 bounded review 記於PR571。SQL component `1/1 PASS, 0 skipped` 來自run42120180413的CI disposable nonce DB，驗原097＋原096、負向rollback、ACL/owner與既有rows保留、unknown commit fresh ledger read、catalog CAS／原receipt；producer為synthetic，不是primary或真人資料。不可把較早run混寫為本次merge CI的獨立測試結果 |
-| Formal migration profile | 41 entries；order 41 為 096 | release source 的固定 profile 以既有40筆為prefix，追加 `db/postgres/096_dev127_platform_super_admin_consumer.sql`；local-only 091–095及097不在formal profile。profile僅代表 source manifest，尚未套用migration或改寫catalog |
-| Owner source/runtime refs | PROVIDER_VERIFIED；未執行workflow | `REL-AIPDM-DEV127-20261106-001` handoff 綁 source SHA `2d66b9ffdec00af91638f8771ea3e6edee00b869`；source artifact SHA256 `2242b3ea1018c97d53eea0bef1db8c3ece838b8d2559187b270f03afc13e9736`／generation `1793925993585105`，runtime artifact SHA256 `efb181d76ef6fe788bcd7dd7e2ef858bf8e48cd382ed2f77b1a91bafb41e819f`／generation `1793926105103310`。handoff scope 記錄只有 source-freeze/runtime refs，沒有 workflow、migration、runtime、traffic、Job、intent 或 grant apply；immutable artifact 本身不構成正式零寫入驗證或runtime部署證據 |
-| 正式相容性首個 gate | `MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED` | liveJob43仍綁 runner source `3720c7cea8f294f086e34a175fdf911283971007`、digest `2cb13029f309e7b952ef99857f80675dd3beb497a1a70ef91e827b4072e545d9`。需走既有 normal `APP_INFRA` runner image rotation；本次尚未build／apply該rotation，也未migration、candidate/runtime、traffic或grant。這是現行owner-preparation的首個停點 |
+| Formal migration profile／ledger | 41 entries；096已正式APPLIED | 正常owner attempt replay40、apply唯一096，ledger41；local-only091–095及097仍不在formal profile。096只安裝consumer，不等於catalog additive upgrade或授予app管理任用；primary-local install仍NOT_RUN |
+| 歷史owner準備refs | 原immutable provenance保留 | `REL-AIPDM-DEV127-20261106-001`綁2d66的source SHA256 `2242b3ea1018c97d53eea0bef1db8c3ece838b8d2559187b270f03afc13e9736`／generation1793925993585105，runtime SHA256 `efb181d76ef6fe788bcd7dd7e2ef858bf8e48cd382ed2f77b1a91bafb41e819f`／generation1793926105103310；只證當時準備物，不改綁後一54f attempt。現行正式attempt及未完成catalog見下列獨立項目 |
+| Runner refresh／APP_INFRA | 原首敗已收斂，normal APPLIED | source54f的native build `fa5cff70-d13f-4090-aad7-f4d3ba2b4b41`，runner digest `bb89d56a4c68e6e3c3dddc599127046902abd17758f1f332de96e796d5e77a48`；normal85-address image rotation APPLIED、own Job image/source已讀回。原Job43／source3720的refresh gate保留為歷史；本source corrective不改17項runner closure，不重播已完成rotation |
+| 正式app attempt／後置catalog | App native RELEASED；catalog NOT_RUN | [workflow42155111795](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42155111795)，release `REL-AIPDM-DEV127-20261106-002`、capsule SHA `3fa16fa657b9451782f7a065d138f60613c328db41867538a8343ca17630aab3`；candidate／activate／canonical／finalize／terminal原生RELEASED，service generation／observed368、`ai-pdm-prod-a9202456252c`為100%流量。後置bridge在source upload回DENIED，workflow因而FAIL並記POST_FINALIZE_OWNER_RECOVERY_REQUIRED；basis／fence已保留，operation JSON、plan submission／plan／commit／status均MISSING且沒有catalog Job execution。不得rollback finalized app或宣稱catalog／整體驗收已完成 |
 | Primary-local readonly plan | 舊95f plan為歷史 `PLANNED`；不沿用 | 當時CLI reference SHA `1cd312aadc2872e532a5a9d411b7ab429abedfc7ad7c5452fc63fe99e46e17c4`；ledger53／known marker MATCH、兩個Org函數EXECUTE=false、Platform v3 state及兩個contract namespace USAGE=true。該plan早於目前main source和本輪owner準備，不授權write；source、Org044/045或ACL/inventory變動後須clean source fresh plan，舊CAS不可沿用 |
 | Primary-local install／catalog | NOT_RUN | 未執行local097／096、DDL、catalog commit或本地授予app管理任用。早期readonly observation記錄兩schema owner仍為postgres、migrator缺USAGE/CREATE；需各owner先完成其ACL責任，再由coordinator fresh plan |
 | 同本人兩環境正常UI／完整接受 | NOT_RUN／NOT_ACCEPTED | 指定同一Google個人帳號 `jedchang0308@jenfu.com.tw`／張仕杰 `JFS0005`。地端與production仍需逐環境驗真AAL1最低並保留有效AAL2、Platform root/admin、AI-PDM app-admin、中文姓名/reload、圖號入口及policy create/save/apply/reload；app-admin不得取得business write或其他app權限。完整分母見§6.3，未縮減 |
 
 下一步按依賴接續：
 
-1. `APP_INFRA` owner依既有路徑完成migration-runner source refresh/image rotation，fresh build與provider readback後重新執行受控相容性檢查；目前immutable refs不能代替此gate。
+1. 收斂§8.4.2 source-writer corrective的review、protected merge與exact-main required CI；後續新source使用新capsule／正常owner attempt，由既有gate計算artifact reuse或build及runner compatibility，不重播已APPLIED的096／rotation，不偽造舊workflow的GITHUB_SHA。
 2. 各owner完成並提供OrgMaster 044/045及三個versioned contract ACL之前置證據；coordinator再以clean merged owner source、同一profile／known marker、真migrator OIDC產生fresh readonly plan。舊95f plan和CAS不重寫、不沿用。
-3. gate與owner前置通過後，依既有授權及sealed owner workflow接續正式release；primary-local bridge另依原子install→ledger readback→catalog plan/CAS/receipt，unknown先fresh readonly readback，不重送。此文件更新沒有執行這些寫入。
+3. 新source attempt仍走原sealed owner workflow，catalog operation需保留前一terminal與v2 rollback fence，經normal finalized basis／fresh live proof才提交；沒有為重用舊capsule新增recovery mode。primary-local bridge另依原子install→ledger readback→catalog plan/CAS/receipt，unknown先fresh readonly readback，不重送。本source切片沒有執行這些寫入。
 4. 之後由同一指定本人經正常Google/UI完成地端與production全部原分母；AAL1為最低且保留有效AAL2，中文姓名取權威投影，Platform root、AI-PDM app-admin與business permissions分界維持。
 
 較早`6d66ba5`／[42078884110](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42078884110)與`e813d6137`／[42075224808](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42075224808)僅支持各自source；本機DOM4受canonical jsdom前置限制，本機isolated build曾受capacity guard阻擋且未取得lease。未將舊綠燈或skipped candidate改綁目前source。首敗與修法保留於§8.6。
@@ -279,7 +280,21 @@ Runner 建置沿既有 `createOwnerTransport.createBuild`，只將 own profile �
 
 回傳 immutable own receipt 綁原 source-lock／generation、source archive hash／generation／CRC、原 Cloud Build request／source provenance、immutable runner digest、Artifact Registry、當次 scan／SBOM及 build disposition。相同 inputs replay保留原 build/source，不將舊 build 改標為新 source。CLI無 Job apply、SQL、runtime、traffic、IAM／Secret 或自由 target／role／env 能力。
 
-Corrective branch=`codex/dev127-runner-owner-builder-20261106`，base為上述官方 `2d66b9ff`；當前只是 source／mock 自查，尚未 protected merge或執行正式 Cloud Build／APP_INFRA rotation。新runner mock 10例及既有runtime／migration focused 53例PASS，分母重疊不相加；affected CI-profile為planner22／release-core267／database29，全318例PASS；DB boundary33檔及diff檢查PASS，review與required CI續接於QA狀態。正式 runner rotation及§6.3完整真人驗收仍未完成。release契約見§26.8的owner runner artifact builder amendment。
+原corrective branch=`codex/dev127-runner-owner-builder-20261106`與source/mock自查保留為歷史：runner mock10例、runtime／migration53例及affected CI-profile318例，各批分母不相加。PR572已protected merge54f並取得required CI；native runner build／normal APP_INFRA rotation的實際結果統一見§8.4。§6.3完整真人驗收仍未完成。release契約見§26.8的owner runner artifact builder amendment。
+
+<a id="dev127-operation-source-writer"></a>
+
+### 8.4.2 DEV127 typed operation source publication corrective
+
+前一finalize後bridge沿既有 `putJson` 對own `source/migration-bundles/dev127/<operationHash>.json` create-only發布時使用主deployer token；該identity只有source data-cutover cleanup與全object讀取，無general source create，故在任何catalog Job提交前DENIED。既有builder已具own source creator／viewer，本切片不增IAM／Secret或自由token／URI入口。
+
+`createOwnerTransport.putJson`重用既有 `assertDev127Operation` 驗closed operation，再核exact AI-PDM bucket／source prefix、`sha256(canonicalize(operation))`檔名與explicit `ifGenerationMatch=0`；只有此upload用既有 `AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN`。缺token、wrong owner／path／hash／schema／extra actor／SQL均在write前拒絕。所有refs／output仍限own receipts；immutable object bytes維持canonical JSON加newline，ref hash按實際bytes計算，不能與檔名operation hash混用。
+
+共享private upload保留原generation／CRC／SHA256讀回、412 exact-byte reuse與immutable conflict拒絕。readback仍用主deployer；receipt／control、Cloud Run Job及native consumer保持原identity與sealed guards。generic putBytes或其他putJson不借buildertoken；unknown upload不自行重送，後續Job保持NOT_RUN，依原provider readback規則接續。測試fixture刻意給secondary更窄能力以捕捉token leak，不宣稱現有builder IAM實際沒有receipt權限。
+
+此修改不改17項runner executable closure、runner builder／Docker／YAML、migration096、Job、actor binding或GitHub context。新source不得套入舊workflowSHA；protected merge／CI後以新source新capsule正常attempt，由原gates判定reuse／build及ledger replay。此回合只交付source／fixtures，未做provider、SQL、Job、runtime或traffic mutation。
+
+RD自查：focused runtime／bridge61／61 PASS；planner選release-control，22＋275共297／297 PASS（與focused重疊不相加）；targeted ESLint、syntax及diff check PASS。actual Git diff核17項runner inputs變更0。未執行typecheck／app build／native PostgreSQL，因本切片無相應輸入改動；required source CI另由PR續接，不能以此替代獨立QC或產品接受。
 
 ### 8.5 Primary-local bridge：工程接續與執行邊界
 
