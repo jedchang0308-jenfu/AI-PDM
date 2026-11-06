@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
+import { DEV127_OPERATION, DEV127_BUCKET, DEV127_SOURCE_POLICY_SHA256, dev127CommandId } from './lib/dev127-role-policy-upgrade.mjs'
 import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256, ownerPrivateObjectMediaWindow, OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
@@ -53,6 +54,121 @@ test('B24 secondary proof token never changes generic GET or mutation authorizat
   assert.equal(calls.length, 3)
   for (const call of calls) assert.equal(call.headers.authorization, `Bearer ${primary}`)
   assert.equal(JSON.stringify(Object.keys(transport)).includes(secondary), false)
+})
+
+function dev127Publication() {
+  const root = `gs://${DEV127_BUCKET}/receipts/releases/DEV127-PUBLICATION/${H64}`
+  const ref = name => ({ uri: `${root}/${name}.json`, sha256: H64 })
+  const releaseCapsuleRef = ref('release-intent')
+  const value = { schemaVersion: DEV127_OPERATION, ownerApplicationId: 'ai-pdm', phase: 'plan',
+    sourceRevision: H40, migrationRunnerSourceRevision: RUNNER_H40,
+    migrationRunnerDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${H64}`,
+    releaseCapsuleRef, deploymentCapsuleRef: ref('deployment'), basisRef: ref('dev127-catalog-upgrade/basis'),
+    commandId: dev127CommandId(releaseCapsuleRef), sourcePolicySha256: DEV127_SOURCE_POLICY_SHA256,
+    planReceiptRef: null, outputRef: `${root}/dev127-catalog-upgrade/plan.json` }
+  const uriFor = operation => `gs://${DEV127_BUCKET}/source/migration-bundles/dev127/${sha256(canonicalize(operation))}.json`
+  return { value, uri: uriFor(value), uriFor, options: { bucket: DEV127_BUCKET, prefix: 'source', ifGenerationMatch: '0' } }
+}
+
+function dev127PublicationIamFixture({ unknown = false } = {}) {
+  const primary = 'MODELED-PRIMARY-DEPLOYER-TOKEN', builder = 'MODELED-SECONDARY-BUILDER-TOKEN'
+  const objects = new Map(), calls = []
+  const fetchImpl = async (url, options = {}) => {
+    const target = new URL(url), method = options.method ?? 'GET'
+    const actor = options.headers?.authorization === `Bearer ${primary}` ? 'deployer'
+      : options.headers?.authorization === `Bearer ${builder}` ? 'builder' : 'unknown'
+    const upload = target.pathname.startsWith('/upload/storage/v1/')
+    const object = upload ? target.searchParams.get('name') : decodeURIComponent(target.pathname.split('/o/')[1] ?? '')
+    calls.push({ actor, method, object, url })
+    if (target.hostname === 'run.googleapis.com') return actor === 'deployer' ? json({ name: 'MODELED_JOB_OPERATION' }) : json({}, 403)
+    assert.equal(target.hostname, 'storage.googleapis.com')
+    if (upload) {
+      const source = object.startsWith('source/')
+      // The fixture deliberately gives the builder only the capability needed here,
+      // so receipt/control/Job token leaks fail even if production IAM is broader.
+      if (actor !== (source ? 'builder' : 'deployer')) return json({}, 403)
+      if (actor === 'builder' && !object.startsWith('source/migration-bundles/dev127/')) return json({}, 403)
+      assert.equal(target.searchParams.get('ifGenerationMatch'), '0')
+      if (objects.has(object)) return json({}, 412)
+      const bytes = Buffer.from(options.body), generation = String(objects.size + 1)
+      objects.set(object, { bytes, generation, crc32c: crc32cBase64(bytes) })
+      if (unknown) throw new Error('modeled response lost after create')
+      return json({ generation })
+    }
+    assert.equal(actor, 'deployer', 'all storage readback retains the primary identity')
+    const row = objects.get(object)
+    if (!row) return json({}, 404)
+    return target.searchParams.get('alt') === 'media' ? new Response(row.bytes)
+      : json({ generation: row.generation, size: String(row.bytes.length), crc32c: row.crc32c })
+  }
+  const transport = createOwnerTransport({ token: primary, builderReadbackToken: builder, fetchImpl, sleep: async () => undefined })
+  return { transport, objects, calls, fetchImpl, primary, builder }
+}
+
+test('DEV127 closed source creation uses builder while receipt/control/Job and readback stay deployer', async () => {
+  const p = dev127Publication(), f = dev127PublicationIamFixture()
+  await assert.rejects(f.transport.putBytes(p.uri, Buffer.from(canonicalize(p.value) + '\n'), p.options), { code: 'DENIED' })
+  const result = await f.transport.putJson(p.uri, p.value, p.options)
+  assert.equal(result.reused, false)
+  assert.equal(result.ref.sha256, sha256(Buffer.from(canonicalize(p.value) + '\n')))
+  assert.notEqual(result.ref.sha256, sha256(canonicalize(p.value)), 'object bytes include the existing canonical newline')
+  for (const prefix of ['receipts', 'control']) await f.transport.putJson(`gs://${DEV127_BUCKET}/${prefix}/test.json`, { status: 'fixture' }, { bucket: DEV127_BUCKET, prefix })
+  await f.transport.request('https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner:run', { method: 'POST', body: '{}' })
+  assert.deepEqual(f.calls.filter(call => call.actor === 'builder').map(call => [call.method, call.object]),
+    [['POST', p.uri.slice(`gs://${DEV127_BUCKET}/`.length)]])
+  const before = f.calls.length
+  await assert.rejects(f.transport.putJson(`gs://${DEV127_BUCKET}/source/ordinary.json`, { schemaVersion: 'ordinary' },
+    { bucket: DEV127_BUCKET, prefix: 'source' }), { code: 'DENIED' })
+  assert.equal(f.calls[before].actor, 'deployer', 'non-DEV127 source publication cannot borrow builder auth')
+})
+
+test('DEV127 source admission rejects wrong owner, path, content hash, operation shape and missing builder token before writes', async () => {
+  const p = dev127Publication(), f = dev127PublicationIamFixture()
+  for (const patch of [{ ownerApplicationId: 'platform' }, { schemaVersion: 'unknown' }, { actor: 'human' }, { sql: 'SELECT 1' },
+    { phase: 'sql' }, { sourceRevision: 'not-a-source' }, { sourcePolicySha256: 'f'.repeat(64) },
+    { commandId: 'wrong' }, { outputRef: 'gs://sibling/receipts/plan.json' },
+    { basisRef: { uri: `gs://${DEV127_BUCKET}/receipts/../control/x.json`, sha256: H64 } }]) {
+    const value = { ...p.value, ...patch }
+    await assert.rejects(f.transport.putJson(p.uriFor(value), value, p.options))
+  }
+  for (const uri of [p.uri.replace('/dev127/', '/other/'),
+    p.uri.replace(DEV127_BUCKET, 'sibling'), p.uri.replace('/source/', '/receipts/')]) {
+    if (uri !== p.uri) await assert.rejects(f.transport.putJson(uri, p.value, p.options), { code: 'DEV127_SOURCE_PUBLICATION_INVALID' })
+  }
+  await assert.rejects(f.transport.putJson(p.uri.replace(/\/[a-f0-9]{64}\.json$/u, `/${'0'.repeat(64)}.json`), p.value, p.options), { code: 'DEV127_SOURCE_PUBLICATION_INVALID' })
+  for (const options of [{ ...p.options, bucket: 'sibling' }, { ...p.options, prefix: 'receipts' },
+    { ...p.options, ifGenerationMatch: '1' }, { ...p.options, ifGenerationMatch: undefined }]) {
+    await assert.rejects(f.transport.putJson(p.uri, p.value, options), { code: 'DEV127_SOURCE_PUBLICATION_INVALID' })
+  }
+  for (const builderReadbackToken of [null, '', '  ', 'short', 123, {}]) {
+    const transport = createOwnerTransport({ token: f.primary, builderReadbackToken, fetchImpl: f.fetchImpl })
+    await assert.rejects(transport.putJson(p.uri, p.value, p.options), { code: 'DEV127_SOURCE_WRITER_TOKEN_REQUIRED' })
+  }
+  assert.deepEqual(f.calls, [])
+})
+
+test('DEV127 existing content is read back under deployer and conflicting immutable bytes are never overwritten', async () => {
+  const p = dev127Publication(), f = dev127PublicationIamFixture()
+  const first = await f.transport.putJson(p.uri, p.value, p.options)
+  const second = await f.transport.putJson(p.uri, p.value, p.options)
+  assert.equal(second.reused, true)
+  assert.deepEqual(second.ref, first.ref)
+  assert.equal(second.metadata.generation, first.metadata.generation)
+  const object = p.uri.slice(`gs://${DEV127_BUCKET}/`.length), bytes = Buffer.from('conflicting immutable bytes')
+  f.objects.set(object, { bytes, generation: '99', crc32c: crc32cBase64(bytes) })
+  await assert.rejects(f.transport.putJson(p.uri, p.value, p.options), { code: 'GCS_READBACK_HASH_MISMATCH' })
+  assert.equal(f.objects.get(object).generation, '99')
+  assert.deepEqual(f.objects.get(object).bytes, bytes)
+})
+
+test('DEV127 unknown source create is not resent and only explicit primary readback resolves the written bytes', async () => {
+  const p = dev127Publication(), f = dev127PublicationIamFixture({ unknown: true })
+  await assert.rejects(f.transport.putJson(p.uri, p.value, p.options), { code: 'OUTCOME_UNKNOWN' })
+  assert.deepEqual(f.calls.map(call => call.method), ['POST'])
+  const readback = await f.transport.readBytes(p.uri, { prefixes: ['source'], expectedSha256: sha256(Buffer.from(canonicalize(p.value) + '\n')) })
+  assert.equal(readback.ref.uri, p.uri)
+  assert.equal(f.calls.filter(call => call.method === 'POST').length, 1)
+  assert.ok(f.calls.slice(1).every(call => call.actor === 'deployer'))
 })
 
 test('B23 fixed runtime rejects wrong AI target and malformed pre-migration refs before any read', async () => {
