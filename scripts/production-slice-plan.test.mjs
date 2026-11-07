@@ -50,7 +50,43 @@ test('DEV-126 known local runtime inputs select app checks without inventing dat
   assert.equal(plan.gates.isolatedBuild, true)
   assert.equal(plan.gates.database, false)
   assert.equal(plan.gates.worker, false)
+  assert.equal(plan.gates.localRuntime, true)
   assert.equal(createProductionSlicePlan(['scripts/start-unreviewed-runtime.ps1']).classification, 'FULL')
+})
+
+test('DEV-128 data refresh and fixed test-admin startup do not inherit product release gates', () => {
+  const refresh = createProductionSlicePlan([
+    '.ai-doc/specs/DEV-128-masked-local-production-snapshot.md',
+    '.github/workflows/build-ai-pdm-masked-local-snapshot.yml',
+    '.github/workflows/export-ai-pdm-masked-local-snapshot.yml',
+    'config/release/dev128-masked-local-production-snapshot.json',
+    'infra/google-cloud/dev-128-masked-local-snapshot/main.tf',
+    'infra/google-cloud/dev-128-masked-local-snapshot-builder/main.tf',
+    'scripts/dev128-import-masked-local-snapshot.mjs',
+    'scripts/dev128-masked-local-snapshot-provider.test.mjs',
+    'scripts/lib/dev128-local-snapshot-import.mjs',
+  ])
+  assert.equal(refresh.schemaVersion, 'aipdm.production-slice-plan.v4')
+  assert.equal(refresh.classification, 'LOCAL_ONLY')
+  assert.deepEqual(refresh.slices, ['documentation', 'local-data-refresh'])
+  assert.equal(refresh.gates.localDataRefresh, true)
+  assert.deepEqual(refresh.releasePhases, [])
+  for (const gate of ['full', 'application', 'authorization', 'database', 'preview', 'recognition', 'worker', 'infrastructure', 'releaseCore', 'abortController', 'dependencyAudit', 'lint', 'dbBoundary', 'nativePostgres', 'migration', 'isolatedBuild', 'desktopUi']) {
+    assert.equal(refresh.gates[gate], false, gate)
+  }
+
+  const runtime = createProductionSlicePlan([
+    'scripts/start-local-test-admin.ps1',
+    'scripts/qc-local-dev-entrypoint.mjs',
+    'scripts/dev-local-process-ownership.test.mjs',
+  ])
+  assert.equal(runtime.classification, 'LOCAL_ONLY')
+  assert.deepEqual(runtime.slices, ['local-runtime'])
+  assert.equal(runtime.gates.localRuntime, true)
+  assert.deepEqual(runtime.releasePhases, [])
+  for (const gate of ['full', 'application', 'authorization', 'database', 'preview', 'recognition', 'worker', 'infrastructure', 'releaseCore', 'abortController', 'dependencyAudit', 'lint', 'dbBoundary', 'nativePostgres', 'migration', 'isolatedBuild', 'desktopUi']) {
+    assert.equal(runtime.gates[gate], false, gate)
+  }
 })
 
 test('documentation-only changes keep product gates closed', () => {
@@ -254,11 +290,16 @@ test('abort, dependency and build gates follow their own changed responsibility'
 
 test('required CI does not couple release control to unrelated product gates', () => {
   const source = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8')
+  assert.match(source, /- name: Build and verify DEV-125 Windows installer\s+if: steps\.slice\.outputs\.worker == 'true'/u)
+  assert.match(source, /- name: Upload DEV-125 Windows installer evidence\s+if: steps\.slice\.outputs\.worker == 'true'/u)
   assert.match(source, /Reject high or critical production dependency findings[\s\S]*?if: steps\.slice\.outputs\.dependency_audit == 'true'/u)
   assert.match(source, /- name: Lint\s+if: steps\.slice\.outputs\.lint == 'true'/u)
   assert.match(source, /- name: Verify release and infrastructure slice\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
   assert.match(source, /- name: Verify shared release package contracts\s+if: steps\.slice\.outputs\.infrastructure == 'true'/u)
   assert.match(source, /- name: Verify abort controller\s+if: steps\.slice\.outputs\.abort_controller == 'true'/u)
+  assert.match(source, /- name: Verify DEV-128 bounded data refresh\s+if: steps\.slice\.outputs\.local_data_refresh == 'true'[\s\S]*?npm run test:dev128:masked-local-snapshot/u)
+  assert.match(source, /- name: Verify fixed local test-admin runtime\s+if: steps\.slice\.outputs\.local_runtime == 'true'[\s\S]*?npm run qc:local-dev-entrypoint[\s\S]*?npm run test:local-test-admin/u)
+  assert.doesNotMatch(source.match(/- name: Verify release and infrastructure slice[\s\S]*?- name: Verify application and authorization slice/u)?.[0] ?? '', /test:dev128:masked-local-snapshot/u)
   const runner = fs.readFileSync(path.join(root, 'scripts/run-production-slice-tests.mjs'), 'utf8')
   assert.match(runner, /if \(plan\.gates\.releaseCore\) groups\.push/u)
   assert.doesNotMatch(runner, /profile === 'owner' \|\| plan\.gates\.releaseCore/u)

@@ -3,6 +3,8 @@ import { evaluateRepeatedFailure } from './dev117-release-control-policy.mjs'
 
 const SLICE_ORDER = Object.freeze([
   'documentation',
+  'local-data-refresh',
+  'local-runtime',
   'application',
   'authorization',
   'database',
@@ -13,6 +15,25 @@ const SLICE_ORDER = Object.freeze([
   'release-control',
   'unknown',
 ])
+
+// DEV-128 is a bounded production-read/local-import lane. Its own tests cover
+// exact workflow binding, no-overrides execution, credential exclusion,
+// encrypted transfer and fail-closed local readback. It does not change the
+// serving application, release adapter, worker, preview or recognition paths.
+const LOCAL_DATA_REFRESH = [
+  /^\.github\/workflows\/(?:build|export)-ai-pdm-masked-local-snapshot\.yml$/u,
+  /^config\/release\/dev128-masked-local-production-(?:catalog-shape|snapshot)\.json$/u,
+  /^infra\/google-cloud\/dev-128-masked-local-snapshot(?:-builder)?\//u,
+  /^scripts\/(?:lib\/)?dev128-(?:freeze-catalog-shape|import-masked-local-snapshot|local-snapshot-import|masked-local-snapshot|prepare-local-masked-snapshot)(?:\.|-)/u,
+]
+
+// These files only select and verify the retained loopback-only development
+// profile. They never enter a production image or deployment.
+const LOCAL_RUNTIME = [
+  /^scripts\/start-local-test-admin\.ps1$/u,
+  /^scripts\/qc-local-dev-entrypoint\.mjs$/u,
+  /^scripts\/dev-local-process-ownership\.test\.mjs$/u,
+]
 
 const RELEASE_CONTROL = [
   /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
@@ -141,6 +162,8 @@ export function classifyProductionPath(value) {
   const slices = new Set()
   if (!path) return ['unknown']
 
+  if (matches(path, LOCAL_DATA_REFRESH)) return ['local-data-refresh']
+  if (matches(path, LOCAL_RUNTIME)) return ['local-runtime']
   if (matches(path, RELEASE_CONTROL_ONLY)) return ['release-control']
 
   // This one document is copied into the production image and is therefore
@@ -177,6 +200,7 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
   const full = has('unknown')
   const releaseControlAffected = has('release-control')
   const docsOnly = !full && slices.length === 1 && has('documentation')
+  const localOnly = !full && !docsOnly && slices.every(slice => ['documentation', 'local-data-refresh', 'local-runtime'].includes(slice))
   const databaseAffected = full || has('database')
   const applicationAffected = full || has('application') || has('authorization') || has('preview') || has('recognition')
   const abortControllerAffected = full || files.some(file => file.startsWith('tools/dev-117/abort-controller/'))
@@ -184,6 +208,8 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
     planner: true,
     full,
     documentation: docsOnly,
+    localDataRefresh: full || has('local-data-refresh'),
+    localRuntime: full || has('local-runtime'),
     application: applicationAffected,
     authorization: full || has('authorization'),
     database: databaseAffected,
@@ -205,12 +231,14 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
     isolatedBuild: applicationAffected,
     desktopUi: full || has('application') || has('preview') || has('recognition'),
   }
-  const releasePhases = docsOnly
+  const releasePhases = docsOnly || localOnly
     ? []
     : ['preflight', 'build', ...(gates.migration ? ['migrate-if-needed'] : []), 'candidate-smoke', 'activate-readback']
   const evidenceRequirements = docsOnly
     ? ['documentation-contract']
     : [
+        ...(gates.localDataRefresh ? ['production-read-credential-exclusion-local-import-readback'] : []),
+        ...(gates.localRuntime ? ['loopback-test-admin-fixed-startup'] : []),
         ...(gates.authorization ? ['actor-grant-allow-deny'] : []),
         ...(gates.database ? ['transaction-readback-rollback'] : []),
         ...(gates.preview ? ['version-bytes-desktop'] : []),
@@ -220,10 +248,10 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
       ]
 
   return {
-    schemaVersion: 'aipdm.production-slice-plan.v3',
+    schemaVersion: 'aipdm.production-slice-plan.v4',
     baseRevision,
     headRevision,
-    classification: full ? 'FULL' : docsOnly ? 'DOCUMENTATION_ONLY' : 'AFFECTED_SLICES',
+    classification: full ? 'FULL' : docsOnly ? 'DOCUMENTATION_ONLY' : localOnly ? 'LOCAL_ONLY' : 'AFFECTED_SLICES',
     files,
     slices,
     reasons: Object.fromEntries(Object.entries(reasons).filter(([, entries]) => entries.length > 0)),
