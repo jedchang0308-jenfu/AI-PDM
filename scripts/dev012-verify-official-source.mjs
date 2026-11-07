@@ -10,6 +10,8 @@ export const OFFICIAL_SOURCE_WORKFLOW_REFS = new Set([
   `${repository}/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/${branch}`,
   `${repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/${branch}`,
   `${repository}/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/${branch}`,
+  `${repository}/.github/workflows/build-ai-pdm-masked-local-snapshot.yml@refs/heads/${branch}`,
+  `${repository}/.github/workflows/export-ai-pdm-masked-local-snapshot.yml@refs/heads/${branch}`,
 ])
 
 export function assertOfficialSourceWorkflow(environment) {
