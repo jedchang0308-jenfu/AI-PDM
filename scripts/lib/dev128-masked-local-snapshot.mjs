@@ -44,6 +44,7 @@ export function assertMaskedSnapshotConfig(config) {
       config.objectPrefix !== 'source/migration-bundles/data-cutover/masked-local-snapshots' ||
       config.transfer?.encryption !== 'RSA-OAEP-SHA256+A256GCM' ||
       config.transfer?.artifactRetentionDays !== 1 || config.transfer?.gcsDeleteGenerationMatch !== true ||
+      config.masking?.businessDataPolicy !== 'COPY_AS_IS' ||
        config.localTarget?.runtimeRoot !== 'C:\\VIBE CODING\\.local\\AI_PDM\\test-admin-1020-masked-snapshot' ||
        config.localTarget?.applicationPort !== 1020 || config.localTarget?.databasePort !== 58421 || config.localTarget?.schema !== 'ai_pdm_core' ||
        config.localTarget?.sandboxId !== 'pdm-test-admin-1020-masked-snapshot' ||
@@ -344,6 +345,50 @@ function sanitizeJsonValue(value, { config, tableName, columnName, rowIndex, str
   return pseudo
 }
 
+function copyBusinessJsonValue(value, key = '', { stripExternalPointers = false } = {}) {
+  if (HARD_SECRET.test(key) || patternMatches(['(^|_)(password|secret|token|credential|provider_subject|firebase_uid|firebase_id|ip_address|ip_hash)(_|$)'], key)) return null
+  if (value === null || value === undefined || typeof value === 'boolean' || typeof value === 'number') return value
+  if (typeof value === 'string') {
+    if (stripExternalPointers && (ABSOLUTE_PATH.test(value) || /^(?:gs|https?|s3):\/\//iu.test(value))) return null
+    return value
+  }
+  if (value instanceof Date) return value.toISOString()
+  if (Buffer.isBuffer(value)) return null
+  if (Array.isArray(value)) return value.map((item) => copyBusinessJsonValue(item, key, { stripExternalPointers }))
+  if (isPlainObject(value)) return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, copyBusinessJsonValue(childValue, childKey, { stripExternalPointers })]))
+  fail('DEV128_BUSINESS_VALUE_INVALID')
+}
+
+function copyBusinessRow({ config, tableName, row, metadata, context }) {
+  const result = {}
+  const fileTables = asSet(config.source.fileTables)
+  for (const [columnName, original] of Object.entries(row)) {
+    const column = metadata.columnMap.get(columnName)
+    if (!column) fail('DEV128_SOURCE_ROW_COLUMN_DRIFT')
+    const value = original instanceof Date ? original.toISOString() : original
+    if (value === null || value === undefined) { result[columnName] = null; continue }
+    if (context.nullFkColumns.has(`${tableName}.${columnName}`)) { result[columnName] = null; continue }
+    if (HARD_SECRET.test(columnName)) {
+      if (column.notNull) fail('DEV128_REQUIRED_SECRET_FIELD')
+      result[columnName] = null
+      continue
+    }
+    if (fileTables.has(tableName)) {
+      const lower = columnName.toLowerCase()
+      if (/storage_bucket/u.test(lower)) { result[columnName] = column.notNull ? 'local-business-copy' : null; continue }
+      if (/(^|_)(uri|url)(_|$)/u.test(lower)) { result[columnName] = column.notNull ? 'local-business-copy-unavailable' : null; continue }
+      if (/local_path|object_key|storage_key/iu.test(lower)) { result[columnName] = `local-business-copy-not-exported/${tableName}`; continue }
+      if (/filename|file_name/iu.test(lower)) { result[columnName] = String(value); continue }
+      if (/bytes|blob|binary|content_data|file_data|body/u.test(lower)) { result[columnName] = column.notNull && typeFamily(column.type) === 'binary' ? '\\x' : null; continue }
+      if (Buffer.isBuffer(value)) { result[columnName] = column.notNull && typeFamily(column.type) === 'binary' ? '\\x' : null; continue }
+    }
+    if (Buffer.isBuffer(value)) { result[columnName] = column.notNull && typeFamily(column.type) === 'binary' ? '\\x' : null; continue }
+    if (typeof value === 'object') { result[columnName] = copyBusinessJsonValue(value, columnName, { stripExternalPointers: fileTables.has(tableName) }); continue }
+    result[columnName] = value
+  }
+  return result
+}
+
 function sanitizeRow({ config, tableName, row, rowIndex, metadata, context, stringMaps }) {
   const result = {}
   const fileTables = asSet(config.source.fileTables)
@@ -416,23 +461,26 @@ function assertNoSensitivePayload(config, payload, rawUserIds) {
   let emailFindings = 0; let rawUserIdFindings = 0; let binaryFindings = 0
   const inspectValue = (value, path) => {
     if (Buffer.isBuffer(value)) { binaryFindings += 1; fail('DEV128_BINARY_SCAN_FAILED') }
+    const leaf = path.split('.').at(-1) ?? ''
+    if (HARD_SECRET.test(leaf) && value !== null && value !== '') fail('DEV128_SENSITIVE_FIELD_SCAN_FAILED')
     if (typeof value === 'string') {
-      EMAIL.lastIndex = 0
-      const emails = value.match(EMAIL) ?? []
-      if (emails.some((item) => !item.endsWith('@example.invalid'))) { emailFindings += 1; fail('DEV128_EMAIL_SCAN_FAILED') }
-      PHONE.lastIndex = 0
-      const leaf = path.split('.').at(-1) ?? ''
-      const losslessNumber = leaf === LOSSLESS_NUMBER_KEY && /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u.test(value)
-      if (PHONE.test(value) && !losslessNumber && !UUID.test(value) && !/^[0-9]+$/u.test(value) && !/^[a-f0-9]{32,64}$/iu.test(value) && !/(sha256|checksum|fingerprint)$/iu.test(leaf)) fail('DEV128_PHONE_SCAN_FAILED')
-      PHONE.lastIndex = 0
-      if (ABSOLUTE_PATH.test(value)) fail('DEV128_PATH_SCAN_FAILED')
+      if (config.masking.businessDataPolicy !== 'COPY_AS_IS') {
+        EMAIL.lastIndex = 0
+        const emails = value.match(EMAIL) ?? []
+        if (emails.some((item) => !item.endsWith('@example.invalid'))) { emailFindings += 1; fail('DEV128_EMAIL_SCAN_FAILED') }
+        PHONE.lastIndex = 0
+        const losslessNumber = leaf === LOSSLESS_NUMBER_KEY && /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u.test(value)
+        if (PHONE.test(value) && !losslessNumber && !UUID.test(value) && !/^[0-9]+$/u.test(value) && !/^[a-f0-9]{32,64}$/iu.test(value) && !/(sha256|checksum|fingerprint)$/iu.test(leaf)) fail('DEV128_PHONE_SCAN_FAILED')
+        PHONE.lastIndex = 0
+        if (ABSOLUTE_PATH.test(value)) fail('DEV128_PATH_SCAN_FAILED')
+      }
     }
-    if (rawUserKeys.has(canonicalize(value)) && USER_REFERENCE.test(path.split('.').at(-1) ?? '')) {
+    if (config.masking.businessDataPolicy !== 'COPY_AS_IS' && rawUserKeys.has(canonicalize(value)) && USER_REFERENCE.test(leaf)) {
       rawUserIdFindings += 1; fail('DEV128_RAW_USER_ID_SCAN_FAILED')
     }
     if (Array.isArray(value)) value.forEach((item, index) => inspectValue(item, `${path}.${index}`))
     else if (isPlainObject(value)) for (const [key, item] of Object.entries(value)) {
-      if (rawUserKeys.has(canonicalize(key))) fail('DEV128_RAW_USER_ID_SCAN_FAILED')
+      if (config.masking.businessDataPolicy !== 'COPY_AS_IS' && rawUserKeys.has(canonicalize(key))) fail('DEV128_RAW_USER_ID_SCAN_FAILED')
       inspectValue(item, `${path}.${key}`)
     }
   }
@@ -473,7 +521,9 @@ export function createMaskedSnapshotPayload({ config: configInput, snapshotId, s
   const stringMaps = new Map()
   const tables = outputTables.map((name) => {
     const table = context.tables.get(name)
-    const rows = rowsByTable.get(name).map((row, index) => sanitizeRow({ config, tableName: name, row, rowIndex: index, metadata: table, context, stringMaps }))
+    const rows = rowsByTable.get(name).map((row, index) => config.masking.businessDataPolicy === 'COPY_AS_IS'
+      ? copyBusinessRow({ config, tableName: name, row, metadata: table, context })
+      : sanitizeRow({ config, tableName: name, row, rowIndex: index, metadata: table, context, stringMaps }))
     return { name, primaryKey: table.primaryKey, rowCount: rows.length, rows }
   })
   const rawUserIds = (rowsByTable.get('users') ?? []).map((row) => row.id).filter((value) => value !== null && value !== undefined)
@@ -483,7 +533,14 @@ export function createMaskedSnapshotPayload({ config: configInput, snapshotId, s
     snapshotId,
     sourceRevision,
     source: { projectId: config.source.projectId, database: config.source.database, schema: config.source.schema, catalogShapeSha256: config.source.catalogShapeSha256, catalogSha256: sourceCatalog.catalogSha256, catalog: (() => { const value = { ...sourceCatalog }; delete value.catalogSha256; return value })(), tableCount: metadata.size, copiedTableCount: outputTables.length, skippedTableCount: copyTables.length - outputTables.length, rowCount: totalRows },
-    masking: { policyVersion: config.masking.policyVersion, policySha256: sha256(canonicalize(config.masking)), identityMapRetained: false, fileBytesExported: false },
+    masking: {
+      policyVersion: config.masking.policyVersion,
+      policySha256: sha256(canonicalize(config.masking)),
+      businessDataCopiedAsIs: config.masking.businessDataPolicy === 'COPY_AS_IS',
+      credentialDataExported: false,
+      identityMapRetained: false,
+      fileBytesExported: false
+    },
     tables
   }
   const payload = { ...core, payloadSha256: sha256(canonicalize(core)) }
@@ -497,7 +554,7 @@ export function assertMaskedSnapshotPayload({ config: configInput, payload, expe
   if (!payload || payload.schemaVersion !== 'jenfu.dev128.ai-pdm-masked-local-snapshot.v1' || payload.ownerApplicationId !== 'ai-pdm' || !SNAPSHOT_ID.test(payload.snapshotId ?? '') || !H40.test(payload.sourceRevision ?? '') || (expectedSourceRevision && payload.sourceRevision !== expectedSourceRevision)) fail('DEV128_PAYLOAD_INVALID')
   const core = { ...payload }; delete core.payloadSha256
   if (!H64.test(payload.payloadSha256 ?? '') || sha256(canonicalize(core)) !== payload.payloadSha256) fail('DEV128_PAYLOAD_HASH_MISMATCH')
-  if (payload.source?.projectId !== config.source.projectId || payload.source?.database !== config.source.database || payload.source?.schema !== config.source.schema || payload.source?.catalogShapeSha256 !== config.source.catalogShapeSha256 || payload.source?.tableCount !== config.source.expectedTableCount || !H64.test(payload.source.catalogSha256 ?? '') || !payload.source.catalog || payload.source.catalog.schema !== config.source.schema || payload.source.catalog.database !== config.source.database || !Array.isArray(payload.source.catalog.tables) || !Array.isArray(payload.source.catalog.foreignKeys) || payload.source.catalog.tables.length !== payload.source.tableCount || sha256(canonicalize(payload.source.catalog)) !== payload.source.catalogSha256 || payload.masking?.policyVersion !== config.masking.policyVersion || payload.masking?.policySha256 !== sha256(canonicalize(config.masking)) || payload.masking?.identityMapRetained !== false || payload.masking?.fileBytesExported !== false || !Array.isArray(payload.tables) || !Number.isSafeInteger(payload.source.copiedTableCount) || payload.source.copiedTableCount !== payload.tables.length || !Number.isSafeInteger(payload.source.skippedTableCount) || payload.source.copiedTableCount + payload.source.skippedTableCount !== config.source.expectedCopyTableCount) fail('DEV128_PAYLOAD_METADATA_INVALID')
+  if (payload.source?.projectId !== config.source.projectId || payload.source?.database !== config.source.database || payload.source?.schema !== config.source.schema || payload.source?.catalogShapeSha256 !== config.source.catalogShapeSha256 || payload.source?.tableCount !== config.source.expectedTableCount || !H64.test(payload.source.catalogSha256 ?? '') || !payload.source.catalog || payload.source.catalog.schema !== config.source.schema || payload.source.catalog.database !== config.source.database || !Array.isArray(payload.source.catalog.tables) || !Array.isArray(payload.source.catalog.foreignKeys) || payload.source.catalog.tables.length !== payload.source.tableCount || sha256(canonicalize(payload.source.catalog)) !== payload.source.catalogSha256 || payload.masking?.policyVersion !== config.masking.policyVersion || payload.masking?.policySha256 !== sha256(canonicalize(config.masking)) || payload.masking?.businessDataCopiedAsIs !== (config.masking.businessDataPolicy === 'COPY_AS_IS') || payload.masking?.credentialDataExported !== false || payload.masking?.identityMapRetained !== false || payload.masking?.fileBytesExported !== false || !Array.isArray(payload.tables) || !Number.isSafeInteger(payload.source.copiedTableCount) || payload.source.copiedTableCount !== payload.tables.length || !Number.isSafeInteger(payload.source.skippedTableCount) || payload.source.copiedTableCount + payload.source.skippedTableCount !== config.source.expectedCopyTableCount) fail('DEV128_PAYLOAD_METADATA_INVALID')
   const skipped = asSet(config.source.skipTables)
   const excluded = asSet([...config.source.requireEmptyTables, ...config.source.excludedTables])
   const names = payload.tables.map((table) => table?.name)

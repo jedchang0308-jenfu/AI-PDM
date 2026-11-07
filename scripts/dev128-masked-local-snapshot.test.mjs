@@ -90,18 +90,21 @@ function buildPayload(options = {}) {
   return createMaskedSnapshotPayload({ config, snapshotId, sourceRevision: revision, sourceCatalog, rowsByTable: makeRows(sourceCatalog, options) })
 }
 
-test('masks business snapshot identifiers and personal data while preserving safe enums and relationships', () => {
+test('copies business rows as-is while removing credentials and attachment bytes', () => {
   const { payload, scan } = buildPayload()
+  assert.equal(payload.masking.businessDataCopiedAsIs, true)
+  assert.equal(payload.masking.credentialDataExported, false)
+  assert.equal(payload.masking.identityMapRetained, false)
+  assert.equal(payload.masking.fileBytesExported, false)
   assert.equal(payload.tables.some((table) => table.name === 'platform_principal_mappings'), false)
   assert.equal(payload.tables.some((table) => table.name === 'system_settings'), false)
   assert.equal(payload.tables.some((table) => table.name === 'schema_migrations'), false)
   const users = payload.tables.find((table) => table.name === 'users').rows
   const user = users[0]
-  assert.notEqual(user.id, 'real-user-1088')
-  assert.notEqual(user.email, 'wang@example.com')
-  assert.equal(user.email.endsWith('@example.invalid'), true)
+  assert.equal(user.id, 'real-user-1088')
+  assert.equal(user.email, 'wang@example.com')
   assert.equal(user.password_hash, null)
-  assert.equal(user.phone_number, null)
+  assert.deepEqual(user.phone_number, { __dev128_number_v1__: '886912345678' })
   assert.equal(user.role, 'R&D Manager')
   assert.equal(user.created_by, user.id)
   const companies = payload.tables.find((table) => table.name === 'companies').rows
@@ -110,19 +113,21 @@ test('masks business snapshot identifiers and personal data while preserving saf
   assert.equal(item.company_id, companies[0].id)
   assert.equal(item.created_by, user.id)
   assert.equal(item.created_at, '2026-11-06T12:10:00.000Z')
-  assert.notEqual(item.part_number, 'PDM-7654')
+  assert.equal(item.part_number, 'PDM-7654')
+  assert.equal(item.part_name, 'Customer Rotor Assembly')
   assert.deepEqual(item.standard_cost, { __dev128_number_v1__: '12345678.90' })
-  assert.match(item.tracking_uuid, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u)
-  assert.equal(Object.values(item.details_json).some((value) => typeof value === 'string' && value.endsWith('@example.invalid')), true)
-  assert.equal(Object.values(item.details_json).includes(user.id), true)
-  assert.equal(Object.values(item.details_json).includes(null), true)
+  assert.equal(item.tracking_uuid, '91df3d31-4380-4f4a-a78b-64b0dc2168ab')
+  assert.equal(item.details_json.customer_email, 'secret.customer@example.net')
+  assert.deepEqual(item.details_json.customer_phone, { __dev128_number_v1__: '886912345678' })
+  assert.equal(item.details_json.created_by, user.id)
+  assert.equal(item.details_json.notes, 'Private customer product description')
   assert.equal(item.details_json.status, 'approved')
-  assert.equal(Object.keys(item.details_json).some((key) => key.startsWith('masked_key_')), true)
   const file = payload.tables.find((table) => table.name === 'file_assets').rows[0]
+  assert.equal(file.file_name, 'Customer-assembly-secret.sldprt')
   assert.equal(file.file_bytes, null)
   assert.equal(file.file_url, null)
-  assert.ok(file.storage_bucket === null || file.storage_bucket === 'masked-local-snapshot')
-  assert.match(file.storage_key, /^masked-snapshot-not-exported\//u)
+  assert.ok(file.storage_bucket === null || file.storage_bucket === 'local-business-copy')
+  assert.match(file.storage_key, /^local-business-copy-not-exported\//u)
   assert.match(file.content_sha256, /^[a-f0-9]{64}$/u)
   assert.equal(scan.emailFindings, 0)
   assert.equal(scan.rawUserIdFindings, 0)
@@ -150,21 +155,21 @@ test('MATCH SIMPLE clears only one nullable component of an excluded composite p
   assert.equal(item.actor_principal_id, null)
 })
 
-test('business workflow sessions are masked as relationships instead of rejected as secrets', () => {
+test('business workflow sessions are copied as-is without being treated as authentication sessions', () => {
   const { payload } = buildPayload({ businessSession: true })
   const session = payload.tables.find((table) => table.name === 'business_sessions').rows[0]
   const event = payload.tables.find((table) => table.name === 'business_session_events').rows[0]
-  assert.notEqual(session.id, 'recognition-session-1')
-  assert.notEqual(session.session_purpose, 'geometry_review')
+  assert.equal(session.id, 'recognition-session-1')
+  assert.equal(session.session_purpose, 'geometry_review')
   assert.equal(event.session_id, session.id)
   assert.equal(event.expected_session_version, 7)
 })
 
-test('identifying foreign keys share one masked value across the whole equivalence class', () => {
+test('identifying foreign keys retain the original business relationship', () => {
   const { payload } = buildPayload({ identifyingFk: true })
   const item = payload.tables.find((table) => table.name === 'items').rows[0]
   const file = payload.tables.find((table) => table.name === 'file_assets').rows[0]
-  assert.notEqual(item.id, 'part-7654')
+  assert.equal(item.id, 'part-7654')
   assert.equal(file.id, item.id)
 })
 
@@ -172,7 +177,7 @@ test('MATCH SIMPLE composite foreign key skips parent lookup when any child comp
   const { payload } = buildPayload({ compositeFk: 'partial-null' })
   const child = payload.tables.find((table) => table.name === 'composite_children').rows[0]
   assert.equal(child.parent_id, null)
-  assert.notEqual(child.tenant_id, 'tenant-b')
+  assert.equal(child.tenant_id, 'tenant-b')
 })
 
 test('composite foreign key still rejects a missing all-non-null parent tuple', () => {
@@ -191,14 +196,13 @@ test('encrypts only the masked payload and detects ciphertext tampering', () => 
   assert.throws(() => decryptMaskedSnapshot({ bytes: encrypted.bytes, privateKeyPem: privateKey, expectedKeyId: '0'.repeat(64), maxEncryptedBytes: 20 * 1024 * 1024, maxUncompressedBytes: config.source.maxUncompressedBytes }), { code: 'DEV128_RECIPIENT_KEY_MISMATCH' })
 })
 
-test('payload validator rejects a hidden email even if the payload hash is recomputed', () => {
+test('payload validator permits authorized raw business email text', () => {
   const { payload: source } = buildPayload()
   const payload = structuredClone(source)
-  const details = payload.tables.find((table) => table.name === 'items').rows[0].details_json
-  details[Object.keys(details).find((key) => key.startsWith('masked_key_'))] = 'leaked.person@example.com'
+  payload.tables.find((table) => table.name === 'items').rows[0].details_json.customer_email = 'person@example.com'
   const core = { ...payload }; delete core.payloadSha256
   payload.payloadSha256 = sha256(canonicalize(core))
-  assert.throws(() => assertMaskedSnapshotPayload({ config, payload }), { code: 'DEV128_EMAIL_SCAN_FAILED' })
+  assert.equal(assertMaskedSnapshotPayload({ config, payload }), payload)
 })
 
 test('payload validator accepts structured UUIDs that resemble phone numbers', () => {
@@ -210,13 +214,21 @@ test('payload validator accepts structured UUIDs that resemble phone numbers', (
   assert.equal(assertMaskedSnapshotPayload({ config, payload }), payload)
 })
 
-test('payload validator still rejects unmasked formatted phone text', () => {
+test('payload validator permits authorized raw business phone text', () => {
   const { payload: source } = buildPayload()
   const payload = structuredClone(source)
   payload.tables.find((table) => table.name === 'items').rows[0].part_name = '+886 912 345 678'
   const core = { ...payload }; delete core.payloadSha256
   payload.payloadSha256 = sha256(canonicalize(core))
-  assert.throws(() => assertMaskedSnapshotPayload({ config, payload }), { code: 'DEV128_PHONE_SCAN_FAILED' })
+  assert.equal(assertMaskedSnapshotPayload({ config, payload }), payload)
+})
+
+test('raw business copy still removes nested credential values', () => {
+  const sourceCatalog = makeCatalog()
+  const rowsByTable = makeRows(sourceCatalog)
+  rowsByTable.get('items')[0].details_json.api_token = 'must-not-copy'
+  const { payload } = createMaskedSnapshotPayload({ config, snapshotId, sourceRevision: revision, sourceCatalog, rowsByTable })
+  assert.equal(payload.tables.find((table) => table.name === 'items').rows[0].details_json.api_token, null)
 })
 
 test('payload binds the exact source catalog metadata', () => {
