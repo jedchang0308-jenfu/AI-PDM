@@ -2199,3 +2199,8 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
 - [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：runner refresh／rotation已完成；接PR575 typed source writer的review／required CI／protected merge及新source新capsule正常attempt。primary-local依OrgMaster ACL與clean source fresh plan另接，不以文件、immutable refs或CI當catalog／完整接受。
+
+## DEV-128 — 遮罩正式資料供 AI-PDM 1020 地端測試
+
+- [交付契約](specs/DEV-128-masked-local-production-snapshot.md) 界定現行正式來源、170 表 schema shape、固定 Job／workflow、單一密文物件權限、遮罩政策與獨立地端 profile 驗收。
+- 實作候選與 58421 preparation 已通過本機檢查；正式 plan／apply、匯出、匯入與 1020 切換仍以受保護 main／required CI／provider readback 為前置。
