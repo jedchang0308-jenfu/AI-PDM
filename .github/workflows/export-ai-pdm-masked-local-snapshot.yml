@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-snapshot/providers/github
+  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-snapshot-v2/providers/github
 
 jobs:
   export:
@@ -40,7 +40,7 @@ jobs:
         id: snapshot_auth
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: aipdm-dev128-invoker@jenfu-platform-prod.iam.gserviceaccount.com
+          service_account: aipdm-dev128-invoker-v2@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
