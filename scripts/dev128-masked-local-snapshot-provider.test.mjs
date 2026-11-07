@@ -17,7 +17,7 @@ const now = Date.parse('2026-11-07T04:30:00Z')
 
 test('builder passes the fixed WIF token to Docker and gcloud readback', async () => {
   const workflow = await readFile(new URL('../.github/workflows/build-ai-pdm-masked-local-snapshot.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-builder-v3\/providers\/github/u)
+  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-builder-v4\/providers\/github/u)
   assert.match(workflow, /token_format:\s*access_token/u)
   assert.match(workflow, /create_credentials_file:\s*false/u)
   assert.match(workflow, /export_environment_variables:\s*false/u)
@@ -95,8 +95,8 @@ test('Cloud Run proto-default deletion protection is false and all other values 
 
 test('export workflow is bound to the rotated snapshot pool and invoker only', async () => {
   const workflow = await readFile(new URL('../.github/workflows/export-ai-pdm-masked-local-snapshot.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-snapshot-v2\/providers\/github/u)
-  assert.match(workflow, /service_account:\s*aipdm-dev128-invoker-v2@jenfu-platform-prod[.]iam[.]gserviceaccount[.]com/u)
+  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-snapshot-v3\/providers\/github/u)
+  assert.match(workflow, /service_account:\s*aipdm-dev128-invoker-v3@jenfu-platform-prod[.]iam[.]gserviceaccount[.]com/u)
   assert.doesNotMatch(workflow, /runWithOverrides|--args|--update-env-vars/u)
 })
 
