@@ -7,10 +7,11 @@ import { assertMaskedSnapshotPayload, createMaskedSnapshotPayload, decryptMasked
 import { parseJsonLosslessly } from './dev128-masked-local-snapshot-runner.mjs'
 
 const config = JSON.parse(await readFile(new URL('../config/release/dev128-masked-local-production-snapshot.json', import.meta.url), 'utf8'))
+const catalogShape = JSON.parse(await readFile(new URL('../config/release/dev128-masked-local-production-catalog-shape.json', import.meta.url), 'utf8'))
 const revision = 'a'.repeat(40)
 const snapshotId = 'PDM-MASKED-20261107-1'
 
-function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null } = {}) {
+function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false } = {}) {
   const tableNames = new Set([
     ...config.source.requireEmptyTables,
     ...config.source.excludedTables,
@@ -33,10 +34,14 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
   setColumns('users', [['id', 'text', true], ['display_name', 'character varying(100)', true], ['email', 'character varying(254)'], ['phone_number', 'bigint'], ['password_hash', 'text'], ['role', 'text', true], ['company_id', 'text', true], ['account_status', 'text', true], ['created_at', 'timestamp with time zone', true], ['created_by', 'text']])
   setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb']])
   setColumns('file_assets', [['id', 'text', true], ['company_id', 'text', true], ['file_name', 'text', true], ['storage_bucket', 'text'], ['storage_key', 'text'], ['file_url', 'text'], ['file_bytes', 'bytea'], ['content_sha256', 'character(64)']])
+  setColumns('principal_accounts', [['company_id', 'text', true], ['pdm_user_id', 'text', true], ['principal_id', 'text', true]], ['company_id', 'pdm_user_id', 'principal_id'])
   setColumns('composite_parents', [['tenant_id', 'text', true], ['id', 'text', true]], ['tenant_id', 'id'])
   setColumns('composite_children', [['id', 'text', true], ['tenant_id', 'text', true], ['parent_id', 'text']], ['id'])
   if (requiredExcludedFk) {
     setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['auth_id', 'text', true]])
+  }
+  if (nullableExcludedFk) {
+    setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['actor_id', 'text', true], ['actor_principal_id', 'text']])
   }
   const foreignKeys = [
     { childTable: 'users', childColumns: ['company_id'], parentTable: 'companies', parentColumns: ['id'] },
@@ -46,19 +51,24 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
     { childTable: 'file_assets', childColumns: ['company_id'], parentTable: 'companies', parentColumns: ['id'] }
   ]
   if (requiredExcludedFk) foreignKeys.push({ childTable: 'items', childColumns: ['auth_id'], parentTable: 'auth_identities', parentColumns: ['id'] })
+  if (nullableExcludedFk) foreignKeys.push({ childTable: 'items', childColumns: ['company_id', 'actor_id', 'actor_principal_id'], parentTable: 'principal_accounts', parentColumns: ['company_id', 'pdm_user_id', 'principal_id'] })
   if (identifyingFk) foreignKeys.push({ childTable: 'file_assets', childColumns: ['id'], parentTable: 'items', parentColumns: ['id'] })
   if (compositeFk) foreignKeys.push({ childTable: 'composite_children', childColumns: ['tenant_id', 'parent_id'], parentTable: 'composite_parents', parentColumns: ['tenant_id', 'id'] })
   const core = { schemaVersion: 'jenfu.dev012.ai-pdm-database-catalog.v1', database: 'jenfu_prod', schema: 'ai_pdm_core', tables, foreignKeys }
   return { ...core, catalogSha256: sha256(canonicalize(core)) }
 }
 
-function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, compositeFk = null } = {}) {
+function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false } = {}) {
   const rows = new Map()
   for (const table of catalog.tables) if (!config.source.requireEmptyTables.includes(table.name) && !config.source.excludedTables.includes(table.name) && !config.source.skipTables.includes(table.name)) rows.set(table.name, [])
   rows.get('companies').push({ id: 'company-jenfu', name: 'Jenfu Manufacturing Company' })
   rows.get('users').push({ id: 'real-user-1088', display_name: 'Wang Example', email: 'wang@example.com', phone_number: { __dev128_number_v1__: '886912345678' }, password_hash: '$2b$12$do-not-export', role: 'R&D Manager', company_id: 'company-jenfu', account_status: 'active', created_at: '2026-11-06T12:00:00.000Z', created_by: 'real-user-1088' })
   const item = { id: 'part-7654', company_id: 'company-jenfu', part_number: 'PDM-7654', part_name: 'Customer Rotor Assembly', created_by: 'real-user-1088', created_at: '2026-11-06T12:10:00.000Z', details_json: { customer_email: 'secret.customer@example.net', customer_phone: { __dev128_number_v1__: '886912345678' }, created_by: 'real-user-1088', status: 'approved', notes: 'Private customer product description' } }
   if (requiredExcludedFk) item.auth_id = 'auth-1'
+  if (nullableExcludedFk) {
+    item.actor_id = 'real-user-1088'
+    item.actor_principal_id = 'principal-1'
+  }
   rows.get('items').push(item)
   rows.get('file_assets').push({ id: identifyingFk ? 'part-7654' : 'asset-1', company_id: 'company-jenfu', file_name: 'Customer-assembly-secret.sldprt', storage_bucket: 'jenfu-private-production-bucket', storage_key: 'parts/production/secret.sldprt', file_url: 'https://storage.googleapis.com/private/secret', file_bytes: Buffer.from('raw CAD contents'), content_sha256: 'a'.repeat(64) })
   if (compositeFk) {
@@ -113,6 +123,22 @@ test('masks business snapshot identifiers and personal data while preserving saf
 
 test('rejects a required reference to an excluded authentication table', () => {
   assert.throws(() => buildPayload({ requiredExcludedFk: true }), { code: 'DEV128_REQUIRED_REFERENCE_TO_EXCLUDED_TABLE' })
+})
+
+test('configured output tables have no all-required foreign key to an excluded parent', () => {
+  const skipped = new Set([...config.source.requireEmptyTables, ...config.source.excludedTables, ...config.source.skipTables])
+  const byName = new Map(catalogShape.tables.map((table) => [table.name, table]))
+  const unsafe = catalogShape.foreignKeys.filter((fk) => !skipped.has(fk.childTable) && skipped.has(fk.parentTable) && fk.childColumns.every((column) => byName.get(fk.childTable).columns.find((item) => item.name === column)?.notNull === true))
+  assert.deepEqual(unsafe, [])
+})
+
+test('MATCH SIMPLE clears only one nullable component of an excluded composite parent reference', () => {
+  const { payload } = buildPayload({ nullableExcludedFk: true })
+  const user = payload.tables.find((table) => table.name === 'users').rows[0]
+  const item = payload.tables.find((table) => table.name === 'items').rows[0]
+  assert.equal(item.company_id, 'company-jenfu')
+  assert.equal(item.actor_id, user.id)
+  assert.equal(item.actor_principal_id, null)
 })
 
 test('identifying foreign keys share one masked value across the whole equivalence class', () => {
