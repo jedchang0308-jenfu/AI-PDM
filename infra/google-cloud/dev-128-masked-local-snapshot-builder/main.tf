@@ -35,7 +35,7 @@ variable "attempt" {
 locals {
   project        = "jenfu-platform-prod"
   project_number = "9536592944"
-  pool_id        = "aipdm-dev128-builder-v4"
+  pool_id        = "aipdm-dev128-builder-v5"
   builder_email  = "aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com"
   workflow_ref   = "jedchang0308-jenfu/AI-PDM/.github/workflows/build-ai-pdm-masked-local-snapshot.yml@refs/heads/main"
   subject        = "principal://iam.googleapis.com/projects/${local.project_number}/locations/global/workloadIdentityPools/${local.pool_id}/subject/${local.pool_id}"

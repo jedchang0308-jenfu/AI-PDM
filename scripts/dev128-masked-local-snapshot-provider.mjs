@@ -153,17 +153,14 @@ async function listExecutions(provider, config) {
   fail('DEV128_EXECUTION_LIST_INCOMPLETE')
 }
 
-async function waitOperation(provider, config, operationName) {
-  if (typeof operationName !== 'string' || !operationName.startsWith(`projects/${config.source.projectId}/locations/${config.source.region}/operations/`)) fail('DEV128_OPERATION_REF_INVALID')
+async function waitSingleExecution(provider, config) {
   for (let attempt = 0; attempt < 90; attempt += 1) {
-    const value = await provider.request(`https://run.googleapis.com/v2/${operationName}`)
-    if (value?.done === true) {
-      if (value.error) fail('DEV128_PROVIDER_OPERATION_FAILED')
-      return value.response
-    }
-    await sleep(10_000)
+    const executions = await listExecutions(provider, config)
+    if (executions.length > 1) fail('DEV128_EXECUTION_READBACK_MISMATCH')
+    if (executions.length === 1) return executions[0]
+    await sleep(2_000)
   }
-  fail('DEV128_PROVIDER_OPERATION_TIMEOUT')
+  fail('DEV128_EXECUTION_DISCOVERY_TIMEOUT')
 }
 
 async function waitExecution(provider, config, executionName) {
@@ -218,15 +215,17 @@ async function main(environment = process.env) {
   })
   if (canonicalize([...(permissionResult?.permissions ?? [])].sort()) !== canonicalize(['run.jobs.get', 'run.jobs.run'])) fail('DEV128_JOB_PERMISSION_PREFLIGHT_FAILED')
   let operation
+  let execution
   try {
     operation = await provider.request(`${jobUrl(config)}:run`, { method: 'POST', body: { etag: job.etag }, timeoutMs: 30_000 })
   } catch (error) {
     if (error?.code !== 'DEV128_PROVIDER_OUTCOME_UNKNOWN') throw error
-    const observed = await listExecutions(provider, config)
-    if (observed.length !== 1) fail('DEV128_PROVIDER_OUTCOME_UNKNOWN')
-    operation = { response: observed[0], done: true }
+    execution = await waitSingleExecution(provider, config)
   }
-  const execution = operation?.done === true ? operation.response : await waitOperation(provider, config, operation?.name)
+  if (!execution) {
+    if (typeof operation?.name !== 'string' || !operation.name.startsWith(`projects/${config.source.projectId}/locations/${config.source.region}/operations/`)) fail('DEV128_OPERATION_REF_INVALID')
+    execution = operation?.done === true ? operation.response : await waitSingleExecution(provider, config)
+  }
   if (!execution?.name || !execution.name.startsWith(`projects/${config.source.projectId}/locations/${config.source.region}/jobs/ai-pdm-prod-masked-local-snapshot/executions/`)) fail('DEV128_EXECUTION_REF_INVALID')
   await waitExecution(provider, config, execution.name)
   const output = await objectReadback(provider, config, binding)
@@ -261,4 +260,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   })
 }
 
-export { jobUrl, listExecutions, main as runDev128Provider, objectReadback, validateJob }
+export { jobUrl, listExecutions, main as runDev128Provider, objectReadback, validateJob, waitSingleExecution }

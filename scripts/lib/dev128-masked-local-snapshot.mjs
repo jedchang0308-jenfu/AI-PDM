@@ -196,16 +196,12 @@ function prepareValueMaps({ config, catalog, rowsByTable, copyTables }) {
   }
 
   for (const fk of activeForeignKeys) {
+    const parentTuples = new Set((rowsByTable.get(fk.parentTable) ?? []).map((row) => tupleKey(row, fk.parentColumns)))
     const childRows = rowsByTable.get(fk.childTable) ?? []
     for (const row of childRows) {
-      for (let index = 0; index < fk.childColumns.length; index += 1) {
-        const childColumn = fk.childColumns[index]
-        const parentColumn = fk.parentColumns[index]
-        const value = row[childColumn]
-        if (value === null || value === undefined) continue
-        const sourceKey = canonicalize(value instanceof Date ? value.toISOString() : value)
-        if (!observedValues.get(`${fk.parentTable}.${parentColumn}`)?.has(sourceKey)) fail('DEV128_FOREIGN_KEY_SOURCE_REFERENCE_MISSING')
-      }
+      const childValues = fk.childColumns.map((column) => row[column])
+      if (childValues.some((value) => value === null || value === undefined)) continue
+      if (!parentTuples.has(tupleKey(row, fk.childColumns))) fail('DEV128_FOREIGN_KEY_SOURCE_REFERENCE_MISSING')
     }
   }
 
