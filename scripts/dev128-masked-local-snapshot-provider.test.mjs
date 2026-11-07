@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { Dev128Provider, validateJob, waitSingleExecution } from './dev128-masked-local-snapshot-provider.mjs'
+import { Dev128Provider, validateJob, waitExecution, waitSingleExecution } from './dev128-masked-local-snapshot-provider.mjs'
 import { recipientKeyIdForPublicKey } from './lib/dev128-masked-local-snapshot.mjs'
 
 const config = JSON.parse(await readFile(new URL('../config/release/dev128-masked-local-production-snapshot.json', import.meta.url), 'utf8'))
@@ -119,6 +119,22 @@ test('execution discovery uses the fixed Job history and rejects more than one e
   assert.match(requestedUrl, /jobs\/ai-pdm-prod-masked-local-snapshot\/executions/u)
   const ambiguous = { request: async () => ({ executions: [execution, execution] }) }
   await assert.rejects(() => waitSingleExecution(ambiguous, config), { code: 'DEV128_EXECUTION_READBACK_MISMATCH' })
+})
+
+test('pending execution condition is polled until the unique execution succeeds', async () => {
+  const executionName = `projects/${config.source.projectId}/locations/${config.source.region}/jobs/ai-pdm-prod-masked-local-snapshot/executions/fixed`
+  let requests = 0
+  let sleeps = 0
+  const provider = { request: async () => {
+    requests += 1
+    if (requests === 1) return { name: executionName, conditions: [{ type: 'Completed', state: 'CONDITION_PENDING' }] }
+    return { name: executionName, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], succeededCount: 1, failedCount: 0, completionTime: '2026-11-07T12:52:45Z' }
+  } }
+  const result = await waitExecution(provider, config, executionName, { sleepImpl: async () => { sleeps += 1 } })
+  assert.equal(result.succeededCount, 1)
+  assert.equal(requests, 2)
+  assert.equal(sleeps, 1)
+  await assert.rejects(() => waitExecution({ request: async () => ({ conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }] }) }, config, executionName, { sleepImpl: async () => undefined }), { code: 'DEV128_EXECUTION_FAILED' })
 })
 
 test('provider exposes read/run transport only and keeps token private', async () => {

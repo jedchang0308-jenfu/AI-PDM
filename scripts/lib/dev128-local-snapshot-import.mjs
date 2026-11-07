@@ -186,4 +186,25 @@ export function tableContentSha256(rows, primaryKey) {
   return sha256(canonicalize(ordered))
 }
 
+export function selectSnapshotRowsForReadback({ expectedRows, observedRows, primaryKey, preservedPrimaryKeys = [] }) {
+  if (!Array.isArray(expectedRows) || !Array.isArray(observedRows) || !Array.isArray(primaryKey) || primaryKey.length === 0 ||
+      !Array.isArray(preservedPrimaryKeys) || preservedPrimaryKeys.some((value) => !Array.isArray(value) || value.length !== primaryKey.length)) fail('DEV128_TARGET_READBACK_INPUT_INVALID')
+  const rowKey = (row) => canonicalize(primaryKey.map((column) => row[column]))
+  const expectedKeys = new Set(expectedRows.map(rowKey))
+  if (expectedKeys.size !== expectedRows.length) fail('DEV128_TARGET_READBACK_KEY_COLLISION')
+  const preservedKeys = new Set(preservedPrimaryKeys.map((value) => canonicalize(value)))
+  const selected = []
+  const selectedKeys = new Set()
+  for (const row of observedRows) {
+    const key = rowKey(row)
+    if (expectedKeys.has(key)) {
+      if (selectedKeys.has(key)) fail('DEV128_TARGET_READBACK_KEY_COLLISION')
+      selectedKeys.add(key)
+      selected.push(row)
+    } else if (!preservedKeys.has(key)) fail('DEV128_TARGET_UNEXPECTED_LOCAL_ROW')
+  }
+  if (selected.length !== expectedRows.length) fail('DEV128_TARGET_ROW_COUNT_MISMATCH')
+  return selected
+}
+
 export { TRANSFORM_TABLES }

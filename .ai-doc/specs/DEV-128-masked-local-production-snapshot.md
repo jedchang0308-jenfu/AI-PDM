@@ -1,6 +1,6 @@
 # DEV-128 — 正式業務資料副本供 AI-PDM 1020 地端測試
 
-狀態：owner-review 實作候選。2026-11-07 使用者授權完成 owner 審查、Terraform plan、限定 apply、正式業務資料匯出／地端匯入與驗證後切換 1020；執行不使用 overrides。使用者後續明確取消業務欄位假名化，改為原樣複製；credential、SSO、Principal、session、secret、正式角色指派與附件 bytes 仍排除。
+狀態：owner 執行與隔離匯入完成，待 merged-main 固定啟動切換。2026-11-07 使用者授權完成 owner 審查、Terraform plan、限定 apply、正式業務資料匯出／地端匯入與驗證後切換 1020；執行不使用 overrides。使用者後續明確取消業務欄位假名化，改為原樣複製；credential、SSO、Principal、session、secret、正式角色指派與附件 bytes 仍排除。
 
 ## 1. 資料來源與範圍
 
@@ -43,4 +43,4 @@ Job 以 `REPEATABLE READ READ ONLY`、非 superuser session 讀取固定清單�
 
 - Builder Terraform plan 只可新增專用 builder pool/provider 與既有 builder SA 的精確、會過期 workloadIdentityUser binding，共 3 個 create；digest receipt 完成後須以同 state 的 3 個 delete plan 回收。Snapshot Terraform plan 只可新增本次固定 Job、專用 snapshot pool/provider、invoker SA 與表列精確 bindings，共 9 個 create。Plan 必須列出實際 SHA、digest、Job 資源名、公鑰指紋、完整物件名與 UTC 時間窗。若出現現行 service／traffic、既有 migration runner、原 WIF provider、Cloud SQL、Secrets 或其他 IAM 的變更，拒絕套用。
 - 在套用正式設定前，以隔離資料驗證 current core schema 的原樣業務資料複製、安全排除與匯入，以及 wrong workflow/ref/SHA、錯誤 Job／object、重送與 overrides 拒絕。正式套用後以 provider metadata 讀回權限與 Job template，通過才允許執行。歷史 DEV-012 收據與既有原型測試不替代本次來源與權限證明。
-- 本機 owner-review 候選已通過 DEV-128 26/26、builder／snapshot Terraform 各 2 個 plan cases、DB boundary、typecheck 與 isolated build。獨立 58421 preparation receipt 驗證 174 張地端表、514 條 FK、loopback binding、一次性 RSA key 與測試超級管理員 user／principal 各 1；未匯入正式資料，1020 尚未切換。正式 plan／apply、匯出、匯入與切換仍以 merged main、required CI 及 provider readback 為前置。
+- 2026-11-07 merged main `8edd504ed9f15a3243727f0709b036f86003f728` 已通過 required CI；owner plan 僅新增固定 builder 3 項與 snapshot 9 項限定資源，apply／provider readback 後均以 exact delete plan 回收，未使用 overrides，正式服務維持 revision `ai-pdm-prod-90df406dea11`、100% 流量。唯一 Cloud Run execution 實際成功，但 workflow 首次把 `Completed=CONDITION_PENDING` 誤判失敗；本切片改為只輪詢 pending／reconciling 並保留真實 failed 判定。地端 58421 已匯入 113 表、3,626 筆原樣業務資料並通過 514 條 FK 與逐表內容讀回，credential／SSO／Principal／正式角色指派與附件 bytes 均未匯入；DEV-128 targeted tests 28/28、DB boundary、lint、typecheck 與 isolated build 通過。專用 Job／WIF／IAM、GCS 物件、workflow artifact、runner image 及一次性私鑰均已回收；1020 只在 merged-main 登入驗證通過後切換，舊 58420 profile 保留為回復入口。

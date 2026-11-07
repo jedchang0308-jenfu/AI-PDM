@@ -7,9 +7,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Port = 1020
-$DatabasePort = 58420
+$DatabasePort = 58421
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$RuntimeDirectoryName = "test-admin-1020"
+$RuntimeDirectoryName = "test-admin-1020-masked-snapshot"
 $RuntimeRoot = $null
 $cursor = Get-Item -LiteralPath $ProjectRoot
 while ($cursor) {

@@ -7,7 +7,7 @@ import pg from 'pg'
 import { contractDigest } from '../contracts/local-principal-sandbox/v1/protocol.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-data-cutover.mjs'
 import { assertMaskedSnapshotConfig, assertMaskedSnapshotPayload, decryptMaskedSnapshot } from './lib/dev128-masked-local-snapshot.mjs'
-import { assertSnapshotTargetCompatible, buildImportOrder, insertSnapshotTableRows, parseLosslessJson, tableContentSha256, transformSnapshotRows } from './lib/dev128-local-snapshot-import.mjs'
+import { assertSnapshotTargetCompatible, buildImportOrder, insertSnapshotTableRows, parseLosslessJson, readSnapshotTableRows, selectSnapshotRowsForReadback, tableContentSha256, transformSnapshotRows } from './lib/dev128-local-snapshot-import.mjs'
 import { readDatabaseCatalog } from './dev128-masked-local-snapshot-runner.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -230,6 +230,7 @@ async function main() {
   let committed = false
   let receiptPath
   try {
+    await client.query("SET TIME ZONE 'UTC'")
     const targetInfo = await assertTargetMetadata(client, profile, expectedDatabase)
     const preImportCatalog = await readDatabaseCatalog(client, CONFIG.localTarget.schema)
     const compatibility = assertSnapshotTargetCompatible({ payload, targetCatalog: preImportCatalog })
@@ -250,6 +251,8 @@ async function main() {
     const payloadTables = new Map(payload.tables.map((table) => [table.name, table]))
 
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE')
+    await client.query("SET LOCAL TIME ZONE 'UTC'")
+    await client.query("SET LOCAL session_replication_role='replica'")
     await client.query("SET LOCAL lock_timeout='5s'")
     await client.query("SET LOCAL statement_timeout='180s'")
     await client.query("SET LOCAL idle_in_transaction_session_timeout='180s'")
@@ -265,11 +268,15 @@ async function main() {
       const writeRows = await insertSnapshotTableRows(client, CONFIG.localTarget.schema, targetTable, expected)
       upsertedRows += writeRows
       const observed = await readSnapshotTableRows(client, CONFIG.localTarget.schema, targetTable)
+      const preservedPrimaryKeys = name === 'companies' ? [['company-jenfu']]
+        : name === 'users' ? [['pdm-local-test-admin-user']]
+          : []
+      const snapshotRows = selectSnapshotRowsForReadback({ expectedRows: expected, observedRows: observed, primaryKey: targetTable.primaryKey, preservedPrimaryKeys })
       const expectedHash = tableContentSha256(expected, targetTable.primaryKey)
-      const observedHash = tableContentSha256(observed, targetTable.primaryKey)
+      const observedHash = tableContentSha256(snapshotRows, targetTable.primaryKey)
       const sourceTable = payloadTables.get(name)
-      if (observed.length !== sourceTable.rowCount || expectedHash !== observedHash) fail('DEV128_TARGET_TABLE_READBACK_MISMATCH')
-      tableReadbacks.push({ name, rowCount: observed.length, contentSha256: observedHash })
+      if (snapshotRows.length !== sourceTable.rowCount || expectedHash !== observedHash) fail('DEV128_TARGET_TABLE_READBACK_MISMATCH')
+      tableReadbacks.push({ name, rowCount: snapshotRows.length, contentSha256: observedHash })
     }
     for (const name of CONFIG.localTarget.clearOnImportTables) {
       const where = name === 'principal_accounts' || name === 'principal_role_assignments' ? ` WHERE principal_id <> 'pdm-local-test-admin'`
@@ -283,6 +290,7 @@ async function main() {
       if (result.rows[0].count !== 0) fail('DEV128_LOCAL_STAGING_TABLE_NOT_EMPTY')
     }
     await syncSequences(client, preImportCatalog, outputNames)
+    await client.query("SET LOCAL session_replication_role='origin'")
     await client.query('SET CONSTRAINTS ALL IMMEDIATE')
     const fkCount = await verifyForeignKeys(client, preImportCatalog)
     const migrationAfter = await migrationBaseline(client, preImportCatalog)
