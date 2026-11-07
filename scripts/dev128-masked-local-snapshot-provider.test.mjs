@@ -15,6 +15,16 @@ const publicKeyB64 = Buffer.from(publicKeyPem).toString('base64')
 const recipientKeyId = recipientKeyIdForPublicKey(publicKeyPem)
 const now = Date.parse('2026-11-07T04:30:00Z')
 
+test('builder passes the fixed WIF token to Docker and gcloud readback', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/build-ai-pdm-masked-local-snapshot.yml', import.meta.url), 'utf8')
+  assert.match(workflow, /token_format:\s*access_token/u)
+  assert.match(workflow, /create_credentials_file:\s*false/u)
+  assert.match(workflow, /export_environment_variables:\s*false/u)
+  assert.match(workflow, /GOOGLE_OAUTH_ACCESS_TOKEN:\s*"\$\{\{ steps\.builder_auth\.outputs\.access_token \}\}"/u)
+  assert.match(workflow, /CLOUDSDK_AUTH_ACCESS_TOKEN:\s*"\$\{\{ steps\.builder_auth\.outputs\.access_token \}\}"/u)
+  assert.doesNotMatch(workflow, /gcloud auth (?:login|activate-service-account)/u)
+})
+
 function job() {
   return {
     name: `projects/${config.source.projectId}/locations/${config.source.region}/jobs/ai-pdm-prod-masked-local-snapshot`,
