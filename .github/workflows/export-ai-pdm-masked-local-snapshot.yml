@@ -1,0 +1,62 @@
+name: Export AI-PDM masked local snapshot
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-release-ai-pdm-dev128-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-snapshot/providers/github
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      checks: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify exact merged main and required CI
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: node scripts/dev012-verify-official-source.mjs
+      - uses: google-github-actions/auth@v3
+        id: snapshot_auth
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-dev128-invoker@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+          export_environment_variables: false
+      - id: export_snapshot
+        name: Run fixed owner-installed snapshot job
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.snapshot_auth.outputs.access_token }}"
+        run: node scripts/dev128-masked-local-snapshot-provider.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.export_snapshot.outputs.artifact_name }}
+          path: ${{ steps.export_snapshot.outputs.artifact_path }}
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - name: Remove runner copy
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/dev128-masked-local-snapshot/snapshot.encrypted.json"

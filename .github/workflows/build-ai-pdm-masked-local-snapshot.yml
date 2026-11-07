@@ -1,0 +1,78 @@
+name: Build AI-PDM masked local snapshot runner
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-release-ai-pdm-dev128-builder
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/jenfu-prod-release/providers/aipdm-github
+  IMAGE_REPOSITORY: asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-masked-local-snapshot
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify exact merged main and required CI
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: node scripts/dev012-verify-official-source.mjs
+      - uses: google-github-actions/auth@v3
+        id: builder_auth
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+          export_environment_variables: false
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: jenfu-platform-prod
+      - id: image
+        name: Build and push source-bound image
+        shell: bash
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
+          SOURCE_REVISION: "${{ github.sha }}"
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          printf '%s' "$GOOGLE_OAUTH_ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin https://asia-east1-docker.pkg.dev
+          docker build --pull --file infra/google-cloud/dev-117-production-release/masked-local-snapshot-runner.Dockerfile --build-arg "SOURCE_REVISION=$SOURCE_REVISION" --tag "$IMAGE_REPOSITORY:$SOURCE_REVISION" .
+          docker push "$IMAGE_REPOSITORY:$SOURCE_REVISION"
+          digest="$(gcloud artifacts docker images describe "$IMAGE_REPOSITORY:$SOURCE_REVISION" --format='value(image_summary.digest)')"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          printf '{"schemaVersion":"jenfu.dev128.runner-image.v1","sourceRevision":"%s","imageDigest":"%s@%s"}\n' "$SOURCE_REVISION" "$IMAGE_REPOSITORY" "$digest" > "$RUNNER_TEMP/dev128-runner-image.json"
+          echo "image_digest=$IMAGE_REPOSITORY@$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev128-runner-image-${{ github.sha }}
+          path: ${{ runner.temp }}/dev128-runner-image.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - name: Publish digest summary
+        shell: bash
+        run: |
+          echo "source_revision=${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "image_digest=${{ steps.image.outputs.image_digest }}" >> "$GITHUB_STEP_SUMMARY"

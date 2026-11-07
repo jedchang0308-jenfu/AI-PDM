@@ -1,3 +1,10 @@
+<a id="dev-128-masked-local-production-snapshot"></a>
+
+## DEV-128：遮罩正式資料供 AI-PDM 1020 地端測試
+
+- 2026-11-07 使用者授權完成 DEV-128 owner 審查、plan、限定 apply、遮罩匯出／地端匯入與 1020 驗證後切換；不得使用 overrides。現行正式來源、固定 snapshot Job、workflow claims、精確物件權限與收尾條件見 [交付契約](specs/DEV-128-masked-local-production-snapshot.md)。
+- 實作候選已完成本機遮罩／固定 Job／無 overrides／同 schema 匯入測試 13/13、Terraform validate 與 2 個 plan cases、DB boundary、typecheck、isolated build。獨立 58421 profile preparation receipt 已核對 174 張地端表、514 條 FK 與本機測試超級管理員。正式 owner plan／apply、密文匯出／匯入及 1020 切換仍待受保護 main 與 required CI。
+
 <a id="dev-126-frontend-permission-projection"></a>
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁

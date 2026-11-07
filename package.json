@@ -713,7 +713,8 @@
     "qc:sw-addin-real-machine-report:report": "node scripts/qc-sw-addin-real-machine-report.mjs --allow-open",
     "qc:ui": "node scripts/ui-e2e-test.mjs",
     "test:dev-127:contracts": "node scripts/dev127-build-role-policy-registry.mjs --check && node --test scripts/dev127-consumer-contract.test.mjs && vitest run --config vitest.config.ts --configLoader runner --no-cache src/lib/dev127-administration-consumer.test.ts src/lib/role-policy-editor.test.ts src/lib/role-policy-apply-authorization.test.ts src/lib/role-policy-service.test.ts src/lib/role-policy-route.test.ts src/lib/role-policy-http.test.ts src/lib/jenfu-principal-role-catalog.dynamic.test.ts src/lib/repositories/jenfu-entitlement-repository.test.ts src/lib/principal-employee-display-name.test.ts src/app/api/auth/me/principal-me.test.ts src/components/sidebar-nav.employee-name.test.tsx",
-    "test:dev-127:postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/dev127-consumer-postgres.mjs"
+    "test:dev-127:postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/dev127-consumer-postgres.mjs",
+    "test:dev128:masked-local-snapshot": "node --test scripts/dev128-masked-local-snapshot.test.mjs scripts/dev128-masked-local-snapshot-provider.test.mjs scripts/dev128-local-snapshot-import.test.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
