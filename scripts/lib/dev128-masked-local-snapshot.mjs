@@ -7,6 +7,7 @@ const H64 = /^[a-f0-9]{64}$/u
 const SNAPSHOT_ID = /^PDM-MASKED-[0-9]{8}-[0-9]{1,12}$/u
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu
 const PHONE = /(?<![A-Z0-9])(?:\+?\d[\d ().-]{7,}\d)(?![A-Z0-9])/gu
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 const ABSOLUTE_PATH = /(?:[A-Z]:\\|\\\\[^\\]+\\|\bgs:\/\/|\bhttps?:\/\/)/iu
 const HARD_SECRET = /password|secret|token|credential|private|api[_-]?key|client[_-]?secret|provider[_-]?subject|firebase[_-]?(uid|id)|ip[_-]?(hash|address)/iu
 const USER_REFERENCE = /(^|_)(user|pdm_user|actor|created_by|updated_by|deleted_by|approved_by|published_by|revoked_by|activated_by|retired_by|changed_by)(_|$)/iu
@@ -420,7 +421,9 @@ function assertNoSensitivePayload(config, payload, rawUserIds) {
       const emails = value.match(EMAIL) ?? []
       if (emails.some((item) => !item.endsWith('@example.invalid'))) { emailFindings += 1; fail('DEV128_EMAIL_SCAN_FAILED') }
       PHONE.lastIndex = 0
-      if (PHONE.test(value) && !/^[0-9]+$/u.test(value) && !/^[a-f0-9]{32,64}$/iu.test(value) && !/(sha256|checksum|fingerprint)$/iu.test(path.split('.').at(-1) ?? '')) fail('DEV128_PHONE_SCAN_FAILED')
+      const leaf = path.split('.').at(-1) ?? ''
+      const losslessNumber = leaf === LOSSLESS_NUMBER_KEY && /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u.test(value)
+      if (PHONE.test(value) && !losslessNumber && !UUID.test(value) && !/^[0-9]+$/u.test(value) && !/^[a-f0-9]{32,64}$/iu.test(value) && !/(sha256|checksum|fingerprint)$/iu.test(leaf)) fail('DEV128_PHONE_SCAN_FAILED')
       PHONE.lastIndex = 0
       if (ABSOLUTE_PATH.test(value)) fail('DEV128_PATH_SCAN_FAILED')
     }
