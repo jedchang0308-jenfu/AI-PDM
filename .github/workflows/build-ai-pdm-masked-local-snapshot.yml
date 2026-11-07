@@ -53,6 +53,7 @@ jobs:
         shell: bash
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
+          CLOUDSDK_AUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           SOURCE_REVISION: "${{ github.sha }}"
         run: |
           set -euo pipefail
