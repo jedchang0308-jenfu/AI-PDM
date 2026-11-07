@@ -8,7 +8,7 @@ const SNAPSHOT_ID = /^PDM-MASKED-[0-9]{8}-[0-9]{1,12}$/u
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu
 const PHONE = /(?<![A-Z0-9])(?:\+?\d[\d ().-]{7,}\d)(?![A-Z0-9])/gu
 const ABSOLUTE_PATH = /(?:[A-Z]:\\|\\\\[^\\]+\\|\bgs:\/\/|\bhttps?:\/\/)/iu
-const HARD_SECRET = /password|secret|token|credential|private|api[_-]?key|client[_-]?secret|session|provider[_-]?subject|firebase[_-]?(uid|id)|ip[_-]?(hash|address)/iu
+const HARD_SECRET = /password|secret|token|credential|private|api[_-]?key|client[_-]?secret|provider[_-]?subject|firebase[_-]?(uid|id)|ip[_-]?(hash|address)/iu
 const USER_REFERENCE = /(^|_)(user|pdm_user|actor|created_by|updated_by|deleted_by|approved_by|published_by|revoked_by|activated_by|retired_by|changed_by)(_|$)/iu
 const LOSSLESS_NUMBER_KEY = '__dev128_number_v1__'
 
@@ -305,7 +305,7 @@ function tokenForString({ config, tableName, columnName, value, column, rowIndex
 }
 
 function sanitizeJsonValue(value, { config, tableName, columnName, rowIndex, stringMaps, userKeys, randomPrefix }, key = '') {
-  if (HARD_SECRET.test(key) || patternMatches(['(^|_)(password|secret|token|credential|session|provider_subject|firebase_uid|firebase_id|ip_address|ip_hash)(_|$)'], key)) return null
+  if (HARD_SECRET.test(key) || patternMatches(['(^|_)(password|secret|token|credential|provider_subject|firebase_uid|firebase_id|ip_address|ip_hash)(_|$)'], key)) return null
   if (isPlainObject(value) && Object.keys(value).length === 1 && Object.hasOwn(value, LOSSLESS_NUMBER_KEY)) {
     const number = value[LOSSLESS_NUMBER_KEY]
     if (typeof number !== 'string' || !/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/u.test(number)) fail('DEV128_LOSSLESS_NUMBER_INVALID')
