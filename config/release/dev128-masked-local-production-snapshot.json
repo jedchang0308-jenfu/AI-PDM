@@ -100,7 +100,7 @@
   "masking": {
     "policyVersion": "dev128-pseudonymize-v2",
     "sensitiveColumnPatterns": [
-      "password|secret|token|credential|private|api[_-]?key|client[_-]?secret|session|provider[_-]?subject|firebase[_-]?(uid|id)|user[_-]?(id|agent)|external[_-]?id|ip[_-]?(hash|address)|login[_-]?identifier|employee[_-]?(number|code)|phone|mobile|telephone|email|address|tax[_-]?(id|number)|national[_-]?id"
+      "password|secret|token|credential|private|api[_-]?key|client[_-]?secret|provider[_-]?subject|firebase[_-]?(uid|id)|user[_-]?(id|agent)|external[_-]?id|ip[_-]?(hash|address)|login[_-]?identifier|employee[_-]?(number|code)|phone|mobile|telephone|email|address|tax[_-]?(id|number)|national[_-]?id"
     ],
     "freeTextColumnPatterns": [
       "(^|_)(name|label|title|description|comment|notes?|reason|message|content|text|filename|file_name|local_path|object_key|storage_key|url|uri|address|contact|memo|remark)(_|$)"

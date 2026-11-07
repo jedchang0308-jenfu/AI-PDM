@@ -11,17 +11,17 @@ const catalogShape = JSON.parse(await readFile(new URL('../config/release/dev128
 const revision = 'a'.repeat(40)
 const snapshotId = 'PDM-MASKED-20261107-1'
 
-function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false } = {}) {
+function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false, businessSession = false } = {}) {
   const tableNames = new Set([
     ...config.source.requireEmptyTables,
     ...config.source.excludedTables,
     ...config.source.skipTables,
-    'companies', 'users', 'items', 'file_assets', 'composite_parents', 'composite_children'
+    'companies', 'users', 'items', 'file_assets', 'composite_parents', 'composite_children', 'business_sessions', 'business_session_events'
   ])
   for (let i = 0; tableNames.size < config.source.expectedTableCount; i += 1) tableNames.add(`fixture_table_${String(i).padStart(3, '0')}`)
   const tables = [...tableNames].sort().map((name) => ({
     name,
-    rowCount: name === 'schema_migrations' ? 7 : name === 'companies' || name === 'users' || name === 'items' || name === 'file_assets' || (compositeFk && (name === 'composite_parents' || name === 'composite_children')) ? 1 : 0,
+    rowCount: name === 'schema_migrations' ? 7 : name === 'companies' || name === 'users' || name === 'items' || name === 'file_assets' || (compositeFk && (name === 'composite_parents' || name === 'composite_children')) || (businessSession && (name === 'business_sessions' || name === 'business_session_events')) ? 1 : 0,
     columns: [{ name: 'id', type: 'text', notNull: true, hasDefault: false, generated: false, identity: false }],
     primaryKey: ['id']
   }))
@@ -37,6 +37,8 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
   setColumns('principal_accounts', [['company_id', 'text', true], ['pdm_user_id', 'text', true], ['principal_id', 'text', true]], ['company_id', 'pdm_user_id', 'principal_id'])
   setColumns('composite_parents', [['tenant_id', 'text', true], ['id', 'text', true]], ['tenant_id', 'id'])
   setColumns('composite_children', [['id', 'text', true], ['tenant_id', 'text', true], ['parent_id', 'text']], ['id'])
+  setColumns('business_sessions', [['id', 'text', true], ['session_purpose', 'text', true]], ['id'])
+  setColumns('business_session_events', [['id', 'text', true], ['session_id', 'text', true], ['expected_session_version', 'integer', true]], ['id'])
   if (requiredExcludedFk) {
     setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['auth_id', 'text', true]])
   }
@@ -54,11 +56,12 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
   if (nullableExcludedFk) foreignKeys.push({ childTable: 'items', childColumns: ['company_id', 'actor_id', 'actor_principal_id'], parentTable: 'principal_accounts', parentColumns: ['company_id', 'pdm_user_id', 'principal_id'] })
   if (identifyingFk) foreignKeys.push({ childTable: 'file_assets', childColumns: ['id'], parentTable: 'items', parentColumns: ['id'] })
   if (compositeFk) foreignKeys.push({ childTable: 'composite_children', childColumns: ['tenant_id', 'parent_id'], parentTable: 'composite_parents', parentColumns: ['tenant_id', 'id'] })
+  if (businessSession) foreignKeys.push({ childTable: 'business_session_events', childColumns: ['session_id'], parentTable: 'business_sessions', parentColumns: ['id'] })
   const core = { schemaVersion: 'jenfu.dev012.ai-pdm-database-catalog.v1', database: 'jenfu_prod', schema: 'ai_pdm_core', tables, foreignKeys }
   return { ...core, catalogSha256: sha256(canonicalize(core)) }
 }
 
-function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false } = {}) {
+function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false, businessSession = false } = {}) {
   const rows = new Map()
   for (const table of catalog.tables) if (!config.source.requireEmptyTables.includes(table.name) && !config.source.excludedTables.includes(table.name) && !config.source.skipTables.includes(table.name)) rows.set(table.name, [])
   rows.get('companies').push({ id: 'company-jenfu', name: 'Jenfu Manufacturing Company' })
@@ -74,6 +77,10 @@ function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, 
   if (compositeFk) {
     rows.get('composite_parents').push({ tenant_id: 'tenant-a', id: 'parent-1' })
     rows.get('composite_children').push({ id: 'child-1', tenant_id: compositeFk === 'valid' ? 'tenant-a' : 'tenant-b', parent_id: compositeFk === 'partial-null' ? null : 'parent-1' })
+  }
+  if (businessSession) {
+    rows.get('business_sessions').push({ id: 'recognition-session-1', session_purpose: 'geometry_review' })
+    rows.get('business_session_events').push({ id: 'recognition-event-1', session_id: 'recognition-session-1', expected_session_version: 7 })
   }
   return rows
 }
@@ -139,6 +146,16 @@ test('MATCH SIMPLE clears only one nullable component of an excluded composite p
   assert.equal(item.company_id, 'company-jenfu')
   assert.equal(item.actor_id, user.id)
   assert.equal(item.actor_principal_id, null)
+})
+
+test('business workflow sessions are masked as relationships instead of rejected as secrets', () => {
+  const { payload } = buildPayload({ businessSession: true })
+  const session = payload.tables.find((table) => table.name === 'business_sessions').rows[0]
+  const event = payload.tables.find((table) => table.name === 'business_session_events').rows[0]
+  assert.notEqual(session.id, 'recognition-session-1')
+  assert.notEqual(session.session_purpose, 'geometry_review')
+  assert.equal(event.session_id, session.id)
+  assert.equal(event.expected_session_version, 7)
 })
 
 test('identifying foreign keys share one masked value across the whole equivalence class', () => {
