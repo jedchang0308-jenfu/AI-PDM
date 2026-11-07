@@ -13,11 +13,11 @@ run "fixed_builder_workflow" {
 
   assert {
     condition = (
-      google_iam_workload_identity_pool.builder.workload_identity_pool_id == "aipdm-dev128-builder-v8" &&
+      google_iam_workload_identity_pool.builder.workload_identity_pool_id == "aipdm-dev128-builder-v9" &&
       google_iam_workload_identity_pool_provider.github.workload_identity_pool_provider_id == "github" &&
       google_service_account_iam_member.workflow.service_account_id == "projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com" &&
       google_service_account_iam_member.workflow.role == "roles/iam.workloadIdentityUser" &&
-      google_service_account_iam_member.workflow.member == "principal://iam.googleapis.com/projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-builder-v8/subject/aipdm-dev128-builder-v8"
+      google_service_account_iam_member.workflow.member == "principal://iam.googleapis.com/projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-builder-v9/subject/aipdm-dev128-builder-v9"
     )
     error_message = "The builder identity must be dedicated and may only impersonate the existing builder."
   }

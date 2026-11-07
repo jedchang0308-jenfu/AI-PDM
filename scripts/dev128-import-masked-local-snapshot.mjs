@@ -319,6 +319,8 @@ async function main() {
       triggerBaselineSha256: triggersAfter.sha256,
       unvalidatedForeignKeyCount: unvalidatedAfter.length,
       original1020TargetModified: false,
+      businessDataCopiedAsIs: payload.masking.businessDataCopiedAsIs,
+      credentialDataImported: false,
       ssoIdentityRowsImported: false,
       fileBytesImported: false,
       status: 'PASS'
@@ -330,7 +332,7 @@ async function main() {
     await unlink(TRANSFER)
     await unlink(PRIVATE_KEY)
     await writeFile(KEY_METADATA, `${JSON.stringify({ schemaVersion: 'jenfu.dev128.local-recipient-key.v1', keyId: keyMetadata.keyId, status: 'CONSUMED', snapshotId: payload.snapshotId }, null, 2)}\n`, { flag: 'w', mode: 0o600 })
-    process.stdout.write(`${JSON.stringify({ status: 'PASS', snapshotId: payload.snapshotId, sourceRevision: payload.sourceRevision, tableCount: tableReadbacks.length, rowCount: sourceRows, targetProfile: CONFIG.localTarget.profileName, ssoIdentityRowsImported: false, fileBytesImported: false, receipt: receiptPath })}\n`)
+    process.stdout.write(`${JSON.stringify({ status: 'PASS', snapshotId: payload.snapshotId, sourceRevision: payload.sourceRevision, tableCount: tableReadbacks.length, rowCount: sourceRows, targetProfile: CONFIG.localTarget.profileName, businessDataCopiedAsIs: payload.masking.businessDataCopiedAsIs, credentialDataImported: false, ssoIdentityRowsImported: false, fileBytesImported: false, receipt: receiptPath })}\n`)
   } catch (error) {
     if (!committed) await client.query('ROLLBACK').catch(() => undefined)
     throw error

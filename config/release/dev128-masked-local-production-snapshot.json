@@ -98,7 +98,8 @@
     "runtime": "node:24.20.0-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf"
   },
   "masking": {
-    "policyVersion": "dev128-pseudonymize-v3",
+    "policyVersion": "dev128-raw-business-copy-v1",
+    "businessDataPolicy": "COPY_AS_IS",
     "sensitiveColumnPatterns": [
       "password|secret|token|credential|private|api[_-]?key|client[_-]?secret|provider[_-]?subject|firebase[_-]?(uid|id)|user[_-]?(id|agent)|external[_-]?id|ip[_-]?(hash|address)|login[_-]?identifier|employee[_-]?(number|code)|phone|mobile|telephone|email|address|tax[_-]?(id|number)|national[_-]?id"
     ],
