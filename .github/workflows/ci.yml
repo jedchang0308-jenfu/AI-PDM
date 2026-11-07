@@ -142,11 +142,11 @@ jobs:
         run: node --test scripts/production-slice-plan.test.mjs
 
       - name: Install dependencies
-        if: github.event_name != 'pull_request' || steps.slice.outputs.docs_only != 'true'
+        if: steps.slice.outputs.docs_only != 'true'
         run: npm ci
 
       - name: Build and verify DEV-125 Windows installer
-        if: github.event_name != 'pull_request' || steps.slice.outputs.docs_only != 'true'
+        if: steps.slice.outputs.worker == 'true'
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -160,7 +160,7 @@ jobs:
           node --conditions=react-server --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs --input-type=module -e "const m=await import('./src/lib/windows-service-installer.ts'); const r=await m.readWindowsServiceInstaller(process.env.DEV125_INSTALLER_ROOT); if(r.manifest.sourceRevision!==process.env.GITHUB_SHA) process.exit(3); console.log(JSON.stringify({status:'PASS',sha256:r.manifest.sha256,size:r.manifest.size}))"
 
       - name: Upload DEV-125 Windows installer evidence
-        if: github.event_name != 'pull_request' || steps.slice.outputs.docs_only != 'true'
+        if: steps.slice.outputs.worker == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dev125-windows-installer-${{ github.sha }}
@@ -181,6 +181,23 @@ jobs:
       - name: Lint
         if: steps.slice.outputs.lint == 'true'
         run: npm run lint
+
+      - name: Verify DEV-128 bounded data refresh
+        if: steps.slice.outputs.local_data_refresh == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec eslint -- "scripts/dev128*.mjs" "scripts/lib/dev128*.mjs"
+          npm run test:dev128:masked-local-snapshot
+
+      - name: Verify fixed local test-admin runtime
+        if: steps.slice.outputs.local_runtime == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec eslint -- scripts/qc-local-dev-entrypoint.mjs scripts/dev-local-process-ownership.test.mjs
+          npm run qc:local-dev-entrypoint
+          npm run test:local-test-admin
 
       - name: Verify affected release, authorization, database, and worker contracts
         if: steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.database == 'true' || steps.slice.outputs.worker == 'true')
@@ -213,7 +230,6 @@ jobs:
           npm run qc:dev-121:inventory-runner
           node --test scripts/lib/dev121-ai-pdm-quiescence.test.mjs scripts/lib/preview-worker-source.test.mjs scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs
           node --test scripts/dev121-principal-candidate-smoke.test.mjs scripts/dev121-smoke-credential-reauth.test.mjs
-          npm run test:dev128:masked-local-snapshot
           npm run qc:dev-046-phase2b
 
       - name: Verify application and authorization slice
