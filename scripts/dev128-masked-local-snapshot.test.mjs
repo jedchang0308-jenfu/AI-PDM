@@ -11,6 +11,12 @@ const catalogShape = JSON.parse(await readFile(new URL('../config/release/dev128
 const revision = 'a'.repeat(40)
 const snapshotId = 'PDM-MASKED-20261107-1'
 
+test('prepared local snapshot keeps the canonical AI PDM client id', async () => {
+  const source = await readFile(new URL('./dev128-prepare-local-masked-snapshot.mjs', import.meta.url), 'utf8')
+  assert.match(source, /platformClient:\{\s*clientId:'ai-pdm',/u)
+  assert.doesNotMatch(source, /clientId:'ai-pdm-masked-snapshot'/u)
+})
+
 function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null, nullableExcludedFk = false, businessSession = false } = {}) {
   const tableNames = new Set([
     ...config.source.requireEmptyTables,

@@ -343,7 +343,7 @@ async function prepare() {
         sandboxRoot:SANDBOX_ROOT, dataDirectory:targetIdentity.dataDirectory, repositoryDirectory:targetIdentity.repositoryDirectory,
         databaseUrl:runtimeUrl.href, fixture:{ ...oldProfile.fixture, path:path.join(CONTROL,'fixtures.json') },
         principalSessionKey:{ keyId:'pdm-test-admin-1020-masked-snapshot', secret:crypto.randomBytes(32).toString('base64url') },
-        platformClient:{ clientId:'ai-pdm-masked-snapshot', key:crypto.randomBytes(32).toString('base64url') } })
+        platformClient:{ clientId:'ai-pdm', key:crypto.randomBytes(32).toString('base64url') } })
       const ownerRecord = { ...owner, runtimeRole:RUNTIME_ROLE }
       await writeFile(path.join(CONTROL,'owner-connection.json'),`${JSON.stringify(ownerRecord,null,2)}\n`,{flag:'wx',mode:0o600})
       await writeFile(path.join(CONTROL,'ai-pdm-runtime.json'),`${JSON.stringify(profile,null,2)}\n`,{flag:'wx',mode:0o600})
