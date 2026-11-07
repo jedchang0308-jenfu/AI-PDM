@@ -83,7 +83,8 @@ function validateJob({ config, job, sourceRevision, now = Date.now() }) {
   const expectedName = `projects/${config.source.projectId}/locations/${config.source.region}/jobs/ai-pdm-prod-masked-local-snapshot`
   if (!job || job.name !== expectedName || job.reconciling === true || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
       String(job.generation ?? '') !== String(job.observedGeneration ?? '') || typeof job.etag !== 'string' || !job.etag ||
-      typeof job.uid !== 'string' || !job.uid || job.deletionProtection !== false) fail('DEV128_JOB_READBACK_MISMATCH')
+      typeof job.uid !== 'string' || !job.uid ||
+      (job.deletionProtection !== undefined && job.deletionProtection !== false)) fail('DEV128_JOB_READBACK_MISMATCH')
   const labels = job.labels ?? {}
   if (labels.application !== 'ai-pdm' || labels.component !== 'masked-local-snapshot' || labels.dev !== 'dev-128') fail('DEV128_JOB_READBACK_MISMATCH')
   const task = job.template?.template

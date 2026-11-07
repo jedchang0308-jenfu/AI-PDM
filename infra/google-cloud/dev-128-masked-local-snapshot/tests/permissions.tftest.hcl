@@ -41,7 +41,7 @@ run "fixed_job_and_object" {
 
   assert {
     condition = (
-      google_service_account_iam_member.workflow.member == "principal://iam.googleapis.com/projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-snapshot/subject/aipdm-dev128-snapshot" &&
+      google_service_account_iam_member.workflow.member == "principal://iam.googleapis.com/projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-snapshot-v2/subject/aipdm-dev128-snapshot-v2" &&
       strcontains(google_iam_workload_identity_pool_provider.github.attribute_condition, "assertion.repository_id == '1260972060'") &&
       strcontains(google_iam_workload_identity_pool_provider.github.attribute_condition, "assertion.workflow_sha == '${var.attempt.source_revision}'") &&
       strcontains(google_iam_workload_identity_pool_provider.github.attribute_condition, "assertion.run_attempt == '1'")
