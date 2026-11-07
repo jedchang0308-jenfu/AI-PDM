@@ -133,59 +133,69 @@ function makeOpaqueValue({ column, table, index, randomPrefix, special = null })
 function prepareValueMaps({ config, catalog, rowsByTable, copyTables }) {
   const tables = tableMetadata(catalog)
   const skipped = asSet([...config.source.requireEmptyTables, ...(config.source.excludedTables ?? []), ...config.source.skipTables])
-  const referenced = new Map()
-  for (const fk of catalog.foreignKeys) {
-    const key = `${fk.parentTable}.${fk.parentColumns.join('\u001f')}`
-    if (!referenced.has(key)) referenced.set(key, [])
-    referenced.get(key).push(fk)
-  }
   const valueMaps = new Map()
   const nullFkColumns = new Set()
   const userKeys = new Map()
   const randomPrefix = crypto.randomBytes(5).toString('base64url').toLowerCase()
+  const copied = new Set(copyTables)
+  const activeForeignKeys = catalog.foreignKeys.filter((fk) => !skipped.has(fk.parentTable) && copied.has(fk.childTable))
+  const nodes = new Map()
+  const parents = new Map()
+  const ensureNode = (tableName, columnName) => {
+    const key = `${tableName}.${columnName}`
+    if (!nodes.has(key)) {
+      const table = tables.get(tableName)
+      const column = table?.columnMap.get(columnName)
+      if (!table || !column || !copied.has(tableName)) fail('DEV128_FOREIGN_KEY_MASK_NODE_INVALID')
+      nodes.set(key, { key, tableName, columnName, column })
+      parents.set(key, key)
+    }
+    return key
+  }
+  const find = (key) => {
+    let root = key
+    while (parents.get(root) !== root) root = parents.get(root)
+    while (parents.get(key) !== key) {
+      const next = parents.get(key)
+      parents.set(key, root)
+      key = next
+    }
+    return root
+  }
+  const union = (left, right) => {
+    const leftRoot = find(left)
+    const rightRoot = find(right)
+    if (leftRoot === rightRoot) return
+    if (leftRoot < rightRoot) parents.set(rightRoot, leftRoot)
+    else parents.set(leftRoot, rightRoot)
+  }
+
   for (const tableName of copyTables) {
     const table = tables.get(tableName)
     const rows = rowsByTable.get(tableName)
     if (!table || !Array.isArray(rows) || rows.length !== table.rowCount) fail('DEV128_SOURCE_ROW_COUNT_MISMATCH')
     if (rows.length > 0 && table.primaryKey.length === 0) fail('DEV128_NONEMPTY_TABLE_WITHOUT_PRIMARY_KEY')
     if (patternMatches(['(^|_)(auth|authentication|credential|secret|password|oauth|firebase_identity|account_session|account_recovery|account_invitation|employee_login|platform_principal|api_token)(_|$)'], tableName)) fail('DEV128_SENSITIVE_TABLE_NOT_EXCLUDED')
-    for (const row of rows) {
-      const valuesToMap = new Set(table.primaryKey)
-      for (const fk of catalog.foreignKeys) if (fk.parentTable === tableName) for (const column of fk.parentColumns) valuesToMap.add(column)
-      for (const columnName of valuesToMap) {
-        const column = table.columnMap.get(columnName)
-        const value = row[columnName]
-        if (value === null || value === undefined) continue
-        const sourceKey = canonicalize(value instanceof Date ? value.toISOString() : value)
-        const key = `${tableName}.${columnName}`
-        if (!valueMaps.has(key)) valueMaps.set(key, new Map())
-        const map = valueMaps.get(key)
-        if (!map.has(sourceKey)) {
-          let special = null
-          if (tableName === 'users' && columnName === 'id') {
-            const label = `snapshot-user-${randomPrefix}-${String(map.size + 1).padStart(4, '0')}`
-            userKeys.set(canonicalize(value instanceof Date ? value.toISOString() : value), label)
-            special = label
-          }
-          let targetValue = special
-          if (targetValue === null) {
-            if (tableName === 'companies' && columnName === 'id' && String(value) === 'company-jenfu') targetValue = 'company-jenfu'
-            else targetValue = makeOpaqueValue({ column, table: tableName, index: map.size + 1, randomPrefix })
-          }
-          const limit = maxLength(column.type)
-          if (limit !== null && String(targetValue).length > limit) {
-            if (tableName === 'users' && columnName === 'id') fail('DEV128_USER_ID_LENGTH_UNSUPPORTED')
-            if (tableName === 'companies' && columnName === 'id') fail('DEV128_COMPANY_ID_LENGTH_UNSUPPORTED')
-          }
-          if ([...map.values()].some((previous) => canonicalize(previous) === canonicalize(targetValue))) fail('DEV128_MASK_MAP_COLLISION')
-          map.set(sourceKey, targetValue)
-        }
-      }
+    for (const columnName of table.primaryKey) ensureNode(tableName, columnName)
+  }
+  for (const fk of activeForeignKeys) {
+    for (let index = 0; index < fk.childColumns.length; index += 1) {
+      union(ensureNode(fk.childTable, fk.childColumns[index]), ensureNode(fk.parentTable, fk.parentColumns[index]))
     }
   }
-  for (const fk of catalog.foreignKeys) {
-    if (skipped.has(fk.parentTable) || !copyTables.includes(fk.childTable)) continue
-    const childTable = tables.get(fk.childTable)
+
+  const observedValues = new Map()
+  for (const node of nodes.values()) {
+    const values = new Map()
+    for (const row of rowsByTable.get(node.tableName) ?? []) {
+      const value = row[node.columnName]
+      if (value === null || value === undefined) continue
+      values.set(canonicalize(value instanceof Date ? value.toISOString() : value), value)
+    }
+    observedValues.set(node.key, values)
+  }
+
+  for (const fk of activeForeignKeys) {
     const childRows = rowsByTable.get(fk.childTable) ?? []
     for (const row of childRows) {
       for (let index = 0; index < fk.childColumns.length; index += 1) {
@@ -193,18 +203,56 @@ function prepareValueMaps({ config, catalog, rowsByTable, copyTables }) {
         const parentColumn = fk.parentColumns[index]
         const value = row[childColumn]
         if (value === null || value === undefined) continue
-        const parentMap = valueMaps.get(`${fk.parentTable}.${parentColumn}`)
-        const masked = parentMap?.get(canonicalize(value instanceof Date ? value.toISOString() : value))
-        if (masked === undefined) fail('DEV128_FOREIGN_KEY_SOURCE_REFERENCE_MISSING')
-        const childMapKey = `${fk.childTable}.${childColumn}`
-        if (!valueMaps.has(childMapKey)) valueMaps.set(childMapKey, new Map())
-        const childMap = valueMaps.get(childMapKey)
         const sourceKey = canonicalize(value instanceof Date ? value.toISOString() : value)
-        if (childMap.has(sourceKey) && canonicalize(childMap.get(sourceKey)) !== canonicalize(masked)) fail('DEV128_FOREIGN_KEY_MASK_CONFLICT')
-        childMap.set(sourceKey, masked)
+        if (!observedValues.get(`${fk.parentTable}.${parentColumn}`)?.has(sourceKey)) fail('DEV128_FOREIGN_KEY_SOURCE_REFERENCE_MISSING')
       }
     }
   }
+
+  const groups = new Map()
+  for (const node of nodes.values()) {
+    const root = find(node.key)
+    if (!groups.has(root)) groups.set(root, [])
+    groups.get(root).push(node)
+  }
+  for (const members of groups.values()) {
+    const hasUserId = members.some((node) => node.tableName === 'users' && node.columnName === 'id')
+    const hasCompanyId = members.some((node) => node.tableName === 'companies' && node.columnName === 'id')
+    if (hasUserId && hasCompanyId) fail('DEV128_FOREIGN_KEY_SPECIAL_ID_CONFLICT')
+    const ranked = [...members].sort((left, right) => {
+      const specialRank = (node) => node.tableName === 'users' && node.columnName === 'id' ? 0
+        : node.tableName === 'companies' && node.columnName === 'id' ? 1 : 2
+      const rank = specialRank(left) - specialRank(right)
+      if (rank !== 0) return rank
+      const leftLimit = maxLength(left.column.type) ?? Number.MAX_SAFE_INTEGER
+      const rightLimit = maxLength(right.column.type) ?? Number.MAX_SAFE_INTEGER
+      return leftLimit - rightLimit || left.key.localeCompare(right.key)
+    })
+    const anchor = ranked[0]
+    const sourceValues = new Map()
+    for (const member of members) for (const [sourceKey, value] of observedValues.get(member.key)) if (!sourceValues.has(sourceKey)) sourceValues.set(sourceKey, value)
+    const map = new Map()
+    for (const [sourceKey, value] of sourceValues) {
+      let targetValue = null
+      if (hasUserId) {
+        targetValue = `snapshot-user-${randomPrefix}-${String(map.size + 1).padStart(4, '0')}`
+        userKeys.set(sourceKey, targetValue)
+      } else if (hasCompanyId && String(value) === 'company-jenfu') targetValue = 'company-jenfu'
+      else targetValue = makeOpaqueValue({ column: anchor.column, table: anchor.tableName, index: map.size + 1, randomPrefix })
+      for (const member of members) {
+        const limit = maxLength(member.column.type)
+        if (limit !== null && String(targetValue).length > limit) {
+          if (hasUserId) fail('DEV128_USER_ID_LENGTH_UNSUPPORTED')
+          if (hasCompanyId) fail('DEV128_COMPANY_ID_LENGTH_UNSUPPORTED')
+          fail('DEV128_MASKED_VALUE_LENGTH_UNSUPPORTED')
+        }
+      }
+      if ([...map.values()].some((previous) => canonicalize(previous) === canonicalize(targetValue))) fail('DEV128_MASK_MAP_COLLISION')
+      map.set(sourceKey, targetValue)
+    }
+    for (const member of members) valueMaps.set(member.key, map)
+  }
+
   for (const fk of catalog.foreignKeys) {
     const skippedParent = skipped.has(fk.parentTable)
     if (!skippedParent) continue
@@ -212,7 +260,7 @@ function prepareValueMaps({ config, catalog, rowsByTable, copyTables }) {
     if (fk.childColumns.some((column) => childTable.columnMap.get(column)?.notNull === true) && childTable.rowCount > 0) fail('DEV128_REQUIRED_REFERENCE_TO_EXCLUDED_TABLE')
     for (const column of fk.childColumns) nullFkColumns.add(`${fk.childTable}.${column}`)
   }
-  return { tables, valueMaps, userKeys, randomPrefix, referenced, nullFkColumns }
+  return { tables, valueMaps, userKeys, randomPrefix, nullFkColumns }
 }
 
 function lookupMappedValue(valueMaps, tableName, columnName, value) {

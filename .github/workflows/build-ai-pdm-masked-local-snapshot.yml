@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-builder-v3/providers/github
+  WIF_PROVIDER: projects/9536592944/locations/global/workloadIdentityPools/aipdm-dev128-builder-v4/providers/github
   IMAGE_REPOSITORY: asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-masked-local-snapshot
 
 jobs:
