@@ -251,10 +251,14 @@ function prepareValueMaps({ config, catalog, rowsByTable, copyTables }) {
 
   for (const fk of catalog.foreignKeys) {
     const skippedParent = skipped.has(fk.parentTable)
-    if (!skippedParent) continue
+    if (!skippedParent || !copied.has(fk.childTable)) continue
     const childTable = tables.get(fk.childTable)
-    if (fk.childColumns.some((column) => childTable.columnMap.get(column)?.notNull === true) && childTable.rowCount > 0) fail('DEV128_REQUIRED_REFERENCE_TO_EXCLUDED_TABLE')
-    for (const column of fk.childColumns) nullFkColumns.add(`${fk.childTable}.${column}`)
+    const nullableColumns = fk.childColumns.filter((column) => childTable.columnMap.get(column)?.notNull !== true)
+    if (nullableColumns.length === 0) {
+      if (childTable.rowCount > 0) fail('DEV128_REQUIRED_REFERENCE_TO_EXCLUDED_TABLE')
+      continue
+    }
+    nullFkColumns.add(`${fk.childTable}.${nullableColumns[0]}`)
   }
   return { tables, valueMaps, userKeys, randomPrefix, nullFkColumns }
 }
