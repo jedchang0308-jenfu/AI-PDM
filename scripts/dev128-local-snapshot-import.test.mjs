@@ -5,6 +5,7 @@ import {
   buildImportOrder,
   losslessCanonicalJson,
   parseLosslessJson,
+  selectSnapshotRowsForReadback,
   transformSnapshotRows
 } from './lib/dev128-local-snapshot-import.mjs'
 
@@ -47,4 +48,21 @@ test('import order places parent tables before children and detects cross-table 
   assert.throws(() => buildImportOrder({ tableNames: ['alpha', 'beta'], foreignKeys: [
     { childTable: 'alpha', parentTable: 'beta' }, { childTable: 'beta', parentTable: 'alpha' }
   ] }), { code: 'DATA_CUTOVER_FOREIGN_KEY_CYCLE' })
+})
+
+test('readback separates fixed local principals from imported snapshot rows', () => {
+  const expectedRows = [{ id: 'prod-user-1', role: 'Engineer' }, { id: 'prod-user-2', role: 'Manager' }]
+  const observedRows = [...expectedRows, { id: 'pdm-local-test-admin-user', role: 'Admin' }]
+  assert.deepEqual(selectSnapshotRowsForReadback({
+    expectedRows,
+    observedRows,
+    primaryKey: ['id'],
+    preservedPrimaryKeys: [['pdm-local-test-admin-user']]
+  }), expectedRows)
+  assert.throws(() => selectSnapshotRowsForReadback({
+    expectedRows,
+    observedRows: [...observedRows, { id: 'unexpected-user', role: 'Admin' }],
+    primaryKey: ['id'],
+    preservedPrimaryKeys: [['pdm-local-test-admin-user']]
+  }), { code: 'DEV128_TARGET_UNEXPECTED_LOCAL_ROW' })
 })

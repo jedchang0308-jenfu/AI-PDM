@@ -163,7 +163,7 @@ async function waitSingleExecution(provider, config) {
   fail('DEV128_EXECUTION_DISCOVERY_TIMEOUT')
 }
 
-async function waitExecution(provider, config, executionName) {
+async function waitExecution(provider, config, executionName, { sleepImpl = sleep } = {}) {
   const expectedPrefix = `${jobUrl(config)}/executions/`
   const url = `https://run.googleapis.com/v2/${executionName}`
   if (!url.startsWith(expectedPrefix)) fail('DEV128_EXECUTION_REF_INVALID')
@@ -172,10 +172,14 @@ async function waitExecution(provider, config, executionName) {
     const completed = (value?.conditions ?? []).filter((condition) => condition.type === 'Completed')
     if (completed.length > 1) fail('DEV128_EXECUTION_READBACK_MISMATCH')
     if (completed.length === 1) {
-      if (completed[0].state !== 'CONDITION_SUCCEEDED' || Number(value.succeededCount ?? 0) !== 1 || Number(value.failedCount ?? 0) !== 0 || !value.completionTime) fail('DEV128_EXECUTION_FAILED')
-      return value
+      if (completed[0].state === 'CONDITION_SUCCEEDED') {
+        if (Number(value.succeededCount ?? 0) !== 1 || Number(value.failedCount ?? 0) !== 0 || !value.completionTime) fail('DEV128_EXECUTION_FAILED')
+        return value
+      }
+      if (completed[0].state === 'CONDITION_FAILED') fail('DEV128_EXECUTION_FAILED')
+      if (!['CONDITION_PENDING', 'CONDITION_RECONCILING'].includes(completed[0].state)) fail('DEV128_EXECUTION_READBACK_MISMATCH')
     }
-    await sleep(10_000)
+    await sleepImpl(10_000)
   }
   fail('DEV128_EXECUTION_TIMEOUT')
 }
@@ -260,4 +264,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   })
 }
 
-export { jobUrl, listExecutions, main as runDev128Provider, objectReadback, validateJob, waitSingleExecution }
+export { jobUrl, listExecutions, main as runDev128Provider, objectReadback, validateJob, waitExecution, waitSingleExecution }

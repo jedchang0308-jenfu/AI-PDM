@@ -59,8 +59,8 @@ if (!String(scripts["dev:local:restart"] ?? "").includes("-CleanNext")) {
 
 assertIncludes("fixed test-admin launcher", localTestAdminLauncher, [
   "$Port = 1020",
-  "$DatabasePort = 58420",
-  "test-admin-1020",
+  "$DatabasePort = 58421",
+  "test-admin-1020-masked-snapshot",
   "sandbox\\control\\ai-pdm-runtime.json",
   '"postgres.exe"',
   "postmaster.pid",
