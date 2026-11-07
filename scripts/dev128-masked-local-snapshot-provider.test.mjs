@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { Dev128Provider, validateJob } from './dev128-masked-local-snapshot-provider.mjs'
+import { Dev128Provider, validateJob, waitSingleExecution } from './dev128-masked-local-snapshot-provider.mjs'
 import { recipientKeyIdForPublicKey } from './lib/dev128-masked-local-snapshot.mjs'
 
 const config = JSON.parse(await readFile(new URL('../config/release/dev128-masked-local-production-snapshot.json', import.meta.url), 'utf8'))
@@ -17,7 +17,7 @@ const now = Date.parse('2026-11-07T04:30:00Z')
 
 test('builder passes the fixed WIF token to Docker and gcloud readback', async () => {
   const workflow = await readFile(new URL('../.github/workflows/build-ai-pdm-masked-local-snapshot.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-builder-v4\/providers\/github/u)
+  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-builder-v5\/providers\/github/u)
   assert.match(workflow, /token_format:\s*access_token/u)
   assert.match(workflow, /create_credentials_file:\s*false/u)
   assert.match(workflow, /export_environment_variables:\s*false/u)
@@ -95,8 +95,8 @@ test('Cloud Run proto-default deletion protection is false and all other values 
 
 test('export workflow is bound to the rotated snapshot pool and invoker only', async () => {
   const workflow = await readFile(new URL('../.github/workflows/export-ai-pdm-masked-local-snapshot.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-snapshot-v3\/providers\/github/u)
-  assert.match(workflow, /service_account:\s*aipdm-dev128-invoker-v3@jenfu-platform-prod[.]iam[.]gserviceaccount[.]com/u)
+  assert.match(workflow, /workloadIdentityPools\/aipdm-dev128-snapshot-v4\/providers\/github/u)
+  assert.match(workflow, /service_account:\s*aipdm-dev128-invoker-v4@jenfu-platform-prod[.]iam[.]gserviceaccount[.]com/u)
   assert.doesNotMatch(workflow, /runWithOverrides|--args|--update-env-vars/u)
 })
 
@@ -109,6 +109,16 @@ test('tag image, changed source, extra environment and expired window fail close
   extra.template.template.containers[0].env.push({ name: 'ARBITRARY_SQL', value: 'select 1' })
   assert.throws(() => validateJob({ config, job: extra, sourceRevision, now }), /DEV128_JOB_ENVIRONMENT_MISMATCH/u)
   assert.throws(() => validateJob({ config, job: job(), sourceRevision, now: Date.parse('2026-11-07T06:00:00Z') }), /DEV128_JOB_ENVIRONMENT_MISMATCH/u)
+})
+
+test('execution discovery uses the fixed Job history and rejects more than one execution', async () => {
+  const execution = { name: `projects/${config.source.projectId}/locations/${config.source.region}/jobs/ai-pdm-prod-masked-local-snapshot/executions/fixed` }
+  let requestedUrl
+  const provider = { request: async (url) => { requestedUrl = url; return { executions: [execution] } } }
+  assert.equal(await waitSingleExecution(provider, config), execution)
+  assert.match(requestedUrl, /jobs\/ai-pdm-prod-masked-local-snapshot\/executions/u)
+  const ambiguous = { request: async () => ({ executions: [execution, execution] }) }
+  await assert.rejects(() => waitSingleExecution(ambiguous, config), { code: 'DEV128_EXECUTION_READBACK_MISMATCH' })
 })
 
 test('provider exposes read/run transport only and keeps token private', async () => {

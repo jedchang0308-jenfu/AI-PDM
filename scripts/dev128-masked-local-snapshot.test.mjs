@@ -10,17 +10,17 @@ const config = JSON.parse(await readFile(new URL('../config/release/dev128-maske
 const revision = 'a'.repeat(40)
 const snapshotId = 'PDM-MASKED-20261107-1'
 
-function makeCatalog({ requiredExcludedFk = false, identifyingFk = false } = {}) {
+function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compositeFk = null } = {}) {
   const tableNames = new Set([
     ...config.source.requireEmptyTables,
     ...config.source.excludedTables,
     ...config.source.skipTables,
-    'companies', 'users', 'items', 'file_assets'
+    'companies', 'users', 'items', 'file_assets', 'composite_parents', 'composite_children'
   ])
   for (let i = 0; tableNames.size < config.source.expectedTableCount; i += 1) tableNames.add(`fixture_table_${String(i).padStart(3, '0')}`)
   const tables = [...tableNames].sort().map((name) => ({
     name,
-    rowCount: name === 'schema_migrations' ? 7 : name === 'companies' || name === 'users' || name === 'items' || name === 'file_assets' ? 1 : 0,
+    rowCount: name === 'schema_migrations' ? 7 : name === 'companies' || name === 'users' || name === 'items' || name === 'file_assets' || (compositeFk && (name === 'composite_parents' || name === 'composite_children')) ? 1 : 0,
     columns: [{ name: 'id', type: 'text', notNull: true, hasDefault: false, generated: false, identity: false }],
     primaryKey: ['id']
   }))
@@ -33,6 +33,8 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false } = {})
   setColumns('users', [['id', 'text', true], ['display_name', 'character varying(100)', true], ['email', 'character varying(254)'], ['phone_number', 'bigint'], ['password_hash', 'text'], ['role', 'text', true], ['company_id', 'text', true], ['account_status', 'text', true], ['created_at', 'timestamp with time zone', true], ['created_by', 'text']])
   setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb']])
   setColumns('file_assets', [['id', 'text', true], ['company_id', 'text', true], ['file_name', 'text', true], ['storage_bucket', 'text'], ['storage_key', 'text'], ['file_url', 'text'], ['file_bytes', 'bytea'], ['content_sha256', 'character(64)']])
+  setColumns('composite_parents', [['tenant_id', 'text', true], ['id', 'text', true]], ['tenant_id', 'id'])
+  setColumns('composite_children', [['id', 'text', true], ['tenant_id', 'text', true], ['parent_id', 'text']], ['id'])
   if (requiredExcludedFk) {
     setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['auth_id', 'text', true]])
   }
@@ -45,11 +47,12 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false } = {})
   ]
   if (requiredExcludedFk) foreignKeys.push({ childTable: 'items', childColumns: ['auth_id'], parentTable: 'auth_identities', parentColumns: ['id'] })
   if (identifyingFk) foreignKeys.push({ childTable: 'file_assets', childColumns: ['id'], parentTable: 'items', parentColumns: ['id'] })
+  if (compositeFk) foreignKeys.push({ childTable: 'composite_children', childColumns: ['tenant_id', 'parent_id'], parentTable: 'composite_parents', parentColumns: ['tenant_id', 'id'] })
   const core = { schemaVersion: 'jenfu.dev012.ai-pdm-database-catalog.v1', database: 'jenfu_prod', schema: 'ai_pdm_core', tables, foreignKeys }
   return { ...core, catalogSha256: sha256(canonicalize(core)) }
 }
 
-function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false } = {}) {
+function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, compositeFk = null } = {}) {
   const rows = new Map()
   for (const table of catalog.tables) if (!config.source.requireEmptyTables.includes(table.name) && !config.source.excludedTables.includes(table.name) && !config.source.skipTables.includes(table.name)) rows.set(table.name, [])
   rows.get('companies').push({ id: 'company-jenfu', name: 'Jenfu Manufacturing Company' })
@@ -58,6 +61,10 @@ function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false }
   if (requiredExcludedFk) item.auth_id = 'auth-1'
   rows.get('items').push(item)
   rows.get('file_assets').push({ id: identifyingFk ? 'part-7654' : 'asset-1', company_id: 'company-jenfu', file_name: 'Customer-assembly-secret.sldprt', storage_bucket: 'jenfu-private-production-bucket', storage_key: 'parts/production/secret.sldprt', file_url: 'https://storage.googleapis.com/private/secret', file_bytes: Buffer.from('raw CAD contents'), content_sha256: 'a'.repeat(64) })
+  if (compositeFk) {
+    rows.get('composite_parents').push({ tenant_id: 'tenant-a', id: 'parent-1' })
+    rows.get('composite_children').push({ id: 'child-1', tenant_id: compositeFk === 'valid' ? 'tenant-a' : 'tenant-b', parent_id: compositeFk === 'partial-null' ? null : 'parent-1' })
+  }
   return rows
 }
 
@@ -114,6 +121,17 @@ test('identifying foreign keys share one masked value across the whole equivalen
   const file = payload.tables.find((table) => table.name === 'file_assets').rows[0]
   assert.notEqual(item.id, 'part-7654')
   assert.equal(file.id, item.id)
+})
+
+test('MATCH SIMPLE composite foreign key skips parent lookup when any child component is null', () => {
+  const { payload } = buildPayload({ compositeFk: 'partial-null' })
+  const child = payload.tables.find((table) => table.name === 'composite_children').rows[0]
+  assert.equal(child.parent_id, null)
+  assert.notEqual(child.tenant_id, 'tenant-b')
+})
+
+test('composite foreign key still rejects a missing all-non-null parent tuple', () => {
+  assert.throws(() => buildPayload({ compositeFk: 'missing' }), { code: 'DEV128_FOREIGN_KEY_SOURCE_REFERENCE_MISSING' })
 })
 
 test('encrypts only the masked payload and detects ciphertext tampering', () => {
