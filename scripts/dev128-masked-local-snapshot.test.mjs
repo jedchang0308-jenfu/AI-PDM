@@ -32,7 +32,7 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
   }
   setColumns('companies', [['id', 'text', true], ['name', 'character varying(80)', true]])
   setColumns('users', [['id', 'text', true], ['display_name', 'character varying(100)', true], ['email', 'character varying(254)'], ['phone_number', 'bigint'], ['password_hash', 'text'], ['role', 'text', true], ['company_id', 'text', true], ['account_status', 'text', true], ['created_at', 'timestamp with time zone', true], ['created_by', 'text']])
-  setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb']])
+  setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['standard_cost', 'numeric', true], ['tracking_uuid', 'uuid', true], ['details_json', 'jsonb']])
   setColumns('file_assets', [['id', 'text', true], ['company_id', 'text', true], ['file_name', 'text', true], ['storage_bucket', 'text'], ['storage_key', 'text'], ['file_url', 'text'], ['file_bytes', 'bytea'], ['content_sha256', 'character(64)']])
   setColumns('principal_accounts', [['company_id', 'text', true], ['pdm_user_id', 'text', true], ['principal_id', 'text', true]], ['company_id', 'pdm_user_id', 'principal_id'])
   setColumns('composite_parents', [['tenant_id', 'text', true], ['id', 'text', true]], ['tenant_id', 'id'])
@@ -40,10 +40,10 @@ function makeCatalog({ requiredExcludedFk = false, identifyingFk = false, compos
   setColumns('business_sessions', [['id', 'text', true], ['session_purpose', 'text', true]], ['id'])
   setColumns('business_session_events', [['id', 'text', true], ['session_id', 'text', true], ['expected_session_version', 'integer', true]], ['id'])
   if (requiredExcludedFk) {
-    setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['auth_id', 'text', true]])
+    setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['standard_cost', 'numeric', true], ['tracking_uuid', 'uuid', true], ['details_json', 'jsonb'], ['auth_id', 'text', true]])
   }
   if (nullableExcludedFk) {
-    setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['details_json', 'jsonb'], ['actor_id', 'text', true], ['actor_principal_id', 'text']])
+    setColumns('items', [['id', 'text', true], ['company_id', 'text', true], ['part_number', 'text', true], ['part_name', 'text', true], ['created_by', 'text'], ['created_at', 'timestamp with time zone', true], ['standard_cost', 'numeric', true], ['tracking_uuid', 'uuid', true], ['details_json', 'jsonb'], ['actor_id', 'text', true], ['actor_principal_id', 'text']])
   }
   const foreignKeys = [
     { childTable: 'users', childColumns: ['company_id'], parentTable: 'companies', parentColumns: ['id'] },
@@ -66,7 +66,7 @@ function makeRows(catalog, { requiredExcludedFk = false, identifyingFk = false, 
   for (const table of catalog.tables) if (!config.source.requireEmptyTables.includes(table.name) && !config.source.excludedTables.includes(table.name) && !config.source.skipTables.includes(table.name)) rows.set(table.name, [])
   rows.get('companies').push({ id: 'company-jenfu', name: 'Jenfu Manufacturing Company' })
   rows.get('users').push({ id: 'real-user-1088', display_name: 'Wang Example', email: 'wang@example.com', phone_number: { __dev128_number_v1__: '886912345678' }, password_hash: '$2b$12$do-not-export', role: 'R&D Manager', company_id: 'company-jenfu', account_status: 'active', created_at: '2026-11-06T12:00:00.000Z', created_by: 'real-user-1088' })
-  const item = { id: 'part-7654', company_id: 'company-jenfu', part_number: 'PDM-7654', part_name: 'Customer Rotor Assembly', created_by: 'real-user-1088', created_at: '2026-11-06T12:10:00.000Z', details_json: { customer_email: 'secret.customer@example.net', customer_phone: { __dev128_number_v1__: '886912345678' }, created_by: 'real-user-1088', status: 'approved', notes: 'Private customer product description' } }
+  const item = { id: 'part-7654', company_id: 'company-jenfu', part_number: 'PDM-7654', part_name: 'Customer Rotor Assembly', created_by: 'real-user-1088', created_at: '2026-11-06T12:10:00.000Z', standard_cost: { __dev128_number_v1__: '12345678.90' }, tracking_uuid: '91df3d31-4380-4f4a-a78b-64b0dc2168ab', details_json: { customer_email: 'secret.customer@example.net', customer_phone: { __dev128_number_v1__: '886912345678' }, created_by: 'real-user-1088', status: 'approved', notes: 'Private customer product description' } }
   if (requiredExcludedFk) item.auth_id = 'auth-1'
   if (nullableExcludedFk) {
     item.actor_id = 'real-user-1088'
@@ -111,6 +111,8 @@ test('masks business snapshot identifiers and personal data while preserving saf
   assert.equal(item.created_by, user.id)
   assert.equal(item.created_at, '2026-11-06T12:10:00.000Z')
   assert.notEqual(item.part_number, 'PDM-7654')
+  assert.deepEqual(item.standard_cost, { __dev128_number_v1__: '12345678.90' })
+  assert.match(item.tracking_uuid, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u)
   assert.equal(Object.values(item.details_json).some((value) => typeof value === 'string' && value.endsWith('@example.invalid')), true)
   assert.equal(Object.values(item.details_json).includes(user.id), true)
   assert.equal(Object.values(item.details_json).includes(null), true)
@@ -197,6 +199,24 @@ test('payload validator rejects a hidden email even if the payload hash is recom
   const core = { ...payload }; delete core.payloadSha256
   payload.payloadSha256 = sha256(canonicalize(core))
   assert.throws(() => assertMaskedSnapshotPayload({ config, payload }), { code: 'DEV128_EMAIL_SCAN_FAILED' })
+})
+
+test('payload validator accepts structured UUIDs that resemble phone numbers', () => {
+  const { payload: source } = buildPayload()
+  const payload = structuredClone(source)
+  payload.tables.find((table) => table.name === 'items').rows[0].tracking_uuid = '00000000-0000-4000-8000-000000000000'
+  const core = { ...payload }; delete core.payloadSha256
+  payload.payloadSha256 = sha256(canonicalize(core))
+  assert.equal(assertMaskedSnapshotPayload({ config, payload }), payload)
+})
+
+test('payload validator still rejects unmasked formatted phone text', () => {
+  const { payload: source } = buildPayload()
+  const payload = structuredClone(source)
+  payload.tables.find((table) => table.name === 'items').rows[0].part_name = '+886 912 345 678'
+  const core = { ...payload }; delete core.payloadSha256
+  payload.payloadSha256 = sha256(canonicalize(core))
+  assert.throws(() => assertMaskedSnapshotPayload({ config, payload }), { code: 'DEV128_PHONE_SCAN_FAILED' })
 })
 
 test('payload binds the exact source catalog metadata', () => {
