@@ -11,9 +11,18 @@ const sourceTree = 'b'.repeat(40)
 const input = { repository, branch, revision, sourceTree, token: 'x'.repeat(25),
   rulesetId: 24077878 }
 
-test('official source gate accepts the RD permission readback workflow ref', () => {
-  assert.equal(OFFICIAL_SOURCE_WORKFLOW_REFS.size, 3)
-  assert.doesNotThrow(() => assertOfficialSourceWorkflow({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REPOSITORY: repository, GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main` }))
+test('official source gate accepts only the fixed owner workflow refs', () => {
+  const expectedWorkflows = [
+    'deploy-ai-pdm-independent-production.yml',
+    'deploy-ai-pdm-principal-migrations-production.yml',
+    'read-ai-pdm-rd-permission-state-production.yml',
+    'build-ai-pdm-masked-local-snapshot.yml',
+    'export-ai-pdm-masked-local-snapshot.yml',
+  ]
+  assert.equal(OFFICIAL_SOURCE_WORKFLOW_REFS.size, expectedWorkflows.length)
+  for (const workflow of expectedWorkflows) {
+    assert.doesNotThrow(() => assertOfficialSourceWorkflow({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REPOSITORY: repository, GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/${workflow}@refs/heads/main` }))
+  }
   assert.throws(() => assertOfficialSourceWorkflow({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REPOSITORY: repository, GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/unknown.yml@refs/heads/main` }), /WORKFLOW_INVALID/u)
 })
 
