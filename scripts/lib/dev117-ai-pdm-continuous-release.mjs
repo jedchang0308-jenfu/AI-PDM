@@ -191,17 +191,19 @@ export function assertDev117WorkflowSource(source) {
       source.includes('test:production-slice:affected')) {
     fail('WORKFLOW_SOURCE_CHECK_DRIFT', 'Owner workflow must read exact required CI results instead of rerunning source tests')
   }
-  if (!installerBlock.includes('permissions: { actions: read, contents: read }') ||
+  if (!installerBlock.includes('runs-on: windows-latest') ||
+      !installerBlock.includes('permissions: { contents: read }') || installerBlock.includes('actions: read') ||
       installerBlock.includes('environment: production') || installerBlock.includes('id-token: write') ||
-      !installerBlock.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow "ci.yml" --commit "$GITHUB_SHA" --event push --status success') ||
-      !installerBlock.includes('.headBranch == \\"main\\"') ||
+      !installerBlock.includes('scripts/build-dev125-windows-installer.ps1 -SourceRevision $sourceRevision -Version $version') ||
+      !installerBlock.includes('node scripts/dev125-verify-windows-installer-artifact.mjs --root ".tmp/dev125-windows-installer" --source-revision $sourceRevision --require-build-evidence') ||
+      installerBlock.includes('gh run list') || installerBlock.includes('gh run download') || installerBlock.includes('GH_TOKEN:') ||
       !buildBlock.includes('node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence') ||
       !installerBlock.includes('actions/upload-artifact@v4') ||
       !buildBlock.includes('permissions: { contents: read, id-token: write }') || buildBlock.includes('actions: read') ||
       buildBlock.includes('gh run list') || buildBlock.includes('gh run download') || buildBlock.includes('GH_TOKEN:') ||
       !buildBlock.includes('actions/download-artifact@v4') ||
       !buildBlock.includes('DEV125_INSTALLER_ROOT=$GITHUB_WORKSPACE')) {
-    fail('WORKFLOW_INSTALLER_ARTIFACT_DRIFT', 'A GitHub-read-only job must bind the exact-source installer before the production build')
+    fail('WORKFLOW_INSTALLER_ARTIFACT_DRIFT', 'An isolated Windows job must build and bind the exact-source installer before the production build')
   }
   const stagePlan = {
     preflight: [{ stage: 'prepare', auth: 'verifier_auth', proof: true }],
@@ -287,9 +289,10 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       JSON.stringify(jobs) !== JSON.stringify(['installer', 'migrate']) ||
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback']) ||
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
-      (source.match(/^      - run:/gm) ?? []).length !== 1 ||
+      (source.match(/^      - run:/gm) ?? []).length !== 2 ||
       source.includes('test:production-slice:affected') ||
-      !/  installer:[\s\S]*?permissions: \{ actions: read, contents: read \}[\s\S]*?--workflow "ci\.yml"[\s\S]*?\.headBranch == \\"main\\"[\s\S]*?actions\/upload-artifact@v4/u.test(source) ||
+      !/  installer:[\s\S]*?runs-on: windows-latest[\s\S]*?permissions: \{ contents: read \}[\s\S]*?build-dev125-windows-installer\.ps1[\s\S]*?dev125-verify-windows-installer-artifact\.mjs[\s\S]*?actions\/upload-artifact@v4/u.test(source) ||
+      /  installer:[\s\S]*?(?:actions: read|gh run list|gh run download|GH_TOKEN:)/u.test(source.split('\n  migrate:')[0]) ||
       /  installer:[\s\S]*?(?:environment: production|id-token: write)/u.test(source.split('\n  migrate:')[0]) ||
       !source.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
       /  migrate:[\s\S]*?permissions: \{[^\r\n}]*actions: read/u.test(source) ||

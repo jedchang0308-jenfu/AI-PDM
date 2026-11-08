@@ -98,7 +98,9 @@ test('template ref and workflow identity are exact and traversal-safe', () => {
   assert.throws(() => assertAppliedContinuationRefreshEnvironment({ ...environment, GITHUB_REF: 'refs/heads/feature' }, CURRENT), /APPLIED_CONTINUATION_REFRESH_WORKFLOW_REQUIRED/u)
   const installerJob = workflow.match(/\r?\n  installer:\r?\n([\s\S]*?)(?=\r?\n  migrate:\r?\n)/u)?.[1] ?? ''
   const migrateJob = workflow.match(/\r?\n  migrate:\r?\n([\s\S]*)/u)?.[1] ?? ''
-  assert.match(installerJob, /permissions: \{ actions: read, contents: read \}/u)
+  assert.match(installerJob, /runs-on: windows-latest/u)
+  assert.match(installerJob, /permissions: \{ contents: read \}/u)
+  assert.doesNotMatch(installerJob, /actions: read|gh run (?:list|download)|GH_TOKEN:/u)
   assert.doesNotMatch(installerJob, /environment: production|id-token: write/u)
   assert.match(migrateJob, /permissions: \{ contents: read, pull-requests: read, checks: read, id-token: write \}/u)
   assert.doesNotMatch(migrateJob.match(/permissions:[^\r\n]*/u)?.[0] ?? '', /actions: read/u)

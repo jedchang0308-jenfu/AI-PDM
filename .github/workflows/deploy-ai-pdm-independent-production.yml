@@ -94,29 +94,27 @@ jobs:
   installer:
     name: windows-installer-bind
     needs: preflight
-    runs-on: ubuntu-latest
-    permissions: { actions: read, contents: read }
+    runs-on: windows-latest
+    permissions: { contents: read }
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: actions/setup-node@v4
-        with: { node-version: "24.11.0" }
-      - name: Bind exact-source DEV-125 Windows installer
-        shell: bash
-        env: { GH_TOKEN: "${{ github.token }}" }
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - name: Build and verify exact-source DEV-125 Windows installer
+        shell: powershell
         run: |
-          set -euo pipefail
-          mapfile -t run_ids < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow "ci.yml" --commit "$GITHUB_SHA" --event push --status success --limit 20 --json databaseId,headSha,headBranch,conclusion,event --jq ".[] | select(.headSha == \"$GITHUB_SHA\" and .headBranch == \"main\" and .conclusion == \"success\" and .event == \"push\") | .databaseId")
-          [[ "${#run_ids[@]}" -eq 1 ]]
-          artifact_name="dev125-windows-installer-$GITHUB_SHA"
-          artifact_root="$RUNNER_TEMP/dev125-installer-artifact"
-          mkdir -p "$artifact_root"
-          gh run download "${run_ids[0]}" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
-          node scripts/dev125-verify-windows-installer-artifact.mjs --root "$artifact_root" --source-revision "$GITHUB_SHA" --require-build-evidence
+          $ErrorActionPreference = "Stop"
+          $sourceRevision = (git rev-parse HEAD).Trim()
+          if ($sourceRevision -ne $env:GITHUB_SHA) { throw "DEV125_SOURCE_REVISION_MISMATCH" }
+          $version = (Get-Content -LiteralPath "windows-service/installer-version.txt" -Raw).Trim()
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-dev125-windows-installer.ps1 -SourceRevision $sourceRevision -Version $version
+          node scripts/dev125-verify-windows-installer-artifact.mjs --root ".tmp/dev125-windows-installer" --source-revision $sourceRevision --require-build-evidence
       - uses: actions/upload-artifact@v4
         with:
           name: dev125-bound-windows-installer-${{ github.sha }}
-          path: ${{ runner.temp }}/dev125-installer-artifact/
+          path: ${{ github.workspace }}/.tmp/dev125-windows-installer/
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
