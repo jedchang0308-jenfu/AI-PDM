@@ -29,7 +29,7 @@ const authorityRow = {
 };
 
 const assignment = {
-  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v5",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v6",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
@@ -169,12 +169,12 @@ describe("DEV-005 EntitlementRepository", () => {
     const observed: string[] = [];
     client.query = async <T>(sql: string, params?: unknown): Promise<T[]> => {
       observed.push(sql);
-      if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) throw Object.assign(new Error("typed reader unavailable"), { code: "42883" });
+      if (sql.includes("read_ai_pdm_principal_effective_grants_v6")) throw Object.assign(new Error("typed reader unavailable"), { code: "42883" });
       return read<T>(sql, params);
     };
     await expect(new JenfuEntitlementRepository(client).listEffectiveAssignments(actor))
       .rejects.toMatchObject({ code: "entitlement_authority_unavailable" });
-    expect(observed.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v5"))).toBe(true);
+    expect(observed.some((sql) => sql.includes("read_ai_pdm_principal_effective_grants_v6"))).toBe(true);
     expect(observed.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(false);
     expect(observed.some((sql) => sql.includes("FROM orgmaster_contract.v_ai_pdm_principal_effective_grants"))).toBe(false);
   });

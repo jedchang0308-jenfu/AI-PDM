@@ -43,7 +43,7 @@ const keyRing = { issuer: "ai-pdm-session", audience: "ai-pdm", currentKeyId: "c
   keys: { current: "k".repeat(48) } };
 const trustPolicy = { enabled: true, domains: ["example.test"], allowAal1PrivilegedPilot: false };
 function assignment(roleCode: string) { return {
-  contractVersion: "jenfu.orgmaster.ai-pdm-principal-grants.v5", applicationId: "ai-pdm",
+  contractVersion: "jenfu.orgmaster.ai-pdm-principal-grants.v6", applicationId: "ai-pdm",
   assignmentVersionId: "version-one", assignmentVersion: 1, assignmentId: "assignment-one",
   grantKind: "direct", delegationId: null,
   principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId,

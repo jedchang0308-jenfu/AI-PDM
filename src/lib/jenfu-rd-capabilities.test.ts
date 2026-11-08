@@ -10,7 +10,7 @@ const actor = { identityIssuer: "https://synthetic.invalid", identitySubject: "r
 const account = { contract_version: "organization.active-principal.v1",
   principal_issuer: actor.identityIssuer, principal_subject: actor.identitySubject,
   principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: "active" };
-const grant = { contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v5",
+const grant = { contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v6",
   application_id: "ai-pdm", assignment_version_id: "synthetic-published-version", assignment_version: 7,
   assignment_id: "synthetic-rd-assignment", grant_kind: "direct", delegation_id: null,
   principal_id: actor.principalId, employee_id: actor.employeeId, subject_kind: "employee",
@@ -27,7 +27,7 @@ const approvals = ["approval.request.decide", "submission.decide", "submission.l
 function snapshot(rows: unknown[] = [grant], accounts: unknown[] = [account], catalog = principalCatalog): AsyncDatabaseClient {
   return { kind: "postgres", async query<T>(sql: string): Promise<T[]> {
     if (sql.includes("read_ai_pdm_active_principal_")) return accounts as T[];
-    if (sql.includes("read_ai_pdm_principal_effective_grants_v5")) return rows as T[];
+    if (sql.includes("read_ai_pdm_principal_effective_grants_v6")) return rows as T[];
     if (sql.includes("v_application_role_catalog_v3")) return catalog.roles.map((role, index) => ({
       contract_version: catalog.contractVersion, application_id: catalog.applicationId,
       catalog_version: catalog.catalogVersion, catalog_sha256: catalog.catalogSha256, display_order: index,
