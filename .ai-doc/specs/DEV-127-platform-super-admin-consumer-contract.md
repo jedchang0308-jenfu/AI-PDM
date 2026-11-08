@@ -1,5 +1,19 @@
 # DEV-127：平台與 AI-PDM 管理資格 consumer contract
 
+## 0. 行政權限 v2 consumer 契約（2026-11-08；優先於本文舊流程）
+
+AI-PDM 不再以 dynamic role catalog 內的 system_admin profile 作為行政授權真相。PDM 擁有固定、版本化、不可由一般角色編輯器修改的 AdministrativeCapabilityDefinition；其 definition version/hash 由 PDM release 發布／安裝，但不授予任何人。OrgMaster 是 application_system_admin(ai-pdm) 唯一 grant producer。
+
+PDM 的 Platform／DEV-013 app session 解析 exact Principal 後，讀取 OrgMaster app-scoped administration projection，驗證 Principal／Employee、grant status、applicationId、definition version/hash、authority epoch/revocation，再在每個伺服器 operation boundary 檢查對應 administrative capability。不得由 platform_super_admin、UI badge、SSO claim、employee number、舊 roleAssignments／managementGrants 或 business role-system-admin 自動 allow。
+
+既有 dynamic business catalog、九個 legacy profiles、custom roles、assignments、政策草稿與發行紀錄全部保留。舊 hidden role-system-admin 僅在相容窗口供現有 caller 讀取，不再接受新行政任用；dual-reader 期間若 v2 grant 與舊資料衝突須 fail closed 並回報 migration required，不可 union 權限。
+
+登入完全重用 Platform DEV-013；PDM 不新增 Google popup 或獨立 Firebase 驗證。有效 app session 可讀 preview/status；高風險行政寫入依 OrgMaster grant、PDM operation guard 與近期最低 AAL1 session判斷，接受 AAL2。頁首／sidebar 只顯示 OrgMaster exact Employee 中文姓名，缺值顯示「員工」，不使用 email、slug 或英文別名。
+
+forward-only 交付順序：新增 v2 projection reader／definition registry與 operation guards → 發布 dual-reader revision → 安裝並讀回 definition → 由 OrgMaster batch command 換發 exact app grant → 正反向 UI／API 驗證 → 移除舊 admin writer/fallback。不得重播 local static-v8、重建 business catalog、改寫已套用 migration 或自動把既有 PDM 角色持有人升級。
+
+接受條件：正式與地端一次 Platform Google 登入後可進入圖號與系統管理入口；張仕杰／JFS0005 中文姓名、AAL1成立；PDM app-admin 可執行定義內管理操作；普通 PDM 業務角色不被改寫；撤銷、停用、epoch 或 definition hash 不符均 fail closed。Source／CI／migration／traffic／grant readback／真人 UI 各自留證，不互相代替。
+
 建立：2026-11-05（Asia/Taipei）。Owner：`AIPDM/DEV-127`。來源：`JENFU/DEV-022#pdm-administration`。
 
 **當前狀態：`IMPLEMENTING / FORMAL_E56_004_RELEASED / PRIMARY_096_097_INSTALLED / PRIMARY_STATIC_V7_ACTIVE / STATIC_V8_DELTA_NOT_APPLIED / ROOT_APP_GRANTS_AND_REAL_UI_PENDING`。** 正式source `e56a335f3dcd5d98f89003434e6a4e874b27f71c` 的normal owner attempt004已由GHA `42233755780` 完成RELEASED，native active revision尾碼`969fe`為100%流量、generation376；正式catalog仍為原`f19`的dynamic-v2，未因本local static-v8切片改變。primary-local原096／local097已正常INSTALLED並有獨立status讀回，active仍v7；source `4173de61ca70aca2d36a4514017a46762c7b9c17` 的正常catalog-inspect已確認九roles／profiles／identities等價（§8.8）。本branch的新static-v8/local098及semantic-preview delta尚未apply／release。Root／app grants及指定本人兩環境正常Google/UI仍待完成；source、隔離測試與舊release不能替代該接受分母。指定本人仍為同一Google個人帳號 `jedchang0308@jenfu.com.tw`／張仕杰 `JFS0005`，AAL1最低並保留有效AAL2。§8的舊attempt/首敗與歷史CI保留追溯，以本段及§8.8–8.9區分current狀態；[QA狀態](../qa/DEV-127-platform-super-admin-verification-status.md)的歷史紀錄不代表本delta已交付。

@@ -5640,6 +5640,8 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-127：平台超級管理員的 AI-PDM consumer 契約
 
+2026-11-08 current：改採[行政權限 v2 consumer](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。PDM administrative definition 與 dynamic business catalog 分離，登入重用 DEV-013，授權只讀 OrgMaster exact app-admin projection；不自動升級既有角色。狀態為文件已同步、dual-reader／operation guards／遷移及兩環境部署進行中。
+
 本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
 
 來源：`JENFU/DEV-022#pdm-administration`。狀態 `IMPLEMENTING / APP_NATIVE_RELEASED / POST_FINALIZE_CATALOG_SOURCE_DENIED / PRIMARY_INSTALL_AND_REAL_ACTOR_NOT_ACCEPTED`。PR571 consumer／local bridge及PR572 runner builder已protected merge；前一正式attempt綁main54f。唯一writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`現於`codex/dev127-catalog-source-writer-20261106`補typed operation source writer，不能將本切片tree冒充既有protected release input。

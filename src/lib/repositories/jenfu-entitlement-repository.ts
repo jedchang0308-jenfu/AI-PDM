@@ -1,7 +1,8 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
 import {rolePolicyPermissionDecision} from '@/lib/role-policy-permission-mapping';
-import staticV8 from "../../../config/access-control/jenfu-role-catalog.v8.json" with { type: "json" };
+import { AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256, AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION,
+  AI_PDM_ADMINISTRATIVE_PROFILE_ID, aiPdmAdministrativeRole } from '@/lib/administrative-capability-definition'
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
@@ -112,7 +113,7 @@ export class JenfuEntitlementRepository {
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
                valid_until::text, published_at::text,
                source_assignment_id, source_grant_id, admin_catalog_sha256, role_definition_hash
-        FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(:principalId, :employeeId)
+        FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(:principalId, :employeeId)
         WHERE application_id = :applicationId
           AND principal_id = :principalId
           AND employee_id = :employeeId
@@ -152,20 +153,11 @@ export class JenfuEntitlementRepository {
         throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       }
       grantKeys.add(grantKey);
-      if (row.stable_role_id === 'role-application-system-admin') {
-        let proof: { valid: boolean } | null;
-        try {
-          proof = await this.client.queryOne<{ valid: boolean }>(`
-            SELECT EXISTS (SELECT 1 FROM ai_pdm_contract.v_role_policy_publications_v1
-              WHERE application_id='ai-pdm' AND catalog_version=:catalogVersion
-                AND catalog_sha256=:catalogSha256 AND stable_role_id='role-application-system-admin'
-                AND role_code='application_system_admin' AND role_definition_hash=:roleDefinitionHash
-                AND (publication_format='dynamic-policy-v2' OR
-                  (publication_format='legacy-static-v1' AND catalog_version=:staticVersion AND catalog_sha256=:staticHash))) AS valid`, {
-            catalogVersion: row.catalog_version, catalogSha256: row.admin_catalog_sha256,
-            roleDefinitionHash: row.role_definition_hash,staticVersion:staticV8.catalogVersion,staticHash:staticV8.catalogSha256 });
-        } catch { throw new JenfuEntitlementRepositoryError('entitlement_authority_unavailable'); }
-        if (proof?.valid !== true) throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch');
+      if (row.stable_role_id === AI_PDM_ADMINISTRATIVE_PROFILE_ID
+        && (row.catalog_version !== AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION
+          || row.admin_catalog_sha256 !== AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256
+          || row.role_definition_hash !== AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256)) {
+        throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch')
       }
       assignments.push({
         contractVersion: JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
@@ -221,7 +213,7 @@ export class JenfuEntitlementRepository {
     if (this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true) {
       for (const role of this.activeCatalog.roles) if (!effectivePriority.includes(role.roleCode)) effectivePriority.push(role.roleCode);
     }
-    if (this.activeCatalog.roles.some(role => role.stableRoleId === 'role-application-system-admin') &&
+    if (assignments.some(assignment => assignment.stableRoleId === AI_PDM_ADMINISTRATIVE_PROFILE_ID) &&
         !effectivePriority.includes('application_system_admin')) effectivePriority.push('application_system_admin');
     const priorityRank = new Map(effectivePriority.map((roleCode, index) => [roleCode, index]));
     if (new Set(input.rolePriority).size !== input.rolePriority.length ||
@@ -231,7 +223,9 @@ export class JenfuEntitlementRepository {
     const preparedAssignments: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole }> = [];
     for (const assignment of assignments) {
       if (!priorityRank.has(assignment.roleCode)) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-      const role = this.activeCatalog.roles.find((candidate) => candidate.stableRoleId === assignment.stableRoleId);
+      const administrator = assignment.stableRoleId === AI_PDM_ADMINISTRATIVE_PROFILE_ID;
+      const role = administrator ? aiPdmAdministrativeRole
+        : this.activeCatalog.roles.find((candidate) => candidate.stableRoleId === assignment.stableRoleId);
       if (!role) throw new JenfuEntitlementRepositoryError("entitlement_role_inactive");
       const privilegedPolicyMatches = assignment.stableRoleId !== "role-system-admin"
         || (
@@ -248,7 +242,6 @@ export class JenfuEntitlementRepository {
           && assignment.grantKind === "direct"
           && assignment.delegationId === null
         );
-      const administrator = assignment.stableRoleId === 'role-application-system-admin';
       if (administrator && (
           role.roleCode !== 'application_system_admin' || role.assignable !== false || role.risk !== 'critical' ||
           role.subjectKind !== 'principal' || role.assignmentTier !== 'app_admin' || role.recommendationAllowed || role.delegationAllowed ||
@@ -257,7 +250,8 @@ export class JenfuEntitlementRepository {
           assignment.scopeKind !== 'global' || assignment.scopeKey !== null ||
           !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(assignment.sourceGrantId ?? '') ||
           assignment.sourceGrantId !== assignment.sourceAssignmentId || assignment.assignmentId !== assignment.sourceGrantId ||
-          !/^[a-f0-9]{64}$/u.test(assignment.adminCatalogSha256 ?? '') ||
+          assignment.catalogVersion !== AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION ||
+          assignment.adminCatalogSha256 !== AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256 ||
           assignment.roleDefinitionHash !== role.roleDefinitionHash || role.roleStatus === 'inactive'
         )) throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch');
       if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || (!role.assignable && !administrator) || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");

@@ -28,22 +28,13 @@ export async function readPublishedRoleCapabilityWorkspace(
   const rows = await snapshot.query<HolderRow>(
     `SELECT grants.contract_version, grants.stable_role_id, grants.role_code,
             COUNT(DISTINCT grants.principal_id)::integer AS holder_count
-     FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5 grants
+     FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v6() grants
      JOIN ai_pdm_core.principal_accounts profile
        ON profile.principal_id=grants.principal_id AND profile.employee_id=grants.employee_id
       AND profile.company_id=:companyId AND profile.account_status='active'
       AND profile.system_role_enabled
      WHERE grants.application_id='ai-pdm'
-       AND (grants.stable_role_id <> 'role-application-system-admin' OR (
-         grants.role_code='application_system_admin' AND grants.subject_kind='principal'
-         AND grants.target_principal_id=grants.principal_id AND grants.grant_kind='direct'
-         AND grants.delegation_id IS NULL AND grants.scope_kind='global' AND grants.scope_key IS NULL
-         AND grants.source_grant_id=grants.source_assignment_id
-         AND grants.source_grant_id=grants.assignment_id
-         AND grants.admin_catalog_sha256 ~ '^[a-f0-9]{64}$'
-         AND EXISTS (SELECT 1 FROM ai_pdm_contract.v_application_role_catalog_v3 role
-           WHERE role.stable_role_id=grants.stable_role_id AND role.role_definition_hash=grants.role_definition_hash
-           AND role.role_status='active')))
+       AND grants.stable_role_id <> 'role-application-system-admin'
        AND grants.valid_from <= transaction_timestamp()
        AND (grants.valid_until IS NULL OR grants.valid_until > transaction_timestamp())
        AND ((grants.scope_kind='global' AND grants.scope_key IS NULL)
@@ -54,7 +45,7 @@ export async function readPublishedRoleCapabilityWorkspace(
   for (const row of rows) {
     const role = catalog.roles.find(value => value.stableRoleId === row.stable_role_id)
     const count = Number(row.holder_count)
-    if (row.contract_version !== 'jenfu.orgmaster.ai-pdm-principal-grants.v5' ||
+    if (row.contract_version !== 'jenfu.orgmaster.ai-pdm-principal-grants.v6' ||
         !role || role.roleCode !== row.role_code || counts.has(row.stable_role_id) ||
         !Number.isSafeInteger(count) || count < 1) {
       throw new JenfuPrincipalRequestError('principal_dependency_unavailable')

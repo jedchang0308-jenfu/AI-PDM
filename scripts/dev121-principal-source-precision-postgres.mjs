@@ -211,7 +211,7 @@ try {
   sourceProof.push({path:path096,sourceSha256:sha(source096),executedSqlSha256:sha(catalogV3ViewSql),
     scope:'exact v3 legacy-static-v1 projection only; no policy upgrade or complete096 replay'});
   // Synthetic producer compatibility projection. Keep v4 for unchanged native
-  // 074/076 functions and expose ordinary legacy rows through additive v5.
+  // 074/076 functions and expose ordinary legacy rows through additive v5/v6.
   await database.query(`CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v5 AS
     SELECT 'jenfu.orgmaster.ai-pdm-principal-grants.v5'::text AS contract_version,
       application_id,principal_id,employee_id,assignment_version_id,assignment_version,assignment_id,
@@ -221,6 +221,15 @@ try {
       NULL::text AS admin_catalog_sha256,NULL::text AS role_definition_hash
     FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4;
     GRANT SELECT ON orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
+      TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
+  await database.query(`CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v6 AS
+    SELECT 'jenfu.orgmaster.ai-pdm-principal-grants.v6'::text AS contract_version,
+      application_id,principal_id,employee_id,assignment_version_id,assignment_version,assignment_id,
+      stable_role_id,role_code,catalog_version,subject_kind,target_principal_id,grant_kind,delegation_id,
+      scope_kind,scope_key,valid_from,valid_until,published_at,
+      source_assignment_id,source_grant_id,admin_catalog_sha256,role_definition_hash
+    FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5;
+    GRANT SELECT ON orgmaster_contract.v_ai_pdm_principal_effective_grants_v6
       TO jenfu_ai_pdm_runtime,jenfu_ai_pdm_migrator`);
   // Synthetic ABI fixtures for the additive OrgMaster 047 readers. The owner
   // validates real projection equivalence in its disposable PostgreSQL suite;
@@ -240,12 +249,19 @@ try {
     LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
       SELECT * FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v5
       WHERE principal_id=target AND employee_id=employee $$;
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(target text,employee text)
+    RETURNS SETOF orgmaster_contract.v_ai_pdm_principal_effective_grants_v6
+    LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+      SELECT * FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v6
+      WHERE principal_id=target AND employee_id=employee $$;
     REVOKE ALL ON FUNCTION orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(text),
       orgmaster_contract.read_ai_pdm_active_principal_identity_v1(text,text),
-      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text) FROM PUBLIC;
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text),
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(text,text) FROM PUBLIC;
     GRANT EXECUTE ON FUNCTION orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(text),
       orgmaster_contract.read_ai_pdm_active_principal_identity_v1(text,text),
-      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text) TO jenfu_ai_pdm_runtime
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v5(text,text),
+      orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(text,text) TO jenfu_ai_pdm_runtime
   `);
   await database.query(`INSERT INTO ai_pdm_core.role_catalog_publications
     (catalog_version,contract_version,application_id,published_at,catalog_sha256,status)
@@ -309,7 +325,7 @@ try {
   assert.equal((await database.query(`SELECT count(*)::integer AS count
     FROM ai_pdm_contract.v_application_role_catalog_v1`)).rows[0].count,catalog.roles.length,
   'legacy v1 projection remains available to 074/076');
-  checks.push('current v7 artifact is seeded in full source rows; exact086 v2 and real096 v3 retain equal34-column legacy-static-v1 projection; synthetic additive grantsv5 and native v1/v4 contracts coexist');
+  checks.push('current v7 artifact is seeded in full source rows; exact086 v2 and real096 v3 retain equal34-column legacy-static-v1 projection; synthetic additive grantsv5/v6 and native v1/v4 contracts coexist');
   await database.query(`INSERT INTO ai_pdm_core.role_priority_versions VALUES ('active',$1)`,
     [JSON.stringify(catalog.roles.map(role => role.roleCode))]);
   await database.query(`INSERT INTO ai_pdm_core.companies VALUES ('company-jenfu');

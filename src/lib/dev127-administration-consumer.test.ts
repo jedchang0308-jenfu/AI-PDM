@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { applicationAdministratorRole, applyRolePolicyDraftChanges, upgradeRolePolicyCandidate, rebuildRolePolicyCandidate } from '@/lib/role-policy-editor'
+import { AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256, AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION,
+  AI_PDM_ADMINISTRATIVE_PROFILE_ID, aiPdmAdministrativeRole } from '@/lib/administrative-capability-definition'
 import * as legacy from '@/lib/role-policy-editor-legacy-v1'
 import { JenfuEntitlementRepository } from '@/lib/repositories/jenfu-entitlement-repository'
 import staticV8 from '../../config/access-control/jenfu-role-catalog.v8.json' with {type:'json'}
@@ -10,61 +12,72 @@ const id = '10000000-0000-4000-8000-000000000001'
 const version = 'ai-pdm.role-policy.' + id
 const actor = { identityIssuer: 'test-issuer', identitySubject: 'test-subject', principalId: 'principal-a', employeeId: 'employee-a', localPrincipalId: 'user-a', companyId: 'company-a' }
 
-function fixture(changes: Record<string, unknown> = {}, proof = true,staticPublication=false) {
-  const grant = { contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v5', assignment_version_id: 'publication-a', assignment_version: 3,
+function fixture(changes: Record<string, unknown> = {}) {
+  const grant = { contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v6', assignment_version_id: 'administration-v1', assignment_version: 1,
     assignment_id: id, grant_kind: 'direct', delegation_id: null, application_id: 'ai-pdm', principal_id: actor.principalId,
     employee_id: actor.employeeId, subject_kind: 'principal', target_principal_id: actor.principalId,
-    stable_role_id: applicationAdministratorRole.stableRoleId, role_code: applicationAdministratorRole.roleCode,
-    catalog_version: 'ai-pdm.role-policy.old-issuance-version', scope_kind: 'global', scope_key: null,
+    stable_role_id: AI_PDM_ADMINISTRATIVE_PROFILE_ID, role_code: 'application_system_admin',
+    catalog_version: AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION, scope_kind: 'global', scope_key: null,
     valid_from: '2026-01-01T00:00:00Z', valid_until: null, published_at: '2026-01-01T00:00:00Z',
-    source_assignment_id: id, source_grant_id: id, admin_catalog_sha256: 'a'.repeat(64),
-    role_definition_hash: applicationAdministratorRole.roleDefinitionHash, ...changes }
+    source_assignment_id: id, source_grant_id: id, admin_catalog_sha256: AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256,
+    role_definition_hash: AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256, ...changes }
   const account = { contract_version: 'organization.active-principal.v1', principal_issuer: actor.identityIssuer,
     principal_subject: actor.identitySubject, principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: 'active' }
-  const client = { kind: 'postgres', query: async (sql: string) => sql.includes('read_ai_pdm_active_principal_') ? [account] : [grant],
-    queryOne: async (sql:string,params?:Record<string,unknown>) => {
-      if(staticPublication) {
-        expect(sql).toContain("publication_format='legacy-static-v1'")
-        expect(params?.staticVersion).toBe(staticV8.catalogVersion)
-        expect(params?.staticHash).toBe(staticV8.catalogSha256)
-      }
-      return { valid: proof }
-    } }
-  return new JenfuEntitlementRepository(client as never, { catalogVersion: staticPublication?staticV8.catalogVersion:version,
-    roles: [{ ...applicationAdministratorRole, allowedScopeKinds: ['global'], metadata: undefined }] })
+  const queries: string[] = []
+  const queryOne = vi.fn(async () => null)
+  const client = { kind: 'postgres', query: async (sql: string) => {
+    queries.push(sql)
+    return sql.includes('read_ai_pdm_active_principal_') ? [account] : [grant]
+  }, queryOne }
+  const repository = new JenfuEntitlementRepository(client as never, {
+    catalogVersion: 'ai-pdm.role-policy.current-catalog-is-independent', roles: []
+  })
+  return { repository, queries, queryOne }
 }
 function permission(repository: JenfuEntitlementRepository, code: string, kind: 'page'|'action' = 'action') {
   return repository.evaluatePermission({ actor, permissionKind: kind, permissionCode: code, rolePriority: [] })
 }
 
 describe('DEV-127 exact application administrator authority', () => {
-  it('admits exact static-v8 issuance only with the same direct Principal grant proof and still denies business writes',async()=>{
-    const repo=fixture({catalog_version:staticV8.catalogVersion,admin_catalog_sha256:staticV8.catalogSha256},true,true)
-    await expect(permission(repo,'settings.admin_matrix')).resolves.toMatchObject({decisionCode:'allowed'})
-    await expect(permission(repo,'pdm.drawing.edit')).rejects.toMatchObject({code:'permission_not_granted'})
-    await expect(permission(fixture({catalog_version:staticV8.catalogVersion,admin_catalog_sha256:staticV8.catalogSha256},false,true),'settings.admin_matrix'))
-      .rejects.toMatchObject({code:'entitlement_contract_mismatch'})
+  it('pins the independent administrative capability definition version and hash', () => {
+    expect(AI_PDM_ADMINISTRATIVE_DEFINITION_VERSION).toBe('ai-pdm.administration.2026-11-08.v1')
+    expect(AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256).toBe('a1f299753dc62591eafef37d49db692ab75bda808211bb3389d1a8933a5c6959')
+    expect(aiPdmAdministrativeRole.stableRoleId).toBe(AI_PDM_ADMINISTRATIVE_PROFILE_ID)
+    expect(aiPdmAdministrativeRole.roleDefinitionHash).toBe(AI_PDM_ADMINISTRATIVE_DEFINITION_SHA256)
   })
-  it('accepts immutable issuance provenance after an unrelated catalog publication and grants only management/read', async () => {
+  it('uses the typed v6 grant reader and fixed definition without a dynamic/static catalog publication proof', async () => {
+    const f = fixture()
+    await expect(permission(f.repository, 'settings.admin_matrix')).resolves.toMatchObject({ decisionCode: 'allowed' })
+    await expect(permission(f.repository, 'pdm.drawing.view')).resolves.toMatchObject({ decisionCode: 'allowed' })
+    await expect(permission(f.repository, 'pdm.drawing.edit')).rejects.toMatchObject({ code: 'permission_not_granted' })
+    expect(f.queries.some(sql => sql.includes('read_ai_pdm_principal_effective_grants_v6'))).toBe(true)
+    expect(f.queries.some(sql => sql.includes('read_ai_pdm_principal_effective_grants_v5'))).toBe(false)
+    expect(f.queries.some(sql => sql.includes('v_role_policy_publications_v1'))).toBe(false)
+    expect(f.queryOne).not.toHaveBeenCalled()
+  })
+  it('accepts the fixed definition even when the active business role catalog is independent', async () => {
+    const f = fixture()
     for (const code of ['settings.admin_matrix', 'pdm.drawing.view', 'pdm.shared_model.view', 'handoff.published.view']) {
-      await expect(permission(fixture(), code)).resolves.toMatchObject({ decisionCode: 'allowed' })
+      await expect(permission(f.repository, code)).resolves.toMatchObject({ decisionCode: 'allowed' })
     }
-    await expect(permission(fixture(), 'numbering.drawings.view', 'page')).resolves.toMatchObject({ decisionCode: 'allowed' })
+    await expect(permission(f.repository, 'numbering.drawings.view', 'page')).resolves.toMatchObject({ decisionCode: 'allowed' })
     for (const code of ['pdm.drawing.edit', 'pdm.drawing.download', 'pdm.drawing.review', 'pdm.drawing.publish', 'numbering.create']) {
-      await expect(permission(fixture(), code)).rejects.toMatchObject({ code: 'permission_not_granted' })
+      await expect(permission(f.repository, code)).rejects.toMatchObject({ code: 'permission_not_granted' })
     }
   })
   it.each([
     { principal_id: 'same-employee-other-principal' }, { employee_id: 'other-employee' }, { application_id: 'financial-management-system' },
     { target_principal_id: 'other-principal' }, { subject_kind: 'employee' }, { grant_kind: 'delegated', delegation_id: 'delegation-a' },
-    { source_grant_id: 'not-a-uuid' }, { source_assignment_id: 'other' }, { admin_catalog_sha256: 'wrong' },
-    { role_definition_hash: 'f'.repeat(64) }, { scope_kind: 'workspace', scope_key: 'current' },
+    { source_grant_id: 'not-a-uuid' }, { source_assignment_id: 'other' },
+    { catalog_version: 'ai-pdm.administration.2026-11-07.v1' }, { admin_catalog_sha256: 'f'.repeat(64) },
+    { role_definition_hash: 'e'.repeat(64) }, { scope_kind: 'workspace', scope_key: 'current' },
     { valid_until: '2026-01-02T00:00:00Z' }, { role_code: 'platform_super_admin' }
   ])('rejects incompatible authority %j', async changes => {
-    await expect(permission(fixture(changes), 'settings.admin_matrix')).rejects.toMatchObject({ code: 'entitlement_contract_mismatch' })
+    await expect(permission(fixture(changes).repository, 'settings.admin_matrix')).rejects.toMatchObject({ code: 'entitlement_contract_mismatch' })
   })
-  it('rejects unknown issuance history instead of taking legacy permissions', async () => {
-    await expect(permission(fixture({}, false), 'settings.admin_matrix')).rejects.toMatchObject({ code: 'entitlement_contract_mismatch' })
+  it('rejects a grant that still declares the previous typed reader contract', async () => {
+    await expect(permission(fixture({ contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v5' }).repository,
+      'settings.admin_matrix')).rejects.toMatchObject({ code: 'entitlement_contract_mismatch' })
   })
 })
 
