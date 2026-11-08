@@ -378,9 +378,9 @@ test('S1B-20 AI-PDM single-capsule workflow and mutation masks', () => {
   const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8')
   assert.equal(assertDev117WorkflowSource(source), true)
   for (const changed of [
-    source.replace('permissions: { actions: read, contents: read }', 'permissions: { contents: read }'),
-    source.replace('permissions: { actions: read, contents: read }', 'permissions: { actions: read, contents: read, id-token: write }'),
-    source.replace('.headBranch == \\"main\\"', '.headBranch == \\"feature\\"'),
+    source.replace('runs-on: windows-latest', 'runs-on: ubuntu-latest'),
+    source.replace('permissions: { contents: read }', 'permissions: { actions: read, contents: read }'),
+    source.replace('scripts/build-dev125-windows-installer.ps1', 'scripts/build-untrusted-installer.ps1'),
     source.replace('permissions: { contents: read, id-token: write }', 'permissions: { actions: read, contents: read, id-token: write }'),
   ]) assert.throws(() => assertDev117WorkflowSource(changed), { code: 'WORKFLOW_INSTALLER_ARTIFACT_DRIFT' })
   assert.equal(buildDev117Mutation({ operation: 'CREATE_CANDIDATE', service: 'ai-pdm-prod', updateMask: 'template', revision: 'candidate-1', trafficPercent: 0, etag: 'e' }).trafficPercent, 0)
@@ -413,9 +413,9 @@ test('S1B-20 principal workflow keeps ordinary migration bounded and admits only
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('HISTORICAL_EVIDENCE_REUSED', 'UNKNOWN'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
-  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, ', 'permissions: { '), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
-  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { actions: read, contents: read }', 'permissions: { actions: read, contents: read, id-token: write }'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
-  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('.headBranch == \\"main\\"', '.headBranch == \\"feature\\"'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('runs-on: windows-latest', 'runs-on: ubuntu-latest'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { contents: read }', 'permissions: { actions: read, contents: read }'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('scripts/build-dev125-windows-installer.ps1', 'scripts/build-untrusted-installer.ps1'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }', 'permissions: { actions: read, contents: read, pull-requests: read, checks: read, id-token: write }'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace(/          GITHUB_TOKEN: "\$\{\{ github\.token \}\}"\r?\n(?=          GOOGLE_OAUTH_ACCESS_TOKEN:)/u, ''), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
