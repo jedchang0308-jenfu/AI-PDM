@@ -96,6 +96,7 @@ async function exercise(mode) {
     try {
       await runWindowsWorker({ credentials: credential, workerId: 'device-one:instance-one', isStopping: () => stopped,
         now: () => clock, sleep: async milliseconds => {
+          assert.ok(milliseconds > 0 && milliseconds <= 5_000);
           clock += milliseconds;
           if (clock >= end) stopped = true;
         }, log() {} });

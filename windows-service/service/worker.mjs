@@ -334,6 +334,7 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log,
   while (!isStopping()) {
     try {
       if (await processProbe(credentials, workerId, await probe.take())) continue;
+      if (isStopping()) break;
       if (Math.min(preview.dueAt, recognition.dueAt) <= now()) {
         const readiness = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key?readiness=1");
         if (readiness?.available !== true) {
@@ -341,15 +342,17 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log,
           await sleep(5_000);
           continue;
         }
+        if (isStopping()) break;
         const alternate = next === "preview" ? "recognition" : "preview";
         if (await work[next]()) {
           next = alternate;
           continue;
         }
-        if (await work[alternate]()) continue;
+        if (!isStopping() && await work[alternate]()) continue;
       }
       const wait = Math.min(probe.dueAt, preview.dueAt, recognition.dueAt) - now();
-      if (!isStopping() && wait > 0) await sleep(wait);
+      // Check the stop flag during long backoffs within WinSW's stop timeout.
+      if (!isStopping() && wait > 0) await sleep(Math.min(wait, 5_000));
     } catch (error) {
       if ([401, 403, 426].includes(Number(error?.status))) throw error;
       log("worker_cycle_retry", { reason: String(error?.message ?? error).slice(0, 180) });
