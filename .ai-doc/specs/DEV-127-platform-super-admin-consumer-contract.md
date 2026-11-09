@@ -10,6 +10,8 @@ PDM 的 Platform／DEV-013 app session 解析 exact Principal 後，讀取 OrgMa
 
 登入完全重用 Platform DEV-013；PDM 不新增 Google popup 或獨立 Firebase 驗證。有效 app session 可讀 preview/status；高風險行政寫入依 OrgMaster grant、PDM operation guard 與近期最低 AAL1 session判斷，接受 AAL2。頁首／sidebar 只顯示 OrgMaster exact Employee 中文姓名，缺值顯示「員工」，不使用 email、slug 或英文別名。
 
+若高風險操作收到 `AUTH_RECENT_REQUIRED`，PDM 維持 fail-closed，交由 OrgMaster 的一次性 reauthentication SSO 回 Platform 取得新 provider `auth_time`；PDM 不另開 Google popup、不放寬 AAL1，也不以 session 建立時間替代核身時間。返回後重新讀取自身 session／OrgMaster projection，再依 operation guard 判權。
+
 forward-only 交付順序：新增 v2 projection reader／definition registry與 operation guards → 發布 dual-reader revision → 安裝並讀回 definition → 由 OrgMaster batch command 換發 exact app grant → 正反向 UI／API 驗證 → 移除舊 admin writer/fallback。不得重播 local static-v8、重建 business catalog、改寫已套用 migration 或自動把既有 PDM 角色持有人升級。
 
 接受條件：正式與地端一次 Platform Google 登入後可進入圖號與系統管理入口；張仕杰／JFS0005 中文姓名、AAL1成立；PDM app-admin 可執行定義內管理操作；普通 PDM 業務角色不被改寫；撤銷、停用、epoch 或 definition hash 不符均 fail closed。Source／CI／migration／traffic／grant readback／真人 UI 各自留證，不互相代替。
