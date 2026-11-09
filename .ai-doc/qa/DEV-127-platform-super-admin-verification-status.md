@@ -1,8 +1,8 @@
 # DEV-127 驗證狀態與下一步
 
-更新：2026-11-06（Asia/Taipei）。本頁只記錄可追溯證據及未完成範圍，不宣稱獨立QC或產品驗收。唯一工程契約與current status見[spec §8.4](../specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)，完整接受分母見[spec §6.3](../specs/DEV-127-platform-super-admin-consumer-contract.md#63-normal-ui-acceptance)。
+更新：2026-11-09（Asia/Taipei）。本頁只記錄可追溯證據及未完成範圍，不宣稱獨立QC或產品驗收。唯一工程契約與current status見[spec 開頭](../specs/DEV-127-platform-super-admin-consumer-contract.md)，完整接受分母見[spec §6.3](../specs/DEV-127-platform-super-admin-consumer-contract.md#63-normal-ui-acceptance)。
 
-現行正式attempt由主控讀回：[PR #572](https://github.com/jedchang0308-jenfu/AI-PDM/pull/572)已protected merge54f並通過required CI，normal runner build／85-address rotation已完成；[workflow42155111795](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/42155111795)正常migrate replay40／apply096、ledger41，app native terminal RELEASED／service gen368／新revision100%。後置catalog source upload DENIED，basis／fence保留，operation、submission與plan／commit／status皆MISSING、沒有catalog Job execution；workflow因此FAIL，不能把native app RELEASED延伸成catalog／完整接受PASS。exact source／capsule／digest與partial事實只由[spec §8.4](../specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)維護。
+現行正式事實由主控讀回：PR #575／#594／#596 已 protected merge，受保護 `main@fca2a6a8ac2a372bf7f4cbe7578e44fd0db3f1b6` 的 `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 成功；owner release 已將 `ai-pdm-prod-a0a313a8ab4e` 切至100%流量，地端1020同 source。完整本人 session、app-admin/UI 與 business-write deny 仍未讀回，不把 release 成功延伸為產品驗收。舊 workflow42155111795 的 source upload DENIED、basis／fence 與 operation MISSING 保留為歷史 attempt。
 
 本次[typed source writer corrective](../specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)只改normal transport：closed DEV127 source create-only用既有builder token，readback／receipt／control／Job及原sealed guard保持主身分；未更動17項runner closure或SQL，也未執行provider／DB／Job／runtime／traffic。RD focused61／61、affected-slice planner22＋release-core275共297／297 PASS，targeted ESLint／syntax／diff PASS；fixture涵蓋primary source403、closed source builder成功、wrong owner/path/hash/schema/token寫前拒絕、412 exact reuse／hash conflict、unknown不重送與cached phase replay。fixture刻意限縮secondary能力，不冒稱actual builder IAM無receipt權限；不是獨立QC或正式結果。review／required CI由本切片PR續接。
 
@@ -20,14 +20,13 @@
 | 正式相容性首個 gate | `MIGRATION_RUNNER_SOURCE_REFRESH_REQUIRED` | liveJob43綁runner source=`3720c7cea8f294f086e34a175fdf911283971007`、digest=`2cb13029f309e7b952ef99857f80675dd3beb497a1a70ef91e827b4072e545d9`。需既有normal `APP_INFRA` runner image rotation；尚未build／apply rotation，亦未migration、runtime、traffic或grant |
 | Primary-local readonly plan | 舊95f plan為歷史`PLANNED`；不可沿用 | CLI reference SHA=`1cd312aadc2872e532a5a9d411b7ab429abedfc7ad7c5452fc63fe99e46e17c4`；當時ledger53／known marker MATCH，兩Org函數EXECUTE=false、Platform v3 state與兩contract namespace USAGE=true。這不授權write；source／Org044/045／ACL/inventory改變後須以clean owner source重新readonly plan，舊CAS不沿用 |
 | Primary-local install／catalog | NOT_RUN | 未執行local097／096、DDL、catalog commit或本地授予app管理任用。早期readonly observation顯示兩schema owner為postgres、migrator缺USAGE/CREATE；仍待各owner完成前置並readback |
-| 正式release | NOT_RUN；準備gate未通過 | 未build／apply runner rotation、未建立candidate／runtime、未執行migration／finalize/catalog/grant／traffic。CI與immutable refs均不是部署收據 |
-| 同本人兩環境正常Google/UI／完整接受 | NOT_RUN／NOT_ACCEPTED | 指定同一Google個人帳號`jedchang0308@jenfu.com.tw`／張仕杰`JFS0005`。地端與production都需真AAL1最低並保留有效AAL2、Platform root/admin、AI-PDM app-admin、中文姓名/reload、圖號入口、policy create/save/apply/reload及business-write拒絕；app-admin不擴成business或跨app權限。§6.3分母未縮減 |
+| 正式release | PASS；產品驗收仍獨立 | `main@fca2a6a` 已發布至 `ai-pdm-prod-a0a313a8ab4e`，100%流量；CI與部署收據不等於本人授權／UI驗收 |
+| 同本人兩環境正常Google/UI／完整接受 | SOURCE ALIGNED／NOT_ACCEPTED | 地端1020與正式source一致；指定同一Google個人帳號`jedchang0308@jenfu.com.tw`／張仕杰`JFS0005`仍需真AAL1最低並保留有效AAL2、Platform root/admin、AI-PDM app-admin、中文姓名/reload、圖號入口及business-write拒絕；app-admin不擴成business或跨app權限。§6.3分母未縮減 |
 
 失敗與未執行證據仍按來源保留：004 readonly plan的JSON OID型別、004 CI connectionString覆寫DB、e855/db40 CI Docker bridge位址均有修正記錄，見spec §8.6；各輪Windows成功與Linux失敗分開。DOM4本機因canonical jsdom前置條件未執行；本機isolated build曾受capacity guard阻擋且未取得lease。沒有為此新增本機資料庫、降低capacity policy或重播正式操作。
 
 下一步依序為：
 
-1. 完成本次typed source writer corrective的review、protected merge及exact-main required CI。正常新source／新capsule attempt由原gate判斷reuse／build及runner compatibility；不得偽造舊workflowSHA，不重播已APPLIED096或原normal rotation，不增recovery mode。
-2. 各owner完成並提供OrgMaster 044/045及三個versioned contract ACL證據；coordinator以clean merged source、同profile／known marker與真migrator OIDC重做readonly plan。
-3. 依normal sealed workflow完成後置catalog與原receipt readback，保留前一app terminal與v2 rollback fence；primary-local bridge另循atomic install→ledger readback→catalog plan/CAS/receipt。unknown先fresh readonly readback，不重送writer，未驗catalog仍NOT_RUN／NOT_ACCEPTED。
-4. 以同一指定本人經正常Google/UI完成地端與production完整分母。維持AAL1最低／有效AAL2、權威中文名、Platform root／AI-PDM app-admin／business權限分離。
+1. 完成 Platform same-tab redirect 正式發布，取得同一指定本人的 fresh AAL1 session；不得重用舊 token 或重送已確認的 OrgMaster grant command。
+2. 讀回 OrgMaster exact AI-PDM app-admin projection，再於地端1020與正式 AI-PDM 驗證中文姓名、圖號入口、管理能力與 business-write deny；未知結果先唯讀查原 receipt／projection。
+3. 保留 AAL1最低／有效AAL2、權威中文名、Platform root／AI-PDM app-admin／business權限分離；不以source、CI、release或HTTP 200代替完整本人接受。
