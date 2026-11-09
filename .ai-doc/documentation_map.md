@@ -2197,6 +2197,7 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 - 本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
 - [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：只將closed own source create-only切既有buildertoken，receipt／control／Job／readback維持主身分；本slice為source-only，review／required CI後走新source新capsule正常attempt。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
+- [跨 owner smoke 核身與 credential authority](specs/DEV-121-target-authorization-boundary.md#platform-smoke-credential-authority)：Platform 一次 AAL1 核身並使用既有 immutable identity/readback receipt；AI-PDM 保留自己的 numeric Secret、GitHub environment secret、兩個 candidate-smoke Workflow version binding 與 owner receipt。此為文件契約，不宣稱 AI-PDM producer 已完成改造。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
 - [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：runner refresh／rotation已完成；接PR575 typed source writer的review／required CI／protected merge及新source新capsule正常attempt。primary-local依OrgMaster ACL與clean source fresh plan另接，不以文件、immutable refs或CI當catalog／完整接受。
 
