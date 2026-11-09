@@ -2191,15 +2191,15 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
 ## DEV-127 — 平台與 AI-PDM 管理資格 consumer（IMPLEMENTING）
 
-來源`JENFU/DEV-022#pdm-administration`；owner writer=`C:/VIBE CODING/.worktrees/AI_PDM/dev127-platform-super-admin-20261105`。PR571／572已protected merge，54f required CI及normal runner build／APP_INFRA rotation完成。正常owner已apply096、native app RELEASED／新revision100%；post-finalize operation source upload DENIED，catalog Job未執行且完整接受仍未完成。current exact事實只見spec§8.4；primary install及本人兩環境Google/UI分母保留。
+來源`JENFU/DEV-022#pdm-administration`。PR #575／#594／#596 已 protected merge；現行 `main@fca2a6a` 的 required checks 成功，正式 `ai-pdm-prod-a0a313a8ab4e` 承接100%流量，地端1020同 source。完整本人兩環境 fresh session、exact app-admin/UI 與 business-write deny 仍待 [Platform PR #198](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/198) 已合併的 same-tab redirect 正式發布；維持AAL1、中文姓名，不新增財務業務權限。current exact事實見spec開頭與QA狀態。
 
 - [Runner artifact builder](specs/DEV-127-platform-super-admin-consumer-contract.md#841-runner-image-refreshowner-artifact-builder-corrective-source)：原corrective已merge且正常build／rotation完成，保留17項closure與source／receipt provenance。
-- 本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
-- [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：只將closed own source create-only切既有buildertoken，receipt／control／Job／readback維持主身分；本slice為source-only，review／required CI後走新source新capsule正常attempt。
+- OrgMaster047 typed Principal readers 歷史 checkpoint：consumer source已實作，provider先發布、consumer後部署；127 focused tests與PG18.4真consumer fixture通過。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
+- [Typed operation source writer corrective](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-operation-source-writer)：closed own source create-only沿既有builder token，receipt／control／Job／readback維持主身分；相關 PR 已合併並由現行 release 取代「待 review／CI」描述。
 - [唯一契約／當前狀態與下一步](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)：保留完整AAL1/AAL2、same-person、中文名、app/business權限與owner責任。
 - [跨 owner smoke 核身與 credential authority](specs/DEV-121-target-authorization-boundary.md#platform-smoke-credential-authority)：Platform 一次 AAL1 核身並使用既有 immutable identity/readback receipt；AI-PDM 保留自己的 numeric Secret、GitHub environment secret、兩個 candidate-smoke Workflow version binding 與 owner receipt。此為文件契約，不宣稱 AI-PDM producer 已完成改造。
 - [QA證據與缺口](qa/DEV-127-platform-super-admin-verification-status.md)：exact merge／required CI、immutable refs、runner gate與未執行範圍分層；synthetic SQL與真人驗收不混寫。
-- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：runner refresh／rotation已完成；接PR575 typed source writer的review／required CI／protected merge及新source新capsule正常attempt。primary-local依OrgMaster ACL與clean source fresh plan另接，不以文件、immutable refs或CI當catalog／完整接受。
+- [任務入口](dev_task.md#dev-127-platform-super-admin-pdm-consumer)：source、required CI、正式 release 與地端 source alignment 已完成；下一步只做指定本人兩環境 normal session／UI／deny-path 讀回，不以文件、immutable refs、CI或HTTP 200代替完整接受。
 
 ## DEV-128 — 遮罩正式資料供 AI-PDM 1020 地端測試
 
