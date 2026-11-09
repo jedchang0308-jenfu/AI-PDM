@@ -14,6 +14,8 @@ forward-only 交付順序：新增 v2 projection reader／definition registry與
 
 接受條件：正式與地端一次 Platform Google 登入後可進入圖號與系統管理入口；張仕杰／JFS0005 中文姓名、AAL1成立；PDM app-admin 可執行定義內管理操作；普通 PDM 業務角色不被改寫；撤銷、停用、epoch 或 definition hash 不符均 fail closed。Source／CI／migration／traffic／grant readback／真人 UI 各自留證，不互相代替。
 
+跨 owner candidate-smoke credential 的人類核身與 issuance 依[DEV-121 Platform 唯一核身契約](DEV-121-target-authorization-boundary.md#platform-smoke-credential-authority)：Platform 一次完成 AAL1（接受有效 AAL2）並發布既有 immutable identity/readback receipt `jenfu.dev012.firebase-identity-readback.v1`；AI-PDM 依 receipt 驗證並同步自己的 Secret、GitHub environment secret、兩個 Workflow version binding 與 owner receipt。這只收斂 smoke credential 的核身／readback，不改 DEV-127 的中文姓名、app-admin/business 權限邊界或兩環境真人 UI 接受分母。
+
 建立：2026-11-05（Asia/Taipei）。Owner：`AIPDM/DEV-127`。來源：`JENFU/DEV-022#pdm-administration`。
 
 **當前狀態：`IMPLEMENTING / FORMAL_E56_004_RELEASED / PRIMARY_096_097_INSTALLED / PRIMARY_STATIC_V7_ACTIVE / STATIC_V8_DELTA_NOT_APPLIED / ROOT_APP_GRANTS_AND_REAL_UI_PENDING`。** 正式source `e56a335f3dcd5d98f89003434e6a4e874b27f71c` 的normal owner attempt004已由GHA `42233755780` 完成RELEASED，native active revision尾碼`969fe`為100%流量、generation376；正式catalog仍為原`f19`的dynamic-v2，未因本local static-v8切片改變。primary-local原096／local097已正常INSTALLED並有獨立status讀回，active仍v7；source `4173de61ca70aca2d36a4514017a46762c7b9c17` 的正常catalog-inspect已確認九roles／profiles／identities等價（§8.8）。本branch的新static-v8/local098及semantic-preview delta尚未apply／release。Root／app grants及指定本人兩環境正常Google/UI仍待完成；source、隔離測試與舊release不能替代該接受分母。指定本人仍為同一Google個人帳號 `jedchang0308@jenfu.com.tw`／張仕杰 `JFS0005`，AAL1最低並保留有效AAL2。§8的舊attempt/首敗與歷史CI保留追溯，以本段及§8.8–8.9區分current狀態；[QA狀態](../qa/DEV-127-platform-super-admin-verification-status.md)的歷史紀錄不代表本delta已交付。

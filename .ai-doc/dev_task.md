@@ -5642,6 +5642,8 @@ QC 要求保留的 Supabase stop wording：
 
 2026-11-08 current：改採[行政權限 v2 consumer](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。PDM administrative definition 與 dynamic business catalog 分離，登入重用 DEV-013，授權只讀 OrgMaster exact app-admin projection；不自動升級既有角色。狀態為文件已同步、dual-reader／operation guards／遷移及兩環境部署進行中。
 
+2026-11-09 credential authority amendment：跨 owner candidate smoke 由 Platform 作唯一人類核身與 credential issuance authority；人類只需一次 Platform AAL1，AI-PDM 消費既有 immutable receipt `jenfu.dev012.firebase-identity-readback.v1`，並保留 AI-PDM owner-specific numeric Secret、GitHub environment secret、兩個 candidate-smoke Workflow version binding 與 owner receipt。完整分界見[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md#platform-smoke-credential-authority)及[DEV-127 §0](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。此為文件契約更新；AI-PDM producer 尚未改碼，不代表新流程已實作或驗收。
+
 本輪正式首敗在 product build／migration／candidate 前停止：affected-slice main CI 正確跳過未受影響的 Windows worker，但 owner workflow 仍跨 run 強制下載 same-SHA installer artifact。修正收斂為同一 owner run 的隔離 Windows job直接建置／驗證 exact-source installer並交接給 production build；移除 `actions:read` 與跨 run 查找，不變更 installer source binding、AAL、管理授權、資料、IAM／Secret或正式流量。
 
 本輪 current：OrgMaster047 typed Principal readers consumer source已實作，provider先發布、consumer後部署；review／required CI待續。127 focused tests與PG18.4真consumer fixture通過，尚無本source正式CPU／capacity PASS。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
