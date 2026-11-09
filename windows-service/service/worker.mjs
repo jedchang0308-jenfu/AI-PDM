@@ -39,17 +39,37 @@ async function api(credentials, workerId, endpoint, init = {}) {
   } finally { clearTimeout(timer); }
 }
 
-async function claimCapability(credentials, workerId, endpoint, body) {
-  try {
-    return await api(credentials, workerId, endpoint, { method: "POST", body });
-  } catch (error) {
-    // A linked device can legitimately have only part of the installed
-    // capability set. Capability-scoped 403 means "skip this queue"; the
-    // independent device heartbeat remains the authority for account/device
-    // revocation and terminates the service on its own 401/403/426 response.
-    if (Number(error?.status) === 403) return null;
-    throw error;
-  }
+function createClaimPoll(request, now) {
+  let dueAt = 0;
+  let emptyDelay = 5_000;
+  let forbiddenDelay = 15_000;
+  return {
+    get dueAt() { return dueAt; },
+    async take() {
+      if (now() < dueAt) return null;
+      let job;
+      try {
+        job = await request();
+      } catch (error) {
+        // A claim can reject one capability. The independent device heartbeat
+        // still terminates the service if the device or account loses access.
+        if (Number(error?.status) !== 403) throw error;
+        dueAt = now() + forbiddenDelay;
+        forbiddenDelay = Math.min(forbiddenDelay * 2, 120_000);
+        emptyDelay = 5_000;
+        return null;
+      }
+      forbiddenDelay = 15_000;
+      if (job) {
+        dueAt = now();
+        emptyDelay = 5_000;
+      } else {
+        dueAt = now() + emptyDelay;
+        emptyDelay = Math.min(emptyDelay * 2, 20_000);
+      }
+      return job;
+    }
+  };
 }
 
 async function content(credentials, workerId, endpoint, headers, expected) {
@@ -112,7 +132,7 @@ async function cleanupStaleJobs() {
   }
 }
 
-async function documentManagerCredential(credentials, workerId, job, isStopping) {
+async function documentManagerCredential(credentials, workerId, job, isStopping, probe, sleep) {
   const query = new URLSearchParams({ kind: job.kind, jobId: job.id,
     ...(job.sourceId ? { sourceId: job.sourceId } : {}) });
   const preview = job.kind === "preview";
@@ -134,10 +154,13 @@ async function documentManagerCredential(credentials, workerId, job, isStopping)
       // No business CAD has been downloaded or executed yet. Keep its pulse
       // alive while giving an authorized management probe a serial recovery
       // turn, so this computer can repair the key it is waiting for.
-      await processProbe(credentials, workerId).catch(error => {
+      await sleep(5_000);
+      if (isStopping()) break;
+      try {
+        await processProbe(credentials, workerId, await probe.take());
+      } catch (error) {
         if ([401, 403, 426].includes(Number(error?.status))) throw error;
-      });
-      await delay(5_000);
+      }
     }
   }
   throw new Error("WORKER_STOPPING");
@@ -173,11 +196,7 @@ async function completeWithReadback(credentials, workerId, kind, jobId, endpoint
   }
 }
 
-async function processPreview(credentials, workerId, isStopping) {
-  const claim = await claimCapability(credentials, workerId, "/api/preview-jobs/claim", {
-    workerId, leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"],
-    supportedExtensions: ["sldprt", "sldasm", "slddrw"] });
-  const job = claim?.job;
+async function processPreview(credentials, workerId, job, isStopping, probe, sleep) {
   if (!job) return false;
   const pulse = () => api(credentials, workerId, `/api/preview-jobs/${encodeURIComponent(job.jobId)}/heartbeat`, {
     method: "POST", body: { workerId, leaseProtocolVersion: 2, leaseBasis: job.leaseBasis } });
@@ -188,7 +207,7 @@ async function processPreview(credentials, workerId, isStopping) {
   let completionStarted = false;
   try {
     credential = await documentManagerCredential(credentials, workerId,
-      { kind: "preview", id: job.jobId, leaseBasis: job.leaseBasis }, isStopping);
+      { kind: "preview", id: job.jobId, leaseBasis: job.leaseBasis }, isStopping, probe, sleep);
     await sendCapabilityHeartbeats(credentials, workerId, credential);
     const bytes = await content(credentials, workerId, `/api/preview-jobs/${encodeURIComponent(job.jobId)}/content`,
       { "x-pdm-preview-lease": leaseHeader(2, job.leaseBasis) }, { hash: job.sourceContentHash });
@@ -230,9 +249,7 @@ function filenameResult(source) {
       applicabilityScope: source.sourceRole }] };
 }
 
-async function processRecognition(credentials, workerId, isStopping) {
-  const job = await claimCapability(credentials, workerId, "/api/recognition-jobs/claim", {
-    workerId, maxAttempts: 2, allowNativeSources: true });
+async function processRecognition(credentials, workerId, job, isStopping, probe, sleep) {
   if (!job) return false;
   const pulse = () => api(credentials, workerId, `/api/recognition-jobs/${encodeURIComponent(job.sessionId)}/heartbeat`, {
     method: "POST", body: { workerId, leaseProtocolVersion: 1, leaseBasis: job.leaseBasis } });
@@ -244,7 +261,7 @@ async function processRecognition(credentials, workerId, isStopping) {
     const nativeSource = job.sources.find(source => nativeExtensions.has(String(source.fileExt ?? "").toLowerCase().replace(/^\./u, "")));
     if (nativeSource) {
       credential = await documentManagerCredential(credentials, workerId,
-        { kind: "recognition", id: job.sessionId, sourceId: nativeSource.id, leaseBasis: job.leaseBasis }, isStopping);
+        { kind: "recognition", id: job.sessionId, sourceId: nativeSource.id, leaseBasis: job.leaseBasis }, isStopping, probe, sleep);
       await sendCapabilityHeartbeats(credentials, workerId, credential);
     }
     for (const source of job.sources) {
@@ -272,9 +289,7 @@ async function processRecognition(credentials, workerId, isStopping) {
   return true;
 }
 
-async function processProbe(credentials, workerId) {
-  const job = await api(credentials, workerId, "/api/settings-secret-probe-jobs/claim", { method: "POST",
-    body: { workerId, protocolVersion: 2 } });
+async function processProbe(credentials, workerId, job) {
   if (!job) return false;
   const pulse = () => api(credentials, workerId, `/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/heartbeat`, {
     method: "POST", body: { workerId, leaseAttempt: job.leaseAttempt } });
@@ -300,34 +315,46 @@ async function processProbe(credentials, workerId) {
   return true;
 }
 
-export async function runWindowsWorker({ credentials, workerId, isStopping, log }) {
+export async function runWindowsWorker({ credentials, workerId, isStopping, log, now = () => performance.now(), sleep = delay }) {
   await cleanupStaleJobs();
+  const claim = (endpoint, body) => api(credentials, workerId, endpoint, { method: "POST", body });
+  const probe = createClaimPoll(() => claim("/api/settings-secret-probe-jobs/claim", { workerId, protocolVersion: 2 }), now);
+  const preview = createClaimPoll(async () => (await claim("/api/preview-jobs/claim", {
+    workerId, leaseProtocolVersion: 2, supportedKinds: ["native_thumbnail_png"],
+    supportedExtensions: ["sldprt", "sldasm", "slddrw"]
+  }))?.job, now);
+  const recognition = createClaimPoll(() => claim("/api/recognition-jobs/claim", {
+    workerId, maxAttempts: 2, allowNativeSources: true
+  }), now);
+  const work = {
+    preview: async () => processPreview(credentials, workerId, await preview.take(), isStopping, probe, sleep),
+    recognition: async () => processRecognition(credentials, workerId, await recognition.take(), isStopping, probe, sleep)
+  };
   let next = "preview";
   while (!isStopping()) {
     try {
-      if (await processProbe(credentials, workerId)) continue;
-      const readiness = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key?readiness=1");
-      if (readiness?.available !== true) {
-        await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_credential_waiting");
-        await delay(5_000);
-        continue;
+      if (await processProbe(credentials, workerId, await probe.take())) continue;
+      if (Math.min(preview.dueAt, recognition.dueAt) <= now()) {
+        const readiness = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key?readiness=1");
+        if (readiness?.available !== true) {
+          await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_credential_waiting");
+          await sleep(5_000);
+          continue;
+        }
+        const alternate = next === "preview" ? "recognition" : "preview";
+        if (await work[next]()) {
+          next = alternate;
+          continue;
+        }
+        if (await work[alternate]()) continue;
       }
-      const worked = next === "preview"
-        ? await processPreview(credentials, workerId, isStopping)
-        : await processRecognition(credentials, workerId, isStopping);
-      next = next === "preview" ? "recognition" : "preview";
-      if (!worked) {
-        const alternate = next === "preview"
-          ? await processPreview(credentials, workerId, isStopping)
-          : await processRecognition(credentials, workerId, isStopping);
-        next = next === "preview" ? "recognition" : "preview";
-        if (!alternate) await delay(5_000);
-      }
+      const wait = Math.min(probe.dueAt, preview.dueAt, recognition.dueAt) - now();
+      if (!isStopping() && wait > 0) await sleep(wait);
     } catch (error) {
       if ([401, 403, 426].includes(Number(error?.status))) throw error;
       log("worker_cycle_retry", { reason: String(error?.message ?? error).slice(0, 180) });
       await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_worker_degraded").catch(() => undefined);
-      await delay(5_000);
+      await sleep(5_000);
     }
   }
 }
