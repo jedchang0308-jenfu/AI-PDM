@@ -1161,6 +1161,12 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     if (prepareFacts.preActivationAbortBasis.schemaVersion === 'ai-pdm.principal-ordinary-abort-basis.v1') {
       return readHistoricalOrdinaryPredecessor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, binding, verifyProvider, consume: consumeAnchor })
     }
+    if (prepareFacts.preActivationAbortBasis.schemaVersion === 'ai-pdm.principal-prebuild-abort-basis.v1') {
+      const releasedIntentRef = await readInheritedPrebuildAnchor({ profile, transport, intent,
+        inheritedBasis: prepareFacts.preActivationAbortBasis, anchor, read })
+      return consumeAnchor(await transport.readJson(releasedIntentRef, bucket, ['receipts']), releasedIntentRef,
+        [prepareFacts.preActivationAbortBasis])
+    }
     return readHistoricalOrdinaryAnchor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, bindings: [binding], consume: consumeAnchor })
   }
   return consumeAnchor(anchor, intent.baselineIntentRef)

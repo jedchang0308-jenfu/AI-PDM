@@ -842,6 +842,50 @@ test('prebuild prepare re-queries failed-tag Build absence after the producer an
   }
 })
 
+async function ordinaryAfterPrebuildAbortFixture() {
+  const h = ordinaryPrebuildAbortFixture()
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', ledger: 'ai_pdm_core.schema_migrations',
+    migrationBootstrap: true, principalContractLedgerFloor: 35 }
+  const prebuild = h.failed, prebuildRun = structuredClone(h.ownerRun)
+  prebuildRun.createdAt = '2026-09-30T00:00:00Z'; prebuildRun.updatedAt = '2026-09-30T00:01:00Z'
+  const basis = (await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })).authorityBasis
+  const failed = h.release({ source: 'f'.repeat(40), releaseId: 'DEV121-ORDINARY-AFTER-PREBUILD',
+    revision: 'ai-pdm-prod-555555555555', previous: previousRevision, imageDigit: 'f',
+    anchorRef: prebuild.intentRow.ref, preActivationAbortBasis: basis })
+  const currentRun = { ...prebuildRun, id: '43', headSha: failed.intent.sourceRevision,
+    createdAt: '2026-09-30T00:00:00Z', updatedAt: '2026-09-30T00:05:00Z' }
+  Object.assign(h.controlCore, { releaseId: failed.intent.releaseId, sourceRevision: failed.intent.sourceRevision,
+    sourceLockSha256: failed.lock.ref.sha256, candidateRevision: failed.revision,
+    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/43',
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: failed.intent.releaseId,
+      sourceRevision: failed.intent.sourceRevision, releaseIntentSha256: failed.intentRow.ref.sha256 })) })
+  h.control()
+  h.transport.readOwnerRun = async (_profile, ref) => ref.endsWith('/42') ? prebuildRun : currentRun
+  const deployment = h.objects.get(failed.paths.deployment).value
+  const execution = { name: `projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/${failed.migration.value.executionName}`,
+    createTime: '2026-09-30T00:01:00Z', completionTime: '2026-09-30T00:04:00Z', succeededCount: 1,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: { containers: [{ name: 'migration', image: migrationRunnerDigest,
+      args: ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256,
+        '--source-revision', failed.intent.sourceRevision, '--output-ref', failed.paths.migrate] }] } }
+  const request = h.transport.request
+  h.transport.request = (url, ...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')
+    ? { executions: [execution] } : request(url, ...args)
+  h.failed = failed; h.helperInput.baselineIntentRef = failed.intentRow.ref
+  return { ...h, prebuild, basis, currentRun, execution }
+}
+
+test('ordinary forward abort may inherit one sealed zero-build predecessor before the released anchor', async () => {
+  const h = await ordinaryAfterPrebuildAbortFixture()
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_ORDINARY_ABORT')
+  assert.equal(continuation.authorityBasis.schemaVersion, 'ai-pdm.principal-ordinary-abort-basis.v1')
+  assert.deepEqual(continuation.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+  assert.deepEqual(continuation.authorityBasis.releasedProof, h.basis.releasedProof)
+  assert.equal(continuation.currentActiveRevision, previousRevision)
+  assert.equal(h.calls.puts, 0)
+})
+
 
 async function unpublishedAbortFixture(inherited = false) {
   const h = ordinaryPrebuildAbortFixture()
