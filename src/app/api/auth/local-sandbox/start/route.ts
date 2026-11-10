@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createLocalSandboxLoginState, createLocalStateCookie, getLocalSandboxPrincipalRuntime,
   isLocalPrincipalSandboxRequested } from "@/lib/local-sandbox-principal-runtime";
 import { assertLocalSandboxRequest } from "../../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { canonicalLocalSandboxRequest } from "@/lib/auth/local-sandbox-request";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
         headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } });
     }
     const local = await getLocalSandboxPrincipalRuntime();
+    request = canonicalLocalSandboxRequest(request, local.config);
     assertLocalSandboxRequest(request, local.config, { listenAddress: local.listenAddress });
     const state = createLocalSandboxLoginState(local.profile.platformClient.key, local.config.origin);
     const callback = `${local.config.origin}/api/auth/local-sandbox/callback`;
