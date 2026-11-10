@@ -11,6 +11,7 @@ import {
   verifyLocalSandboxLoginState,
 } from "@/lib/local-sandbox-principal-runtime";
 import { assertLocalSandboxRequest } from "../../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { canonicalLocalSandboxRequest } from "@/lib/auth/local-sandbox-request";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
     }
     const local = await getLocalSandboxPrincipalRuntime();
     verifiedOrigin = local.config.origin;
+    request = canonicalLocalSandboxRequest(request, local.config);
     assertLocalSandboxRequest(request, local.config, { listenAddress: local.listenAddress });
     const url = new URL(request.url);
     const keys = [...url.searchParams.keys()];

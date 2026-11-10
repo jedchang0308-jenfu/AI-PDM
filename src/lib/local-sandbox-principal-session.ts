@@ -10,6 +10,7 @@ import {
   verifyLocalResponse
 } from '../../contracts/local-principal-sandbox/v1/protocol.mjs'
 import { validateLocalSandboxResetTarget } from './local-sandbox-reset-target.mjs'
+import { canonicalLocalSandboxRequest } from './auth/local-sandbox-request.ts'
 import { JENFU_PRINCIPAL_SESSION_CONTRACT_VERSION, verifyJenfuPrincipalSession } from '@/lib/jenfu-principal-session'
 import { principalAssurancePolicyHash } from '@/lib/jenfu-principal-assurance'
 import type { AsyncDatabaseClient } from '@/lib/db-async-provider'
@@ -335,17 +336,18 @@ export async function issueLocalSandboxPrincipalSession(input: IssueLocalSandbox
   }
   rejectFormalAuthLane(input.environment)
   const config = readLocalSandboxConfig(input.environment, 'ai-pdm')
-  const requestUrl = new URL(input.request.url)
-  const quickLogin = input.request.method === 'POST' && requestUrl.pathname === '/api/auth/local-quick-login'
-  const callback = input.request.method === 'GET' && requestUrl.pathname === '/api/auth/local-sandbox/callback'
+  const request = canonicalLocalSandboxRequest(input.request, config)
+  const requestUrl = new URL(request.url)
+  const quickLogin = request.method === 'POST' && requestUrl.pathname === '/api/auth/local-quick-login'
+  const callback = request.method === 'GET' && requestUrl.pathname === '/api/auth/local-sandbox/callback'
   if (!quickLogin && !callback) fail('LOCAL_SANDBOX_REQUEST_INVALID')
-  assertLocalSandboxRequest(input.request, config, {
+  assertLocalSandboxRequest(request, config, {
     browserMutation: quickLogin,
     listenAddress: input.listenAddress,
   })
   if (callback) {
     if (!input.verifyCallbackStateAndPkce) fail('LOCAL_SANDBOX_CALLBACK_STATE_INVALID')
-    await input.verifyCallbackStateAndPkce(input.request)
+    await input.verifyCallbackStateAndPkce(request)
   }
   if (input.expected.applicationId !== 'ai-pdm' ||
     input.expected.nativeSessionContractVersion !== JENFU_PRINCIPAL_SESSION_CONTRACT_VERSION) {
@@ -547,8 +549,9 @@ export async function resolveLocalSandboxPrincipalRequestAdmission(
   }
   rejectFormalAuthLane(input.environment)
   const config = readLocalSandboxConfig(input.environment, 'ai-pdm')
-  const browserMutation = !['GET', 'HEAD', 'OPTIONS'].includes(input.request.method.toUpperCase())
-  assertLocalSandboxRequest(input.request, config, { browserMutation, listenAddress: input.listenAddress })
+  const request = canonicalLocalSandboxRequest(input.request, config)
+  const browserMutation = !['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())
+  assertLocalSandboxRequest(request, config, { browserMutation, listenAddress: input.listenAddress })
   const { observed, canonicalTarget } = await assertCurrentTarget({
     environment: input.environment,
     config,

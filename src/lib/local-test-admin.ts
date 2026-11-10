@@ -9,6 +9,7 @@ import { getLocalSandboxPrincipalRuntime, isLocalPrincipalSandboxRequested } fro
 import { LOCAL_SANDBOX_PRINCIPAL_TRUST_POLICY } from "@/lib/local-sandbox-principal-session";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 import { assertLocalSandboxRequest, isLoopbackHost, readLocalJsonBody, LocalSandboxError } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
+import { canonicalLocalSandboxRequest } from "@/lib/auth/local-sandbox-request";
 
 /** This subject belongs only to a verified disposable PDM development target. */
 export const LOCAL_TEST_ADMIN_IDENTITY = Object.freeze({
@@ -62,6 +63,7 @@ export async function getLocalTestAdminRuntime(request: Request, options: { brow
   // This loader verifies profile/fixture, OS listener, actual DB role and isolated target.
   // Its Platform ports are never invoked in this authentication lane.
   const runtime = await getLocalSandboxPrincipalRuntime();
+  request = canonicalLocalSandboxRequest(request, runtime.config);
   assertLocalSandboxRequest(request, runtime.config, {
     browserMutation: options.browserMutation ?? !["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase()),
     listenAddress: runtime.listenAddress,

@@ -5640,7 +5640,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-127：平台超級管理員的 AI-PDM consumer 契約
 
-2026-11-09 current：改採[行政權限 v2 consumer](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。PR #575／#594／#596 已合併，受保護 `main@fca2a6a8ac2a372bf7f4cbe7578e44fd0db3f1b6` 的 required checks 成功；正式 `ai-pdm-prod-a0a313a8ab4e` 承接 100% 流量，地端 1020 使用同一 source。PDM administrative definition 與 dynamic business catalog 分離，登入重用 DEV-013，授權只讀 OrgMaster exact app-admin projection，不自動升級既有角色。完整本人 UI／app-admin／deny-path 讀回仍待已合併的 [Platform PR #198](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/198) same-tab redirect 正式發布與 fresh session；維持 AAL1、中文姓名，不新增財務業務權限。
+2026-11-10 current：改採[行政權限 v2 consumer](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。目前受保護 `main@b7a79dd61f16a73a4b6f19b23f9bbadf6ff8d936` 的 required checks 成功；正式 `ai-pdm-prod-a0a313a8ab4e` 保留先前已發布版本。地端發現 Next dev 內部 request URL 的 `localhost`／可信設定 `127.0.0.1` 差異會誤拒正常 local sandbox；correction 僅允許 development、exact Host、同 loopback port 正規化，外部／偽造 Host 仍拒絕。focused 33 例、DEV-126 local sandbox 72 PASS／1 SKIP＋12 PASS及 `typecheck:app` 已通過，待 protected PR／required CI／owner release。PDM administrative definition 與 dynamic business catalog 分離，登入重用 DEV-013，授權只讀 OrgMaster exact app-admin projection，不自動升級既有角色。完整本人 UI／app-admin／deny-path 讀回仍待 current source 發布與 fresh session；維持 AAL1、中文姓名，不新增財務業務權限。
 
 2026-11-09 credential authority amendment：跨 owner candidate smoke 由 Platform 作唯一人類核身與 credential issuance authority；人類只需一次 Platform AAL1，AI-PDM 消費既有 immutable receipt `jenfu.dev012.firebase-identity-readback.v1`，並保留 AI-PDM owner-specific numeric Secret、GitHub environment secret、兩個 candidate-smoke Workflow version binding 與 owner receipt。完整分界見[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md#platform-smoke-credential-authority)及[DEV-127 §0](specs/DEV-127-platform-super-admin-consumer-contract.md#0-行政權限-v2-consumer-契約2026-11-08優先於本文舊流程)。此為文件契約更新；AI-PDM producer 尚未改碼，不代表新流程已實作或驗收。
 
@@ -5648,7 +5648,7 @@ QC 要求保留的 Supabase stop wording：
 
 OrgMaster047 typed Principal readers 歷史 checkpoint：consumer source已實作，provider先發布、consumer後部署；127 focused tests與PG18.4真consumer fixture通過，當時未取得該 source 的正式 CPU／capacity PASS。現行 protected source／release 以上述 current 為準。見[DEV127 §8.7](specs/DEV-127-platform-super-admin-consumer-contract.md#dev127-scoped-principal-readers)。
 
-來源：`JENFU/DEV-022#pdm-administration`。狀態 `SOURCE_AND_PRODUCTION_RELEASED / LOCAL_SOURCE_ALIGNED / REAL_ACTOR_UI_READBACK_PENDING`。PR #575／#594／#596 已 protected merge；現行受保護來源 `main@fca2a6a8ac2a372bf7f4cbe7578e44fd0db3f1b6` 已由 owner release 發布至 `ai-pdm-prod-a0a313a8ab4e`（100%），地端 1020 同 source。完整本人 app-admin/UI 與 business-write deny 仍待 fresh session，不以 source、CI 或部署代填。
+來源：`JENFU/DEV-022#pdm-administration`。狀態 `SOURCE_CORRECTION_IN_PROGRESS / PRIOR_PRODUCTION_RELEASED / REAL_ACTOR_UI_READBACK_PENDING`。現行受保護來源為 `main@b7a79dd61f16a73a4b6f19b23f9bbadf6ff8d936`；先前正式 `ai-pdm-prod-a0a313a8ab4e` 維持服務。本輪 local loopback normalization 尚待 PR、required CI 與 owner release；完整本人 app-admin/UI 與 business-write deny 仍待 current source 發布後 fresh session，不以 source、CI 或部署代填。
 
 [唯一契約／當前表](specs/DEV-127-platform-super-admin-consumer-contract.md#84-唯一當前進度與下一步)及[QA狀態](qa/DEV-127-platform-super-admin-verification-status.md)。現行 main 的 `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 均成功；PR571／572、CI42130771577及較早SQL component42120180413保留原source／nonce／skipped界線，不改綁現行 source。
 

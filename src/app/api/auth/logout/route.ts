@@ -15,6 +15,7 @@ import {
 } from "@/lib/local-sandbox-principal-runtime";
 import { assertLocalSandboxRequest, LocalSandboxError } from "../../../../../contracts/local-principal-sandbox/v1/protocol.mjs";
 import { isLocalTestAdminRequested, logoutLocalTestAdmin } from "@/lib/local-test-admin";
+import { canonicalLocalSandboxRequest } from "@/lib/auth/local-sandbox-request";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     let revokeFailed = false;
     try {
       runtime = await getLocalSandboxPrincipalRuntime();
+      request = canonicalLocalSandboxRequest(request, runtime.config);
       assertLocalSandboxRequest(request, runtime.config, { browserMutation: true, listenAddress: runtime.listenAddress });
       const token = principalSessionTokenFromRequest(request);
       if (token) {
