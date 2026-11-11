@@ -245,6 +245,7 @@ export function assertDev117Config(config) {
   const expectedFixed = {
     NODE_ENV: 'production', PDM_AUTH_MODE: 'firebase_bff', PDM_PRODUCTION_SLICE_MODE: 'official-numbering-draft',
     PDM_NUMBER_STATE_FLOW_V1: 'true', PDM_NUMBER_LIFECYCLE_V2: 'true', PDM_UNIFIED_DRAWING_WORKBENCH_V1: 'true',
+    PDM_WORKBENCH_PREVIEW_GALLERY_V1: 'true', PDM_PART_PREVIEW_V1: 'true',
     PDM_DRAWING_RECOGNITION_V1: 'true', PDM_REVIEW_PACKAGE_V2_WRITE: 'true', PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: 'true',
     PDM_UNIFIED_ENTITY_DETAIL_V1: 'true', PDM_DRAWING_REVISION_LIFECYCLE_MODE: 'enforced', PDM_SMOKE_GCS_WRITER: 'disabled',
     PDM_SMOKE_OUTBOX_CONSUMER: 'disabled', PDM_SMOKE_EXTERNAL_NOTIFICATION: 'disabled', PDM_DB_PROVIDER: 'cloud_sql_postgres',
