@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FileText, PackageSearch, RefreshCcw, Search, ShieldAlert } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type HomeUser = {
   display_name: string;
@@ -40,7 +41,7 @@ export function CleanHomeWorkbench() {
     void load();
   }, []);
 
-  if (state === "loading") return <main className="clean-home"><p role="status">載入中…</p></main>;
+  if (state === "loading") return <main className="clean-home"><p><LoadingIndicator>載入中…</LoadingIndicator></p></main>;
 
   if (state === "unauthorized") {
     return (

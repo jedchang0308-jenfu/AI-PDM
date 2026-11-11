@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { ApprovalWorkbenchRow } from "@/lib/approval-workbench-contract";
 import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 export function PrincipalTransferReviewWorkspace({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -59,7 +60,7 @@ export function PrincipalTransferReviewWorkspace({ requestId }: { requestId: str
 
   return <main className="dev079-workspace-state">
     <h1>技轉包審核</h1>
-    {loading ? <p role="status">正在讀取指派與案件快照…</p> : null}
+    {loading ? <p><LoadingIndicator>正在讀取指派與案件快照…</LoadingIndicator></p> : null}
     {error ? <p role="alert">{error}</p> : null}
     {item ? <section className="panel" aria-label="技轉包審核內容">
       <h2>{item.title}</h2>

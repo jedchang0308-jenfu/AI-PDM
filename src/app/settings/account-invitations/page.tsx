@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Ban, ClipboardCopy, Mail, RefreshCw, RotateCcw, Send, UserPlus, X } from "lucide-react";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { getStatusDisplay } from "@/lib/status-display";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type InvitationRole = "Engineer" | "R&D Manager" | "Admin" | "Manufacturing" | "Procurement";
 type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -243,7 +244,7 @@ export default function AccountInvitationsPage() {
             <div className="account-invitation-form-actions">
               <button className="primary-button account-invitation-submit" type="submit" disabled={saving}>
                 <Send size={16} aria-hidden="true" />
-                {saving ? (isReissuing ? "重新寄送中..." : "建立中...") : (isReissuing ? "重新寄出邀請" : "建立邀請")}
+                {saving ? <LoadingIndicator>{isReissuing ? "重新寄送中..." : "建立中..."}</LoadingIndicator> : (isReissuing ? "重新寄出邀請" : "建立邀請")}
               </button>
               {isReissuing ? (
                 <button className="secondary-button" type="button" onClick={cancelReissue} disabled={saving}>
@@ -298,7 +299,7 @@ export default function AccountInvitationsPage() {
             <span>{invitations.length} 筆</span>
           </div>
 
-          {loading ? <div className="empty">正在讀取邀請紀錄...</div> : invitations.length === 0 ? (
+          {loading ? <div className="empty"><LoadingIndicator>正在讀取邀請紀錄...</LoadingIndicator></div> : invitations.length === 0 ? (
             <div className="empty">尚無邀請紀錄。請使用上方表單建立第一個邀請。</div>
           ) : (
             <div className="table-wrap">

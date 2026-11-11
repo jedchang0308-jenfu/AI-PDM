@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type PolicyResponse = {
   content: string;
@@ -70,7 +71,7 @@ export default function PolicyPage() {
             <p>內容隨正式版本發布，供各角色查閱。</p>
           </div>
         </div>
-        {loading ? <div className="policy-loading">正在讀取管理辦法。</div> : null}
+        {loading ? <div className="policy-loading"><LoadingIndicator>正在讀取管理辦法。</LoadingIndicator></div> : null}
         {!loading && policy ? <PolicyMarkdown content={policy.content} /> : null}
       </section>
     </section>

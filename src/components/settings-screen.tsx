@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { SettingsSecretWorkflow } from "@/lib/settings-secret-workflow";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import {
   Ban,
   ChevronDown,
@@ -414,7 +415,7 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
 
       {state.status === "loading" ? (
         <section className="panel">
-          <div className="empty">正在載入設定...</div>
+          <div className="empty"><LoadingIndicator>正在載入設定...</LoadingIndicator></div>
         </section>
       ) : null}
       {state.status === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看系統設定。" /> : null}
@@ -1451,7 +1452,7 @@ function FolderTreeNodes({
                 {isExpanded ? <FolderOpen size={16} /> : <Folder size={16} />}
                 <span>{folder.name}</span>
               </button>
-              {folderLoading === folder.id ? <span className="settings-drive-loading-dot">讀取</span> : null}
+              {folderLoading === folder.id ? <LoadingIndicator className="settings-drive-loading-dot">讀取</LoadingIndicator> : null}
             </div>
             {isExpanded ? (
               <FolderTreeNodes
@@ -1737,7 +1738,7 @@ export function ApprovalMatrixSettings() {
         <div className="panel-header">
           <h2>審核矩陣設定台</h2>
         </div>
-        <div className="empty">正在載入審核矩陣...</div>
+        <div className="empty"><LoadingIndicator>正在載入審核矩陣...</LoadingIndicator></div>
       </section>
     );
   }
@@ -2122,7 +2123,7 @@ function RuleSimulator({ matrix }: { matrix: MatrixResponse }) {
       <div>
         <button className="secondary-button" type="button" onClick={simulate} disabled={loading}>
           <Info size={16} />
-          {loading ? "模擬中..." : "模擬"}
+          {loading ? <LoadingIndicator>模擬中...</LoadingIndicator> : "模擬"}
         </button>
       </div>
       {result ? (

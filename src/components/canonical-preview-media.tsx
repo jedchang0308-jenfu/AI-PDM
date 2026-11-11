@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { PdfDocumentViewport } from "@/components/pdf-document-viewport";
 import { PdfPageViewport, type PdfPageFocusRegion } from "@/components/pdf-page-viewport";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { normalizeMediaType } from "@/lib/media-type";
 import { invalidatePdmPermissions } from "@/lib/pdm-permission-client";
 import { usePdmPreviewImageCache } from "./pdm-preview-image-cache-context";
@@ -213,7 +214,7 @@ export function CanonicalPreviewMedia({
   }
 
   return <span className={`drawing-preview-placeholder ${loadState === "failed" ? "unavailable" : "pending"}`} data-preview-state={loadState === "failed" ? "unavailable" : "pending"}>
-    <strong>{loadState === "failed" ? terminalReason || "預覽尚未就緒" : compact ? "載入中…" : "預覽正在準備"}</strong>
+    <strong>{loadState === "failed" ? terminalReason || "預覽尚未就緒" : <LoadingIndicator>{compact ? "載入中…" : "預覽正在準備"}</LoadingIndicator>}</strong>
     {!compact && loadState !== "failed" ? <span>完成後會自動顯示，請稍候。</span> : null}
     {loadState === "failed" && interactive && (!terminalReason || previewBlocked) ? <button className="secondary-button preview-generate-button" type="button" onClick={() => { deniedHrefs?.delete(media.href); setDeniedHref(""); setRetryToken((token) => token + 1); }}>重新整理預覽</button> : null}
   </span>;

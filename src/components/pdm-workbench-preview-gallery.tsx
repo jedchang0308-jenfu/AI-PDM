@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { HumanStatusBadge } from "@/components/human-status-badge";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { PdmWorkbenchPreviewSummary } from "@/lib/pdm-workbench-contract";
 
 type GalleryRow = { rowKey: string; displayCode: string; displayName: string; lane?: { laneLabel: string; lane: string }; preview?: PdmWorkbenchPreviewSummary | null; humanStatus: Parameters<typeof HumanStatusBadge>[0]["status"]; responsibilityStatus: Parameters<typeof HumanStatusBadge>[0]["responsibilityStatus"]; viewerActionability: Parameters<typeof HumanStatusBadge>[0]["viewerActionability"]; viewerStatus: Parameters<typeof HumanStatusBadge>[0]["viewerStatus"]; availabilityScope: Parameters<typeof HumanStatusBadge>[0]["availabilityScope"] };
@@ -49,7 +50,7 @@ export function PdmWorkbenchPreviewGallery<Row extends GalleryRow>({
   };
   return (
     <div className="pdm-workbench-preview-gallery" role="grid" aria-label={ariaLabel} aria-busy={loading}>
-      {loading && rows.length === 0 ? <div className="empty pdm-workbench-preview-empty" role="status">正在載入預覽圖...</div> : null}
+      {loading && rows.length === 0 ? <div className="empty pdm-workbench-preview-empty"><LoadingIndicator>正在載入預覽圖...</LoadingIndicator></div> : null}
       {!loading && rows.length === 0 ? emptyState : null}
       {rows.map((row, index) => {
         const preview = row.preview;

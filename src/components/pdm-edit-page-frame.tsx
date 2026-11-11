@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 export type PdmEditPageStatus = "loading" | "ready" | "restricted" | "not_found" | "conflict" | "error";
 
@@ -66,6 +67,7 @@ export function PdmEditPageFrame({
       </header>}
       {notice ? <div className="pdm-edit-page-notice" role="status">{notice}</div> : null}
       {frameError ? <div className="pdm-edit-page-error" role="alert"><span>{frameError}</span>{onRetry ? <button className="secondary-button" type="button" onClick={onRetry}><RefreshCcw size={15} />重新載入</button> : null}</div> : null}
+      {status === "loading" ? <div className="pdm-edit-page-loading"><LoadingIndicator>正在載入資料…</LoadingIndicator></div> : null}
       {status === "ready" ? <section className="pdm-edit-page-body">{children}</section> : null}
       {actionDock ? <footer className="pdm-edit-page-action-dock">{actionDock}</footer> : null}
     </div>

@@ -30,6 +30,7 @@ import {
 import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
 import { LifecycleMap, ObjectLifecycleStatusPanel, buildUploadPrefillHref, type LifecycleMetric, type LifecycleStageId } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
@@ -2094,7 +2095,7 @@ export function Dashboard() {
   }
 
   if (!authChecked) {
-    return <div className="empty">正在檢查登入狀態...</div>;
+    return <div className="empty"><LoadingIndicator>正在檢查登入狀態...</LoadingIndicator></div>;
   }
 
   if (!currentUser) {

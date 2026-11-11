@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RelationMatrixTable, type RelationMatrixCell, type RelationMatrixIdentity } from "@/components/relation-matrix-table";
 import type { CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type RelationMatrixChange = {
   drawingNumberId: string;
@@ -282,7 +283,7 @@ export function CanonicalRelationMatrixSection({
         <button type="button" className="primary-button" disabled={!changes.length} onClick={() => void save()}>儲存關聯</button>
         <button type="button" className="secondary-button" onClick={cancel}>取消</button>
         <span role="status">已變更 {changes.length} 格</span>
-      </> : recoveryActionLabel ? <button type="button" className="primary-button" onClick={handleRecovery}>{recoveryActionLabel}</button> : <span role="status">{saveState === "saving" ? "正在儲存…" : saveState === "readback" ? "正在確認儲存結果…" : "正在載入最新資料…"}</span>}
+      </> : recoveryActionLabel ? <button type="button" className="primary-button" onClick={handleRecovery}>{recoveryActionLabel}</button> : <LoadingIndicator>{saveState === "saving" ? "正在儲存…" : saveState === "readback" ? "正在確認儲存結果…" : "正在載入最新資料…"}</LoadingIndicator>}
     </div> : null}
   </section>;
 }

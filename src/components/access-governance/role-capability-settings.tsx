@@ -5,6 +5,7 @@ import {approvalActionLabel} from '@/lib/approval-rule-summary'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ArrowLeft, History, LoaderCircle, Plus, RefreshCw, Save } from 'lucide-react'
+import { LoadingIndicator } from '@/components/loading-indicator'
 
 type ActiveTuple = { catalogVersion: string; catalogSha256: string }
 type Permission = { kind: 'page' | 'action'; code: string; allowed: boolean }
@@ -465,7 +466,7 @@ export function RoleCapabilitySettings() {
         <option value="">目前生效版本</option>{drafts.map(d => <option key={d.draftId} value={d.draftId}>
           {new Date(d.updatedAt).toLocaleString()} · {d.status === 'OPEN' ? '草稿' : '已套用'} · {d.revision}</option>)}</select>
       {draftCursor ? <button type="button" className="secondary-button" disabled={busy || loadingMoreDrafts}
-        onClick={() => void loadOlderDrafts()}>{loadingMoreDrafts ? '讀取中…' : '讀取較舊草稿'}</button> : null}
+        onClick={() => void loadOlderDrafts()}>{loadingMoreDrafts ? <LoadingIndicator>讀取中…</LoadingIndicator> : '讀取較舊草稿'}</button> : null}
       <button type="button" className="secondary-button" disabled={locked || !workspace.admission.edit}
         onClick={() => void navigate(() => createDraft())}>建立草稿</button>
       <button type="button" className="primary-button" disabled={locked || !editable} onClick={addRole}><Plus size={16} />新增角色</button>
@@ -488,7 +489,7 @@ export function RoleCapabilitySettings() {
           {workspace.admission.edit && ['dynamic-policy-v1', 'dynamic-policy-v2'].includes(h.publicationFormat) ? <button type="button" className="secondary-button" disabled={locked}
             onClick={() => void navigate(() => createDraft(String(h.catalogVersion)))}>以此建立草稿</button> : <span>既有版本</span>}</div></td></tr>)}</tbody></table>
       {historyCursor ? <button type="button" className="secondary-button role-policy-more" disabled={busy || loadingMoreHistory}
-        onClick={() => void loadMoreHistory()}>{loadingMoreHistory ? '讀取中…' : '更多異動紀錄'}</button> : null}
+        onClick={() => void loadMoreHistory()}>{loadingMoreHistory ? <LoadingIndicator>讀取中…</LoadingIndicator> : '更多異動紀錄'}</button> : null}
       {historyDetail ? <section className="role-policy-history-detail" aria-label="版本詳情">
         <header className="access-role-header"><h3>版本詳情：{historyDetail.catalogVersion}</h3><button type="button" className="secondary-button" onClick={() => setHistoryDetail(null)}>關閉</button></header>
         <dl><div><dt>發布時間</dt><dd>{new Date(historyDetail.publishedAt).toLocaleString()}</dd></div><div><dt>狀態</dt><dd>{historyDetail.lifecycle === 'active' ? '目前生效' : '歷史版本'}</dd></div></dl>

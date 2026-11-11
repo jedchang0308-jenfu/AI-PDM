@@ -4,6 +4,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { principalRequestInput } from "@/lib/jenfu-principal-http";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
 import { uploadDrawingRevisionWorkFile, uploadDrawingRevisionWorkFilePrincipal } from "@/lib/drawing-revision-work-file";
@@ -146,7 +147,11 @@ export class DrawingRevisionWorkService {
     if (!decision?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
-    return { companyId: verified.profile.companyId, profileId: verified.profile.pdmUserId };
+    return {
+      companyId: verified.profile.companyId,
+      profileId: verified.profile.pdmUserId,
+      canEditNonOwned: hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] })
+    };
   }
 
   async read(workId: string, actor: DrawingRevisionActor) {
@@ -167,7 +172,11 @@ export class DrawingRevisionWorkService {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
     return this.readForProfile(workId, { profileId: verified.profile.pdmUserId,
-      companyId: verified.profile.companyId, canEditNonOwned: false,
+      companyId: verified.profile.companyId,
+      canEditNonOwned: hasPdmNonOwnerEditScope({
+        roles: decisions.filter((decision) => decision.allowed)
+          .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
+      }),
       principalCapabilities: {
         update: decisions[1]?.allowed === true,
         submit: decisions[2]?.allowed === true,
@@ -321,7 +330,7 @@ export class DrawingRevisionWorkService {
       const repository = new DrawingRevisionWorkAsyncRepository(tx);
       const locked = await repository.readWork(tx, profile.companyId, workId, true);
       if (!locked) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料不存在", 404);
-      if (locked.owner_user_id !== profile.profileId) {
+      if (locked.owner_user_id !== profile.profileId && !profile.canEditNonOwned) {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
       }
       if (locked.predecessor_revision_id === null) {
@@ -403,7 +412,7 @@ export class DrawingRevisionWorkService {
         }, async (commandTx) => {
           const outcome = await service.applyFileRemoval(commandTx, workId,
             fileBindingId, profile.companyId, profile.profileId,
-            context.expectedRowVersion, false);
+            context.expectedRowVersion, profile.canEditNonOwned);
           storageKeyToRemove = outcome.storageKey;
           return outcome.result;
         });
@@ -473,16 +482,18 @@ export class DrawingRevisionWorkService {
       request: { workId, expectedRowVersion: context.expectedRowVersion },
       effectKey: `drawing-work:${workId}:review`, correlationId: correlation(context.correlationId)
     }, (tx) => this.applySubmission(tx, workId, profile.companyId,
-      context.expectedRowVersion, true, profile.profileId));
+      context.expectedRowVersion, true, profile.profileId,
+      profile.canEditNonOwned));
   }
 
   private async applySubmission(tx: AsyncDatabaseClient, workId: string,
     companyId: string, expectedRowVersion: number, principalOnly: boolean,
-    principalOwnerId?: string) {
+    principalOwnerId?: string, principalCanEditNonOwned = false) {
       const repository = new DrawingRevisionWorkAsyncRepository(tx);
       const locked = await repository.readWork(tx, companyId, workId, true);
       if (!locked || Number(locked.row_version) !== expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
-      if (principalOnly && locked.owner_user_id !== principalOwnerId) {
+      if (principalOnly && locked.owner_user_id !== principalOwnerId &&
+          !principalCanEditNonOwned) {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
       }
       await repository.assertWorkMutationBasis(tx, locked);
@@ -581,7 +592,7 @@ export class DrawingRevisionWorkService {
       const repository = new DrawingRevisionWorkAsyncRepository(tx);
       const locked = await repository.readWork(tx, profile.companyId, workId, true);
       if (!locked) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料不存在", 404);
-      if (locked.owner_user_id !== profile.profileId) {
+      if (locked.owner_user_id !== profile.profileId && !profile.canEditNonOwned) {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
       }
       return repository.cancel(tx, { companyId: profile.companyId, workId,

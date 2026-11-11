@@ -12,6 +12,7 @@ import type { ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse,
 import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
 import { isPdmOwnerApprovalAction } from "@/lib/pdm-approval-owner-route";
 import { StatusScopeHelp } from "@/components/status-help-popover";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 const statusFilters = [
   { value: "active", label: "待處理" },
@@ -167,14 +168,14 @@ export function PrincipalApprovalInbox() {
       <section className="panel approval-inbox-panel" aria-label="審核清單">
         <div className="panel-header">
           <h2>審核清單</h2>
-          <span className="approval-count">{loading && rows.length === 0 ? "讀取中" : `${rows.length} 筆`}</span>
+          <span className="approval-count">{loading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${rows.length} 筆`}</span>
         </div>
         <PdmWorkbenchList rows={rows} getRowKey={rowKey} selectedKey={selectedKey}
           ariaLabel="審核工作清單" className="approval-inbox-list"
           tableClassName="approval-workbench-table" rowDataAttribute="data-approval-workbench-row"
           rowAriaKeyShortcuts={keyboard.shortcuts} containerRef={listRef}
           onContainerKeyDown={keyboard.handleKeyDown} loading={loading}
-          loadingState={<div className="approval-empty">正在載入審核清單...</div>}
+          loadingState={<div className="approval-empty"><LoadingIndicator>正在載入審核清單...</LoadingIndicator></div>}
           emptyState={state === "ready" ? <div className="approval-empty">目前沒有符合條件的待處理審核。</div> : null}
           onOpenRow={openApprovalRow}
           columns={[

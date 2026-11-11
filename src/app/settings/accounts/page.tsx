@@ -8,6 +8,7 @@ import { StatusScopeHelp } from "@/components/status-help-popover";
 import { getStatusDisplay } from "@/lib/status-display";
 import AccountInvitationsPage from "../account-invitations/page";
 import { PrincipalAccountsPanel } from "./principal-accounts-panel";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { ApprovalMatrixSettings } from "@/components/settings-screen";
 
 type AccountStatus = "active" | "suspended" | "expired" | "offboarded";
@@ -135,7 +136,7 @@ export default function AccountsSettingsPage() {
   }, []);
 
   if (modeError) return <div className="panel" role="alert">無法確認目前登入狀態，請重新登入後再試。</div>;
-  if (principalMode === null) return <div className="panel" role="status">正在確認帳號管理模式...</div>;
+  if (principalMode === null) return <div className="panel"><LoadingIndicator>正在確認帳號管理模式...</LoadingIndicator></div>;
   if (principalMode) return <PrincipalAccountsPanel />;
 
   return (
@@ -391,7 +392,7 @@ function AccountManagementPanel() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5}>正在讀取帳號...</td></tr>
+                <tr><td colSpan={5}><LoadingIndicator>正在讀取帳號...</LoadingIndicator></td></tr>
               ) : accounts.length ? accounts.map((account) => (
                 <tr
                   key={account.id}

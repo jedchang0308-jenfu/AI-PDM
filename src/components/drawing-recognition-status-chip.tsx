@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StatusSignalGroup } from "@/components/status-signal-group";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { getStatusDisplay } from "@/lib/status-display";
 
 export function DrawingRecognitionStatusChip({
@@ -37,7 +38,7 @@ export function DrawingRecognitionStatusChip({
       .catch(() => { if (active) { setFeatureEnabled(false); setSession(null); } });
     return () => { active = false; };
   }, [drawingNumber, refreshKey, sourceAssetIdsKey]);
-  if (session === undefined) return <span className="drawing-recognition-chip is-loading">辨識狀態讀取中</span>;
+  if (session === undefined) return <span className="drawing-recognition-chip is-loading"><LoadingIndicator>辨識狀態讀取中</LoadingIndicator></span>;
   if (!featureEnabled) {
     return <span className="drawing-recognition-chip is-empty"><span>圖面辨識</span><strong>尚未啟用</strong><small>請啟用辨識功能後再使用</small></span>;
   }

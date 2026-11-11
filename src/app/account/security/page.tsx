@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, MonitorSmartphone, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type AccountSession = {
   id: string;
@@ -156,7 +157,7 @@ export default function AccountSecurityPage() {
           </div>
         </div>
 
-        {loading ? <div className="empty">正在讀取登入裝置...</div> : null}
+        {loading ? <div className="empty"><LoadingIndicator>正在讀取登入裝置...</LoadingIndicator></div> : null}
         {!loading && sessions.length === 0 ? <div className="empty">尚未有可顯示的登入裝置。</div> : null}
         {!loading && sessions.length ? (
           <div className="account-session-list">
@@ -186,7 +187,7 @@ export default function AccountSecurityPage() {
                     <span className="account-session-state"><ShieldCheck size={15} aria-hidden="true" />保留目前登入</span>
                   ) : (
                     <button className="danger-button" type="button" disabled={Boolean(busy)} onClick={() => setSessionToRevoke(session)}>
-                      {busy === session.id ? "撤銷中..." : "撤銷"}
+                      {busy === session.id ? <LoadingIndicator>撤銷中...</LoadingIndicator> : "撤銷"}
                     </button>
                   )}
                 </div>

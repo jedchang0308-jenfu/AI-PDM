@@ -189,6 +189,13 @@ test('recognition Principal paths stay within the recognition authorization cont
   ])
   assert.equal(unreviewed.gates.recognition, true)
   assert.equal(unreviewed.gates.authorization, true)
+
+  const browserReal = createProductionSlicePlan(['scripts/qc-dev-110-browser-real.mjs'])
+  assert.equal(browserReal.classification, 'AFFECTED_SLICES')
+  assert.deepEqual(browserReal.slices, ['recognition'])
+  assert.equal(browserReal.gates.full, false)
+  assert.equal(browserReal.gates.recognition, true)
+  assert.equal(browserReal.gates.worker, false)
 })
 
 test('the runtime slice checker selects application authorization without unrelated history', () => {

@@ -9,6 +9,7 @@ import { PdmCanonicalWorkbenchService } from "@/lib/pdm-canonical-workbench";
 import type { WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
 import type { CanonicalWorkbenchActor } from "@/lib/pdm-canonical-workbench-state";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 const actionCodes = [
   "numbering.workspace.create", "numbering.workspace.update",
@@ -33,7 +34,10 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
     // above is decided for the verified principal in this same database snapshot.
     id: verified.profile.pdmUserId,
     companyId: company.companyId,
-    canEditNonOwned: false,
+    canEditNonOwned: hasPdmNonOwnerEditScope({
+      roles: decisions.filter((decision) => decision.allowed)
+        .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
+    }),
     permissions: {
       createWork: can("numbering.workspace.create") && drawingDraft,
       updateWork: can("numbering.workspace.update") && drawingDraft,

@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type ReasonActionDialogProps = {
   open: boolean;
@@ -129,7 +130,7 @@ export function ReasonActionDialog({
           <div className="number-state-modal-actions">
             <button className="secondary-button" type="button" onClick={onCancel} disabled={busy}>返回</button>
             <button className={tone === "danger" ? "danger-button" : "primary-button"} type="submit" disabled={busy || !reason.trim()}>
-              {busy ? "處理中..." : confirmLabel}
+              {busy ? <LoadingIndicator>處理中...</LoadingIndicator> : confirmLabel}
             </button>
           </div>
         </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, Ref } from "react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 export type PdmWorkbenchListColumn<Row> = {
   key: string;
@@ -56,7 +57,7 @@ export function PdmWorkbenchList<Row,>({
   getGroupKey,
   getGroupAriaLabel
 }: PdmWorkbenchListProps<Row>) {
-  if (loading && rows.length === 0) return <>{loadingState ?? <div className="empty">正在載入清單...</div>}</>;
+  if (loading && rows.length === 0) return <>{loadingState ?? <div className="empty"><LoadingIndicator>正在載入清單...</LoadingIndicator></div>}</>;
   if (rows.length === 0) return <>{emptyState ?? null}</>;
 
   return (

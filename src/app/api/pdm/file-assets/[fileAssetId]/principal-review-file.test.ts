@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   getApprovalDetail: vi.fn(), queryOne: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
   readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn(),
   dynamic: vi.fn(), dynamicAuthorize: vi.fn(), recoverPreview: vi.fn(),
-  readLatestPreview: vi.fn(), enqueuePreview: vi.fn()
+  readLatestPreview: vi.fn(), enqueuePreview: vi.fn(), isVerifiedLocalTestAdmin: vi.fn()
 }));
 const tx = { kind: "postgres", transactionScope: "postgres", queryOne: mocks.queryOne };
 vi.mock("@/lib/db-async-provider", async (importOriginal) => ({
@@ -23,6 +23,10 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
+}));
+vi.mock("@/lib/local-test-admin", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/local-test-admin")>(),
+  isVerifiedLocalTestAdmin: mocks.isVerifiedLocalTestAdmin
 }));
 vi.mock("@/lib/repositories/pdm-work-review-async-repository", () => ({
   PdmWorkReviewAsyncRepository: class { get = mocks.getReview; }
@@ -90,6 +94,7 @@ const source = { id: "asset-one", company_id: "company-one",
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.isVerifiedLocalTestAdmin.mockReturnValue(false);
   mocks.dynamic.mockResolvedValue(false);
   mocks.dynamicAuthorize.mockResolvedValue(null);
   mocks.recoverPreview.mockResolvedValue(undefined);
@@ -290,6 +295,20 @@ describe("principal review package file read", () => {
       work_id: "work-one", owner_user_id: "profile-other" });
     expect((await GET(request("drawing_revision_work"), params)).status).toBe(404);
     expect(mocks.readObject).not.toHaveBeenCalled();
+  });
+
+  it("allows only the exact work preview for a verified local test admin", async () => {
+    mocks.isVerifiedLocalTestAdmin.mockReturnValue(true);
+    mocks.queryOne.mockResolvedValue({ ...source, work_id: "work-one", owner_user_id: "profile-other" });
+    const preview = await GET(previewRequest("drawing_revision_work"), params);
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get("content-type")).toContain("application/pdf");
+    expect(mocks.isVerifiedLocalTestAdmin).toHaveBeenCalledWith(expect.any(Object), tx);
+    expect((await GET(request("drawing_revision_work"), params)).status).toBe(404);
+
+    mocks.queryOne.mockResolvedValue({ ...source, work_id: "work-other", owner_user_id: "profile-other" });
+    expect((await GET(previewRequest("drawing_revision_work"), params)).status).toBe(404);
+    expect(mocks.readObject).toHaveBeenCalledTimes(1);
   });
 
   it("does not load bytes for another reviewer or a legacy review package", async () => {

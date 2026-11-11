@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 import { errorMessage, readJson } from "@/lib/pdm-workbench-response";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
@@ -101,7 +102,7 @@ function DrawingHistoryRevision({ drawingId, revisionId, onBack }: { drawingId: 
   }, [drawingId, revisionId]);
   return <section className="canonical-history-detail" aria-label="歷史版次明細">
     <div className="canonical-drawer-section-heading"><h3>歷史版次明細</h3><button type="button" className="secondary-button" onClick={onBack}>返回版次清單</button></div>
-    {loading ? <p className="canonical-drawer-message" role="status">正在載入指定版次…</p> : error ? <p className="canonical-error" role="alert">{error}</p> : data ? <><p className="canonical-history-readonly">唯讀 · {data.data.revision.revision} · {data.data.revision.lifecycleState}</p><ul className="canonical-record-list">{data.data.files.map((file) => <li className="canonical-record" key={file.id}><div><strong>{file.displayName || file.fileName}</strong><small>{file.role} · {file.fileSize} bytes · {file.contentHash || "無雜湊"}</small></div><a className="secondary-button" href={file.downloadHref}>下載</a></li>)}</ul>{!data.data.files.length ? <p className="canonical-empty">此版次沒有可讀檔案。</p> : null}</> : null}
+    {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入指定版次…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : data ? <><p className="canonical-history-readonly">唯讀 · {data.data.revision.revision} · {data.data.revision.lifecycleState}</p><ul className="canonical-record-list">{data.data.files.map((file) => <li className="canonical-record" key={file.id}><div><strong>{file.displayName || file.fileName}</strong><small>{file.role} · {file.fileSize} bytes · {file.contentHash || "無雜湊"}</small></div><a className="secondary-button" href={file.downloadHref}>下載</a></li>)}</ul>{!data.data.files.length ? <p className="canonical-empty">此版次沒有可讀檔案。</p> : null}</> : null}
   </section>;
 }
 
@@ -162,7 +163,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
     onStartResize={onStartResize}
     onClose={onClose}
   >
-    {loading ? <p className="canonical-drawer-message" role="status">正在載入明細…</p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
+    {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入明細…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
        <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
        <DetailRecognitionSections detail={detail} />
        {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}

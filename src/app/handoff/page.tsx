@@ -7,6 +7,7 @@ import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
@@ -137,7 +138,7 @@ export default function ManufacturingHandoffPage() {
 
       {state.status === "loading" ? (
         <section className="panel">
-          <div className="empty">讀取製造交接資料...</div>
+          <div className="empty"><LoadingIndicator>讀取製造交接資料...</LoadingIndicator></div>
         </section>
       ) : null}
 

@@ -16,6 +16,7 @@ import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-r
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import { reconcileSldasmAssemblyEvidence } from "@/lib/sldasm-assembly-evidence";
 import { principalJobInitiatorFromVerifiedRequest, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 type CommandContext = {
   idempotencyKey: string;
@@ -37,7 +38,8 @@ async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
   const actor: DrawingFileActor = {
     id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
     principalId: verified.session.principalId,
-    canEditNonOwned: false, permissions: { update: true }
+    canEditNonOwned: hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] }),
+    permissions: { update: true }
   };
   await verifyCanonicalWorkbenchCommandContract(client,
     { companyId: actor.companyId, actorId: actor.id, token: contractToken });
@@ -45,7 +47,7 @@ async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
     .readWork(client, actor.companyId, workId);
   if (!work) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
     "圖面工作資料不存在", 404);
-  if (work.owner_user_id !== actor.id) throw new CanonicalWorkbenchError(
+  if (work.owner_user_id !== actor.id && !actor.canEditNonOwned) throw new CanonicalWorkbenchError(
     "WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
   return actor;
 }

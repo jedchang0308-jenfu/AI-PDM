@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download, Link2, RefreshCw, ShieldOff } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type Device = {
   id: string;
@@ -175,7 +176,7 @@ export function WindowsServiceSettings() {
           <p>確認後，系統會為這台電腦建立獨立、可撤銷且只屬於你目前帳號的裝置憑證。</p>
         </div>
         <button className="primary-button" type="button" disabled={busy || state !== "ready"} onClick={() => void linkComputer()}>
-          <Link2 size={17} aria-hidden="true" />{busy ? "正在連結…" : "連結這台電腦"}
+          {busy ? <LoadingIndicator>正在連結…</LoadingIndicator> : <><Link2 size={17} aria-hidden="true" />連結這台電腦</>}
         </button>
       </section> : null}
 
@@ -188,7 +189,7 @@ export function WindowsServiceSettings() {
           <table className="windows-service-table">
             <thead><tr><th>電腦</th><th>版本</th><th>連線</th><th>可處理項目</th><th>最後連線</th><th><span className="sr-only">操作</span></th></tr></thead>
             <tbody>
-              {state === "loading" ? <tr><td colSpan={6}>正在讀取...</td></tr> : null}
+              {state === "loading" ? <tr><td colSpan={6}><LoadingIndicator>正在讀取...</LoadingIndicator></td></tr> : null}
               {state === "error" ? <tr><td colSpan={6}>目前無法讀取清單。</td></tr> : null}
               {state === "ready" && devices.length === 0 ? <tr><td colSpan={6}>尚未連結解析電腦。</td></tr> : null}
               {state === "ready" ? devices.map((device) => <tr key={device.id}>
