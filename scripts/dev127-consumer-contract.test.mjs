@@ -41,12 +41,11 @@ test('DEV-127 vendors the complete exact producer package and unique 19-plus-4 P
   assert.deepEqual(columns.slice(-4), ['source_assignment_id', 'source_grant_id', 'admin_catalog_sha256', 'role_definition_hash'])
 })
 
-test('DEV-127 appends only 096 to the immutable forty-entry production prefix', () => {
+test('DEV-127 preserves 096 after the immutable forty-entry production prefix', () => {
   const profile = json('config/release/dev117-ai-pdm-independent-production-v3.json')
   const entries = profile.migrations.entries
-  assert.equal(entries.length, 41)
   assert.equal(hash(JSON.stringify(entries.slice(0, 40))), '13bd22113410cdc371d8524848edd2419720a0ddc7cf67a49a1a3979f6b8544a')
-  assert.deepEqual(entries.at(-1), { order: 41, path: 'db/postgres/096_dev127_platform_super_admin_consumer.sql',
+  assert.deepEqual(entries[40], { order: 41, path: 'db/postgres/096_dev127_platform_super_admin_consumer.sql',
     sha256: hash(readFileSync('db/postgres/096_dev127_platform_super_admin_consumer.sql')) })
   assert.equal(entries.some(entry => /\/09[1-5]_/u.test(entry.path)), false)
 })

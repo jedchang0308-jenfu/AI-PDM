@@ -21,12 +21,13 @@ function reseal(input) {
   input.files.set(profilePath,Buffer.from(canonicalize(input.profile)))
   return input
 }
-test('current owner proof accepts the exact complete 41-entry source and preserves the DEV-123 35-entry prefix',()=>{
+test('current owner proof accepts the session migration and preserves the DEV-123 prefix',()=>{
   const input=fixture()
-  assert.equal(input.bundle.entries.length,41)
+  assert.equal(input.bundle.entries.length,42)
   assert.equal(input.bundle.baselineCount,15)
   assert.doesNotThrow(()=>assertAiPdmMigrationContent(input))
   assert.equal(input.bundle.entries[40].version,'ai-pdm-096')
+  assert.equal(input.bundle.entries[41].version,'ai-pdm-101')
   assert.equal(input.bundle.entries.some(entry=>/^ai-pdm-09[1-5]$/u.test(entry.version)),false)
   const previous=structuredClone(input.profile)
   previous.migrations.entries=previous.migrations.entries.slice(0,35)
@@ -35,7 +36,7 @@ test('current owner proof accepts the exact complete 41-entry source and preserv
   assert.deepEqual(input.bundle.entries.slice(0,35),prefix.bundle.entries)
 })
 test('DEV-123 owner proof rejects a substituted source or applied SQL in every appended migration',()=>{
-  for(const index of [35,36,37,38,39,40]) for(const kind of ['source','applied']) {
+  for(const index of [35,36,37,38,39,40,41]) for(const kind of ['source','applied']) {
     const input=fixture(), entry=input.bundle.entries[index]
     if(kind==='source') {
       const bytes=Buffer.concat([input.files.get(entry.path),Buffer.from('\n-- forged source\n')])
@@ -54,7 +55,7 @@ test('DEV-123 source authority rejects incomplete, reordered and extended migrat
     if(mutation.startsWith('partial')) input.bundle.entries=input.bundle.entries.slice(0,Number(mutation.slice(7)))
     else if(mutation==='reorder') [input.bundle.entries[35],input.bundle.entries[36]]=[input.bundle.entries[36],input.bundle.entries[35]]
     else if(mutation==='localOnly091') { input.bundle.entries[40].path='db/postgres/091_dev126_local_principal_sandbox.sql'; input.bundle.entries[40].version='ai-pdm-091' }
-    else input.bundle.entries.push({...input.bundle.entries[40],order:42})
+    else input.bundle.entries.push({...input.bundle.entries[41],order:43})
     assert.throws(()=>assertAiPdmMigrationContent(reseal(input)),/ARCHIVE_BUNDLE_INVALID/u,mutation)
   }
 })
