@@ -38,7 +38,7 @@ async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
   const actor: DrawingFileActor = {
     id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
     principalId: verified.session.principalId,
-    canEditNonOwned: hasPdmNonOwnerEditScope({ roles: [decision.roleCode] }),
+    canEditNonOwned: hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] }),
     permissions: { update: true }
   };
   await verifyCanonicalWorkbenchCommandContract(client,

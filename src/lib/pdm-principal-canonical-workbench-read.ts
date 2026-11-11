@@ -36,7 +36,7 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
     companyId: company.companyId,
     canEditNonOwned: hasPdmNonOwnerEditScope({
       roles: decisions.filter((decision) => decision.allowed)
-        .map((decision) => decision.roleCode)
+        .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
     }),
     permissions: {
       createWork: can("numbering.workspace.create") && drawingDraft,

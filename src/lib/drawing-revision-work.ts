@@ -150,7 +150,7 @@ export class DrawingRevisionWorkService {
     return {
       companyId: verified.profile.companyId,
       profileId: verified.profile.pdmUserId,
-      canEditNonOwned: hasPdmNonOwnerEditScope({ roles: [decision.roleCode] })
+      canEditNonOwned: hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] })
     };
   }
 
@@ -175,7 +175,7 @@ export class DrawingRevisionWorkService {
       companyId: verified.profile.companyId,
       canEditNonOwned: hasPdmNonOwnerEditScope({
         roles: decisions.filter((decision) => decision.allowed)
-          .map((decision) => decision.roleCode)
+          .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
       }),
       principalCapabilities: {
         update: decisions[1]?.allowed === true,
