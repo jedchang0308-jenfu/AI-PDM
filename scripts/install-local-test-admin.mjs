@@ -5,10 +5,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Client } from 'pg'
 
-// This owner entrypoint installs only the two fixed PDM local-test migrations.
+// This owner entrypoint installs only the fixed PDM local-test migrations.
 // It never initializes a database or takes a caller-entered SQL/migration path.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const paths = ['db/postgres/098_dev126_local_test_admin.sql', 'db/postgres/099_dev126_local_test_admin_policy.sql']
+const paths = [
+  'db/postgres/098_dev126_local_test_admin.sql',
+  'db/postgres/099_dev126_local_test_admin_policy.sql',
+  'db/postgres/100_dev126_local_test_admin_target_lock.sql'
+]
 const args = process.argv.slice(2)
 assert.ok(args.length === 0 || args.length === 1 && args[0] === '--install', 'LOCAL_TEST_ADMIN_ARGUMENTS_INVALID')
 assert.ok(process.env.NODE_ENV !== 'production' && !['K_SERVICE','K_REVISION','FUNCTION_TARGET','FUNCTION_NAME','FIREBASE_CONFIG']
