@@ -255,7 +255,7 @@ function Open-LocalPage {
       Write-RuntimeStatus -State "unhealthy_existing" -Message "No port listener remained before opening localhost."
       throw "Port $Port has no listener before opening localhost."
     }
-    Start-Process $Url
+    Start-Process "microsoft-edge:$Url"
   }
 }
 
