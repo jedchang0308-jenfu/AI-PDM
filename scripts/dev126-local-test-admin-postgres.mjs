@@ -111,10 +111,14 @@ try {
   })
   const firstInstall=await install()
   assert.equal(firstInstall.code,0,firstInstall.stderr)
-  assert.deepEqual(JSON.parse(firstInstall.stdout).migrations.map(item=>item.state),['installed','installed'])
+  const firstMigrations=JSON.parse(firstInstall.stdout).migrations
+  assert.ok(firstMigrations.length>=2)
+  assert.deepEqual(firstMigrations.map(item=>item.state),firstMigrations.map(()=>'installed'))
   const secondInstall=await install()
   assert.equal(secondInstall.code,0,secondInstall.stderr)
-  assert.deepEqual(JSON.parse(secondInstall.stdout).migrations.map(item=>item.state),['already_installed','already_installed'])
+  const secondMigrations=JSON.parse(secondInstall.stdout).migrations
+  assert.deepEqual(secondMigrations.map(item=>item.path),firstMigrations.map(item=>item.path))
+  assert.deepEqual(secondMigrations.map(item=>item.state),firstMigrations.map(()=>'already_installed'))
   const migrationPath='db/postgres/098_dev126_local_test_admin.sql'
   const receipt=(await client.query('SELECT source_sha256 FROM ai_pdm_core.local_test_admin_install_receipts WHERE migration_path=$1',[migrationPath])).rows[0]
   try {
@@ -125,12 +129,15 @@ try {
   } finally {
     await client.query('UPDATE ai_pdm_core.local_test_admin_install_receipts SET source_sha256=$2 WHERE migration_path=$1',[migrationPath,receipt.source_sha256])
   }
-  assert.equal((await client.query('SELECT count(*)::int AS count FROM ai_pdm_core.local_test_admin_install_receipts')).rows[0].count,2)
+  assert.equal((await client.query('SELECT count(*)::int AS count FROM ai_pdm_core.local_test_admin_install_receipts')).rows[0].count,firstMigrations.length)
   checks.push('actual-owner-cli-install-exact-source-receipts-and-idempotent-reinstall')
   const runtime = async statement => {
     await client.query('SET ROLE jenfu_ai_pdm_runtime')
     try { return await statement() } finally { await client.query('RESET ROLE') }
   }
+  await runtime(() => client.query('SELECT ai_pdm_core.assert_local_test_admin_target_v1($1,$2,$3,$4)',
+    [sandbox,generation,fixtureHash,fingerprint]))
+  checks.push('runtime-holds-existing-pinned-target-lock-capability')
   await runtime(() => client.query('SELECT ai_pdm_core.ensure_local_test_admin_v1($1,$2,$3,$4)',
     [sandbox,generation,fixtureHash,fingerprint]))
   const account = (await client.query(`SELECT account_type,account_status,system_role_enabled FROM ai_pdm_core.principal_accounts
