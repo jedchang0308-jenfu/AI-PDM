@@ -4,6 +4,7 @@ import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { NotificationItem, NotificationSummary, SubmissionSummary } from "@/lib/types";
 
 export type ChatSource = {
@@ -226,7 +227,7 @@ export function SubmissionTable({
             <div className="table-wrap">
               <SubmissionTableHeader />
             </div>
-            <div className="empty">載入中...</div>
+            <div className="empty"><LoadingIndicator>載入中...</LoadingIndicator></div>
           </>
         ) : visibleSubmissions.length === 0 ? (
           <div className="empty">
@@ -281,7 +282,7 @@ export function SubmissionTable({
             {hasMoreSubmissions ? (
               <div className="pagination-actions">
                 <button className="secondary-button" type="button" onClick={onLoadMore} disabled={loadingMoreSubmissions}>
-                  {loadingMoreSubmissions ? "載入中..." : "載入更多"}
+                  {loadingMoreSubmissions ? <LoadingIndicator>載入中...</LoadingIndicator> : "載入更多"}
                 </button>
               </div>
             ) : null}

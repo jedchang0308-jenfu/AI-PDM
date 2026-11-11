@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePdmPermissions } from "@/components/pdm-permission-provider";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { pdmPermissionFetch as fetch, invalidatePdmPermissions } from "@/lib/pdm-permission-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -345,7 +346,7 @@ export function SidebarNav() {
                     >
                       {item.navGlyph ? <span className="nav-item-glyph" aria-hidden="true">{item.navGlyph}</span> : <EntryIcon size={18} aria-hidden="true" />}
                       <span className="nav-link-label">{label}</span>
-                      {signedInEntry ? <span className="nav-account-status nav-account-status--logout">{logoutState === "processing" ? "處理中" : logoutState === "failed" ? "重試" : "登出"}</span> : null}
+                      {signedInEntry ? <span className="nav-account-status nav-account-status--logout">{logoutState === "processing" ? <LoadingIndicator>處理中</LoadingIndicator> : logoutState === "failed" ? "重試" : "登出"}</span> : null}
                       {unopened ? <span className="nav-unopened-badge">未開放</span> : null}
                       {hasBadge ? <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span> : null}
                     </Link>

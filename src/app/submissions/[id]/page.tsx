@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Download, FileText, RefreshCcw, ShieldAlert } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
 import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
@@ -88,7 +89,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
 
       {state.status === "loading" ? (
         <section className="panel">
-          <div className="empty">讀取送審資料...</div>
+          <div className="empty"><LoadingIndicator>讀取送審資料...</LoadingIndicator></div>
         </section>
       ) : null}
 

@@ -2575,12 +2575,24 @@ button:disabled {
   animation: transfer-spin 800ms linear infinite;
 }
 
+.loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.loading-indicator__icon {
+  flex: 0 0 auto;
+  animation: transfer-spin 800ms linear infinite;
+}
+
 @keyframes transfer-spin {
   to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
+  .spin,
+  .loading-indicator__icon { animation: none; }
 }
 
 @media (max-width: 780px) {

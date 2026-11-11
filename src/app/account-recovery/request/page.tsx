@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { KeyRound, MailCheck } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 export default function AccountRecoveryRequestPage() {
   const [email, setEmail] = useState("");
@@ -59,7 +60,7 @@ export default function AccountRecoveryRequestPage() {
           {error ? <div className="form-error">{error}</div> : null}
           <button className="primary-button" disabled={loading || !email.trim()} type="submit">
             <KeyRound size={16} aria-hidden="true" />
-            {loading ? "處理中..." : "寄送復原郵件"}
+            {loading ? <LoadingIndicator>處理中...</LoadingIndicator> : "寄送復原郵件"}
           </button>
         </form>
 

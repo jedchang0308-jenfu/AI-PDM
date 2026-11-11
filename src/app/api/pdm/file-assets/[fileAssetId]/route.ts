@@ -15,6 +15,7 @@ import { resolveJenfuRouteAuthorization, type JenfuRouteDiscriminator } from "@/
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { AsyncApprovalPlatformRepository } from "@/lib/repositories/approval-platform-async-repository";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
@@ -482,8 +483,12 @@ async function principalFileRead(request: Request, token: string, input: {
           const found = await resolveSource({ client: tx, context: input.context,
             contextId: input.contextId, bindingId: input.bindingId,
             fileAssetId: input.fileAssetId, companyId: verified.profile.companyId });
-          if (!found || (workFile && (found.work_id !== input.contextId ||
-              found.owner_user_id !== verified.profile.pdmUserId))) return null;
+          if (!found) return null;
+          if (workFile) {
+            if (found.work_id !== input.contextId) return null;
+            const localAdminPreview = input.wantsPreview && isVerifiedLocalTestAdmin(verified, tx);
+            if (found.owner_user_id !== verified.profile.pdmUserId && !localAdminPreview) return null;
+          }
           return finish(found);
         }
         if (!input.reviewRequestId) return null;

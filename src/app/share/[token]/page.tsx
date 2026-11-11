@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Archive, Download, FileText, Send } from "lucide-react";
 import { getStatusDisplay } from "@/lib/status-display";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type PublicShareData = {
   share: {
@@ -127,7 +128,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
       <main className="public-share-page">
         <section className="public-share-hero">
           <span className="section-label">唯讀分享</span>
-          <h1>正在載入發布包</h1>
+          <h1><LoadingIndicator>正在載入發布包</LoadingIndicator></h1>
         </section>
       </main>
     );

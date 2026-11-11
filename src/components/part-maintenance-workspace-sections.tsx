@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
 import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalPartAttachmentManager } from "@/components/canonical-part-attachment-manager";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { CanonicalWorkbenchDetailDto, CanonicalPartDetailPresentation } from "@/lib/pdm-canonical-workbench-contract";
 
 type DetailResponse = CanonicalWorkbenchDetailDto;
@@ -69,7 +70,7 @@ export function PartMaintenanceWorkspaceSections({
   }, [load]);
   useEffect(() => { onDirtyChange?.(relationDirty || attachmentDirty); }, [attachmentDirty, onDirtyChange, relationDirty]);
 
-  if (status === "loading") return <p className="canonical-drawer-message" role="status">正在載入指定料號維護資料…</p>;
+  if (status === "loading") return <p className="canonical-drawer-message"><LoadingIndicator>正在載入指定料號維護資料…</LoadingIndicator></p>;
   if (status === "error" || !detail) return <div className="canonical-error" role="alert"><span>{error || "料號維護資料目前無法載入。"}</span><button type="button" className="secondary-button" onClick={() => void load()}>重新載入</button></div>;
   const presentation = detail.data.presentation as CanonicalPartDetailPresentation;
   const partRelationCanManage = detail.data.row.entityType === "part"

@@ -4,6 +4,7 @@ import type { FormEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Download, ExternalLink, FileText, History, RefreshCw, RotateCcw, Trash2, UploadCloud, X } from "lucide-react";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { FileDropzone } from "@/components/file-dropzone";
 import { formatBytes } from "@/lib/format-file-size";
 import { compareRevisionCodes, suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
@@ -1080,7 +1081,7 @@ export function MasterAttachmentPanel({
             </article>
           );
         })}
-        {deletedLoading ? <div className="empty">正在載入已刪除資料...</div> : null}
+        {deletedLoading ? <div className="empty"><LoadingIndicator>正在載入已刪除資料...</LoadingIndicator></div> : null}
         {deletedLoaded && authorityDeletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
       </div>
     </div>

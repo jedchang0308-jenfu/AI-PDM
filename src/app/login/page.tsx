@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, LockKeyhole, LogIn, X } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { AuthMode, FirebaseWebConfig } from "@/lib/auth-config";
 import {
   exchangeFirebaseBffSession,
@@ -306,7 +307,7 @@ export default function LoginPage() {
           <div className="google-auth-choice">
             <button className="primary-button" type="button" disabled={loading} onClick={() => void submitLocalTestAdmin()}>
               <LogIn size={16} aria-hidden="true" />
-              {loading ? "正在登入…" : "以測試超級管理員登入"}
+              {loading ? <LoadingIndicator>正在登入…</LoadingIndicator> : "以測試超級管理員登入"}
             </button>
           </div>
         ) : modeState === "ready" && localPrincipalSandbox ? (
@@ -314,7 +315,7 @@ export default function LoginPage() {
             <button className="primary-button" type="button" disabled={loading}
               onClick={() => window.location.assign("/api/auth/local-sandbox/start")}>
               <LogIn size={16} aria-hidden="true" />
-              {loading ? "正在前往本機測試登入…" : "使用鉦富平台本機測試身分"}
+              {loading ? <LoadingIndicator>正在前往本機測試登入…</LoadingIndicator> : "使用鉦富平台本機測試身分"}
             </button>
             <p className="login-provider-note">僅使用隔離 sandbox 的虛構身分與權限資料。</p>
           </div>
@@ -322,7 +323,7 @@ export default function LoginPage() {
 
         {modeState === "loading" ? (
           <div className="login-operation-status" role="status" aria-live="polite">
-            <span>正在載入登入設定…</span>
+            <LoadingIndicator>正在載入登入設定…</LoadingIndicator>
           </div>
         ) : null}
 
@@ -455,7 +456,7 @@ export default function LoginPage() {
           {notice ? <div className="form-success" role="status">{notice}</div> : null}
           <button className="primary-button" disabled={loading} type="submit">
             <LogIn size={16} aria-hidden="true" />
-            {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
+            {loading ? <LoadingIndicator>處理中...</LoadingIndicator> : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
         </form>}
         {modeState === "ready" && !localPrincipalSandbox ? (

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 const PDFJS_WORKER = "/generated/dev-082-ocr/pdfjs-6.2.108_tesseract-7.0.0/pdf.worker.min.mjs";
 const MAGNIFIER_CACHE_LIMIT = 4;
@@ -572,7 +573,7 @@ export function PdfPageViewport({
           </div>
         ) : null}
       </div>
-      {renderState === "loading" ? <span className="drawing-preview-pdf-page-status" role="status">正在載入預覽頁面</span> : null}
+      {renderState === "loading" ? <span className="drawing-preview-pdf-page-status"><LoadingIndicator>正在載入預覽頁面</LoadingIndicator></span> : null}
       {renderState === "failed" ? <span className="drawing-preview-pdf-page-status is-error" role="alert">預覽頁面無法顯示，請重新整理後再試。</span> : null}
       {magnifierError ? <span className="drawing-preview-pdf-magnifier-status" role="status">局部放大載入失敗，已保留原定位。</span> : null}
     </div>

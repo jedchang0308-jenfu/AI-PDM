@@ -16,6 +16,7 @@ import {
   CANONICAL_NUMBERING_ITEM_KIND_OPTIONS,
   type CanonicalNumberingItemKind,
 } from "@/lib/numbering-item-kind";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { NumberingStructureType } from "@/lib/numbering-structure-type";
 
 type RootResult = {
@@ -516,7 +517,7 @@ export function CanonicalNumberingCreateForm({
             aria-describedby={describedBy(`${rootSearchId}-error`, fieldErrors.rootCode)}
           />
           <InlineError id={`${rootSearchId}-error`} message={fieldErrors.rootCode} />
-          {rootSearchState.status === "loading" ? <p className="canonical-create-help" role="status">搜尋中…</p> : null}
+          {rootSearchState.status === "loading" ? <p className="canonical-create-help"><LoadingIndicator>搜尋中…</LoadingIndicator></p> : null}
           {rootSearchState.status === "error" ? <p className="canonical-create-inline-state" role="alert">{rootSearchState.message}<button type="button" className="link-button" onClick={() => setRootSearchRetry((value) => value + 1)}>重試</button></p> : null}
           {rootResults.length ? <ul className="canonical-create-results">{rootResults.map((item) => <li key={item.entityId}><button type="button" onClick={() => chooseRoot(item)}><strong>{item.rootCode}</strong><span>{item.displayName || "—"}</span></button></li>)}</ul> : null}
           {rootSearchState.status === "ready" && !rootResults.length ? <p className="canonical-create-help">找不到符合的圖料根號。</p> : null}
@@ -552,7 +553,7 @@ export function CanonicalNumberingCreateForm({
               <span>系列代號（選填）</span>
               <input list={seriesListId} value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)} maxLength={80} autoComplete="off" />
               <datalist id={seriesListId}>{seriesState.status === "ready" ? seriesState.data.map((option) => <option key={option} value={option} />) : null}</datalist>
-              {seriesState.status === "loading" ? <span className="canonical-create-field-note">載入既有系列代號中…</span> : null}
+              {seriesState.status === "loading" ? <span className="canonical-create-field-note"><LoadingIndicator>載入既有系列代號中…</LoadingIndicator></span> : null}
               {seriesState.status === "error" ? <span className="canonical-create-field-note is-error">{seriesState.message}<button type="button" className="link-button" onClick={() => setSeriesRetry((value) => value + 1)}>重試</button></span> : null}
             </label> : null}
           </div>
@@ -578,7 +579,7 @@ export function CanonicalNumberingCreateForm({
             <div className="canonical-create-suggestion-main">
               <div className="canonical-create-suggestion-value"><span>建議品名</span><strong>{suggestedName || "—"}</strong></div>
               <section className="canonical-create-duplicate" aria-live="polite">
-                {duplicateState.status === "loading" ? <p className="canonical-create-help" role="status">查重中…</p> : null}
+                {duplicateState.status === "loading" ? <p className="canonical-create-help"><LoadingIndicator>查重中…</LoadingIndicator></p> : null}
                 {duplicateState.status === "error" ? <p className="canonical-create-inline-state is-error" role="alert">{duplicateState.message}<button type="button" className="link-button" onClick={() => setDuplicateRetry((value) => value + 1)}>重新查重</button></p> : null}
                 {duplicateState.status === "ready" && duplicateState.data.matches.length ? <div className="canonical-create-warning"><strong>找到可能相同的資料</strong><ul>{duplicateState.data.matches.map((match) => <li key={`${match.entityType}:${match.entityId}`}><span>{match.displayCode}</span><span>{match.displayName || "—"}</span><small>{Math.round(match.score * 100)}%</small></li>)}</ul><p>此結果只提醒確認，不會代替你的建立決定。</p></div> : null}
                 {duplicateState.status === "ready" && !duplicateState.data.matches.length && duplicateTarget ? <p className="canonical-create-help">未找到相似品名。</p> : null}
@@ -601,13 +602,13 @@ export function CanonicalNumberingCreateForm({
         {showExistingPolicyState ? <section className="canonical-create-section canonical-create-existing-policy">
           {policy?.reasonRequired ? <label><span>追加原因</span><input ref={appendReasonRef} value={appendReason} onChange={(event) => { setAppendReason(event.target.value); clearFieldError("appendReason"); }} maxLength={300} required aria-invalid={Boolean(fieldErrors.appendReason)} aria-describedby={describedBy(`${inputId}-append-error`, fieldErrors.appendReason)} /><InlineError id={`${inputId}-append-error`} message={fieldErrors.appendReason} /></label> : null}
           {policy?.locked ? <p className="canonical-create-error" role="alert">此圖料根號已鎖定，無法追加。</p> : null}
-          {policyState.status === "loading" ? <p className="canonical-create-help" role="status">正在取得追加限制…</p> : null}
+          {policyState.status === "loading" ? <p className="canonical-create-help"><LoadingIndicator>正在取得追加限制…</LoadingIndicator></p> : null}
           {policyState.status === "error" ? <p className="canonical-create-inline-state" role="alert">{policyState.message}<button type="button" className="link-button" onClick={() => setPolicyRetry((value) => value + 1)}>重試</button></p> : null}
         </section> : null}
 
         <section className={`canonical-create-section canonical-create-preview${scope === "existing_root" ? " canonical-create-existing-summary" : ""}`} aria-live="polite">
           <div className="canonical-create-section-heading"><h2>{scope === "existing_root" ? "將建立" : "預估號碼"}</h2><span>{previewLoading ? "取得中…" : scope === "existing_root" ? "提交時正式配置" : "不保留號碼"}</span></div>
-          {preview ? <div className="canonical-create-number-list">{preview.nextNumbers?.root || preview.root ? <span>圖料根號 <strong>{preview.nextNumbers?.root || preview.root}</strong></span> : null}{preview.nextNumbers?.part || preview.part ? <span>料號 <strong>{preview.nextNumbers?.part || preview.part}</strong></span> : null}{preview.nextNumbers?.drawing || preview.drawing ? <span>圖號 <strong>{preview.nextNumbers?.drawing || preview.drawing}</strong></span> : null}</div> : previewError ? <p className="canonical-create-inline-state is-error">{previewError}<button type="button" className="link-button" onClick={() => scope === "new_root" ? setPreviewRetry((value) => value + 1) : setPolicyRetry((value) => value + 1)}>重試</button></p> : <p className="canonical-create-help">正在準備預估結果。</p>}
+          {preview ? <div className="canonical-create-number-list">{preview.nextNumbers?.root || preview.root ? <span>圖料根號 <strong>{preview.nextNumbers?.root || preview.root}</strong></span> : null}{preview.nextNumbers?.part || preview.part ? <span>料號 <strong>{preview.nextNumbers?.part || preview.part}</strong></span> : null}{preview.nextNumbers?.drawing || preview.drawing ? <span>圖號 <strong>{preview.nextNumbers?.drawing || preview.drawing}</strong></span> : null}</div> : previewError ? <p className="canonical-create-inline-state is-error">{previewError}<button type="button" className="link-button" onClick={() => scope === "new_root" ? setPreviewRetry((value) => value + 1) : setPolicyRetry((value) => value + 1)}>重試</button></p> : <p className="canonical-create-help"><LoadingIndicator>正在準備預估結果。</LoadingIndicator></p>}
         </section>
 
       </> : null}
@@ -615,7 +616,7 @@ export function CanonicalNumberingCreateForm({
       {error ? <p className="canonical-create-error" role="alert">{error}</p> : null}
       <footer className="canonical-create-footer">
         <a className="secondary-button" href={returnTo || "/numbering/search"}>取消</a>
-        <button className="primary-button" type="submit" disabled={busy || !canShowDetails || Boolean(policy?.locked)}>{busy ? "建立中…" : "建立編號"}</button>
+        <button className="primary-button" type="submit" disabled={busy || !canShowDetails || Boolean(policy?.locked)}>{busy ? <LoadingIndicator>建立中…</LoadingIndicator> : "建立編號"}</button>
       </footer>
     </form>
   </main>;

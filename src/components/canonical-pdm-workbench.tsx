@@ -14,6 +14,7 @@ import { PdmWorkbenchMultiSelectFilter } from "@/components/pdm-workbench-multi-
 import { PdmWorkbenchLayoutSwitch } from "@/components/pdm-workbench-layout-switch";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import { DRAWING_LAYOUT_STORAGE_KEY, PART_LAYOUT_STORAGE_KEY, normalizeCanonicalWorkbenchLayout, type CanonicalPreviewProjection, type CanonicalWorkbenchLayout } from "@/lib/pdm-canonical-preview";
 import type { PartPreviewMutationResult } from "@/lib/pdm-part-preview";
@@ -34,10 +35,10 @@ import type {
 
 // Keep detail/PDF/relation code out of the initial list bundle.
 const Drawer = dynamic(() => import("./canonical-workbench-drawer").then(module => module.CanonicalWorkbenchDrawer), {
-  loading: () => <div className="canonical-list-meta" role="status">正在開啟明細…</div>
+  loading: () => <div className="canonical-list-meta"><LoadingIndicator>正在開啟明細…</LoadingIndicator></div>
 });
 const CanonicalEntityPreviewGallery = dynamic(() => import("./canonical-pdm-preview-gallery").then(module => module.CanonicalEntityPreviewGallery), {
-  loading: () => <div className="canonical-list-meta" role="status">正在載入預覽…</div>
+  loading: () => <div className="canonical-list-meta"><LoadingIndicator>正在載入預覽…</LoadingIndicator></div>
 });
 const CanonicalPreviewThumbnail = dynamic(() => import("./canonical-pdm-preview-gallery").then(module => module.CanonicalPreviewThumbnail));
 
@@ -1001,7 +1002,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     </section>
     {error ? <div className="canonical-error" role="alert"><span>{error}</span>{error === "此篩選網址已失效" ? <button type="button" className="secondary-button" onClick={resetRetiredUrl}>清除舊篩選</button> : null}</div> : null}
     <section className="canonical-list" aria-busy={loading}>
-      {loading ? <div className="canonical-list-meta" role="status">更新中…</div> : null}
+      {loading ? <div className="canonical-list-meta"><LoadingIndicator>更新中…</LoadingIndicator></div> : null}
       {!loading && !error && previewCapability && previewPollState && previewPollingStopped && (layout === "list_3d" || layout === "preview") ? <div className="canonical-list-meta" role="status">預覽尚未就緒，自動刷新已停止；重新載入清單可再查看進度。</div> : null}
       {previewCapability ? <div className="canonical-result-display-bar" data-canonical-result-display-bar><span className="canonical-result-display-label">顯示方式</span><PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} disabled={busy} /></div> : null}
       {previewCapability && layout === "preview" ? <CanonicalEntityPreviewGallery

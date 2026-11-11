@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CanonicalPreviewMedia } from "@/components/canonical-preview-media";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { CanonicalWorkbenchRowDto } from "@/lib/pdm-canonical-workbench-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
 
@@ -97,7 +98,7 @@ export function CanonicalEntityPreviewGallery({
   }
 
   return <div className="canonical-preview-gallery" role="grid" aria-label="工作台預覽圖" aria-busy={loading} aria-keyshortcuts="ArrowRight ArrowLeft ArrowDown ArrowUp Home End PageUp PageDown Enter Space Escape">
-    {loading && rows.length === 0 ? <p className="canonical-empty" role="status">正在載入預覽圖…</p> : null}
+    {loading && rows.length === 0 ? <p className="canonical-empty"><LoadingIndicator>正在載入預覽圖…</LoadingIndicator></p> : null}
     {!loading && rows.length === 0 ? <p className="canonical-empty">沒有符合條件的資料</p> : null}
     {rows.map((row, index) => {
       const preview = previewByRowKey[row.rowKey]!;

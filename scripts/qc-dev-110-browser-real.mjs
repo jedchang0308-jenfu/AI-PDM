@@ -158,40 +158,41 @@ try {
       const page = await context.newPage();
       await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
       await page.getByRole("heading", { name: "智慧辨識", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-      await page.locator('section[aria-label="辨識共用值與例外"]').waitFor({ state: "visible", timeout: 30_000 });
+      const material = page.locator('article[data-recognition-field-key="material"]');
+      await material.waitFor({ state: "visible", timeout: 30_000 });
+      await material.getByText("1 個料號例外", { exact: true }).click();
       const view = await page.evaluate(() => ({
         overflow: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth },
-        common: document.querySelectorAll('input[aria-label="材質共用值"]').length,
-        exceptions: document.querySelectorAll('input[aria-label*="A0006-P02"][aria-label*="例外值"]').length,
-        manual: document.querySelectorAll('select[aria-label="選擇例外料號"], input[aria-label="輸入例外值"]').length,
-        sourceButtons: document.querySelectorAll("button.dev079-recognition-evidence-source").length,
+        materialRows: document.querySelectorAll('article[data-recognition-field-key="material"]').length,
+        materialInputs: document.querySelectorAll('input[aria-label="材質帶入值"]').length,
+        exceptions: document.querySelectorAll('article[data-recognition-field-key="material"] input[aria-label="A0006-P02 材質例外值"]').length,
+        manual: document.querySelectorAll('article[data-recognition-field-key="material"] select[aria-label="新增材質例外料號"]').length,
         alerts: document.querySelectorAll('.dev079-recognition-alert.is-error,[role="alert"].is-error').length,
-        commonText: document.querySelector(".dev079-recognition-common-header")?.textContent ?? "",
-        exceptionText: document.querySelector(".dev079-recognition-exceptions")?.textContent ?? ""
+        standaloneCommonSection: Boolean(document.querySelector('section[aria-label="辨識共用值與例外"]'))
       }));
-      assert.equal(view.common, 1, `${viewport.name}: one common material editor`);
+      assert.equal(view.materialRows, 1, `${viewport.name}: one material row`);
+      assert.equal(view.materialInputs, 1, `${viewport.name}: one material editor`);
       assert.equal(view.exceptions, 1, `${viewport.name}: P02 exception editor`);
-      assert.equal(view.manual, 2, `${viewport.name}: manual exception controls`);
+      assert.equal(view.manual, 1, `${viewport.name}: exception selector is inside the material row`);
       assert.ok(view.overflow.scrollWidth <= view.overflow.clientWidth + 1, `${viewport.name}: no horizontal overflow`);
       assert.equal(view.alerts, 0, `${viewport.name}: no visible error alert`);
-      assert.match(view.commonText, /共用值/); assert.match(view.exceptionText, /A0006-P02/);
+      assert.equal(view.standaloneCommonSection, false, `${viewport.name}: no separate common-value section`);
       checks.push({ id: `B${viewport.name === "desktop" ? "01" : viewport.name === "laptop" ? "02" : viewport.name === "tablet" ? "03" : "04"}`, status: "PASS", viewport, view });
       await page.screenshot({ path: path.join(screenshotDir, `recognition-${viewport.name}.png`), fullPage: true });
       if (viewport.name === "desktop") {
-        const sourceButton = page.locator("button.dev079-recognition-evidence-source").first();
-        assert.ok(await sourceButton.count() > 0, "source evidence button exists");
+        await material.getByText("辨識來源", { exact: true }).click();
+        const sourceButton = material.getByRole("button", { name: "查看來源", exact: true }).first();
+        assert.ok(await sourceButton.isVisible(), "source evidence button is visible after expansion");
+        await sourceButton.click();
         const sourceResponse = await page.evaluate(async (sourcePath) => { const response = await fetch(sourcePath, { cache: "no-store" }); return { status: response.status, contentType: response.headers.get("content-type") }; }, `/api/numbering/recognition-sessions/${encodeURIComponent(sessionId)}/sources/dev110-browser-source-0/content`);
         assert.equal(sourceResponse.status, 200, "source evidence content is readable");
         assert.match(sourceResponse.contentType ?? "", /application\/pdf/);
         checks.push({ id: "B05", status: "PASS", detail: "source evidence label and controlled PDF content are available", sourceResponse });
-        const commonFields = await page.locator('input[aria-label="材質共用值"]').count();
-        assert.equal(commonFields, 1, "no duplicate common field after evidence focus");
-        checks.push({ id: "B06", status: "PASS", detail: "common-first projection is stable after evidence focus" });
+        assert.equal(await material.count(), 1, "no duplicate material field after evidence focus");
+        checks.push({ id: "B06", status: "PASS", detail: "the material row is stable after evidence focus" });
         await page.locator(".dev079-task-panel > .dev079-unified-task-content").evaluate((element) => { element.scrollTop = element.scrollHeight; });
         await page.waitForTimeout(1_500);
-        const handoffButtons = await page.locator('section[aria-label="辨識共用值與例外"] button').allTextContents();
-        console.log(JSON.stringify({ browserDebug: { handoffButtons, recognitionText: (await page.locator('section[aria-label="辨識共用值與例外"]').textContent())?.slice(-500) } }));
-        const handoffButton = page.getByRole("button", { name: /帶入 2 個料號工作/ });
+        const handoffButton = page.getByRole("button", { name: "帶入料號工作", exact: true });
         await handoffButton.waitFor({ state: "visible", timeout: 30_000 });
         await handoffButton.click();
         await page.waitForURL((url) => (url.pathname.startsWith(`/parts/${p01Id}/workspace`) || url.pathname.startsWith(`/parts/${p02Id}/workspace`)) && url.searchParams.has("workId"), { timeout: 45_000 });

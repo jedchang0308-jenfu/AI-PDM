@@ -236,6 +236,13 @@ function canonicalDisplayFieldKey(fieldKey: string | null) {
   return fieldKey;
 }
 
+function withFieldDraft(current: Record<string, string>, key: string, value: string, initialValue: string) {
+  if (value !== initialValue) return { ...current, [key]: value };
+  const next = { ...current };
+  delete next[key];
+  return next;
+}
+
 function displayGroupKey(group: ReviewGroup) {
   const fieldKey = canonicalDisplayFieldKey(group.fieldKey);
   if (fieldKey) return `field:${fieldKey}`;
@@ -374,9 +381,7 @@ export function DrawingRecognitionWorkspacePanel({
   const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
   const [handoffCommonDraft, setHandoffCommonDraft] = useState<Record<string, string>>({});
   const [handoffOverrideDraft, setHandoffOverrideDraft] = useState<Record<string, string>>({});
-  const [overridePartId, setOverridePartId] = useState("");
-  const [overrideFieldKey, setOverrideFieldKey] = useState("material");
-  const [overrideValue, setOverrideValue] = useState("");
+  const [newException, setNewException] = useState<{ fieldKey: string; partId: string; value: string } | null>(null);
   const loadedSourceContextRef = useRef<string | null>(null);
   const latestLoadAbortRef = useRef<AbortController | null>(null);
   const commitIdempotencyKeyRef = useRef<string | null>(null);
@@ -408,14 +413,14 @@ export function DrawingRecognitionWorkspacePanel({
     ? session.reviewFields.filter((field) => !isHiddenCandidate({ fieldKey: field.fieldKey } as Candidate)).map((field) => ({ ...field, reviewGroups: field.scopes as unknown as ReviewGroup[] })) as unknown as DisplayReviewGroup[]
     : coalesceReviewGroupsForDisplay(visibleReviewGroups, visibleCandidates), [session, visibleCandidates, visibleReviewGroups]);
   const hasDraftChanges = useMemo(() => visibleCandidates.some((candidate) => (drafts[candidate.id] ?? "") !== (candidate.proposedValue ?? "")), [drafts, visibleCandidates]);
-  const handoffCommonFields = useMemo(() => session?.commonFields ?? [], [session?.commonFields]);
-  const handoffFieldRows = useMemo(() => HANDOFF_FIELD_OPTIONS.map((option) => session?.commonFields?.find((field) => field.fieldKey === option.fieldKey) ?? ({ ...option, intent: "value" as const, value: null, origin: "unset", exceptionCount: 0 })), [session?.commonFields]);
+  const handoffFieldRows = HANDOFF_FIELD_OPTIONS.map((option) => ({
+    ...option,
+    value: session?.commonFields?.find((field) => field.fieldKey === option.fieldKey)?.value ?? ""
+  }));
+  const eligibleParts = session?.applicationScope?.eligibleParts ?? [];
   const handoffExceptions = useMemo(() => session?.exceptions ?? [], [session?.exceptions]);
-  const hasHandoffDraftChanges = useMemo(() => {
-    const commonChanged = handoffCommonFields.some((field) => (handoffCommonDraft[field.fieldKey] ?? field.value ?? "") !== (field.value ?? ""));
-    const overrideChanged = handoffExceptions.some((field) => (handoffOverrideDraft[`${field.partId}:${field.fieldKey}`] ?? field.value ?? "") !== (field.value ?? ""));
-    return commonChanged || overrideChanged || Boolean(Object.keys(handoffOverrideDraft).some((key) => !handoffExceptions.some((field) => `${field.partId}:${field.fieldKey}` === key)));
-  }, [handoffCommonDraft, handoffExceptions, handoffOverrideDraft, handoffCommonFields]);
+  const hasHandoffDraftChanges = Object.keys(handoffCommonDraft).length > 0
+    || Object.keys(handoffOverrideDraft).length > 0;
   const hasUnresolvedPartOwner = useMemo(() => displayReviewGroups.some((group) => Boolean(group.blockingReason)) || visibleCandidates.some(requiresPartOwner), [displayReviewGroups, visibleCandidates]);
   const hasDecisionsToSave = visibleReviewGroups.some((group) => {
     const modified = group.memberCandidateIds.some((id) => {
@@ -428,48 +433,25 @@ export function DrawingRecognitionWorkspacePanel({
     }));
   });
 
-  const handoffFields = useMemo(() => {
-    const fields = new Map<string, { fieldKey: string; intent: "value" | "clear" | "not_applicable"; value: string | null }>();
-    for (const field of handoffFieldRows) {
-      const value = handoffCommonDraft[field.fieldKey] ?? field.value;
-      if (value !== null || field.value !== null) fields.set(field.fieldKey, { fieldKey: field.fieldKey, intent: field.intent, value });
-    }
-    return [...fields.values()];
-  }, [handoffCommonDraft, handoffFieldRows]);
-  const handoffOverrides = useMemo(() => {
-    const values = new Map<string, { partId: string; fieldKey: string; intent: "value" | "clear" | "not_applicable"; value: string | null }>();
-    for (const field of handoffExceptions) {
-      const key = `${field.partId}:${field.fieldKey}`;
-      values.set(key, { partId: field.partId, fieldKey: field.fieldKey, intent: field.intent, value: handoffOverrideDraft[key] ?? field.value });
-    }
-    for (const [key, value] of Object.entries(handoffOverrideDraft)) {
-      if (values.has(key)) continue;
-      const [partId, fieldKey] = key.split(":");
-      if (partId && fieldKey) values.set(key, { partId, fieldKey, intent: "value", value });
-    }
-    return [...values.values()];
-  }, [handoffExceptions, handoffOverrideDraft]);
-
   const setProjection = useCallback((next: Session) => {
     setSession(next);
     setDrafts(Object.fromEntries(next.candidates.map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
-    setHandoffCommonDraft(Object.fromEntries((next.commonFields ?? []).map((field) => [field.fieldKey, field.value ?? ""])));
-    setHandoffOverrideDraft(Object.fromEntries((next.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, field.value ?? ""])));
+    setHandoffCommonDraft({});
+    setHandoffOverrideDraft({});
+    setNewException(null);
   }, []);
 
   const mergeProjection = useCallback((next: Session) => {
     setSession(next);
     setDrafts((current) => Object.fromEntries(next.candidates.map((candidate) => [candidate.id, current[candidate.id] ?? candidate.proposedValue ?? ""])));
-    setHandoffCommonDraft((current) => Object.fromEntries((next.commonFields ?? []).map((field) => [field.fieldKey, current[field.fieldKey] ?? field.value ?? ""])));
-    setHandoffOverrideDraft((current) => Object.fromEntries((next.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, current[`${field.partId}:${field.fieldKey}`] ?? field.value ?? ""])));
   }, []);
 
   useEffect(() => {
     if (!snapshotMode) return;
     setSession(immutableSession);
     setDrafts(Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
-    setHandoffCommonDraft(Object.fromEntries((immutableSession?.commonFields ?? []).map((field) => [field.fieldKey, field.value ?? ""])));
-    setHandoffOverrideDraft(Object.fromEntries((immutableSession?.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, field.value ?? ""])));
+    setHandoffCommonDraft({});
+    setHandoffOverrideDraft({});
     setLoading(false);
     setError("");
   }, [immutableSession, snapshotMode]);
@@ -682,20 +664,23 @@ export function DrawingRecognitionWorkspacePanel({
           expectedRowVersion: session.rowVersion,
           expectedSourceSetFingerprint: (session as Session & { sourceSetFingerprint?: string }).sourceSetFingerprint,
           expectedRelationScopeFingerprint: session.applicationScope.relationScopeFingerprint,
-          commonValues: handoffFields.map(normalizeEntry),
-          overrides: handoffOverrides.map((entry) => ({ partId: entry.partId, fieldKey: entry.fieldKey, intent: entry.value === "無" ? "not_applicable" : entry.value?.trim() ? "value" : "clear", value: entry.value }))
+          commonValues: Object.entries(handoffCommonDraft).map(([fieldKey, value]) => normalizeEntry({ fieldKey, value })),
+          overrides: Object.entries(handoffOverrideDraft).map(([key, value]) => {
+            const separator = key.lastIndexOf(":");
+            return { partId: key.slice(0, separator), ...normalizeEntry({ fieldKey: key.slice(separator + 1), value }) };
+          })
         })
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(messageFrom(body, "帶入料號工作失敗；目前修改仍保留在畫面上。"));
+      if (!response.ok) throw new Error(messageFrom(body, "儲存並帶入料號工作失敗；目前修改仍保留在畫面上。"));
       handoffIdempotencyKeyRef.current = null;
       const result = body.handoff;
-      setNotice(Number(result?.workMutationCount ?? 0) > 0 ? `已帶入 ${result.workMutationCount} 個料號工作` : "資料已一致，沒有需要新增的料號工作");
+      setNotice(Number(result?.workMutationCount ?? 0) > 0 ? `已儲存並帶入 ${result.workMutationCount} 個料號工作` : "資料已儲存且一致，沒有需要新增的料號工作");
       await loadSession(session.id, true);
       const destination = typeof result?.destination?.path === "string" ? result.destination.path : "";
       if (destination && !snapshotMode) window.location.assign(destination);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "帶入料號工作失敗；目前修改仍保留在畫面上。");
+      setError(cause instanceof Error ? cause.message : "儲存並帶入料號工作失敗；目前修改仍保留在畫面上。");
     } finally {
       setBusy(false);
     }
@@ -799,6 +784,123 @@ export function DrawingRecognitionWorkspacePanel({
     });
   }
 
+  function renderHandoffField(field: (typeof handoffFieldRows)[number]) {
+    const { fieldKey, label } = field;
+    const readOnly = disabled || busy || snapshotMode || eligibleParts.length === 0;
+    const commonValue = handoffCommonDraft[fieldKey] ?? field.value;
+    const singlePart = eligibleParts.length === 1 ? eligibleParts[0] : null;
+    const singleException = singlePart && handoffExceptions.find((entry) => entry.partId === singlePart.id && entry.fieldKey === fieldKey);
+    const singleOverrideKey = singleException ? `${singleException.partId}:${fieldKey}` : null;
+    const value = singleOverrideKey ? handoffOverrideDraft[singleOverrideKey] ?? singleException?.value ?? "" : commonValue;
+    const sources = new Map<string, ReviewGroup["observations"][number]>();
+    for (const group of displayReviewGroups) {
+      if (canonicalDisplayFieldKey(group.fieldKey) !== fieldKey) continue;
+      for (const observation of group.observations) sources.set(observation.id, observation);
+    }
+    for (const candidate of visibleCandidates) {
+      if (canonicalDisplayFieldKey(candidate.fieldKey) !== fieldKey) continue;
+      for (const observation of candidate.observations) {
+        if (!sources.has(observation.id)) sources.set(observation.id, observation);
+      }
+    }
+    const exceptions = eligibleParts.flatMap((part) => {
+      const key = `${part.id}:${fieldKey}`;
+      const original = handoffExceptions.find((entry) => entry.partId === part.id && entry.fieldKey === fieldKey);
+      if (!original && !(key in handoffOverrideDraft)) return [];
+      return [{ part, key, original, value: handoffOverrideDraft[key] ?? original?.value ?? "" }];
+    });
+    const availableParts = eligibleParts.filter((part) => !exceptions.some((entry) => entry.part.id === part.id));
+    const pendingException = newException?.fieldKey === fieldKey ? newException : null;
+    const updateValue = (next: string) => {
+      setNotice("");
+      if (singleOverrideKey) {
+        setHandoffOverrideDraft((current) => withFieldDraft(current, singleOverrideKey, next, singleException?.value ?? ""));
+      } else {
+        setHandoffCommonDraft((current) => withFieldDraft(current, fieldKey, next, field.value));
+      }
+    };
+
+    return (
+      <article key={fieldKey} className="dev079-recognition-candidate" data-recognition-field-key={fieldKey}>
+        <header><strong>{label}</strong></header>
+        <div className="dev079-recognition-value-row">
+          <label>
+            <input aria-label={`${label}帶入值`} value={value} readOnly={readOnly} onChange={(event) => updateValue(event.target.value)} />
+          </label>
+        </div>
+        {sources.size > 0 ? (
+          <details className={styles.fieldDetails}>
+            <summary>辨識來源</summary>
+            <ul>
+              {[...sources.values()].map((observation) => (
+                <li key={observation.id}>
+                  <span>{observation.sourceFileName ?? session?.sources.find((source) => source.id === observation.sourceId)?.fileName ?? evidenceSourceLabel(observation)}</span>
+                  {observation.rawText ? <span>{observation.rawText}</span> : null}
+                  {onEvidenceSelect ? (
+                    <button type="button" className="link-button" onClick={() => selectEvidence([observation])}>查看來源</button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+        {eligibleParts.length > 1 && (exceptions.length > 0 || !readOnly) ? (
+          <details className={styles.fieldDetails}>
+            <summary>{exceptions.length > 0 ? `${exceptions.length} 個料號例外` : "設定料號例外"}</summary>
+            {exceptions.map(({ part, key, original, value: exceptionValue }) => (
+              <div key={key} className={styles.exceptionRow}>
+                <label>
+                  <span>{part.partNumber}</span>
+                  <input aria-label={`${part.partNumber} ${label}例外值`} value={exceptionValue} readOnly={readOnly} onChange={(event) => {
+                    const next = event.target.value;
+                    setNotice("");
+                    setHandoffOverrideDraft((current) => original
+                      ? withFieldDraft(current, key, next, original.value ?? "")
+                      : { ...current, [key]: next });
+                  }} />
+                </label>
+                {!readOnly && key in handoffOverrideDraft ? (
+                  <button type="button" className="link-button" onClick={() => {
+                    setNotice("");
+                    setHandoffOverrideDraft((current) => {
+                      const next = { ...current };
+                      delete next[key];
+                      return next;
+                    });
+                  }}>{original ? "還原辨識值" : "移除例外"}</button>
+                ) : null}
+              </div>
+            ))}
+            {!readOnly && availableParts.length > 0 ? (
+              <>
+                <select aria-label={`新增${label}例外料號`} value={pendingException?.partId ?? ""} onChange={(event) => {
+                  const partId = event.target.value;
+                  setNewException(partId ? { fieldKey, partId, value: commonValue } : null);
+                }}>
+                  <option value="">新增例外料號</option>
+                  {availableParts.map((part) => <option key={part.id} value={part.id}>{part.partNumber} · {part.partName}</option>)}
+                </select>
+                {pendingException ? (
+                  <div className={styles.exceptionRow}>
+                    <label>
+                      <input aria-label={`輸入${label}例外值`} value={pendingException.value} onChange={(event) => setNewException({ ...pendingException, value: event.target.value })} />
+                    </label>
+                    <button type="button" className="link-button" disabled={pendingException.value.trim() === commonValue.trim()} onClick={() => {
+                      const key = `${pendingException.partId}:${fieldKey}`;
+                      setNotice("");
+                      setHandoffOverrideDraft((current) => ({ ...current, [key]: pendingException.value }));
+                      setNewException(null);
+                    }}>加入例外</button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </details>
+        ) : null}
+      </article>
+    );
+  }
+
   const recognitionProcessing = Boolean(session && ["queued", "extracting"].includes(session.status));
   return (
     <div className={`${styles.panelStyles} dev079-recognition-panel`} data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
@@ -824,50 +926,17 @@ export function DrawingRecognitionWorkspacePanel({
             onRetry={disabled ? undefined : () => void rerunNativeMetadata()}
             retryDisabled={busy || hasDraftChanges}
           />
-          {session.applicationScope ? (
-            <section className="dev079-recognition-common-first" aria-label="辨識共用值與例外">
-              <header className="dev079-recognition-common-header">
-                <div><strong>共用值</strong><span>套用到 {session.applicationScope.eligiblePartCount} 個料號</span></div>
-                <small>{session.handoffControl?.state === "blocked" ? "有項目需要處理" : "只在有差異時顯示個別例外"}</small>
-              </header>
-              {handoffCommonFields.length === 0 ? <p className="dev079-recognition-empty-inline">目前沒有自動辨識的共用值；需要時可直接輸入，或用「個別設定」指定特定料號。</p> : null}
-              <div className="dev079-recognition-common-fields">
-                {handoffFieldRows.map((field) => (
-                  <div key={field.fieldKey} className="dev079-recognition-common-field">
-                    <label><span>{field.label}</span><input aria-label={`${field.label}共用值`} value={handoffCommonDraft[field.fieldKey] ?? field.value ?? ""} disabled={disabled || busy || snapshotMode} onChange={(event) => { setNotice(""); setHandoffCommonDraft((current) => ({ ...current, [field.fieldKey]: event.target.value })); }} /></label>
-                    <small>{field.exceptionCount > 0 ? `${field.exceptionCount} 個例外` : "所有關聯料號相同"}</small>
-                  </div>
-                ))}
-              </div>
-              {handoffExceptions.length > 0 ? (
-                <div className="dev079-recognition-exceptions" aria-label="料號例外">
-                  <strong>個別例外</strong>
-                  {handoffExceptions.map((field) => {
-                    const key = `${field.partId}:${field.fieldKey}`;
-                    return <div key={key} className="dev079-recognition-exception-row"><span>{field.partNumber} · {field.label}</span><input aria-label={`${field.partNumber}${field.label}例外值`} value={handoffOverrideDraft[key] ?? field.value ?? ""} disabled={disabled || busy || snapshotMode} onChange={(event) => setHandoffOverrideDraft((current) => ({ ...current, [key]: event.target.value }))} /><button type="button" className="link-button" disabled={disabled || busy || snapshotMode} onClick={() => setHandoffOverrideDraft((current) => { const next = { ...current }; delete next[key]; return next; })}>恢復共用值</button></div>;
-                  })}
-                </div>
-              ) : null}
-              {session.applicationScope.eligibleParts.length > 0 && !snapshotMode ? (
-                <div className="dev079-recognition-manual-override">
-                  <strong>個別設定</strong>
-                  <select aria-label="選擇例外料號" value={overridePartId} disabled={disabled || busy} onChange={(event) => setOverridePartId(event.target.value)}><option value="">選擇料號</option>{session.applicationScope.eligibleParts.map((part) => <option key={part.id} value={part.id}>{part.partNumber} · {part.partName}</option>)}</select>
-                  <select aria-label="選擇例外欄位" value={overrideFieldKey} disabled={disabled || busy} onChange={(event) => setOverrideFieldKey(event.target.value)}>{HANDOFF_FIELD_OPTIONS.map((field) => <option key={field.fieldKey} value={field.fieldKey}>{field.label}</option>)}</select>
-                  <input aria-label="輸入例外值" value={overrideValue} disabled={disabled || busy} onChange={(event) => setOverrideValue(event.target.value)} placeholder="輸入不同值" />
-                  <button type="button" className="secondary-button" disabled={disabled || busy || !overridePartId || !overrideValue.trim()} onClick={() => { const key = `${overridePartId}:${overrideFieldKey}`; setHandoffOverrideDraft((current) => ({ ...current, [key]: overrideValue.trim() })); setOverrideValue(""); }}>加入例外</button>
-                </div>
-              ) : null}
-              {!snapshotMode && !disabled ? <div className="dev079-recognition-save-status" role="status" aria-live="polite"><CheckCircle2 size={19} aria-hidden="true" /><div><strong>{session.handoffControl?.state === "synchronized" && !hasHandoffDraftChanges ? "已帶入料號工作" : hasHandoffDraftChanges || session.handoffControl?.state === "ready" ? "待帶入料號工作" : "待核對"}</strong><span>確認後只建立或更新料號工作，不直接修改正式主檔。</span></div><button type="button" className="primary-button" disabled={busy || session.handoffControl?.state === "blocked"} onClick={() => void handoffPartWorks()}>{busy ? "帶入中…" : session.handoffControl?.state === "synchronized" && !hasHandoffDraftChanges ? "確認資料已一致" : `帶入 ${session.handoffControl?.workMutationCount ?? session.applicationScope.eligiblePartCount} 個料號工作`}</button></div> : null}
-            </section>
-          ) : null}
-          {visibleCandidates.length > 0 ? (
+          {visibleCandidates.length > 0 || session.applicationScope ? (
             <>
               <div className="dev079-recognition-sections">
                 {sections.map((section) => {
-                  const groups = displayReviewGroups.filter((group) => group.category === section.key);
-                  if (groups.length === 0) return null;
+                  const showHandoffFields = Boolean(session.applicationScope) && section.key === "part_attribute";
+                  const groups = displayReviewGroups.filter((group) => group.category === section.key
+                    && (!session.applicationScope || !HANDOFF_FIELD_OPTIONS.some((field) => field.fieldKey === canonicalDisplayFieldKey(group.fieldKey))));
+                  if (groups.length === 0 && !showHandoffFields) return null;
                   return (
                     <section key={section.key} className="dev079-recognition-section" aria-label={section.title}>
+                      {showHandoffFields ? handoffFieldRows.map(renderHandoffField) : null}
                       {groups.map((group) => {
                         const candidate = visibleCandidates.find((item) => item.id === group.primaryCandidateId) ?? visibleCandidates.find((item) => group.memberCandidateIds.includes(item.id));
                         if (!candidate) return null;
@@ -966,6 +1035,19 @@ export function DrawingRecognitionWorkspacePanel({
                   );
                 })}
               </div>
+              {session.applicationScope && !snapshotMode && !disabled ? (
+                <div className="dev079-recognition-save-status" role="status" aria-live="polite">
+                  <CheckCircle2 size={19} aria-hidden="true" />
+                  <div>
+                    <strong>{session.handoffControl?.state === "blocked" ? "有項目需要處理" : session.handoffControl?.state === "synchronized" && !hasHandoffDraftChanges ? "已儲存並帶入料號工作" : "待儲存並帶入料號工作"}</strong>
+                    <span>適用 {session.applicationScope.eligiblePartCount} 個關聯料號</span>
+                    {session.handoffControl?.blockers.map((blocker) => <span key={blocker}>{blocker}</span>)}
+                  </div>
+                  <button type="button" className="primary-button" disabled={busy || eligibleParts.length === 0 || session.handoffControl?.state === "blocked" || session.status === "formalized" && !hasHandoffDraftChanges} onClick={() => void handoffPartWorks()}>
+                    {busy ? "儲存並帶入中…" : "儲存並帶入料號工作"}
+                  </button>
+                </div>
+              ) : null}
               {!session.applicationScope && !snapshotMode && !disabled ? (
                 <div className="dev079-recognition-save-status" role="status" aria-live="polite">
                   <CheckCircle2 size={19} aria-hidden="true" />

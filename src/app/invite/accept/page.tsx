@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { KeyRound, LockKeyhole, LogIn, ShieldCheck } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type Invitation = {
   email: string;
@@ -87,7 +88,7 @@ export default function AcceptInvitationPage() {
           </div>
         </div>
 
-        {loading ? <div className="next-step-state compact"><p>正在確認邀請連結...</p></div> : error && !invitation ? (
+        {loading ? <div className="next-step-state compact"><p><LoadingIndicator>正在確認邀請連結...</LoadingIndicator></p></div> : error && !invitation ? (
           <div className="next-step-state compact" role="alert">
             <h3>目前無法設定密碼</h3>
             <p>{error}</p>
@@ -133,7 +134,7 @@ export default function AcceptInvitationPage() {
               {error ? <div className="form-error" role="alert">{error}</div> : null}
               <button className="primary-button" disabled={saving} type="submit">
                 <LogIn size={16} aria-hidden="true" />
-                {saving ? "啟用中..." : "設定密碼並進入系統"}
+                {saving ? <LoadingIndicator>啟用中...</LoadingIndicator> : "設定密碼並進入系統"}
               </button>
             </form>
           </>

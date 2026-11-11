@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 import type { PartPreviewMutationResult, PartPreviewSourceControl as PartPreviewSourceControlModel } from "@/lib/pdm-part-preview";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
@@ -85,7 +86,7 @@ export function PartPreviewSourceControl({
   return <div className="part-preview-source-control" data-component="part-preview-source-control">
     <div className="part-preview-source-actions">
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden disabled={!control.canManage || busy} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void upload(file); }} />
-      <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => inputRef.current?.click()}>{busy ? "處理中…" : preview.sourceType === "custom_image" ? "更換圖片" : "上傳圖片"}</button>
+      <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => inputRef.current?.click()}>{busy ? <LoadingIndicator>處理中…</LoadingIndicator> : preview.sourceType === "custom_image" ? "更換圖片" : "上傳圖片"}</button>
       {preview.sourceType === "custom_image" && control.hasPrimaryManufacturingDrawing ? <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => void reset()}>使用主要製造圖</button> : null}
     </div>
     {control.disabledReason ? <p className="canonical-drawer-section-note">{control.disabledReason}</p> : null}

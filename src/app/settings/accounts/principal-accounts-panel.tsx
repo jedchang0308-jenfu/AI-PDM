@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type Account = {
   id: string;
@@ -299,7 +300,7 @@ export function PrincipalAccountsPanel() {
           以原操作核對結果
         </button>
       </p> : null}
-      {loading ? <p role="status">正在讀取帳號...</p> :
+      {loading ? <p><LoadingIndicator>正在讀取帳號...</LoadingIndicator></p> :
         accounts.length === 0 ? <p>目前沒有已啟用 principal 架構的應用帳號。</p> :
           <div className="table-wrap"><table className="account-management-table">
             <thead><tr><th>姓名</th><th>principal</th><th>員工</th><th>狀態</th><th>工作區</th><th>操作</th></tr></thead>
@@ -349,7 +350,7 @@ export function PrincipalAccountsPanel() {
         <label><input type="checkbox" checked={accountEnabled} disabled={busy || Boolean(pendingProvision)}
           onChange={(event) => { setAccountEnabled(event.target.checked); invalidateOperation(); }} /> 建立後啟用此應用帳號</label>
         <button className="primary-button" type="submit" disabled={busy || !displayName.trim()}>
-          {busy ? "建立中..." : "建立應用帳號"}
+          {busy ? <LoadingIndicator>建立中...</LoadingIndicator> : "建立應用帳號"}
         </button>
       </form> : null}
       {message ? <p role={receipt ? "status" : "alert"}>{message}</p> : null}

@@ -10,6 +10,7 @@ import {
   type DrawingRecognitionBrowserOcrSession
 } from "@/components/drawing-recognition-pdf-ocr";
 import styles from "@/components/drawing-recognition-review.module.css";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { isRecognitionCandidateFormalizationPending } from "@/lib/part-recognition-transfer";
 import { getStatusDisplay } from "@/lib/status-display";
@@ -308,7 +309,7 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
     router.push(`/numbering/recognition/${encodeURIComponent(body.session.id)}${returnQuery}`);
   }
 
-  if (!session && !error) return <main className="drawing-recognition-page"><div className="drawing-recognition-loading">正在載入完整辨識結果…</div></main>;
+  if (!session && !error) return <main className="drawing-recognition-page"><div className="drawing-recognition-loading"><LoadingIndicator>正在載入完整辨識結果…</LoadingIndicator></div></main>;
   if (!session) return <main className="drawing-recognition-page"><Link href={returnTo ?? "/numbering/drawings"} className="secondary-button"><ArrowLeft size={16} />返回來源</Link><div className="drawing-recognition-alert is-error">{error}</div></main>;
 
   const backLabel = returnTo?.startsWith("/parts/") ? "返回料號編輯" : returnTo ? "返回圖號工作台" : "圖號工作台";

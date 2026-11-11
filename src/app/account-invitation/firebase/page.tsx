@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserRoundCheck } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import type { FirebaseWebConfig } from "@/lib/auth-config";
 import {
   completeFirebaseEmailLinkInvitation,
@@ -74,7 +75,7 @@ export default function FirebaseAccountInvitationPage() {
           {error ? <div className="form-error">{error}</div> : null}
           <button className="primary-button" disabled={loading || !config} type="submit">
             <UserRoundCheck size={16} aria-hidden="true" />
-            {loading ? "啟用中..." : "啟用帳號"}
+            {loading ? <LoadingIndicator>啟用中...</LoadingIndicator> : "啟用帳號"}
           </button>
         </form>
       </section>

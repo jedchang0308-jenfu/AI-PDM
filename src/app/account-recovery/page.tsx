@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
+import { LoadingIndicator } from "@/components/loading-indicator";
 
 type RecoveryState =
   | { status: "loading" }
@@ -77,7 +78,7 @@ export default function AccountRecoveryPage() {
           </div>
         </div>
 
-        {state.status === "loading" ? <div className="empty">正在讀取重設連結...</div> : null}
+        {state.status === "loading" ? <div className="empty"><LoadingIndicator>正在讀取重設連結...</LoadingIndicator></div> : null}
         {state.status === "error" ? (
           <div className="form-error" role="alert">
             {state.message}
@@ -113,7 +114,7 @@ export default function AccountRecoveryPage() {
                 <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type="password" minLength={10} maxLength={128} required />
               </label>
               <button className="primary-button" type="submit" disabled={saving}>
-                {saving ? "更新中..." : "更新密碼"}
+                {saving ? <LoadingIndicator>更新中...</LoadingIndicator> : "更新密碼"}
               </button>
             </form>
           </>
