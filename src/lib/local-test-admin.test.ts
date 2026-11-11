@@ -234,6 +234,23 @@ describe("PDM independent local test administrator", () => {
     await expect(withVerifiedLocalTestAdminRequest({ ...input, database: snapshot }, evaluate)).rejects.toThrow();
     expect(evaluate).not.toHaveBeenCalled();
   });
+  it("holds the sandbox target lock through write transactions while reads stay non-locking", async () => {
+    const result = await issueLocalTestAdminSession(makeRequest());
+    const request = makeRequest("GET", result.cookie.split(";", 1)[0]);
+    const input = await resolveLocalTestAdminRequestInput(result.token, request);
+    const query = vi.mocked(snapshot.query);
+    const queryOne = vi.mocked(snapshot.queryOne);
+    query.mockClear(); queryOne.mockClear();
+
+    await withVerifiedLocalTestAdminRequest(input, async () => true, { readOnly: false });
+    expect(query.mock.calls[0]?.[0]).toContain("assert_local_test_admin_target_v1");
+    expect(queryOne.mock.calls.some(([sql]) => String(sql).includes("local_sandbox_target_metadata"))).toBe(false);
+
+    query.mockClear(); queryOne.mockClear();
+    await withVerifiedLocalTestAdminRequest(input, async () => true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("assert_local_test_admin_target_v1"))).toBe(false);
+    expect(queryOne.mock.calls.some(([sql]) => String(sql).includes("local_sandbox_target_metadata"))).toBe(true);
+  });
   it("denies stale lifecycle and revoked native session", async () => {
     const result = await issueLocalTestAdminSession(makeRequest());
     const request = makeRequest("GET", result.cookie.split(";", 1)[0]);

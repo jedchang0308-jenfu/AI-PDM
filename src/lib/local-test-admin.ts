@@ -215,11 +215,19 @@ export async function withVerifiedLocalTestAdminRequest<TResult>(input: Principa
   const claims = verifyJenfuPrincipalSession(input.token, runtime.keyRing);
   fixedClaims(claims);
   return runtime.database.transaction(async snapshot => {
-    const target = await snapshot.queryOne<{ generation: string; fixture_hash: string; target_fingerprint: string; status: string }>(
-      "SELECT generation::text,fixture_hash,target_fingerprint,status FROM ai_pdm_core.local_sandbox_target_metadata WHERE application_id='ai-pdm' AND sandbox_id=:sandboxId" +
-        (options.readOnly === false ? " FOR SHARE" : ""), targetParameters(runtime));
-    if (!target || target.status !== "ready" || target.generation !== runtime.target.generation ||
-      target.fixture_hash !== runtime.target.fixtureHash || target.target_fingerprint !== runtime.target.targetFingerprint) fail();
+    if (options.readOnly === false) {
+      // The local owner function verifies the target and keeps its row locked
+      // until the write commits, without granting runtime metadata updates.
+      await snapshot.query(
+        "SELECT ai_pdm_core.assert_local_test_admin_target_v1(:sandboxId,:generation::uuid,:fixtureHash,:targetFingerprint)",
+        targetParameters(runtime));
+    } else {
+      const target = await snapshot.queryOne<{ generation: string; fixture_hash: string; target_fingerprint: string; status: string }>(
+        "SELECT generation::text,fixture_hash,target_fingerprint,status FROM ai_pdm_core.local_sandbox_target_metadata WHERE application_id='ai-pdm' AND sandbox_id=:sandboxId",
+        targetParameters(runtime));
+      if (!target || target.status !== "ready" || target.generation !== runtime.target.generation ||
+        target.fixture_hash !== runtime.target.fixtureHash || target.target_fingerprint !== runtime.target.targetFingerprint) fail();
+    }
     const account = await requireAccount(snapshot);
     if (account.lifecycleVersion !== claims.accountLifecycleVersion || account.profileVersion !== claims.profileVersion ||
       (account.sessionInvalidBefore && claims.issuedAt * 1000 <= Date.parse(account.sessionInvalidBefore)) ||
