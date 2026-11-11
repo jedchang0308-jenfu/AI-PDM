@@ -6,7 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 test('Windows launcher preserves sandbox data paths while ordinary startup uses its task directories', { skip: process.platform !== 'win32' }, () => {
-  const temporary = fs.mkdtempSync(path.join(process.cwd(), 'tmp', 'dev126-launcher-paths-'));
+  const temporaryRoot = path.join(process.cwd(), 'tmp');
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const temporary = fs.mkdtempSync(path.join(temporaryRoot, 'dev126-launcher-paths-'));
   try {
     const scriptDirectory = path.join(temporary, 'scripts');
     const sandbox = path.join(temporary, 'sandbox');
