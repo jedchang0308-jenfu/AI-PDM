@@ -110,6 +110,7 @@ const PREVIEW = [
 const RECOGNITION = [
   /^src\/.*(?:recognition|ocr|tesseract)/u,
   /^scripts\/.*(?:recognition|ocr|tesseract)/u,
+  /^scripts\/qc-dev-110-browser-real\.mjs$/u,
 ]
 
 // These files are covered by the recognition slice's allow/deny and
