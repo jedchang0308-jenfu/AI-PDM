@@ -30,6 +30,13 @@ describe("AI-PDM principal session v2", () => {
     expect(claims).not.toHaveProperty("pdmUserId");
   });
 
+  it("accepts a 16-hour session beyond hour eight and rejects it at expiry", () => {
+    const token = issueJenfuPrincipalSession({ ...input, maxAgeSeconds: 16 * 60 * 60 }, ring, now);
+    expect(verifyJenfuPrincipalSession(token, ring, { nowSeconds: now + 9 * 60 * 60 }).expiresAt).toBe(now + 16 * 60 * 60);
+    expect(() => verifyJenfuPrincipalSession(token, ring, { nowSeconds: now + 16 * 60 * 60 })).toThrow("JENFU_PRINCIPAL_SESSION_TIME_INVALID");
+    expect(() => issueJenfuPrincipalSession({ ...input, maxAgeSeconds: 16 * 60 * 60 + 1 }, ring, now)).toThrow();
+  });
+
   it("rejects UID fields, wrong epoch kind and the old token type even with a valid MAC", () => {
     const token = issueJenfuPrincipalSession(input, ring, now);
     for (const mutate of [

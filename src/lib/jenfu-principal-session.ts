@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { PlatformAssuranceLevel, PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 
-export const JENFU_PRINCIPAL_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
+export const JENFU_PRINCIPAL_SESSION_MAX_AGE_SECONDS = 16 * 60 * 60;
 export const JENFU_PRINCIPAL_SESSION_CONTRACT_VERSION = "jenfu.ai-pdm-session.v2" as const;
 
 export type JenfuPrincipalSessionClaims = {

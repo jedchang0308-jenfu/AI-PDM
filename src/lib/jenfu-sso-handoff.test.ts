@@ -29,7 +29,8 @@ describe("DEV-013 target handoff guards", () => {
   it("caps the target session by the app and source session, not the short-lived handoff assertion", () => {
     const now = Math.floor(Date.parse("2026-09-21T00:00:00.000Z") / 1000);
 
-    expect(resolveJenfuTargetSessionExpiry(now, "2026-09-21T12:00:00.000Z")).toBe(now + 8 * 60 * 60);
+    expect(resolveJenfuTargetSessionExpiry(now, "2026-09-21T17:00:00.000Z")).toBe(now + 16 * 60 * 60);
+    expect(resolveJenfuTargetSessionExpiry(now, "2026-09-21T12:00:00.000Z")).toBe(now + 12 * 60 * 60);
     expect(resolveJenfuTargetSessionExpiry(now, "2026-09-21T01:00:00.000Z")).toBe(now + 60 * 60);
     expect(() => resolveJenfuTargetSessionExpiry(now, "2026-09-21T00:00:00.000Z")).toThrowError("HANDOFF_EXPIRED");
   });
