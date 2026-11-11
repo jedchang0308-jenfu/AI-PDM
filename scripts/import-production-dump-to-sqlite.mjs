@@ -8,6 +8,9 @@ import pg from "pg";
 
 const { Pool } = pg;
 const root = process.cwd();
+const configuredRepositoryDir = path.resolve(
+  process.env.PDM_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository")
+);
 
 const SKIP_TABLES = new Set([
   "account_recovery_requests",
@@ -114,7 +117,7 @@ function filePlaceholder(table, row, column) {
   const key = `production-snapshot-files-not-exported/${table}/${rowId}`;
   if (column === "storage_provider") return "local_repository";
   if (column === "storage_bucket") return null;
-  if (/local_path/iu.test(column)) return path.join(root, "data", "repository", key);
+  if (/local_path/iu.test(column)) return path.join(configuredRepositoryDir, key);
   if (/(?:storage_key|object_key)/iu.test(column)) return key;
   if (/(?:uri|url)/iu.test(column)) return null;
   return undefined;
