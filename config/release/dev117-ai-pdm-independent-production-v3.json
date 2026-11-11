@@ -488,6 +488,11 @@
         "order": 41,
         "path": "db/postgres/096_dev127_platform_super_admin_consumer.sql",
         "sha256": "c5a064cffc6c5f9abef085e8ed14ff11ab11c2562ccaae41f19021e49f9bf9b1"
+      },
+      {
+        "order": 42,
+        "path": "db/postgres/101_dev121_principal_session_16_hours.sql",
+        "sha256": "700b747bda667fab3edba50a4f3d5a11513947f120386857977ddaecf85dbc37"
       }
     ]
   },

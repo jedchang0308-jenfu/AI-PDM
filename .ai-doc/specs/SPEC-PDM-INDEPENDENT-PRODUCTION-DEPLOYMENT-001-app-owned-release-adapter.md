@@ -631,6 +631,8 @@ Applied-migration continuation 中的 Principal recovery receipt、fence 與 rec
 
 Current owner profile由既有40筆immutable prefix追加order41的`db/postgres/096_dev127_platform_super_admin_consumer.sql`，不得納入local-only091–095。Source與derived applied bytes均由既有migration bundle及owner archive proof核對；baselineCount仍15，ledger、Job／SA、DB、capsule schema、workflow stages、IAM／Secret及traffic權限不變。Historical 32/33/34/35/38/39/40 source proof繼續依原凍結內容驗證；41只接受完整既有prefix與exact096，不將缺失或未知suffix當成功。歷史program-only predecessor可在完整41 source profile下用原34筆profile驗證其歷史證明；本次authorization/schema功能發布本身不得使用program-only路徑。
 
+16 小時 SSO 在上述 41 筆之後追加 order 42 的 `db/postgres/101_dev121_principal_session_16_hours.sql`。現役 `principal_session_time_order` 會拒絕超過 8 小時的工作階段。101 以同一交易將上限改成 16 小時，保留到期必須晚於簽發的條件與所有既有資料。AI-PDM 正式發布須取得此遷移的 owner receipt，Platform 才能開始簽發 16 小時工作階段。原先簽發的工作階段依既有到期時間失效。
+
 `contracts/orgmaster-administration/v1/**`、DEV-127 registry／manifest／generated fixture及migration固定LF，保留producer exact-byte source pin；未知新版本或未分類路徑仍FULL。已審查DEV-127 consumer scripts/package分別選authorization，實際SQL／PGfixture另選database；requiredCI沿既有Production Slice QC驗current DEV-127 source tests，不免除原DEV-123 compatibility或原required checks。
 
 DEV-127 app／authorization-only main CI 依 affected-slice 契約不建置未受影響的 DEV-125 Windows installer；正式 owner workflow 因此不得要求另一個 push CI 恰好存在同 SHA installer artifact。installer stage 改由同一 owner run 的隔離 `windows-latest` job，在 preflight 驗明 protected exact source 後直接建置並驗證 same-source installer，再以 workflow artifact 傳給 production build。該 job 只有 `contents:read`，沒有 production environment、`id-token`、GCP 身分、`actions:read`、跨 run 查找或下載；production build 仍重驗 sourceRevision／manifest／build evidence，image／provenance／capsule 的 installer 綁定不變。
