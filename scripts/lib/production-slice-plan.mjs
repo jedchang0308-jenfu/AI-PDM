@@ -78,6 +78,7 @@ const DATABASE = [
   /^scripts\/lib\/dev127-(?:catalog-|role-policy-upgrade)(?:.*)\.mjs$/u,
   /^scripts\/dev127-upgrade-role-policy\.mjs$/u,
   /^db\/postgres\//u,
+  /^scripts\/qc-draft-numbering-delete-(?:transfer-race|openswx-postgres|repository-postgres)\.mjs$/u,
   /^scripts\/.*(?:postgres|migration|database-boundary)/u,
   /^src\/lib\/(?:db|postgres|database|repositories)\//u,
   /^src\/lib\/.*(?:postgres|migration|schema)/u,

@@ -12,6 +12,7 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
 import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
+import { DraftNumberingDeleteAction } from "@/components/draft-numbering-delete-action";
 import type { PartPreviewMutationResult } from "@/lib/pdm-part-preview";
 import type { CanonicalWorkbenchDetailDto, CanonicalWorkbenchRowDto, CanonicalWorkbenchAction, CanonicalDetailReadModelRow } from "@/lib/pdm-canonical-workbench-contract";
 
@@ -113,7 +114,7 @@ function AttachmentManagementAction({ allowed, onClick }: { allowed: boolean; on
     aria-busy={state.kind === "loading" ? true : undefined} onClick={onClick}>管理附件</button>;
 }
 
-export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart }: {
+export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart, onDraftBundleDeleted }: {
   detail: Detail | null; loading: boolean; error: string; onClose: () => void;
   width: number; onStartResize: (clientX: number) => void;
   canManageAttachments: boolean;
@@ -127,6 +128,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   onMatrixDirtyChange: (dirty: boolean) => void;
   onOpenMatrixDrawing: (detailHref: string) => void;
   onOpenMatrixPart: (detailHref: string) => void;
+  onDraftBundleDeleted: () => void;
 }) {
   const [matrixEditing, setMatrixEditing] = useState(false);
   const presentation = detail?.data.presentation;
@@ -165,6 +167,8 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   >
     {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入明細…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
        <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
+       {!historyRevisionId && detail.data.row.layer !== "production" && relationMatrix?.rootCode ? <DraftNumberingDeleteAction
+         key={relationMatrix.rootCode} rootCode={relationMatrix.rootCode} onBeforeOpen={onBeforeCreate} onDeleted={onDraftBundleDeleted} /> : null}
        <DetailRecognitionSections detail={detail} />
        {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}
       {presentation.kind === "part" && presentation.preview ? <CanonicalPartPreviewSection

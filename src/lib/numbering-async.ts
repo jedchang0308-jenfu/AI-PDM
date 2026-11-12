@@ -1,4 +1,8 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { checkDraftNumberingDelete, draftNumberingDeleteFingerprint, type DraftNumberingDeleteActor } from "@/lib/draft-numbering-delete-policy";
+import { lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
+import { AsyncTransferPackageRepository, type TransferPackageActor } from "@/lib/repositories/transfer-package-async-repository";
 import {
   createFallbackCommandMetadata,
   createPdmCommand,
@@ -18,8 +22,6 @@ import type {
   AddPartNumberToRootResult,
   ApplyNumberingRuleTemplateInput,
   CreateNumberingApprovalBatchInput,
-  DeleteDraftNumberingRecordInput,
-  DeleteDraftNumberingRecordResult,
   CreateNumberingRecordInput,
   CreateNumberingExportJobInput,
   DecideNumberingApprovalBatchInput,
@@ -127,6 +129,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
     command,
     principalRequest: commandMetadata.principalRequest,
     principalAuthorization: commandMetadata.principalAuthorization,
+    serializable: true,
     execute: (transactionClient, _decision, verified) => new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).createNumberingRecord(input),
     event: (result) => ({
       aggregateType: "part_root",
@@ -188,10 +191,53 @@ export async function obsoleteDraftNumberingRecordAsync(
   return executed.result;
 }
 
-export async function deleteDraftNumberingRecordAsync(input: DeleteDraftNumberingRecordInput): Promise<DeleteDraftNumberingRecordResult> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.deleteDraftNumberingRecord(input);
+export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDatabaseClient, input: {
+  companyId: string;
+  rootCode: string;
+  fingerprint: string;
+  actor: DraftNumberingDeleteActor;
+  transferActor?: TransferPackageActor;
+}) {
+  if (client.kind === "postgres" && client.transactionScope !== "postgres") {
+    throw new Error("NUMBERING_DRAFT_DELETE_TRANSACTION_REQUIRED");
+  }
+  const repo = new AsyncNumberingRepository(client);
+  const proposed = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode);
+  if (!proposed) throw new Error("NUMBERING_DRAFT_DELETE_NOT_FOUND");
+  await lockPdmEntityScopeAsync(client, [
+    { type: "part_root", id: proposed.root.id, companyId: input.companyId },
+    ...proposed.drawings.map(row => ({ type: "drawing_number", id: row.id, companyId: input.companyId })),
+    ...proposed.parts.map(row => ({ type: "part_number", id: row.id, companyId: input.companyId }))
+  ]);
+  const basis = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode);
+  if (!basis || draftNumberingDeleteFingerprint(basis, input.actor) !== input.fingerprint) {
+    throw new Error("NUMBERING_DRAFT_DELETE_STALE");
+  }
+  const blocked = checkDraftNumberingDelete(basis, input.actor);
+  if (blocked) throw new Error(blocked);
+
+  if (basis.transfers.length > 0) {
+    const actor = input.transferActor;
+    if (!actor || actor.userId !== input.actor.userId || actor.companyId !== input.companyId) {
+      throw new Error("NUMBERING_DRAFT_DELETE_TRANSFER_PERMISSION_REQUIRED");
+    }
+    const transfers = new AsyncTransferPackageRepository(client);
+    const versions = new Map<string, number>();
+    for (const ref of [...basis.transfers].sort((left, right) =>
+      left.packageId.localeCompare(right.packageId) || left.id.localeCompare(right.id))) {
+      const updated = await transfers.removeScopeItem({ packageId: ref.packageId, itemId: ref.id, actor,
+        expectedRowVersion: versions.get(ref.packageId) ?? ref.packageVersion }, client);
+      versions.set(ref.packageId, updated.rowVersion);
+    }
+  }
+  const result = await repo.deleteDraftNumberingRecord({
+    companyId: input.companyId, rootCode: basis.root.code, deletedBy: input.actor.userId
+  }, client);
+  return { rootId: result.deletedRoot.id, rootCode: result.rootCode,
+    drawingNumbers: result.deletedDrawingNumbers.map(drawing => drawing.drawingNumber),
+    partNumbers: result.deletedPartNumbers.map(part => part.partNumber),
+    removedTransferReferences: basis.transfers.length,
+    reusable: /^[A-Z][0-9]{4}$/u.test(result.rootCode) };
 }
 
 export async function checkNumberingDuplicatesAsync(input: DuplicateCheckInput): Promise<DuplicateCheckResult> {

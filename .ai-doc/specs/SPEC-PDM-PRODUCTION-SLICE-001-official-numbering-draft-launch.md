@@ -633,7 +633,7 @@ This document intentionally does not include merge plan, PR checklist, deploymen
 | Surface / method | Slice A | Slice B | Slice C | Required server restriction |
 |---|---|---|---|---|
 | Root drawer draft action | inert | enabled when policy allows | enabled when policy allows | server-owned domain＋permission＋environment capability |
-| `DELETE /api/numbering/records/[rootCode]/draft` | denied | denied | denied | permanent production deny；owner UI never calls |
+| `DELETE /api/numbering/records/[rootCode]/draft` | scoped | scoped | scoped | 啟用編號 production slice 時，已驗證的 RD 負責人或 AI-PDM 系統管理員可對未核准、未正式使用的草稿執行確認後的永久刪除。 |
 | `POST /api/numbering/records/[rootCode]/obsolete` | denied | allowed | allowed | only Draft／NeedInfo entire bundle、zero controlled reference、reason＋confirmation |
 | `GET /api/numbering/roots/[rootCode]/obsolete-impact` | read-only if no write CTA, otherwise unopened reason | read-only as needed | allowed | company／read permission；回傳Active／Released與受控Draft／NeedInfo targets；no mutation |
 | `POST /api/lifecycle/obsolete-requests` | denied | denied | allowed | only entity types／action codes `obsolete_part_root`、`obsolete_part_number`、`obsolete_ma_drawing`；受控Draft／NeedInfo只允許root-scoped action |

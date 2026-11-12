@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { readV3OccupiedRootCodes } from "@/lib/repositories/numbering-async-repository";
 import {
   NUMBERING_RULE_V3_ID,
   formatDrawingNumberForRule,
@@ -44,17 +45,8 @@ export async function previewAppendNumbersAsync(client: AsyncDatabaseClient, com
 }
 
 async function nextRootCode(client: AsyncDatabaseClient, companyId: string, ruleVersionId: string) {
-  const official = await client.query<{ code: string }>("SELECT root_code AS code FROM part_roots WHERE company_id = :companyId", { companyId });
-  const projections = await client.query<{ code: string }>(
-    "SELECT drawing_number AS code FROM drawings WHERE company_id = :companyId AND drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'",
-    { companyId },
-  );
-  const recovery = await recoveryCodes(client, companyId, "root");
-  const projectionRoots = projections.flatMap((row) => {
-    const match = /^(?:D-)?([A-Z][0-9]{4})-(?:M|R)[0-9]{1,2}$/u.exec(String(row.code ?? "").trim().toUpperCase());
-    return match ? [match[1]] : [];
-  });
-  const sequence = lowestAvailable([...official, ...projectionRoots.map((code) => ({ code })), ...recovery].map((row) => rootCodeToV3Ordinal(row.code) ?? 0), 26 * 9999, "ROOT");
+  const occupied = await readV3OccupiedRootCodes(client, companyId);
+  const sequence = lowestAvailable(occupied.map(code => rootCodeToV3Ordinal(code) ?? 0), 26 * 9999, "ROOT");
   return formatRootCodeForRule(sequence, ruleVersionId);
 }
 
