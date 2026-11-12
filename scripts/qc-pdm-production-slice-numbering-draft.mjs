@@ -38,6 +38,7 @@ const reconfirmRoute = readRequired("src/app/api/numbering/part-number-drafts/[d
 const restoreRoute = readRequired("src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts");
 const voidRoute = readRequired("src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts");
 const recycleRoute = readRequired("src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts");
+const deleteBundleRoute = readRequired("src/app/api/numbering/records/[rootCode]/draft/route.ts");
 const changeControlDomain = readRequired("src/lib/pdm-change-control-domain.ts");
 
 const allowedSection = helper.split("const sliceAllowedApiMutationMatchers")[1]?.split("];")[0] ?? "";
@@ -89,11 +90,15 @@ record("SLICE-021 restore route gates before domain mutation", restoreRoute.incl
 record("SLICE-022 void route continues to use change-control service", voidRoute.includes("voidPartNumberDraft"));
 record("SLICE-023 recycle route continues to use change-control service", recycleRoute.includes("recyclePartNumberDraft"));
 record("SLICE-024 void/recycle domain uses existing controlled-boundary predicate", changeControlDomain.includes("async assertPartNumberDraftIsRecyclable") && changeControlDomain.includes("const boundary = await this.assertPartNumberDraftIsRecyclable(input.draftId, input.actor);"));
-record("SLICE-025 only reviewed Principal transfer items, Part attachments or current work file bindings may be deleted", allowedMutationLines
+const reviewedDraftBundleDelete = String.raw`{ method: "DELETE", pattern: /^\/api\/numbering\/records\/[^/]+\/draft$/u },`;
+record("SLICE-025 only reviewed Principal transfer items, Part attachments, current work files or eligible draft bundles may be deleted", allowedMutationLines
   .filter((line) => line.includes('method: "DELETE"'))
   .every((line) => reviewedPrincipalTransferLines.has(line) || reviewedPartAttachmentLines.has(line) ||
-    line === String.raw`{ method: "DELETE", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files\/[^\/]+$/u },`)
-  && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
+    line === String.raw`{ method: "DELETE", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files\/[^\/]+$/u },` ||
+    line === reviewedDraftBundleDelete)
+  && allowedMutationLines.filter(line => line === reviewedDraftBundleDelete).length === 1
+  && ["withVerifiedJenfuPrincipalRequest", "checkDraftNumberingDelete", "confirmDelete", '"serializable"',
+    "deleteVerifiedDraftNumberingBundleInClient"].every(guard => deleteBundleRoute.includes(guard)), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
 record("SLICE-026A local full-function validation is explicit and development-only", helper.includes('env.NODE_ENV') && helper.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION') && envExample.includes("PDM_LOCAL_FULL_FUNCTION_VALIDATION=false"));
 record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));

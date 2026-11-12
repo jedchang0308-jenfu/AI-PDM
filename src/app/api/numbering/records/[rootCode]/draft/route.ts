@@ -51,7 +51,7 @@ async function handle(request: Request, route: Route, fingerprint?: string) {
       }
       if (fingerprint) {
         const result = await deleteVerifiedDraftNumberingBundleInClient(client, {
-          companyId, rootCode, fingerprint, actor,
+          companyId, rootCode, fingerprint, actor, verified,
           transferActor: transfer?.allowed ? { userId: pdmUserId, companyId, role: "Principal",
             principalId: verified.session.principalId, principalDecision: transfer } : undefined
         });

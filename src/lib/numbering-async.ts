@@ -2,6 +2,8 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { checkDraftNumberingDelete, draftNumberingDeleteFingerprint, type DraftNumberingDeleteActor } from "@/lib/draft-numbering-delete-policy";
 import { lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { rootCodeToV3Ordinal } from "@/lib/numbering-identity";
 import { AsyncTransferPackageRepository, type TransferPackageActor } from "@/lib/repositories/transfer-package-async-repository";
 import {
   createFallbackCommandMetadata,
@@ -196,12 +198,16 @@ export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDa
   rootCode: string;
   fingerprint: string;
   actor: DraftNumberingDeleteActor;
+  verified: VerifiedPrincipalRequest;
   transferActor?: TransferPackageActor;
 }) {
   if (client.kind === "postgres" && client.transactionScope !== "postgres") {
     throw new Error("NUMBERING_DRAFT_DELETE_TRANSACTION_REQUIRED");
   }
-  const repo = new AsyncNumberingRepository(client);
+  if (input.verified.profile.companyId !== input.companyId || input.verified.profile.pdmUserId !== input.actor.userId) {
+    throw new Error("NUMBERING_DRAFT_DELETE_ACTOR_MISMATCH");
+  }
+  const repo = new AsyncNumberingRepository(client, undefined, undefined, undefined, input.verified);
   const proposed = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode);
   if (!proposed) throw new Error("NUMBERING_DRAFT_DELETE_NOT_FOUND");
   await lockPdmEntityScopeAsync(client, [
@@ -237,7 +243,7 @@ export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDa
     drawingNumbers: result.deletedDrawingNumbers.map(drawing => drawing.drawingNumber),
     partNumbers: result.deletedPartNumbers.map(part => part.partNumber),
     removedTransferReferences: basis.transfers.length,
-    reusable: /^[A-Z][0-9]{4}$/u.test(result.rootCode) };
+    reusable: rootCodeToV3Ordinal(result.rootCode) !== null };
 }
 
 export async function checkNumberingDuplicatesAsync(input: DuplicateCheckInput): Promise<DuplicateCheckResult> {
