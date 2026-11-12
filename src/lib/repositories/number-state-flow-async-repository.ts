@@ -1,13 +1,11 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { allocateMemberNumber } from "@/lib/numbering-member-allocation";
 import { readV3OccupiedRootCodes } from "@/lib/repositories/numbering-async-repository";
 import { canonicalJsonStringify } from "@/lib/canonical-json";
 import {
   NUMBERING_RULE_V3_ID,
   assertPurposeAllowedForRule,
-  formatDrawingNumberForRule,
-  formatDrawingSequenceForRule,
-  formatPartNumberForRule,
   formatPartSequenceForRule,
   formatRootCodeForRule,
   rootCodeToV3Ordinal
@@ -447,21 +445,6 @@ function lowestAvailable(used: Iterable<number>, maximum: number, label: string)
     if (!values.has(value)) return value;
   }
   throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
-}
-
-function sequenceFromPartCode(code: string, rootCode: string) {
-  const compact = new RegExp(`^${rootCode.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}-P([0-9]{2})$`, "u").exec(code);
-  if (compact) return Number.parseInt(compact[1], 10);
-  const legacy = new RegExp(`^P-${rootCode.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}-([0-9]{3})$`, "u").exec(code);
-  return legacy ? Number.parseInt(legacy[1], 10) : null;
-}
-
-function sequenceFromDrawingCode(code: string, rootCode: string, purposeCode: NumberingDraftPurposeCode) {
-  const escapedRoot = rootCode.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const compact = new RegExp(`^${escapedRoot}-${purposeCode}([0-9]{2})$`, "u").exec(code);
-  if (compact) return Number.parseInt(compact[1], 10);
-  const legacy = new RegExp(`^D-${escapedRoot}-${purposeCode}([0-9])$`, "u").exec(code);
-  return legacy ? Number.parseInt(legacy[1], 10) : null;
 }
 
 function mapReservation(row: ReservationRow): NumberCandidateReservationRecord {
@@ -967,6 +950,9 @@ export class AsyncNumberStateFlowRepository {
         drawingDraftIds: drawings.map((drawing) => drawing.id),
         relationCount: relations.length,
         relationsReady: relationReadiness.ready,
+        relationshipOnlyReady: workspace.draft_mode === "append_part"
+          && Boolean(workspace.source_drawing_number_id && workspace.source_link_type)
+          && parts.length > 0 && drawings.length === 0 && relationReadiness.ready,
         reservations: reservations.map((reservation) => ({
           itemType: reservation.draft_item_type,
           state: reservation.reservation_state
@@ -1646,43 +1632,22 @@ export class AsyncNumberStateFlowRepository {
     ruleVersionId: string;
     sequenceScopeKey: string;
   }) {
+    if (input.itemType !== "root") {
+      if (!input.rootCode || (input.itemType === "drawing" && !input.purposeCode)) {
+        throw new Error("NUMBER_CANDIDATE_SCOPE_REQUIRED");
+      }
+      const common = { companyId: input.companyId, rootCode: input.rootCode, ruleVersionId: input.ruleVersionId };
+      const allocated = await allocateMemberNumber(this.client, input.itemType === "drawing"
+        ? { ...common, kind: "drawing", purposeCode: input.purposeCode! }
+        : { ...common, kind: "part" }, this.clock());
+      return { sequenceNo: allocated.sequenceNo, candidateCode: allocated.code };
+    }
     await this.lockSequenceScope(input.companyId, input.sequenceScopeKey);
-    const reservedCodes = await this.usedCodes(input.companyId, input.itemType, input.sequenceScopeKey);
-    let officialCodes: string[] = [];
-    if (input.itemType === "root") {
-      officialCodes = await readV3OccupiedRootCodes(this.client, input.companyId);
-    } else if (input.itemType === "part") {
-      officialCodes = (await this.client.query<{ code: string }>(
-        "SELECT part_number AS code FROM part_numbers WHERE company_id = :companyId",
-        { companyId: input.companyId }
-      )).map((row) => row.code);
-    } else {
-      officialCodes = (await this.client.query<{ code: string }>(
-        "SELECT drawing_number AS code FROM drawing_numbers WHERE company_id = :companyId",
-        { companyId: input.companyId }
-      )).map((row) => row.code);
-    }
-    const allCodes = [...officialCodes, ...reservedCodes];
-    let sequenceNo: number;
-    let candidateCode: string;
-    if (input.itemType === "root") {
-      sequenceNo = lowestAvailable(allCodes.map((code) => rootCodeToV3Ordinal(code) ?? 0), 26 * 9999, "ROOT");
-      candidateCode = formatRootCodeForRule(sequenceNo, input.ruleVersionId);
-    } else if (input.itemType === "part") {
-      const rootCode = input.rootCode!;
-      sequenceNo = lowestAvailable(allCodes.map((code) => sequenceFromPartCode(code, rootCode) ?? 0), 99, "PART");
-      candidateCode = formatPartNumberForRule(rootCode, formatPartSequenceForRule(sequenceNo, input.ruleVersionId), input.ruleVersionId);
-    } else {
-      const rootCode = input.rootCode!;
-      const purposeCode = input.purposeCode!;
-      sequenceNo = lowestAvailable(allCodes.map((code) => sequenceFromDrawingCode(code, rootCode, purposeCode) ?? 0), 99, "DRAWING");
-      candidateCode = formatDrawingNumberForRule(
-        rootCode,
-        purposeCode,
-        formatDrawingSequenceForRule(sequenceNo, input.ruleVersionId),
-        input.ruleVersionId
-      );
-    }
+    const reservedCodes = await this.usedCodes(input.companyId, "root", input.sequenceScopeKey);
+    const officialCodes = await readV3OccupiedRootCodes(this.client, input.companyId);
+    const sequenceNo = lowestAvailable([...officialCodes, ...reservedCodes].map(code => rootCodeToV3Ordinal(code) ?? 0),
+      26 * 9999, "ROOT");
+    const candidateCode = formatRootCodeForRule(sequenceNo, input.ruleVersionId);
     await this.client.execute(
       `UPDATE numbering_sequences
        SET next_value = CASE WHEN next_value < :nextValue THEN :nextValue ELSE next_value END, updated_at = :updatedAt

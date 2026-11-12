@@ -106,7 +106,20 @@ try {
   const adminContext = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const adminPage = await login(adminContext, "Admin");
 
   await runCase("B01", "formal Part drawer has one primary edit CTA", adminPage, async ({ page, check }) => { const drawer = await openDrawer(page, "正式資料"); check(await drawer.getByRole("button", { name: "編輯料號", exact: true }).count() === 1, "formal primary 編輯料號 exactly once"); check(await drawer.getByRole("button", { name: "編輯關聯", exact: true }).count() === 0, "Part drawer has no 編輯關聯"); check(await drawer.locator("input, textarea, select").count() === 0, "drawer body is form-free"); });
-  await runCase("B02", "owner Part drawer separates continue and cancel", adminPage, async ({ page, check }) => { const drawer = await openDrawer(page, "修改中"); check(await drawer.getByRole("button", { name: "繼續編輯", exact: true }).count() === 1, "owner primary 繼續編輯 exactly once"); check(await drawer.getByRole("button", { name: "編輯關聯", exact: true }).count() === 0, "owner Part drawer no relation CTA"); const more = drawer.locator("details.canonical-drawer-more-actions summary"); check(await more.count() === 1, "lifecycle actions are grouped as secondary"); await more.click(); check(await drawer.getByRole("button", { name: "取消本次工作", exact: true }).isVisible(), "cancel is lifecycle secondary"); });
+  await runCase("B02", "owner Part drawer separates editing from deletion", adminPage, async ({ page, check }) => {
+    const drawer = await openDrawer(page, "修改中");
+    check(await drawer.getByRole("button", { name: "編輯", exact: true }).count() === 1, "owner primary 編輯 exactly once");
+    check(await drawer.getByRole("button", { name: "編輯關聯", exact: true }).count() === 0, "owner Part drawer no relation CTA");
+    const startTrace = traces.length;
+    await drawer.getByRole("button", { name: "刪除…", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "你要刪除什麼？" });
+    check(await modal.getByRole("radio", { name: "捨棄此版所有未核准的修改" }).isEnabled(), "owner can select work deletion");
+    check(await modal.getByRole("radio").count() === 3, "all three scopes are visible");
+    check(await modal.locator("input:checked").count() === 0, "no scope preselected");
+    check(await modal.getByRole("button", { name: "確認刪除", exact: true }).isDisabled(), "confirmation requires explicit selection");
+    await modal.getByRole("button", { name: "取消", exact: true }).click();
+    check(!traces.slice(startTrace).some(entry => entry.kind === "request" && ["POST", "PATCH", "PUT", "DELETE"].includes(entry.method)), "opening and closing deletion choices does not mutate");
+  });
   const manufacturingContext = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const manufacturingPage = await login(manufacturingContext, "Manufacturing");
   await runCase("B03", "no-permission role fails closed", manufacturingPage, async ({ page, check }) => { const drawer = await openDrawer(page, "正式資料"); check(await drawer.getByRole("button", { name: "編輯關聯", exact: true }).count() === 0, "no-permission no relation CTA"); check(await drawer.getByRole("button", { name: "編輯料號", exact: true }).count() === 0, "no-permission no edit CTA"); check(await drawer.locator(".pdm-relation-matrix-cell-button").count() === 0, "no-permission relation cells readonly"); });
   await manufacturingContext.close();

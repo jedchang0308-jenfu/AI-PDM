@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { consensusStoredPartStructureType, type NumberingStructureType, type StoredPartStructureType } from "@/lib/numbering-structure-type";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import type { DraftNumberingDeleteBasis } from "@/lib/draft-numbering-delete-policy";
+import { allocateMemberNumber, previewReleasedMemberNumbers } from "@/lib/numbering-member-allocation";
+import type { DraftNumberingDeleteBasis, DraftNumberingMemberTarget, DraftNumberingReuse } from "@/lib/draft-numbering-delete-policy";
 import { PartChangeWorkAsyncRepository } from "@/lib/repositories/part-change-work-async-repository";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { assertPdmReviewScopeWritableAsync, lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
@@ -12,8 +13,6 @@ import {
   NUMBERING_RULE_V3_ID,
   assertPurposeAllowedForRule,
   displayDrawingPurposeLabel,
-  formatDrawingNumberForRule,
-  formatDrawingSequenceForRule,
   formatPartNumberForRule,
   formatPartSequenceForRule,
   formatRootCodeForRule,
@@ -2818,10 +2817,6 @@ function formatPartSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_
   return formatPartSequenceForRule(value, ruleVersionId);
 }
 
-function formatDrawingSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
-  return formatDrawingSequenceForRule(value, ruleVersionId);
-}
-
 function requireCustomSpecification(itemKind: NumberingItemKind, customSpecification: string | undefined) {
   void itemKind;
   void customSpecification;
@@ -4028,10 +4023,12 @@ export class AsyncNumberingRepository {
           companyId,
           rootCode: root.rootCode,
           partNumber: partNumber.partNumber,
+          partNumberId: partNumber.id,
           customSpecification: partNumber.customSpecification,
           seriesCode: partNumber.seriesCode,
           structureType: partNumber.structureType,
           drawingNumber: drawingNumber?.drawingNumber ?? null,
+          drawingNumberId: drawingNumber?.id ?? null,
           ruleVersionId
         }
       });
@@ -4119,6 +4116,7 @@ export class AsyncNumberingRepository {
           companyId,
           rootCode: root.rootCode,
           drawingNumber: drawingNumber.drawingNumber,
+          drawingNumberId: drawingNumber.id,
           purposeCode: drawingNumber.purposeCode,
           linkedPartNumber: linkedPart?.partNumber ?? null,
           linkType,
@@ -4218,6 +4216,7 @@ export class AsyncNumberingRepository {
           companyId,
           rootCode: root.rootCode,
           partNumber: partNumber.partNumber,
+          partNumberId: partNumber.id,
           structureType: partNumber.structureType,
           linkedDrawingNumber: linkedDrawing?.drawingNumber ?? null,
           linkType,
@@ -4282,13 +4281,6 @@ export class AsyncNumberingRepository {
       const root = mapPartRoot(rootRow);
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? root.ruleVersionId;
-      const drawingNumber = await this.insertDrawingNumber(client, root, {
-        purposeCode: input.purposeCode,
-        purposeDescription: input.purposeDescription,
-        recordStatus,
-        ruleVersionId,
-        createdBy: input.createdBy
-      });
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: inheritedPart.itemKind,
@@ -4297,6 +4289,13 @@ export class AsyncNumberingRepository {
         isUniversal: inheritedPart.isUniversal,
         customSpecification: inheritedPart.customSpecification ?? undefined,
         seriesCode: inheritedPart.seriesCode ?? undefined,
+        ruleVersionId,
+        createdBy: input.createdBy
+      });
+      const drawingNumber = await this.insertDrawingNumber(client, root, {
+        purposeCode: input.purposeCode,
+        purposeDescription: input.purposeDescription,
+        recordStatus,
         ruleVersionId,
         createdBy: input.createdBy
       });
@@ -4325,6 +4324,8 @@ export class AsyncNumberingRepository {
           rootCode: root.rootCode,
           drawingNumber: drawingNumber.drawingNumber,
           partNumber: partNumber.partNumber,
+          drawingNumberId: drawingNumber.id,
+          partNumberId: partNumber.id,
           structureType: partNumber.structureType,
           purposeCode: drawingNumber.purposeCode,
           linkType,
@@ -4553,21 +4554,211 @@ export class AsyncNumberingRepository {
     return run(this.client);
   }
 
-  async readDraftNumberingDeleteBasis(companyId: string, rootCode: string): Promise<DraftNumberingDeleteBasis | null> {
+  private async readDeleteNumberReuse(
+    companyId: string, root: PartRootRow, drawings: readonly DrawingNumberRow[], parts: readonly PartNumberRow[],
+    deletingRoot: boolean
+  ): Promise<DraftNumberingReuse[]> {
+    const result: DraftNumberingReuse[] = deletingRoot
+      ? [{ code: root.root_code, kind: "root", status: isV3RootCode(root.root_code) ? "reusable" : "unknown" }]
+      : [];
+    const common = { companyId, rootCode: root.root_code,
+      ruleVersionId: deletingRoot ? DEFAULT_RULE_VERSION_ID : root.rule_version_id };
+    if (!deletingRoot && isClosedRecordStatus(root.record_status)) return [
+      ...parts.map(row => ({ code: row.part_number, kind: "part" as const, status: "not_reusable" as const })),
+      ...drawings.map(row => ({ code: row.drawing_number, kind: "drawing" as const, status: "not_reusable" as const }))
+    ];
+    if (parts.length) {
+      result.push(...await previewReleasedMemberNumbers(this.client,
+        { ...common, kind: "part" }, parts.map(row => row.part_number), parts.map(row => row.id)));
+    }
+    const drawingsByPurpose = new Map<DrawingPurposeCode, string[]>();
+    for (const drawing of drawings) {
+      const purposeCode = parseNumberingIdentity(drawing.drawing_number).purposeCode;
+      if (!purposeCode) {
+        result.push({ code: drawing.drawing_number, kind: "drawing", status: "unknown" });
+        continue;
+      }
+      const codes = drawingsByPurpose.get(purposeCode) ?? [];
+      codes.push(drawing.drawing_number);
+      drawingsByPurpose.set(purposeCode, codes);
+    }
+    for (const [purposeCode, codes] of drawingsByPurpose) {
+      result.push(...await previewReleasedMemberNumbers(this.client,
+        { ...common, kind: "drawing", purposeCode }, codes, drawings.map(row => row.id)));
+    }
+    return result.sort((left, right) => left.code.localeCompare(right.code));
+  }
+
+  private async readIndependentNumberReservations(companyId: string) {
+    return this.client.query<{ code: string }>(
+      "SELECT number_value AS code FROM numbering_recovery_reservations WHERE company_id = :companyId AND reservation_status = 'reserved'" +
+      " UNION ALL SELECT candidate_code AS code FROM number_candidate_reservations WHERE company_id = :companyId" +
+      " AND reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')" +
+      " UNION ALL SELECT reserved_part_number AS code FROM part_number_drafts WHERE company_id = :companyId" +
+      " AND status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation')", { companyId }
+    );
+  }
+
+  private async readDraftNumberingMemberDeleteBasis(
+    companyId: string, root: PartRootRow, target: DraftNumberingMemberTarget
+  ): Promise<DraftNumberingDeleteBasis | null> {
+    const client = this.client;
+    const drawing = target.kind === "drawing" ? await client.queryOne<DrawingNumberRow>(
+      SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { companyId, drawingNumber: target.code }
+    ) : null;
+    const part = target.kind === "part" ? await client.queryOne<PartNumberRow>(
+      SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { companyId, partNumber: target.code }
+    ) : null;
+    const member = drawing ?? part;
+    if (!member || member.part_root_id !== root.id) return null;
+    const params = { companyId, rootId: root.id, memberId: member.id, code: target.code,
+      drawingId: drawing?.id ?? null, partId: part?.id ?? null,
+      memberType: drawing ? "drawing_number" : "part_number" };
+    const scope = `
+      WITH canonical_drawings AS (
+        SELECT id, owner_id, lifecycle_state, controlled_at, released_at FROM drawings
+        WHERE company_id = :companyId AND formal_drawing_number_id = :drawingId
+      ), revisions AS (
+        SELECT id, lifecycle_state, controlled_at, released_at FROM drawing_revisions
+        WHERE company_id = :companyId AND drawing_id IN (SELECT id FROM canonical_drawings)
+      ), targets AS (
+        SELECT CAST(:memberId AS text) AS id
+        UNION SELECT id FROM canonical_drawings
+        UNION SELECT id FROM revisions
+      ), owned_files AS (
+        SELECT id, file_name FROM file_assets WHERE deleted_at IS NULL AND (
+          (linked_entity_type = :memberType AND linked_entity_id = :memberId) OR
+          (linked_entity_type = 'drawing_revision' AND linked_entity_id IN (SELECT id FROM revisions)))
+      )`;
+    const references = await client.query<{ reason: string }>(scope + `
+      SELECT reason FROM (
+        SELECT '此筆圖號已有受管制或核准的版次。' AS reason WHERE EXISTS (
+          SELECT 1 FROM canonical_drawings WHERE lifecycle_state NOT IN ('building', 'drawing_preparation', 'cancelled')
+            OR controlled_at IS NOT NULL OR released_at IS NOT NULL
+          UNION ALL SELECT 1 FROM revisions WHERE lifecycle_state NOT IN ('preparing', 'correction_required', 'cancelled')
+            OR controlled_at IS NOT NULL OR released_at IS NOT NULL
+          UNION ALL SELECT 1 FROM drawing_rd_branches WHERE company_id = :companyId
+            AND drawing_id IN (SELECT id FROM canonical_drawings)
+            AND (latest_approved_revision_id IS NOT NULL OR base_production_revision_id IS NOT NULL))
+        UNION ALL
+        SELECT '料號 ' || part.part_number || ' 仍與這筆圖號關聯。'
+          FROM drawing_part_links link JOIN part_numbers part ON part.id = link.part_number_id
+          WHERE link.drawing_number_id = :drawingId AND part.company_id = :companyId
+        UNION ALL
+        SELECT '圖號 ' || drawing.drawing_number || ' 仍與這筆料號關聯。'
+          FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id
+          WHERE link.part_number_id = :partId AND drawing.company_id = :companyId
+        UNION ALL SELECT '仍有共圖變體引用這筆資料。' WHERE EXISTS (
+          SELECT 1 FROM same_drawing_variants WHERE drawing_number_id = :drawingId OR part_number_id = :partId)
+        UNION ALL SELECT '有其他範圍的圖料關聯引用這筆資料。' WHERE EXISTS (
+          SELECT 1 FROM drawing_part_links link JOIN part_numbers part ON part.id = link.part_number_id
+          WHERE link.drawing_number_id = :drawingId AND part.company_id <> :companyId
+          UNION ALL SELECT 1 FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id
+          WHERE link.part_number_id = :partId AND drawing.company_id <> :companyId)
+        UNION ALL SELECT '這筆資料或其根號仍有審核、核准或圖料關聯修改紀錄。' WHERE EXISTS (
+          SELECT 1 FROM approval_requests WHERE entity_id = :rootId OR entity_id IN (SELECT id FROM targets)
+          UNION ALL SELECT 1 FROM approval_platform_targets target JOIN approval_platform_requests request
+            ON request.id = target.request_id WHERE request.company_id = :companyId
+            AND (target.target_id = :rootId OR target.target_id IN (SELECT id FROM targets))
+          UNION ALL SELECT 1 FROM pdm_work_review_requests WHERE company_id = :companyId
+            AND (canonical_entity_id = :rootId OR canonical_entity_id IN (SELECT id FROM targets))
+          UNION ALL SELECT 1 FROM part_approved_change_snapshots WHERE company_id = :companyId AND part_id = :partId
+          UNION ALL SELECT 1 FROM relation_approved_change_snapshots WHERE company_id = :companyId AND root_id = :rootId)
+        UNION ALL SELECT '這筆資料仍被其他配號或變更工作引用。' WHERE EXISTS (
+          SELECT 1 FROM numbering_draft_workspaces WHERE company_id = :companyId AND
+            (source_root_id = :rootId OR source_drawing_number_id = :drawingId OR source_part_number_id = :partId)
+          UNION ALL SELECT 1 FROM part_number_drafts WHERE company_id = :companyId
+            AND (source_drawing_number_id = :drawingId OR source_part_number_id = :partId)
+          UNION ALL SELECT 1 FROM numbering_candidate_revision_drafts WHERE company_id = :companyId AND formal_drawing_number_id = :drawingId)
+        UNION ALL SELECT '這筆資料已有製造基準、發行資料或替代關係引用。' WHERE EXISTS (
+          SELECT 1 FROM drawing_revision_packages WHERE drawing_number_id = :drawingId
+          UNION ALL SELECT 1 FROM drawing_revision_package_part_scopes WHERE part_number_id = :partId
+          UNION ALL SELECT 1 FROM manufacturing_baseline_items WHERE drawing_number_id = :drawingId
+          UNION ALL SELECT 1 FROM manufacturing_baselines WHERE part_root_id = :rootId OR part_number_id = :partId
+          UNION ALL SELECT 1 FROM part_replacement_links WHERE old_part_number_id = :partId OR new_part_number_id = :partId OR source_drawing_number_id = :drawingId
+          UNION ALL SELECT 1 FROM submission_part_scopes WHERE part_number_id = :partId)
+        UNION ALL SELECT '同一圖號仍有其他未取消的資料。' WHERE EXISTS (
+          SELECT 1 FROM drawings WHERE company_id = :companyId AND :drawingId IS NOT NULL AND drawing_number = :code
+            AND lifecycle_state <> 'cancelled' AND id NOT IN (SELECT id FROM canonical_drawings))
+        UNION ALL SELECT '這筆資料已有辨識、工程證據或受管制欄位引用。' WHERE EXISTS (
+          SELECT 1 FROM drawing_recognition_sessions WHERE company_id = :companyId AND
+            (drawing_id IN (SELECT id FROM targets) OR drawing_revision_id IN (SELECT id FROM revisions)
+             OR (source_context_type = 'drawing_number' AND source_context_id = :drawingId)
+             OR (source_context_type = 'drawing_revision' AND source_context_id IN (SELECT id FROM revisions)))
+          UNION ALL SELECT 1 FROM pdm_part_attribute_values WHERE part_number_id = :partId
+          UNION ALL SELECT 1 FROM pdm_drawing_revision_metadata_values WHERE drawing_revision_id IN (SELECT id FROM revisions)
+          UNION ALL SELECT 1 FROM pdm_controlled_notes WHERE part_number_id = :partId OR drawing_id IN (SELECT id FROM canonical_drawings) OR drawing_revision_id IN (SELECT id FROM revisions)
+          UNION ALL SELECT 1 FROM pdm_engineering_evidence WHERE part_number_id = :partId OR drawing_id IN (SELECT id FROM canonical_drawings) OR drawing_revision_id IN (SELECT id FROM revisions))
+        UNION ALL SELECT '這筆資料的附件仍被共用模型、其他版次或其他料號使用。' WHERE EXISTS (
+          SELECT 1 FROM shared_cad_model_versions WHERE part_root_id = :rootId OR part_number_id = :partId
+            OR source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM part_attachment_reuse_snapshots WHERE source_part_number_id = :partId
+          UNION ALL SELECT 1 FROM part_attachment_reuse_origins WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM submission_files WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM drawing_revision_package_files WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM drawing_revision_package_supplement_files WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM numbering_candidate_revision_files WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM drawing_recognition_sources WHERE file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM part_preview_settings WHERE file_asset_id IN (SELECT id FROM owned_files)
+          UNION ALL SELECT 1 FROM drawing_revision_files WHERE source_file_asset_id IN (SELECT id FROM owned_files)
+            AND drawing_revision_id NOT IN (SELECT id FROM revisions))
+      ) blocked ORDER BY reason`, params);
+    const transfers = await client.query<{ package_code: string }>(`
+      SELECT DISTINCT package.package_code FROM transfer_package_items item
+      JOIN transfer_packages package ON package.id = item.package_id AND package.company_id = item.company_id
+      WHERE item.company_id = :companyId AND item.entity_type = :memberType AND item.entity_id = :memberId
+      ORDER BY package.package_code`, params);
+    const files = await client.query<{ id: string; file_name: string }>(scope + " SELECT id, file_name FROM owned_files ORDER BY id", params);
+    const works = await client.query<{ id: string | null; owner_id: string | null; row_version: number | null; handling: string | null }>(scope + `
+      SELECT work.id, COALESCE(work.owner_user_id, drawing.owner_id) AS owner_id, work.row_version, state.handling
+      FROM canonical_drawings drawing LEFT JOIN drawing_revision_works work ON work.drawing_id = drawing.id AND work.company_id = :companyId
+      LEFT JOIN canonical_workbench_states state ON state.work_id = work.id AND state.company_id = work.company_id
+      UNION ALL
+      SELECT work.id, work.owner_user_id, work.row_version, state.handling FROM part_change_works work
+      LEFT JOIN canonical_workbench_states state ON state.work_id = work.id AND state.company_id = work.company_id
+      WHERE work.company_id = :companyId AND work.part_id = :partId`, params);
+    const worker = client.kind === "postgres" && drawing ? await client.queryOne<{ id: string }>(scope + `
+      SELECT id FROM ai_pdm_core.openswx_metadata_jobs WHERE company_id = :companyId
+        AND (drawing_number_id = :drawingId OR drawing_revision_id IN (SELECT id FROM revisions)) LIMIT 1`, params) : null;
+    const blockers = [
+      ...new Set(references.map(ref => ref.reason)),
+      ...transfers.map(ref => "技術移轉 " + ref.package_code + " 仍引用這筆資料。"),
+      ...(works.some(work => work.id && work.handling !== "owner") ? ["目前的修改工作不在可捨棄狀態。"] : []),
+      ...(worker ? ["這筆圖號有 OpenSWX 解析紀錄，無法單筆刪除。"] : [])
+    ];
+    const numberReuse = await this.readDeleteNumberReuse(companyId, root, drawing ? [drawing] : [], part ? [part] : [], false);
+    if ((await this.readIndependentNumberReservations(companyId)).some(row => row.code === target.code)) {
+      blockers.push("編號 " + target.code + " 仍有其他配號保留紀錄。");
+    }
+    const owners = works.flatMap(work => work.id || work.owner_id ? [work.owner_id] : []);
+    const entry = { id: member.id, code: target.code, status: member.record_status,
+      responsibleUserIds: owners.length ? owners : [member.created_by ?? null] };
+    return {
+      companyId, target,
+      root: { id: root.id, code: root.root_code, status: root.record_status, responsibleUserIds: [root.created_by ?? null] },
+      drawings: drawing ? [entry] : [], parts: part ? [entry] : [],
+      transfers: [], fileIds: files.map(file => file.id), fileNames: files.map(file => file.file_name),
+      controlledReferences: 0, blockers, numberReuse,
+      workVersions: works.flatMap(work => work.id ? [{ id: work.id, version: Number(work.row_version) }] : [])
+    };
+  }
+
+  async readDraftNumberingDeleteBasis(companyId: string, rootCode: string, target?: DraftNumberingMemberTarget): Promise<DraftNumberingDeleteBasis | null> {
     const client = this.client;
     const root = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { companyId, rootCode });
     if (!root) return null;
+    if (target) return this.readDraftNumberingMemberDeleteBasis(companyId, root, target);
     const params = { companyId, rootId: root.id, excludeApprovalRequestId: null, allowTerminalApprovalHistory: 1 };
     const parts = await client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, params);
     const drawings = await client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, params);
     const dependencies = await client.queryOne<RootDependencyCountRow>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, params);
-    const drawingWorks = await client.query<{ formal_id: string; owner_id: string | null }>(`
-      SELECT d.formal_drawing_number_id AS formal_id, COALESCE(w.owner_user_id, d.owner_id) AS owner_id
+    const drawingWorks = await client.query<{ formal_id: string; owner_id: string | null; work_id: string | null; row_version: number | null }>(`
+      SELECT d.formal_drawing_number_id AS formal_id, COALESCE(w.owner_user_id, d.owner_id) AS owner_id, w.id AS work_id, w.row_version
       FROM drawings d LEFT JOIN drawing_revision_works w ON w.drawing_id = d.id AND w.company_id = d.company_id
       WHERE d.company_id = :companyId AND d.part_root_id = :rootId
         AND (w.id IS NOT NULL OR d.owner_id IS NOT NULL)`, params);
-    const partWorks = await client.query<{ part_id: string; owner_user_id: string }>(`
-      SELECT w.part_id, w.owner_user_id FROM part_change_works w
+    const partWorks = await client.query<{ part_id: string; owner_user_id: string; work_id: string; row_version: number }>(`
+      SELECT w.part_id, w.owner_user_id, w.id AS work_id, w.row_version FROM part_change_works w
       JOIN part_numbers p ON p.id = w.part_id AND p.company_id = w.company_id
       WHERE w.company_id = :companyId AND p.part_root_id = :rootId`, params);
     const controlled = await client.queryOne<{
@@ -4692,6 +4883,24 @@ export class AsyncNumberingRepository {
           WHERE drawing.company_id = :companyId AND drawing.part_root_id = :rootId))`, params) : [];
     const responsible = (owners: (string | null)[], creator?: string | null) =>
       owners.length > 0 ? owners : [creator ?? null];
+    const numberReuse = await this.readDeleteNumberReuse(companyId, root, drawings, parts, true);
+    const codes = new Set(numberReuse.map(entry => entry.code));
+    const blockers = [...new Set((await this.readIndependentNumberReservations(companyId))
+      .filter(row => codes.has(row.code)).map(row => row.code))].sort()
+      .map(code => "編號 " + code + " 仍有其他配號保留紀錄。");
+    const controlledReasons = [
+      ...(Number(controlled?.revisions ?? 0) + Number(controlled?.controlled_drawings ?? 0)
+        ? ["組內有圖號已受管制或發行。"] : []),
+      ...(Number(dependencies?.approval_count ?? 0) + Number(controlled?.review_requests ?? 0) +
+        Number(controlled?.approved_part_changes ?? 0) + Number(controlled?.approved_relation_changes ?? 0) +
+        Number(controlled?.platform_approvals ?? 0) ? ["整組資料仍有審核或核准紀錄。"] : []),
+      ...(Number(dependencies?.revision_package_count ?? 0) + Number(dependencies?.shared_model_count ?? 0) +
+        Number(dependencies?.manufacturing_baseline_count ?? 0) + Number(dependencies?.manufacturing_baseline_item_count ?? 0) +
+        Number(dependencies?.replacement_link_count ?? 0) ? ["組內資料仍被發行包、共用模型、製造基準或替代關係引用。"] : []),
+      ...(recognition.some(session => session.disposition === "controlled")
+        ? ["組內有辨識工作已開始處理或已正式寫入。"] : []),
+      ...(Number(controlled?.dependent_workspaces ?? 0) ? ["其他配號工作仍引用這組資料。"] : [])
+    ];
     return {
       companyId,
       root: { id: root.id, code: root.root_code, status: root.record_status,
@@ -4707,6 +4916,9 @@ export class AsyncNumberingRepository {
       auxiliaryJobs: auxiliaryJobs.map(job => ({ id: job.id, status: job.status, dispatchState: job.dispatch_state })),
       recognitionSessions: recognition.filter(session => session.disposition === "cleanup")
         .map(session => ({ id: session.id, rowVersion: Number(session.row_version), status: session.status })),
+      blockers, numberReuse, controlledReasons,
+      workVersions: [...drawingWorks, ...partWorks].flatMap(work => work.work_id
+        ? [{ id: work.work_id, version: Number(work.row_version) }] : []),
       controlledReferences: Number(dependencies?.approval_count ?? 0) + Number(dependencies?.revision_package_count ?? 0) +
         Number(dependencies?.shared_model_count ?? 0) + Number(dependencies?.manufacturing_baseline_count ?? 0) +
         Number(dependencies?.manufacturing_baseline_item_count ?? 0) + Number(dependencies?.replacement_link_count ?? 0) +
@@ -4715,6 +4927,141 @@ export class AsyncNumberingRepository {
         Number(controlled?.platform_approvals ?? 0) + Number(controlled?.controlled_drawings ?? 0) +
         recognition.filter(session => session.disposition === "controlled").length + Number(controlled?.dependent_workspaces ?? 0)
     };
+  }
+
+  async deleteDraftNumberingMember(
+    basis: DraftNumberingDeleteBasis, actorId: string, client: AsyncDatabaseClient
+  ) {
+    const { target, companyId } = basis;
+    const member = target?.kind === "drawing" ? basis.drawings[0] : basis.parts[0];
+    if (!target || !member || basis.drawings.length + basis.parts.length !== 1 || member.code !== target.code) {
+      throw new Error("NUMBERING_DRAFT_DELETE_STALE");
+    }
+    assertDraftMutableStatus(member.status as NumberingRecordStatus, target.kind === "drawing" ? "DRAWING" : "PART");
+    const entityType = target.kind === "drawing" ? "drawing_number" : "part_number";
+    const params = { companyId, entityType, id: member.id, rootId: basis.root.id, actorId, now: this.clock() };
+    await this.cleanupDraftNumberingMemberWork(client, companyId, basis.drawings, basis.parts);
+    for (const fileId of basis.fileIds) {
+      await client.execute(`UPDATE file_assets SET deleted_at = :now, deleted_by = :actorId,
+        deleted_reason = 'numbering_draft_member_deleted', updated_at = :now
+        WHERE id = :fileId AND deleted_at IS NULL`, { ...params, fileId });
+    }
+    await client.execute(`UPDATE numbering_task_items SET task_status = 'cancelled', handled_by = :actorId,
+      handled_at = :now, updated_at = :now WHERE company_id = :companyId
+      AND entity_type = :entityType AND entity_id = :id AND task_status = 'open'`, params);
+    await client.execute(`UPDATE numbering_notifications SET handled_by = :actorId, handled_at = :now, updated_at = :now
+      WHERE company_id = :companyId AND entity_type = :entityType AND entity_id = :id AND handled_at IS NULL`, params);
+    await client.execute(`DELETE FROM warning_events WHERE entity_type = :entityType AND entity_id = :id`, params);
+    if (target.kind === "drawing") {
+      await client.execute("DELETE FROM drawing_revision_fff_assessments WHERE drawing_number_id = :id", params);
+    } else {
+      await client.execute("DELETE FROM part_variant_attributes WHERE part_number_id = :id", params);
+    }
+    const table = target.kind === "drawing" ? "drawing_numbers" : "part_numbers";
+    const deleted = await client.query<{ id: string }>(`DELETE FROM ` + table + `
+      WHERE company_id = :companyId AND part_root_id = :rootId AND id = :id
+      AND record_status IN ('Draft', 'NeedInfo') RETURNING id`, params);
+    if (deleted.length !== 1) throw new Error("NUMBERING_DRAFT_DELETE_STALE");
+    if ((await this.readIndependentNumberReservations(companyId)).some(row => row.code === target.code)) {
+      throw new Error("NUMBERING_DRAFT_DELETE_NUMBER_STILL_RESERVED");
+    }
+    await this.insertAudit(client, { actorId, companyId, action: "numbering.draft.member.delete",
+      detail: { companyId, rootCode: basis.root.code, member: { id: member.id, ...target },
+        affectedFileAssets: basis.fileIds.length, outcome: "deleted" } });
+  }
+
+  private async cleanupDraftNumberingMemberWork(
+    client: AsyncDatabaseClient,
+    companyId: string,
+    drawingRows: readonly { id: string }[],
+    partRows: readonly { id: string }[]
+  ) {
+    const drawingWorkRepository = new DrawingRevisionWorkAsyncRepository(client);
+    for (const drawing of drawingRows) {
+      const canonicalDrawings = await client.query<{ id: string }>(
+        `SELECT id FROM drawings
+         WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+           AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
+        { drawingNumberId: drawing.id, companyId }
+      );
+      for (const canonicalDrawing of canonicalDrawings) {
+        const draftWorks = await client.query<{ id: string; row_version: number | string }>(
+          `SELECT id, row_version FROM drawing_revision_works
+           WHERE drawing_id = :drawingId AND company_id = :companyId
+           ORDER BY created_at DESC, id DESC`,
+          { drawingId: canonicalDrawing.id, companyId }
+        );
+        for (const work of draftWorks) {
+          await drawingWorkRepository.cancel(client, {
+            companyId,
+            workId: work.id,
+            expectedRowVersion: Number(work.row_version)
+          });
+        }
+        await client.execute(
+          `DELETE FROM canonical_workbench_states
+           WHERE company_id = :companyId AND entity_type = 'drawing'
+             AND canonical_entity_id = :drawingId AND work_id IS NULL
+             AND (revision_id IS NULL OR revision_id IN (
+               SELECT id FROM drawing_revisions
+               WHERE drawing_id = :drawingId AND company_id = :companyId
+                 AND lifecycle_state IN ('preparing', 'cancelled')
+             ))`,
+          { drawingId: canonicalDrawing.id, companyId }
+        );
+      }
+      await client.execute(
+        `DELETE FROM drawing_revision_files
+         WHERE drawing_revision_id IN (
+           SELECT revision.id FROM drawing_revisions revision
+           JOIN drawings canonical ON canonical.id = revision.drawing_id
+           WHERE canonical.formal_drawing_number_id = :drawingNumberId
+             AND canonical.company_id = :companyId
+             AND revision.lifecycle_state IN ('preparing', 'cancelled')
+         )`,
+        { drawingNumberId: drawing.id, companyId }
+      );
+      await client.execute(
+        `DELETE FROM drawing_revisions
+         WHERE drawing_id IN (
+           SELECT id FROM drawings
+           WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+         ) AND lifecycle_state IN ('preparing', 'cancelled')`,
+        { drawingNumberId: drawing.id, companyId }
+      );
+      await client.execute(
+        `DELETE FROM drawings
+         WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+           AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
+        { drawingNumberId: drawing.id, companyId }
+      );
+      for (const canonicalDrawing of canonicalDrawings) {
+        await client.execute(
+          `DELETE FROM pdm_workbench_aggregates
+           WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId`,
+          { drawingId: canonicalDrawing.id, companyId }
+        );
+      }
+    }
+    for (const part of partRows) {
+      const partWork = await client.queryOne<{ id: string; row_version: number | string }>(`
+        SELECT id, row_version FROM part_change_works WHERE company_id = :companyId AND part_id = :partId`,
+        { companyId, partId: part.id });
+      if (partWork) await new PartChangeWorkAsyncRepository(client).cancel(client, {
+        companyId, workId: partWork.id, expectedRowVersion: Number(partWork.row_version)
+      });
+      await client.execute(
+        `DELETE FROM canonical_workbench_states
+         WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId
+           AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL`,
+        { partId: part.id, companyId }
+      );
+      await client.execute(
+        `DELETE FROM pdm_workbench_aggregates
+         WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId`,
+        { partId: part.id, companyId }
+      );
+    }
   }
 
   async deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInput, transactionClient: AsyncDatabaseClient): Promise<DeleteDraftNumberingRecordResult> {
@@ -4774,95 +5121,10 @@ export class AsyncNumberingRepository {
       await client.execute(DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL, { rootId: rootRow.id });
       await new RelationFormalAuthorityRepository(client).removeRootLinksInClient(client, { companyId, rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL, { rootId: rootRow.id });
-      const drawingWorkRepository = new DrawingRevisionWorkAsyncRepository(client);
       if (client.kind === "postgres") await client.query(`SELECT ai_pdm_core.delete_draft_bundle_terminal_openswx_v1(:companyId, :rootId)`, {
         companyId, rootId: rootRow.id
       });
-      for (const drawing of drawingRows) {
-        const canonicalDrawings = await client.query<{ id: string }>(
-          `SELECT id FROM drawings
-           WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
-             AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
-          { drawingNumberId: drawing.id, companyId }
-        );
-        for (const canonicalDrawing of canonicalDrawings) {
-          const draftWorks = await client.query<{ id: string; row_version: number | string }>(
-            `SELECT id, row_version FROM drawing_revision_works
-             WHERE drawing_id = :drawingId AND company_id = :companyId
-             ORDER BY created_at DESC, id DESC`,
-            { drawingId: canonicalDrawing.id, companyId }
-          );
-          for (const work of draftWorks) {
-            await drawingWorkRepository.cancel(client, {
-              companyId,
-              workId: work.id,
-              expectedRowVersion: Number(work.row_version)
-            });
-          }
-          await client.execute(
-            `DELETE FROM canonical_workbench_states
-             WHERE company_id = :companyId AND entity_type = 'drawing'
-               AND canonical_entity_id = :drawingId AND work_id IS NULL
-               AND (revision_id IS NULL OR revision_id IN (
-                 SELECT id FROM drawing_revisions
-                 WHERE drawing_id = :drawingId AND company_id = :companyId
-                   AND lifecycle_state IN ('preparing', 'cancelled')
-               ))`,
-            { drawingId: canonicalDrawing.id, companyId }
-          );
-        }
-        await client.execute(
-          `DELETE FROM drawing_revision_files
-           WHERE drawing_revision_id IN (
-             SELECT revision.id FROM drawing_revisions revision
-             JOIN drawings canonical ON canonical.id = revision.drawing_id
-             WHERE canonical.formal_drawing_number_id = :drawingNumberId
-               AND canonical.company_id = :companyId
-               AND revision.lifecycle_state IN ('preparing', 'cancelled')
-           )`,
-          { drawingNumberId: drawing.id, companyId }
-        );
-        await client.execute(
-          `DELETE FROM drawing_revisions
-           WHERE drawing_id IN (
-             SELECT id FROM drawings
-             WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
-           ) AND lifecycle_state IN ('preparing', 'cancelled')`,
-          { drawingNumberId: drawing.id, companyId }
-        );
-        await client.execute(
-          `DELETE FROM drawings
-           WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
-             AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
-          { drawingNumberId: drawing.id, companyId }
-        );
-        for (const canonicalDrawing of canonicalDrawings) {
-          await client.execute(
-            `DELETE FROM pdm_workbench_aggregates
-             WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId`,
-            { drawingId: canonicalDrawing.id, companyId }
-          );
-        }
-      }
-      for (const part of partRows) {
-        const partWork = await client.queryOne<{ id: string; row_version: number | string }>(`
-          SELECT id, row_version FROM part_change_works WHERE company_id = :companyId AND part_id = :partId`,
-          { companyId, partId: part.id });
-        if (partWork) await new PartChangeWorkAsyncRepository(client).cancel(client, {
-          companyId, workId: partWork.id, expectedRowVersion: Number(partWork.row_version)
-        });
-        await client.execute(
-          `DELETE FROM canonical_workbench_states
-           WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId
-             AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL`,
-          { partId: part.id, companyId }
-        );
-        await client.execute(
-          `DELETE FROM pdm_workbench_aggregates
-           WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId`,
-          { partId: part.id, companyId }
-        );
-      }
+      await this.cleanupDraftNumberingMemberWork(client, companyId, drawingRows, partRows);
       await client.execute(DELETE_ASYNC_DRAFT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_NUMBERS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_ROOT_SQL, { rootId: rootRow.id });
@@ -8212,62 +8474,6 @@ export class AsyncNumberingRepository {
     return Number(row.next_value);
   }
 
-  private async allocateAvailablePartSequence(
-    client: AsyncDatabaseClient,
-    root: PartRootRecord,
-    ruleVersionId: string
-  ): Promise<number> {
-    const sequenceKey = canonicalNumberingSequenceKey(root.companyId, `part:${root.rootCode}`);
-    const now = this.clock();
-    await client.execute(
-      `INSERT INTO numbering_sequences (sequence_key, company_id, next_value, updated_at)
-       VALUES (:sequenceKey, :companyId, 1, :updatedAt)
-       ON CONFLICT(sequence_key) DO NOTHING`,
-      { sequenceKey, companyId: root.companyId, updatedAt: now }
-    );
-    await client.queryOne<{ next_value: number }>(
-      `SELECT next_value FROM numbering_sequences
-       WHERE sequence_key = :sequenceKey
-         AND company_id = :companyId${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
-      { sequenceKey, companyId: root.companyId }
-    );
-
-    const [officialRows, recoveryRows] = await Promise.all([
-      client.query<{ code: string; sequence_no: number }>(
-        "SELECT part_number AS code, sequence_no FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId",
-        { companyId: root.companyId, rootId: root.id }
-      ),
-      client.query<{ code: string }>(
-        `SELECT number_value AS code FROM numbering_recovery_reservations
-         WHERE company_id = :companyId AND number_kind = 'part' AND reservation_status = 'reserved'`,
-        { companyId: root.companyId }
-      )
-    ]);
-    const used = officialRows.map((row) => {
-      const explicitSequence = Number(row.sequence_no);
-      if (Number.isInteger(explicitSequence) && explicitSequence > 0) return explicitSequence;
-      const identity = parseNumberingIdentity(row.code);
-      return identity.kind === "part" && identity.rootCode === root.rootCode
-        ? Number.parseInt(identity.sequenceCode ?? "", 10)
-        : 0;
-    }).concat(recoveryRows.map((row) => {
-      const identity = parseNumberingIdentity(row.code);
-      return identity.kind === "part" && identity.rootCode === root.rootCode
-        ? Number.parseInt(identity.sequenceCode ?? "", 10)
-        : 0;
-    }));
-    const sequenceNo = lowestAvailableSequence(used, isCompactNumberingRule(ruleVersionId) ? 99 : 999, "PART");
-    await client.execute(
-      `UPDATE numbering_sequences
-       SET next_value = CASE WHEN next_value < :nextValue THEN :nextValue ELSE next_value END,
-           updated_at = :updatedAt
-       WHERE sequence_key = :sequenceKey
-         AND company_id = :companyId`,
-      { sequenceKey, companyId: root.companyId, nextValue: sequenceNo + 1, updatedAt: now }
-    );
-    return sequenceNo;
-  }
-
   private async allocateRootSequence(client: AsyncDatabaseClient, input: { companyId: string; ruleVersionId: string }): Promise<number> {
     if (input.ruleVersionId !== NUMBERING_RULE_V2_ID && input.ruleVersionId !== NUMBERING_RULE_V3_ID) {
       return this.allocateSequence(client, input.companyId, canonicalNumberingSequenceKey(input.companyId, "part_root"));
@@ -8589,7 +8795,8 @@ export class AsyncNumberingRepository {
     const sequenceNo =
       effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId)
         ? 0
-        : await this.allocateAvailablePartSequence(client, root, input.ruleVersionId);
+        : (await allocateMemberNumber(client, { companyId: root.companyId, rootCode: root.rootCode,
+          ruleVersionId: input.ruleVersionId, kind: "part" }, this.clock())).sequenceNo;
     const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
     const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
     const id = this.idFactory();
@@ -8634,26 +8841,10 @@ export class AsyncNumberingRepository {
   ): Promise<DrawingNumberRecord> {
     assertPurposeAllowedForRule(input.purposeCode, input.ruleVersionId);
     const purposeDescription = normalizePurposeDescription(input.purposeCode, input.purposeDescription);
-    const sequenceKey = canonicalNumberingSequenceKey(root.companyId, `drawing:${root.rootCode}:${input.purposeCode}`);
-    let sequenceNo = await this.allocateSequence(client, root.companyId, sequenceKey);
-    let sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
-    let drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const [formalConflict, projectionConflict] = await Promise.all([
-        client.queryOne<{ id: string }>(
-          "SELECT id FROM drawing_numbers WHERE company_id = :companyId AND drawing_number = :drawingNumber LIMIT 1",
-          { companyId: root.companyId, drawingNumber }
-        ),
-        client.queryOne<{ id: string }>(
-          "SELECT id FROM drawings WHERE company_id = :companyId AND drawing_number = :drawingNumber AND lifecycle_state <> 'cancelled' LIMIT 1",
-          { companyId: root.companyId, drawingNumber }
-        )
-      ]);
-      if (!formalConflict && !projectionConflict) break;
-      sequenceNo = await this.allocateSequence(client, root.companyId, sequenceKey);
-      sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
-      drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
-    }
+    const { sequenceNo, code: drawingNumber } = await allocateMemberNumber(client, {
+      companyId: root.companyId, rootCode: root.rootCode, ruleVersionId: input.ruleVersionId,
+      kind: "drawing", purposeCode: input.purposeCode
+    }, this.clock());
     const id = this.idFactory();
     const now = this.clock();
     const existingPrimary = isManufacturingDrawingPurpose(input.purposeCode)

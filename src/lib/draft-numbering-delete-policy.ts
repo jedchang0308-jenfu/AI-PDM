@@ -7,6 +7,13 @@ export type DraftNumberingDeleteMember = {
   responsibleUserIds: readonly (string | null)[];
 };
 
+export type DraftNumberingMemberTarget = { kind: "drawing" | "part"; code: string };
+export type DraftNumberingReuse = {
+  code: string;
+  kind: "root" | "drawing" | "part";
+  status: "reusable" | "not_reusable" | "unknown";
+};
+
 export type DraftNumberingDeleteTransferReference = {
   id: string;
   packageId: string;
@@ -28,28 +35,40 @@ export type DraftNumberingDeleteBasis = {
   auxiliaryJobs?: readonly { id: string; status: string; dispatchState: string }[];
   recognitionSessions?: readonly { id: string; rowVersion: number; status: string }[];
   controlledReferences: number;
+  target?: DraftNumberingMemberTarget;
+  blockers?: readonly string[];
+  controlledReasons?: readonly string[];
+  numberReuse?: readonly DraftNumberingReuse[];
+  workVersions?: readonly { id: string; version: number }[];
 };
 
 export type DraftNumberingDeleteActor = { userId: string; systemAdmin: boolean };
 
+export function draftNumberingDeleteMembers(basis: DraftNumberingDeleteBasis) {
+  return [...(basis.target ? [] : [basis.root]), ...basis.drawings, ...basis.parts];
+}
+
+export function isResponsibleForDraftNumberingDelete(basis: DraftNumberingDeleteBasis, userId: string) {
+  return draftNumberingDeleteMembers(basis).every(member => member.responsibleUserIds.length > 0 &&
+    member.responsibleUserIds.every(id => id === userId)) &&
+    basis.transfers.every(ref => ref.packageOwnerId === userId);
+}
+
 export function checkDraftNumberingDelete(basis: DraftNumberingDeleteBasis, actor: DraftNumberingDeleteActor) {
-  const members = [basis.root, ...basis.drawings, ...basis.parts];
+  const members = draftNumberingDeleteMembers(basis);
+  if (!actor.systemAdmin && !isResponsibleForDraftNumberingDelete(basis, actor.userId)) {
+    return "NUMBERING_DRAFT_DELETE_NOT_RESPONSIBLE";
+  }
   if (members.some(({ status }) => status !== "Draft" && status !== "NeedInfo")) {
     return "NUMBERING_BUNDLE_NOT_DRAFT";
   }
   if (basis.controlledReferences !== 0) return "NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES";
+  if (basis.blockers?.length) return "NUMBERING_DRAFT_DELETE_BLOCKED";
   if (basis.auxiliaryJobs?.some(job => !["completed", "failed", "cancelled"].includes(job.status) || job.dispatchState !== "terminal")) {
     return "NUMBERING_DRAFT_DELETE_OPEN_SWX_ACTIVE";
   }
-  if (!actor.systemAdmin && members.some(({ responsibleUserIds }) =>
-    responsibleUserIds.length === 0 || responsibleUserIds.some(id => id !== actor.userId))) {
-    return "NUMBERING_DRAFT_DELETE_NOT_RESPONSIBLE";
-  }
   if (basis.transfers.some(ref => ref.packageStatus !== "Draft")) {
     return "NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES";
-  }
-  if (!actor.systemAdmin && basis.transfers.some(ref => ref.packageOwnerId !== actor.userId)) {
-    return "NUMBERING_DRAFT_DELETE_NOT_RESPONSIBLE";
   }
   return null;
 }
@@ -68,6 +87,10 @@ export function draftNumberingDeleteFingerprint(basis: DraftNumberingDeleteBasis
     members(basis.drawings), members(basis.parts), transfers, [...basis.fileIds].sort(),
     [...(basis.fileNames ?? [])].sort(), basis.controlledReferences,
     [...(basis.auxiliaryJobs ?? [])].sort((left, right) => left.id.localeCompare(right.id)),
-    ...(recognition.length ? [recognition] : [])
+    ...(recognition.length ? [recognition] : []),
+    ...(basis.target ? [basis.target] : []),
+    ...(basis.blockers ? [basis.blockers] : []),
+    ...(basis.numberReuse ? [basis.numberReuse] : []),
+    ...(basis.workVersions ? [[...basis.workVersions].sort((left, right) => left.id.localeCompare(right.id))] : [])
   ])).digest("hex");
 }

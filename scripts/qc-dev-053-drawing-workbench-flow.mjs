@@ -74,7 +74,8 @@ try {
   }));
   record("DEV053-FLOW-001 contextual source is persisted as candidate context",
     created.sourceRootId === "dev053-source-root" && created.sourceDrawingNumberId === "dev053-source-drawing" &&
-    created.sourcePartNumberId === null && created.sourceLinkType === "primary_manufacturing" && created.lifecycleStatus === "active");
+    created.sourcePartNumberId === null && created.sourceLinkType === "primary_manufacturing" && created.lifecycleStatus === "active" &&
+    created.reservations.length === 0 && created.lifecycleV2?.primaryAction !== "submit_bundle_review");
 
   const acquired = await client.transaction((tx) => new stateModule.AsyncNumberStateFlowRepository(tx, () => now, () => crypto.randomUUID()).acquireCandidates({
     workspaceId: created.id,
@@ -84,7 +85,8 @@ try {
   }));
   record("DEV053-FLOW-002 relationship-only append-part becomes bundle-ready without a drawing draft",
     acquired.reservations.length === 1 && acquired.reservations[0].itemType === "part" &&
-    acquired.drawings.length === 0 && acquired.lifecycleV2?.stage === "bundle_ready",
+    acquired.drawings.length === 0 && acquired.lifecycleV2?.stage === "bundle_ready" &&
+    acquired.lifecycleV2.primaryAction === "submit_bundle_review",
     JSON.stringify({ stage: acquired.lifecycleV2?.stage, reservations: acquired.reservations }));
 
   const submitted = await client.transaction((tx) => new lifecycleModule.AsyncNumberLifecycleSimplificationRepository(tx, () => now, () => crypto.randomUUID()).submitBundleReview({

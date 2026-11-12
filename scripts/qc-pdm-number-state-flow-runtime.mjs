@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -40,9 +41,18 @@ try {
     VALUES ('dev048-qc-user', 'company-jenfu', 1, datetime('now'))
   `).run();
 
+  const principalId = "qc-principal-dev048";
+  const organizationId = "company-jenfu";
+  db.prepare(`INSERT INTO platform_principal_mappings (platform_principal_id, pdm_user_id, mapping_status)
+    VALUES (?, 'dev048-qc-user', 'active')`).run(principalId);
+  db.prepare(`INSERT INTO platform_organization_mappings (platform_organization_id, pdm_company_id, mapping_status)
+    VALUES ('qc-org-dev048', ?, 'active')`).run(organizationId);
+
   const actor = platform.createPlatformActorContext({
     pdmUserId: "dev048-qc-user",
-    organizationId: "company-jenfu",
+    principalId,
+    organizationId,
+    platformOrganizationId: "qc-org-dev048",
     roles: ["Engineer", "rd"],
     scopes: [
       "numbering.workspace.create",
@@ -61,6 +71,13 @@ try {
   };
 
   const createMetadata = { actor, idempotencyKey: "dev048:create:1" };
+  await assert.rejects(numberStateFlow.createNumberingDraftWorkspace({
+    metadata: { ...createMetadata, actor: { ...actor, principalId: "qc-principal-mismatch" } },
+    body
+  }), { message: "PLATFORM_ACTOR_PRINCIPAL_MISMATCH" });
+  record("NSF-RT-000 mismatched principal creates no workspace, command receipt or outbox event",
+    count(db, "numbering_draft_workspaces") === 0 && count(db, "platform_command_receipts") === 0 &&
+    count(db, "platform_outbox_events") === 0);
   const created = await numberStateFlow.createNumberingDraftWorkspace({ metadata: createMetadata, body });
   const createReplay = await numberStateFlow.createNumberingDraftWorkspace({ metadata: createMetadata, body });
   record(
@@ -140,10 +157,8 @@ try {
     ORDER BY drawing_number, lifecycle_state
   `).all(acquiredCodes.at(-1));
   record(
-    "NSF-RT-004b cancelled drawing history keeps its immutable code while active reuse is allowed",
-    canonicalReuseEvidence.length === 2 &&
-      canonicalReuseEvidence.filter((row) => row.lifecycle_state === "cancelled").length === 1 &&
-      canonicalReuseEvidence.filter((row) => row.lifecycle_state === "drawing_preparation").length === 1,
+    "NSF-RT-004b cancelled drawing history keeps its code without creating an active duplicate",
+    canonicalReuseEvidence.length === 1 && canonicalReuseEvidence[0].lifecycle_state === "cancelled",
     JSON.stringify(canonicalReuseEvidence)
   );
 

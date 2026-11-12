@@ -59,8 +59,8 @@ const migrations = [
   '017_number_state_flow_phase1d.sql', '022_unified_drawing_workbench.sql',
   '026_drawing_revision_lifecycle_authority.sql', '029_pdm_file_ownership_and_3d_reuse.sql',
   '030_unified_drawing_aggregate.sql', '033_drawing_recognition.sql',
-  '039_allow_recycled_candidate_drawing_codes.sql', '042_status_data_rebuild.sql',
-  '043_inline_relation_matrix.sql', '047_remove_bom_module.sql',
+  '039_allow_recycled_candidate_drawing_codes.sql', '041_part_attachment_reuse_snapshot.sql', '042_status_data_rebuild.sql',
+  '043_inline_relation_matrix.sql', '046_part_preview_settings.sql', '047_remove_bom_module.sql',
   '048_solidworks_credential_ui_activation.sql', '049_retire_standalone_manufacturing_impact.sql',
   '050_drawing_recognition_part_owner_invariant.sql', '051_part_structure_type_authority.sql',
   '052_retired_workbench_residue_cleanup.sql', '053_drawing_recognition_amendment_lineage.sql',
@@ -346,9 +346,152 @@ try {
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawings WHERE id=$1', ['qc-canonical-drawing'])).rows[0].n, 0)
   assert.ok((await admin.query('SELECT deleted_at FROM ai_pdm_core.file_assets WHERE id=$1', ['qc-recognition-file'])).rows[0].deleted_at,
     'source file asset must be soft-deleted by scoped work cancellation')
+  await admin.query(`INSERT INTO ai_pdm_core.part_roots
+    (id,company_id,root_code,core_name,item_kind,record_status,rule_version_id,created_by)
+    VALUES ('qc-single-root','qc-company','A0064','Single-delete test','manufactured','Active','numbering-rule-v3-alpha-root','qc-owner');
+    INSERT INTO ai_pdm_core.part_numbers
+      (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,record_status,rule_version_id,created_by)
+    VALUES
+      ('qc-single-part','qc-company','qc-single-root','A0064-P01',1,'01','Target','manufactured','Draft','numbering-rule-v3-alpha-root','qc-owner'),
+      ('qc-single-sibling','qc-company','qc-single-root','A0064-P02',2,'02','Retained','manufactured','Active','numbering-rule-v3-alpha-root','qc-owner');
+    INSERT INTO ai_pdm_core.drawing_numbers
+      (id,company_id,part_root_id,drawing_number,purpose_code,purpose_description,sequence_no,is_primary_manufacturing,record_status,rule_version_id,created_by)
+    VALUES ('qc-single-drawing','qc-company','qc-single-root','A0064-M01','M','Target drawing',1,1,'Draft','numbering-rule-v3-alpha-root','qc-owner');
+    INSERT INTO ai_pdm_core.drawings
+      (id,company_id,drawing_number,lifecycle_state,formal_drawing_number_id,part_root_id,purpose_code,purpose_description,
+        sequence_no,is_primary_manufacturing,owner_id,rule_version_id,created_by)
+    VALUES ('qc-single-canonical','qc-company','A0064-M01','drawing_preparation','qc-single-drawing','qc-single-root','M',
+      'Target drawing',1,1,'qc-owner','numbering-rule-v3-alpha-root','qc-owner');
+    INSERT INTO ai_pdm_core.drawing_part_links (id,drawing_number_id,part_number_id,link_type,created_by)
+    VALUES ('qc-single-link','qc-single-drawing','qc-single-sibling','primary_manufacturing','qc-owner');`)
+  const { canonicalNumberingSequenceKey } = await import(pathToFileURL(path.join(root, 'src/lib/numbering-sequence-utils.ts')).href)
+  await admin.query(`INSERT INTO ai_pdm_core.numbering_sequences (sequence_key,company_id,next_value) VALUES ($1,$2,2)`,
+    [canonicalNumberingSequenceKey(owner.companyId, 'drawing:A0064:M'), owner.companyId])
+  const partTarget = { kind: 'part', code: 'A0064-P01' }
+  const drawingTarget = { kind: 'drawing', code: 'A0064-M01' }
+  const singlePreview = target => numbering.readDraftNumberingDeleteBasis(owner.companyId, 'A0064', target)
+  const deleteSingle = (target, preview) => database.transaction(tx => deleteVerifiedDraftNumberingBundleInClient(tx, {
+    companyId: owner.companyId, rootCode: 'A0064', target, actor: ownerDeleteActor, verified,
+    fingerprint: policy.draftNumberingDeleteFingerprint(preview, ownerDeleteActor)
+  }), { isolationLevel: 'serializable' })
+  const blockedSingle = await singlePreview(drawingTarget)
+  assert.ok(blockedSingle.blockers.some(reason => reason.includes('A0064-P02')))
+  await assert.rejects(deleteSingle(drawingTarget, blockedSingle), /NUMBERING_DRAFT_DELETE_BLOCKED/)
+  assert.equal(await numbering.readDraftNumberingDeleteBasis(owner.companyId, 'A0063', drawingTarget), null)
+  const partPreview = await singlePreview(partTarget)
+  assert.equal(policy.checkDraftNumberingDelete(partPreview, ownerDeleteActor), null)
+  assert.deepEqual(partPreview.numberReuse, [{ code: 'A0064-P01', kind: 'part', status: 'reusable' }])
+  await assert.rejects(deleteSingle(drawingTarget, partPreview), /NUMBERING_DRAFT_DELETE_STALE/)
+  assert.deepEqual((await deleteSingle(partTarget, partPreview)).partNumbers, ['A0064-P01'])
+  await admin.query("DELETE FROM ai_pdm_core.drawing_part_links WHERE id='qc-single-link'")
+  const drawingPreview = await singlePreview(drawingTarget)
+  assert.equal(policy.checkDraftNumberingDelete(drawingPreview, ownerDeleteActor), null)
+  assert.deepEqual(drawingPreview.numberReuse, [{ code: 'A0064-M01', kind: 'drawing', status: 'reusable' }])
+  assert.deepEqual((await deleteSingle(drawingTarget, drawingPreview)).drawingNumbers, ['A0064-M01'])
+  assert.deepEqual((await admin.query(`SELECT part_number FROM ai_pdm_core.part_numbers WHERE part_root_id='qc-single-root'`)).rows,
+    [{ part_number: 'A0064-P02' }])
+  assert.equal((await admin.query(`SELECT id FROM ai_pdm_core.part_roots WHERE id='qc-single-root'`)).rowCount, 1)
+  assert.equal((await admin.query(`SELECT id FROM ai_pdm_core.drawings WHERE id='qc-single-canonical'`)).rowCount, 0)
+  mark('single part/drawing deletion preserves the root and sibling, binds scope, blocks live links and reports allocator reuse')
+  const allocation = { companyId: owner.companyId, rootCode: 'A0064', createdBy: owner.userId, reason: 'isolated reuse test' }
+  const allocationRepository = new AsyncNumberingRepository(database, undefined, undefined, undefined, verified)
+  const { previewMemberNumber } = await import(pathToFileURL(path.join(root, 'src/lib/numbering-member-allocation.ts')).href)
+  const { previewAppendNumbersAsync, previewNewBundleNumbersAsync } = await import(pathToFileURL(path.join(root, 'src/lib/numbering-preview.ts')).href)
+  const scope = { companyId: owner.companyId, rootCode: 'A0064', ruleVersionId: 'numbering-rule-v3-alpha-root' }
+  const partScope = { ...scope, kind: 'part' }
+  const drawingScope = { ...scope, kind: 'drawing', purposeCode: 'M' }
+  const appendReuse = await previewAppendNumbersAsync(database, owner.companyId, allocation.rootCode, 'M')
+  assert.equal(appendReuse.part, partPreview.numberReuse[0].code)
+  assert.equal(appendReuse.drawing, drawingPreview.numberReuse[0].code)
+  const reusedPart = (await allocationRepository.addPartNumberToRoot(allocation)).partNumber
+  const reusedDrawing = (await allocationRepository.addDrawingNumberToRoot({ ...allocation, purposeCode: 'M' })).drawingNumber
+  assert.equal(reusedPart.partNumber, appendReuse.part)
+  assert.equal(reusedDrawing.drawingNumber, appendReuse.drawing)
+  assert.notEqual(reusedPart.id, partPreview.parts[0].id)
+  assert.notEqual(reusedDrawing.id, drawingPreview.drawings[0].id)
+  await admin.query(`UPDATE ai_pdm_core.numbering_sequences SET next_value=4
+    WHERE company_id='qc-company' AND sequence_key IN ($1,$2)`, [
+    canonicalNumberingSequenceKey(owner.companyId, 'part:A0064'),
+    canonicalNumberingSequenceKey(owner.companyId, 'drawing:A0064:M')
+  ])
+  const appendFresh = await previewAppendNumbersAsync(database, owner.companyId, allocation.rootCode, 'M')
+  assert.equal(appendFresh.part, 'A0064-P04')
+  assert.equal(appendFresh.drawing, 'A0064-M04')
+  assert.equal((await allocationRepository.addPartNumberToRoot(allocation)).partNumber.partNumber, appendFresh.part)
+  assert.equal((await allocationRepository.addDrawingNumberToRoot({ ...allocation, purposeCode: 'M' })).drawingNumber.drawingNumber, appendFresh.drawing)
+  mark('both create and delete previews match actual reuse, then skip unproven gaps and advance the sequence')
+
+  for (const target of [{ kind: 'part', code: 'A0064-P04' }, { kind: 'drawing', code: 'A0064-M04' }]) {
+    const preview = await singlePreview(target)
+    assert.equal(preview.numberReuse[0].status, 'reusable')
+    await deleteSingle(target, preview)
+  }
+  const { AsyncNumberStateFlowRepository } = await import(pathToFileURL(path.join(root, 'src/lib/repositories/number-state-flow-async-repository.ts')).href)
+  const workspace = await database.transaction(tx => new AsyncNumberStateFlowRepository(tx).createWorkspace({
+    id: 'qc-shared-allocator', companyId: owner.companyId, draftMode: 'append_drawing_part',
+    ownerId: owner.userId, createdBy: owner.userId, sourceRootId: 'qc-single-root',
+    sourceDrawingNumberId: null, sourcePartNumberId: null, sourceLinkType: null, appendReason: 'isolated candidate test',
+    root: null,
+    parts: [{ id: 'qc-shared-part', partName: 'Candidate part', itemKind: 'manufactured', isUniversal: false,
+      universalReason: null, customSpecification: null, seriesCode: null }],
+    drawings: [{ id: 'qc-shared-drawing', purposeCode: 'M', purposeDescription: 'Candidate drawing', isPrimaryManufacturing: true }],
+    relations: [{ id: 'qc-shared-relation', drawingDraftId: 'qc-shared-drawing', partDraftId: 'qc-shared-part',
+      linkType: 'primary_manufacturing', isPrimary: true }]
+  }))
+  const held = await database.transaction(tx => new AsyncNumberStateFlowRepository(tx).acquireCandidates({
+    companyId: owner.companyId, workspaceId: workspace.id, actorId: owner.userId, expectedRowVersion: workspace.rowVersion
+  }))
+  assert.deepEqual(held.reservations.map(entry => entry.candidateCode).sort(), ['A0064-M04', 'A0064-P04'])
+  assert.equal((await previewMemberNumber(database, partScope)).code, 'A0064-P05')
+  assert.equal((await previewMemberNumber(database, drawingScope)).code, 'A0064-M05')
+  const [first, second] = await Promise.all([
+    allocationRepository.addDrawingNumberToRoot({ ...allocation, purposeCode: 'M' }),
+    allocationRepository.addDrawingNumberToRoot({ ...allocation, purposeCode: 'M' })
+  ])
+  assert.deepEqual([first.drawingNumber.drawingNumber, second.drawingNumber.drawingNumber].sort(), ['A0064-M05', 'A0064-M06'])
+  assert.equal((await allocationRepository.addPartNumberToRoot(allocation)).partNumber.partNumber, 'A0064-P05')
+  mark('candidate reservations share the released pool and concurrent workbench requests receive distinct fresh numbers')
+
+  // Simulate a legacy cleanup that removes a reissued member without releasing it.
+  await admin.query('DELETE FROM ai_pdm_core.canonical_workbench_states WHERE company_id=$1 AND canonical_entity_id=$2',
+    [owner.companyId, reusedPart.id])
+  await admin.query('DELETE FROM ai_pdm_core.pdm_workbench_aggregates WHERE company_id=$1 AND canonical_entity_id=$2',
+    [owner.companyId, reusedPart.id])
+  await admin.query('DELETE FROM ai_pdm_core.part_numbers WHERE company_id=$1 AND id=$2', [owner.companyId, reusedPart.id])
+  assert.equal((await previewMemberNumber(database, partScope)).code, 'A0064-P06')
+  mark('a prior release does not authorize reuse again after the number has been reissued')
+
   const occupied = await readV3OccupiedRootCodes(database, owner.companyId)
+  assert.equal((await previewMemberNumber(database, { ...partScope, rootCode })).code, 'A0062-P01')
+  assert.equal((await previewMemberNumber(database, { ...drawingScope, rootCode })).code, 'A0062-M01')
   assert.equal(occupied.includes(rootCode), false, `deleted root ${rootCode} must be released by the actual shared occupied-code reader`)
   mark(`real repository deletes root/part/drawing and Draft transfer; ${rootCode} is reusable by readV3OccupiedRootCodes`)
+
+  const bundleInput = { companyId: owner.companyId, createdBy: owner.userId, itemKind: 'manufactured', drawingPurposeCode: 'M' }
+  const firstBundle = await allocationRepository.createNumberingRecord({ ...bundleInput, coreName: 'Disposable original bundle' })
+  const bundleCode = firstBundle.root.rootCode
+  const bundleBasis = await numbering.readDraftNumberingDeleteBasis(owner.companyId, bundleCode)
+  assert.equal(policy.checkDraftNumberingDelete(bundleBasis, ownerDeleteActor), null)
+  assert.deepEqual(bundleBasis.numberReuse.map(({ code, kind, status }) => ({ code, kind, status })), [
+    { code: bundleCode, kind: 'root', status: 'reusable' },
+    { code: firstBundle.drawingNumber.drawingNumber, kind: 'drawing', status: 'reusable' },
+    { code: firstBundle.partNumber.partNumber, kind: 'part', status: 'reusable' }
+  ])
+  await database.transaction(tx => deleteVerifiedDraftNumberingBundleInClient(tx, {
+    companyId: owner.companyId, rootCode: bundleCode, actor: ownerDeleteActor, verified,
+    fingerprint: policy.draftNumberingDeleteFingerprint(bundleBasis, ownerDeleteActor)
+  }), { isolationLevel: 'serializable' })
+  assert.equal(await numbering.readDraftNumberingDeleteBasis(owner.companyId, bundleCode), null)
+  const newBundlePreview = await previewNewBundleNumbersAsync(database, owner.companyId, 'M')
+  for (const { code, kind } of bundleBasis.numberReuse) assert.equal(newBundlePreview[kind], code)
+  const reissued = await allocationRepository.createNumberingRecord({ ...bundleInput, coreName: 'Disposable reissued bundle' })
+  assert.equal(reissued.root.rootCode, newBundlePreview.root)
+  assert.equal(reissued.drawingNumber.drawingNumber, newBundlePreview.drawing)
+  assert.equal(reissued.partNumber.partNumber, newBundlePreview.part)
+  assert.notEqual(reissued.root.id, firstBundle.root.id)
+  assert.notEqual(reissued.drawingNumber.id, firstBundle.drawingNumber.id)
+  assert.notEqual(reissued.partNumber.id, firstBundle.partNumber.id)
+  mark('create, preview permanent bundle deletion, delete, preview new numbering, and recreate match across all three codes')
 
   process.stdout.write(`${JSON.stringify({ status: 'PASS', checks })}\n`)
 } catch (error) {

@@ -16134,7 +16134,37 @@ select.dropdown-select:focus-visible,
 .canonical-drawer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid #d6e0ea; background: #fff; }
 .canonical-modal-backdrop { align-items: center; justify-content: center; padding: 16px; }
 .canonical-modal { width: min(520px, 100%); border-radius: 12px; background: #fff; box-shadow: 0 18px 50px rgb(15 23 42 / 24%); }
-.canonical-cancel-work-modal > p, .canonical-cancel-work-modal > .canonical-error { margin-left: 20px; margin-right: 20px; }
+.canonical-delete-modal {
+  width: min(520px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid #d6e0ea;
+}
+.canonical-delete-modal::backdrop { background: rgb(15 23 42 / 45%); }
+.canonical-delete-options {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 16px 20px 0;
+  padding: 0;
+  border: 0;
+}
+.canonical-delete-option + .canonical-delete-option { padding-top: 16px; border-top: 1px solid #d6e0ea; }
+.canonical-delete-option label, .canonical-delete-option strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.canonical-delete-option label { cursor: pointer; }
+.canonical-delete-option label:has(input:disabled) { color: #536176; cursor: default; }
+.canonical-delete-option input { flex: 0 0 auto; margin: 0; }
+.canonical-delete-option p { margin: 5px 0 0; overflow-wrap: anywhere; }
+.canonical-delete-lock-reason { color: #536176; }
+.canonical-delete-number-list { margin: 8px 0; padding: 0; list-style: none; }
+.canonical-delete-number-list li { display: flex; flex-wrap: wrap; gap: 2px 12px; overflow-wrap: anywhere; }
+.canonical-delete-number-list li span { color: #536176; }
+.canonical-delete-notice, .canonical-delete-modal > .canonical-error { margin: 14px 20px 0; }
+.canonical-delete-modal .canonical-modal-actions { flex-wrap: wrap; }
 .canonical-obsolete-modal { max-height: min(720px, calc(100vh - 32px)); overflow-y: auto; }
 .canonical-obsolete-modal > p, .canonical-obsolete-modal > ul, .canonical-obsolete-reason, .canonical-obsolete-modal > .canonical-error { margin-left: 20px; margin-right: 20px; }
 .canonical-obsolete-reason { display: grid; gap: 6px; margin-top: 14px; color: #53657a; font-size: 13px; }

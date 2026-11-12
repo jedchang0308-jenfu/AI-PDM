@@ -1,6 +1,6 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { checkDraftNumberingDelete, draftNumberingDeleteFingerprint, type DraftNumberingDeleteActor } from "@/lib/draft-numbering-delete-policy";
+import { checkDraftNumberingDelete, draftNumberingDeleteFingerprint, type DraftNumberingDeleteActor, type DraftNumberingMemberTarget } from "@/lib/draft-numbering-delete-policy";
 import { lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { rootCodeToV3Ordinal } from "@/lib/numbering-identity";
@@ -198,6 +198,7 @@ export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDa
   rootCode: string;
   fingerprint: string;
   actor: DraftNumberingDeleteActor;
+  target?: DraftNumberingMemberTarget;
   verified: VerifiedPrincipalRequest;
   transferActor?: TransferPackageActor;
 }) {
@@ -208,20 +209,27 @@ export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDa
     throw new Error("NUMBERING_DRAFT_DELETE_ACTOR_MISMATCH");
   }
   const repo = new AsyncNumberingRepository(client, undefined, undefined, undefined, input.verified);
-  const proposed = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode);
+  const proposed = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode, input.target);
   if (!proposed) throw new Error("NUMBERING_DRAFT_DELETE_NOT_FOUND");
   await lockPdmEntityScopeAsync(client, [
     { type: "part_root", id: proposed.root.id, companyId: input.companyId },
     ...proposed.drawings.map(row => ({ type: "drawing_number", id: row.id, companyId: input.companyId })),
     ...proposed.parts.map(row => ({ type: "part_number", id: row.id, companyId: input.companyId }))
   ]);
-  const basis = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode);
+  const basis = await repo.readDraftNumberingDeleteBasis(input.companyId, input.rootCode, input.target);
   if (!basis || draftNumberingDeleteFingerprint(basis, input.actor) !== input.fingerprint) {
     throw new Error("NUMBERING_DRAFT_DELETE_STALE");
   }
   const blocked = checkDraftNumberingDelete(basis, input.actor);
   if (blocked) throw new Error(blocked);
 
+  if (basis.target) {
+    await repo.deleteDraftNumberingMember(basis, input.actor.userId, client);
+    return { rootId: basis.root.id, rootCode: basis.root.code, target: basis.target,
+      drawingNumbers: basis.drawings.map(drawing => drawing.code), partNumbers: basis.parts.map(part => part.code),
+      removedTransferReferences: 0, numberReuse: basis.numberReuse,
+      reusable: basis.numberReuse?.[0]?.status === "reusable" };
+  }
   if (basis.transfers.length > 0) {
     const actor = input.transferActor;
     if (!actor || actor.userId !== input.actor.userId || actor.companyId !== input.companyId) {
@@ -243,6 +251,7 @@ export async function deleteVerifiedDraftNumberingBundleInClient(client: AsyncDa
     drawingNumbers: result.deletedDrawingNumbers.map(drawing => drawing.drawingNumber),
     partNumbers: result.deletedPartNumbers.map(part => part.partNumber),
     removedTransferReferences: basis.transfers.length,
+    numberReuse: basis.numberReuse,
     reusable: rootCodeToV3Ordinal(result.rootCode) !== null };
 }
 

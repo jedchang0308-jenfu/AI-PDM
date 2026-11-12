@@ -846,7 +846,7 @@ async function verifyInlineMatrixCases(context) {
     apiReadback: { formalStatus: formalPartDetail.status, workStatus: workPartDetail.status, matrixHash: matrixProjectionHash(matrixProjection(workPartDetail)) },
     dbReadback: { matrix: relationDbSnapshot("A0002"), sideEffectsBefore: relationSideEffectsBeforePartWork, sideEffectsAfter: relationSideEffectsAfterPartWork }
   });
-  await partWorkPage.getByRole("button", { name: "進行編輯", exact: true }).click();
+  await partWorkPage.getByRole("button", { name: "編輯", exact: true }).click();
   await partWorkPage.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
   const partSubmitResponsePromise = partWorkPage.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/pdm/part-change-works/${functionalPartWorkId}/submit`), { timeout: 30_000 });
   await partWorkPage.getByRole("button", { name: "送出審核", exact: true }).click();
@@ -893,7 +893,7 @@ async function verifyInlineMatrixCases(context) {
   await waitForWorkbenchList(partWorkPage, "料號工作台");
   const returnedPartRow = partWorkPage.locator("[data-canonical-workbench-row='true']").filter({ hasText: "修改中" }).first();
   await returnedPartRow.locator(".canonical-row-open").click();
-  await partWorkPage.getByRole("button", { name: "進行編輯", exact: true }).click();
+  await partWorkPage.getByRole("button", { name: "編輯", exact: true }).click();
   await partWorkPage.getByRole("heading", { name: "料號資料", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   check("QA-087-205 returned Part work preserves variant fields", await partWorkPage.locator(".pdm-edit-page-field-wide textarea").inputValue() === partVariantUi.variantNote);
   await completeFunctionalCase(partWorkPage, "QA-087-205", {
@@ -1318,7 +1318,7 @@ try {
       await drawing.waitForFunction(() => document.querySelector(".canonical-list")?.getAttribute("aria-busy") === "false", null, { timeout: 30_000 });
       const initialRow = drawing.locator("[data-canonical-workbench-row='true']").filter({ hasText: "研發版 0.1" }).first();
       await initialRow.locator(".canonical-row-open").click();
-      await drawing.getByRole("button", { name: "進行編輯", exact: true }).click();
+      await drawing.getByRole("button", { name: "編輯", exact: true }).click();
       await drawing.locator('[data-workspace-kind="drawing-revision-work"]').waitFor({ state: "visible", timeout: 30_000 });
       const initialWorkId = new URL(drawing.url()).searchParams.get("workId");
       const initialWorkApi = await drawing.evaluate(async (workId) => {
@@ -1517,7 +1517,7 @@ try {
       await drawing.waitForFunction(() => document.querySelector(".canonical-list")?.getAttribute("aria-busy") === "false", null, { timeout: 30_000 });
       const correctionRow = drawing.locator("[data-canonical-workbench-row='true']").filter({ hasText: "研發版 1.2" }).first();
       await correctionRow.locator(".canonical-row-open").click();
-      await drawing.getByRole("button", { name: "進行編輯", exact: true }).click();
+      await drawing.getByRole("button", { name: "編輯", exact: true }).click();
       await drawing.locator('[data-workspace-kind="drawing-revision-work"]').waitFor({ state: "visible", timeout: 30_000 });
       const correctionFff = await drawing.locator(".canonical-fff-grid select[data-fff-axis]").evaluateAll((nodes) => nodes.map((node) => node.value));
       check("QA-087-192 returned owner work preserves exact FFF snapshot", JSON.stringify(correctionFff) === JSON.stringify(["no_impact", "suspected_impact", "confirmed_impact"]) && await drawing.getByLabel("替代料號", { exact: true }).inputValue() === "A0002-P02", JSON.stringify(correctionFff));
