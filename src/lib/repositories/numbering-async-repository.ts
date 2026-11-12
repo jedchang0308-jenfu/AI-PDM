@@ -4573,7 +4573,7 @@ export class AsyncNumberingRepository {
     const controlled = await client.queryOne<{
       revisions: number | string; review_requests: number | string; approved_part_changes: number | string;
       approved_relation_changes: number | string; platform_approvals: number | string;
-      controlled_drawings: number | string; recognition_evidence: number | string; dependent_workspaces: number | string;
+       controlled_drawings: number | string; dependent_workspaces: number | string;
     }>(`
       WITH bundle_targets AS (
         SELECT id FROM part_roots WHERE company_id = :companyId AND id = :rootId
@@ -4589,16 +4589,6 @@ export class AsyncNumberingRepository {
         (SELECT COUNT(*) FROM drawings d WHERE d.company_id = :companyId AND d.part_root_id = :rootId
            AND (d.lifecycle_state NOT IN ('building', 'drawing_preparation', 'cancelled') OR
                 d.controlled_at IS NOT NULL OR d.released_at IS NOT NULL)) AS controlled_drawings,
-        (SELECT COUNT(*) FROM drawing_recognition_sessions session
-         WHERE session.company_id = :companyId AND (
-           session.drawing_id IN (SELECT id FROM bundle_targets) OR
-           (session.source_context_type = 'drawing_number' AND session.source_context_id IN (SELECT id FROM bundle_targets)))
-           AND (session.status IN ('queued', 'extracting', 'formalized') OR session.formalized_at IS NOT NULL OR
-             session.source_context_type <> 'drawing_revision' OR NOT EXISTS (
-               SELECT 1 FROM canonical_workbench_states state WHERE state.company_id = session.company_id
-                 AND state.revision_id = session.drawing_revision_id AND state.work_id IS NOT NULL
-             ) OR EXISTS (SELECT 1 FROM drawing_recognition_formalization_events event
-                          WHERE event.session_id = session.id))) AS recognition_evidence,
         (SELECT COUNT(*) FROM numbering_draft_workspaces workspace WHERE workspace.company_id = :companyId
            AND (workspace.source_root_id = :rootId OR workspace.source_part_number_id IN (SELECT id FROM bundle_targets)
                 OR workspace.source_drawing_number_id IN (SELECT id FROM bundle_targets))) AS dependent_workspaces,
@@ -4613,7 +4603,55 @@ export class AsyncNumberingRepository {
          WHERE request.company_id = :companyId AND target.target_id IN (SELECT id FROM bundle_targets)
            AND (request.request_status IN ('pending', 'approved', 'applied', 'apply_failed') OR
                 EXISTS (SELECT 1 FROM approval_platform_decisions decision
-                        WHERE decision.request_id = request.id AND decision.decision = 'approved'))) AS platform_approvals`, params);
+                         WHERE decision.request_id = request.id AND decision.decision = 'approved'))) AS platform_approvals`, params);
+    const recognition = await client.query<{
+      id: string; row_version: number | string; status: string; disposition: "cleanup" | "controlled";
+    }>(`
+      WITH bundle_targets AS (
+        SELECT id FROM part_roots WHERE company_id = :companyId AND id = :rootId
+        UNION ALL SELECT id FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId
+        UNION ALL SELECT id FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId
+        UNION ALL SELECT id FROM drawings WHERE company_id = :companyId AND part_root_id = :rootId
+      ), scoped_revisions AS (
+        SELECT revision.id FROM drawing_revisions revision JOIN drawings drawing
+          ON drawing.id = revision.drawing_id AND drawing.company_id = revision.company_id
+        WHERE drawing.company_id = :companyId AND drawing.part_root_id = :rootId
+      ), scoped_sessions AS (
+        SELECT session.*,
+          EXISTS (SELECT 1 FROM drawing_recognition_formalization_events event
+            WHERE event.session_id = session.id) AS has_formalization,
+          (session.source_context_type = 'drawing_revision' AND session.source_context_id = session.drawing_revision_id
+            AND EXISTS (
+              SELECT 1 FROM drawing_revisions revision
+              JOIN drawings drawing ON drawing.id = revision.drawing_id AND drawing.company_id = revision.company_id
+              JOIN canonical_workbench_states state ON state.revision_id = revision.id AND state.company_id = revision.company_id
+                AND state.canonical_entity_id = drawing.id
+              JOIN drawing_revision_works work ON work.id = state.work_id AND work.company_id = state.company_id
+                AND work.branch_id = state.branch_id AND work.drawing_id = drawing.id
+              WHERE revision.company_id = session.company_id AND revision.id = session.drawing_revision_id
+                AND drawing.id = session.drawing_id AND drawing.part_root_id = :rootId
+                AND revision.lifecycle_state IN ('preparing', 'correction_required')
+                AND state.entity_type = 'drawing' AND state.data_layer = 'drawing_rd' AND state.handling = 'owner'
+            )) AS has_scoped_current_work
+        FROM drawing_recognition_sessions session
+        WHERE session.company_id = :companyId AND (
+          session.drawing_id IN (SELECT id FROM bundle_targets) OR
+          (session.source_context_type = 'drawing_number' AND session.source_context_id IN
+            (SELECT id FROM bundle_targets)) OR
+          (session.source_context_type = 'drawing_revision' AND session.source_context_id IN
+            (SELECT id FROM scoped_revisions)) OR
+          session.drawing_revision_id IN (SELECT id FROM scoped_revisions))
+      )
+      SELECT session.id, session.row_version, session.status,
+        CASE WHEN session.has_scoped_current_work AND session.formalized_at IS NULL AND NOT session.has_formalization
+          AND session.session_purpose <> 'amendment' AND (
+            session.status IN ('review_ready', 'extraction_partial', 'extraction_failed', 'ready_to_formalize', 'cancelled') OR
+            (session.status = 'queued' AND session.session_purpose = 'recognition'
+              AND session.attempt_count = 0 AND session.locked_by IS NULL AND session.locked_at IS NULL
+              AND session.heartbeat_at IS NULL)
+          ) THEN 'cleanup' ELSE 'controlled'
+        END AS disposition
+      FROM scoped_sessions session`, params);
     const transfers = await client.query<{
       id: string; package_id: string; package_code: string; package_status: string;
       owner_id: string | null; row_version: number | string; entity_code: string;
@@ -4667,13 +4705,15 @@ export class AsyncNumberingRepository {
       fileIds: files.map(file => file.id),
       fileNames: files.map(file => file.file_name),
       auxiliaryJobs: auxiliaryJobs.map(job => ({ id: job.id, status: job.status, dispatchState: job.dispatch_state })),
+      recognitionSessions: recognition.filter(session => session.disposition === "cleanup")
+        .map(session => ({ id: session.id, rowVersion: Number(session.row_version), status: session.status })),
       controlledReferences: Number(dependencies?.approval_count ?? 0) + Number(dependencies?.revision_package_count ?? 0) +
         Number(dependencies?.shared_model_count ?? 0) + Number(dependencies?.manufacturing_baseline_count ?? 0) +
         Number(dependencies?.manufacturing_baseline_item_count ?? 0) + Number(dependencies?.replacement_link_count ?? 0) +
         Number(controlled?.revisions ?? 0) + Number(controlled?.review_requests ?? 0) +
         Number(controlled?.approved_part_changes ?? 0) + Number(controlled?.approved_relation_changes ?? 0) +
         Number(controlled?.platform_approvals ?? 0) + Number(controlled?.controlled_drawings ?? 0) +
-        Number(controlled?.recognition_evidence ?? 0) + Number(controlled?.dependent_workspaces ?? 0)
+        recognition.filter(session => session.disposition === "controlled").length + Number(controlled?.dependent_workspaces ?? 0)
     };
   }
 

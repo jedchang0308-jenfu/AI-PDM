@@ -62,6 +62,7 @@ async function handle(request: Request, route: Route, fingerprint?: string) {
         affectedFileAssets: basis.fileIds.length,
         fileNames: basis.fileNames ?? [],
         affectedAuxiliaryJobs: basis.auxiliaryJobs?.length ?? 0,
+        affectedRecognitionSessions: basis.recognitionSessions?.length ?? 0,
         transferReferences: basis.transfers.map(ref => ({ packageCode: ref.packageCode, entityCode: ref.entityCode })),
         fingerprint: draftNumberingDeleteFingerprint(basis, actor) });
     }, { readOnly: !fingerprint, isolationLevel: fingerprint ? "serializable" : "repeatable_read" });

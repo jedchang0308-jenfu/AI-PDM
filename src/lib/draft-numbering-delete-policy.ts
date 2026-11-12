@@ -26,6 +26,7 @@ export type DraftNumberingDeleteBasis = {
   fileIds: readonly string[];
   fileNames?: readonly string[];
   auxiliaryJobs?: readonly { id: string; status: string; dispatchState: string }[];
+  recognitionSessions?: readonly { id: string; rowVersion: number; status: string }[];
   controlledReferences: number;
 };
 
@@ -60,10 +61,13 @@ export function draftNumberingDeleteFingerprint(basis: DraftNumberingDeleteBasis
     [...entries].sort((left, right) => left.id.localeCompare(right.id)).map(member);
   const transfers = [...basis.transfers].sort((left, right) => left.id.localeCompare(right.id)).map(ref =>
     [ref.id, ref.packageId, ref.packageCode, ref.packageStatus, ref.packageOwnerId, ref.packageVersion, ref.entityCode]);
+  const recognition = [...(basis.recognitionSessions ?? [])]
+    .sort((left, right) => left.id.localeCompare(right.id));
   return createHash("sha256").update(JSON.stringify([
     "numbering-draft-delete-v1", basis.companyId, actor.userId, actor.systemAdmin, member(basis.root),
     members(basis.drawings), members(basis.parts), transfers, [...basis.fileIds].sort(),
     [...(basis.fileNames ?? [])].sort(), basis.controlledReferences,
-    [...(basis.auxiliaryJobs ?? [])].sort((left, right) => left.id.localeCompare(right.id))
+    [...(basis.auxiliaryJobs ?? [])].sort((left, right) => left.id.localeCompare(right.id)),
+    ...(recognition.length ? [recognition] : [])
   ])).digest("hex");
 }
