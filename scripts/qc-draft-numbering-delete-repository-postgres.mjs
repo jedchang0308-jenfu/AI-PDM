@@ -63,7 +63,7 @@ const migrations = [
   '043_inline_relation_matrix.sql', '047_remove_bom_module.sql',
   '048_solidworks_credential_ui_activation.sql', '049_retire_standalone_manufacturing_impact.sql',
   '050_drawing_recognition_part_owner_invariant.sql', '051_part_structure_type_authority.sql',
-  '052_retired_workbench_residue_cleanup.sql',
+  '052_retired_workbench_residue_cleanup.sql', '053_drawing_recognition_amendment_lineage.sql',
 ]
 
 try {
@@ -125,6 +125,7 @@ try {
   await admin.query(fs.readFileSync(path.join(pgDir, '079_dev122_canonical_review_lifecycle.sql'), 'utf8'))
   await admin.query(fs.readFileSync(path.join(pgDir, '082_dev122_openswx_auxiliary_jobs.sql'), 'utf8'))
   await admin.query(fs.readFileSync(path.join(pgDir, '102_draft_numbering_delete_terminal_openswx.sql'), 'utf8'))
+  await admin.query('SET search_path = ai_pdm_core, public')
   const { createAsyncDatabaseClient } = await import(pathToFileURL(path.join(root, 'src/lib/db-async-provider.ts')).href)
   const { AsyncNumberingRepository, readV3OccupiedRootCodes } = await import(pathToFileURL(path.join(root, 'src/lib/repositories/numbering-async-repository.ts')).href)
   const { AsyncTransferPackageRepository } = await import(pathToFileURL(path.join(root, 'src/lib/repositories/transfer-package-async-repository.ts')).href)
@@ -153,6 +154,62 @@ try {
       (id,company_id,part_root_id,drawing_number,purpose_code,purpose_description,sequence_no,is_primary_manufacturing,record_status,rule_version_id,created_by)
     VALUES ($1,$2,$3,$4,'M','QC manufacturing drawing',1,1,'Draft','numbering-rule-v3-alpha-root',$5)`,
   [seeded.drawingId, owner.companyId, seeded.rootId, seeded.drawingCode, owner.userId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawings
+      (id,company_id,drawing_number,lifecycle_state,formal_drawing_number_id,part_root_id,purpose_code,
+       purpose_description,sequence_no,is_primary_manufacturing,owner_id,rule_version_id,created_by)
+    VALUES ('qc-canonical-drawing',$1,'A0062-M01','drawing_preparation',$2,$3,'M',
+       'QC manufacturing drawing',1,1,$4,'numbering-rule-v3-alpha-root',$4)`,
+  [owner.companyId, seeded.drawingId, seeded.rootId, owner.userId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_revisions
+      (id,company_id,drawing_id,revision,lifecycle_state,policy_snapshot_json,row_version,created_by,updated_by)
+    VALUES ('qc-revision',$1,'qc-canonical-drawing','0.1','preparing','{}'::jsonb,1,$2,$2)`, [owner.companyId, owner.userId])
+  await admin.query(`INSERT INTO ai_pdm_core.pdm_workbench_aggregates
+      (id,company_id,entity_type,canonical_entity_id,open_branch_count,row_version)
+    VALUES ('qc-drawing-aggregate',$1,'drawing','qc-canonical-drawing',1,1)`, [owner.companyId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_rd_branches
+      (id,company_id,drawing_id,status,row_version)
+    VALUES ('qc-drawing-branch',$1,'qc-canonical-drawing','open',1)`, [owner.companyId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_revision_claims
+      (id,company_id,drawing_id,branch_id,target_major,target_minor,target_label,claim_state)
+    VALUES ('qc-revision-claim',$1,'qc-canonical-drawing','qc-drawing-branch',0,1,'0.1','work')`, [owner.companyId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_revision_works
+      (id,company_id,drawing_id,branch_id,target_claim_id,owner_user_id,proposed_payload,base_hash,row_version)
+    VALUES ('qc-revision-work',$1,'qc-canonical-drawing','qc-drawing-branch','qc-revision-claim',$2,'{}'::jsonb,'qc-base-hash',4)`,
+  [owner.companyId, owner.userId])
+  await admin.query(`INSERT INTO ai_pdm_core.canonical_workbench_states
+      (id,company_id,entity_type,canonical_entity_id,data_layer,branch_id,revision_id,work_id,handling,row_version)
+    VALUES ('qc-revision-state',$1,'drawing','qc-canonical-drawing','drawing_rd','qc-drawing-branch','qc-revision','qc-revision-work','owner',7)`,
+  [owner.companyId])
+  await admin.query(`INSERT INTO ai_pdm_core.principal_accounts
+      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,
+       profile_version,system_role_enabled,minimum_assurance)
+    VALUES ('qc-principal',$1,$2,'qc-employee','human_personal','active',1,1,true,'aal1')`,
+  [owner.userId, owner.companyId])
+  await admin.query(`INSERT INTO ai_pdm_core.file_assets
+      (id,file_name,file_ext,mime_type,file_size,content_hash,linked_entity_type,linked_entity_id,uploaded_by)
+    VALUES ('qc-recognition-file','qc-drawing.slddrw','slddrw','application/octet-stream',128,$1,'drawing_revision','qc-revision',$2)`,
+  ['a'.repeat(64), owner.userId])
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_revision_files
+      (id,company_id,drawing_revision_id,source_file_asset_id,role,role_source,display_name,sort_order,is_primary,created_by)
+    VALUES ('qc-revision-file','qc-company','qc-revision','qc-recognition-file','drawing_2d','system','qc-drawing.slddrw',0,1,'qc-owner')`)
+  await admin.query(`INSERT INTO ai_pdm_core.drawing_recognition_sessions
+      (id,company_id,source_context_type,source_context_id,source_lineage_key,drawing_id,drawing_revision_id,
+       source_set_fingerprint,deduplication_key,status,session_purpose,attempt_count,locked_by,locked_at,heartbeat_at,
+       row_version,created_by)
+    VALUES ('qc-recognition-session',$1,'drawing_revision','qc-revision','qc-canonical-drawing:qc-revision',
+       'qc-canonical-drawing','qc-revision',$2,'qc-recognition-dedup','queued','recognition',0,NULL,NULL,NULL,7,$3)`,
+  [owner.companyId, 'b'.repeat(64), owner.userId])
+  const openswxInitiator = JSON.stringify({ companyId: owner.companyId, principalId: 'qc-principal', pdmUserId: owner.userId,
+    employeeId: 'qc-employee', identityIssuer: 'https://issuer.invalid', identitySubject: 'qc-subject',
+    profileVersion: 1, accountLifecycleVersion: 1, authEpoch: 0,
+    authenticatedAt: '2026-11-12T00:00:00.000Z', sessionIssuedAt: '2026-11-12T00:00:00.000Z' })
+  await admin.query(`INSERT INTO ai_pdm_core.openswx_metadata_jobs
+      (id,company_id,session_id,source_context_type,source_context_id,drawing_revision_id,source_set_fingerprint,
+       reader_commit,initiator_principal_id,initiator_pdm_user_id,initiator_json,sources_json,status,attempt_count,dispatch_state)
+    VALUES ('qc-terminal-openswx','qc-company','qc-recognition-session','drawing_revision','qc-revision','qc-revision',
+       $1,'30bd63845d3532cdecfdf2654e9cc0871229c45a','qc-principal','qc-owner',$2,$3,'failed',1,'terminal')`,
+  ['c'.repeat(64), openswxInitiator, JSON.stringify([{ id: 'qc-recognition-file', fileAssetId: 'qc-recognition-file',
+    sha256: 'a'.repeat(64), bytes: 128, extension: 'slddrw', storageGeneration: null, sourceRole: 'drawing_2d', sortOrder: 0 }])])
   await admin.query(`INSERT INTO ai_pdm_core.part_roots
       (id,company_id,root_code,core_name,item_kind,record_status,rule_version_id,created_by)
     VALUES ('qc-blocked-root',$1,'A0063','QC blocked bundle','manufactured','Draft','numbering-rule-v3-alpha-root',$2)`,
@@ -177,15 +234,65 @@ try {
   let basis = await numbering.readDraftNumberingDeleteBasis(owner.companyId, rootCode)
   assert.ok(basis, 'seeded root should be readable')
   assert.equal(basis.transfers.length, 1, 'draft transfer reference should be in exact delete basis')
+  assert.equal(basis.controlledReferences, 0, 'an exact owner-handled queued recognition session is cleanable, not controlled')
+  assert.deepEqual(basis.recognitionSessions, [{ id: 'qc-recognition-session', rowVersion: 7, status: 'queued' }],
+    'basis must capture the exact queued session identity and row version')
+  assert.deepEqual(basis.auxiliaryJobs, [{ id: 'qc-terminal-openswx', status: 'failed', dispatchState: 'terminal' }],
+    'the terminal OpenSWX job must be attached to the same draft revision')
+  mark('exact current owner-handled queued recognition and terminal worker are cleanable')
+
+  const policy = await import(pathToFileURL(path.join(root, 'src/lib/draft-numbering-delete-policy.ts')).href)
+  const verified = { profile: { companyId: owner.companyId, pdmUserId: owner.userId },
+    session: { principalId: 'qc-principal', profileVersion: 1 } }
+  const ownerDeleteActor = { userId: owner.userId, systemAdmin: false }
+  const deleteTransferActor = { ...transferOwner }
+  async function assertRecognitionBlocked(label, prepare) {
+    const rollbackMarker = `QC_RECOGNITION_NEGATIVE_${label}`
+    await assert.rejects(database.transaction(async tx => {
+      await prepare(tx)
+      const invalidBasis = await new AsyncNumberingRepository(tx).readDraftNumberingDeleteBasis(owner.companyId, rootCode)
+      assert.ok(invalidBasis)
+      assert.ok(invalidBasis.controlledReferences > 0, `${label} must be treated as controlled reference`)
+      assert.deepEqual(invalidBasis.recognitionSessions, [], `${label} must not enter the cleanup set`)
+      const invalidFingerprint = policy.draftNumberingDeleteFingerprint(invalidBasis, ownerDeleteActor)
+      await assert.rejects(deleteVerifiedDraftNumberingBundleInClient(tx, {
+        companyId: owner.companyId, rootCode, fingerprint: invalidFingerprint, actor: ownerDeleteActor,
+        transferActor: deleteTransferActor, verified
+      }), error => error.message === 'NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES')
+      throw new Error(rollbackMarker)
+    }, { isolationLevel: 'serializable' }), error => error.message === rollbackMarker)
+    const current = await admin.query(`SELECT status,attempt_count,locked_by,locked_at,heartbeat_at,row_version
+      FROM ai_pdm_core.drawing_recognition_sessions WHERE id='qc-recognition-session'`)
+    assert.deepEqual(current.rows[0], { status: 'queued', attempt_count: 0, locked_by: null,
+      locked_at: null, heartbeat_at: null, row_version: 7 }, `${label} fixture transaction must roll back`)
+    assert.equal((await admin.query(`SELECT count(*)::int AS n FROM ai_pdm_core.openswx_metadata_jobs
+      WHERE id='qc-terminal-openswx'`)).rows[0].n, 1, `${label} denial must retain terminal worker row`)
+    assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.transfer_package_items WHERE package_id=$1',
+      [packageRow.id])).rows[0].n, 1, `${label} denial must retain Draft transfer scope`)
+    mark(`${label} recognition state blocks deletion without side effects`)
+  }
+  await assertRecognitionBlocked('claimed queued session', tx => tx.execute(`UPDATE ai_pdm_core.drawing_recognition_sessions
+    SET locked_by='qc-worker', locked_at=now(), heartbeat_at=now(), row_version=row_version+1
+    WHERE id='qc-recognition-session' AND status='queued' AND attempt_count=0`))
+  await assertRecognitionBlocked('extracting session', tx => tx.execute(`UPDATE ai_pdm_core.drawing_recognition_sessions
+    SET status='extracting', attempt_count=1, locked_by='qc-worker', locked_at=now(), heartbeat_at=now(), row_version=row_version+1
+    WHERE id='qc-recognition-session'`))
+  await assertRecognitionBlocked('formally written recognition session', async tx => {
+    await tx.execute(`UPDATE ai_pdm_core.drawing_recognition_sessions SET status='formalized', formalized_at=now(),
+      formalized_by=:ownerId, row_version=row_version+1 WHERE id='qc-recognition-session'`, { ownerId: owner.userId })
+    await tx.execute(`INSERT INTO ai_pdm_core.drawing_recognition_formalization_events
+      (id,session_id,company_id,actor_id,idempotency_key,impact_fingerprint,target_fingerprints_json,
+       applied_changes_json,exclusions_json,result_json)
+      VALUES ('qc-formalization-event','qc-recognition-session',:companyId,:ownerId,'qc-formalization',
+       :fingerprint,'[]'::jsonb,'[]'::jsonb,'[]'::jsonb,'{}'::jsonb)`,
+    { companyId: owner.companyId, ownerId: owner.userId, fingerprint: 'd'.repeat(64) })
+  })
 
   await admin.query(`INSERT INTO ai_pdm_core.relation_approved_change_snapshots
     (id,company_id,root_id,before_tree,after_tree,content_hash,formalized_at)
     VALUES ('qc-formal-relation','qc-company','qc-blocked-root','{}'::jsonb,'{}'::jsonb,'qc-formal-hash',now())`)
   const blockedBasis = await numbering.readDraftNumberingDeleteBasis(owner.companyId, 'A0063')
   assert.ok(blockedBasis)
-  const policy = await import(pathToFileURL(path.join(root, 'src/lib/draft-numbering-delete-policy.ts')).href)
-  const verified = { profile: { companyId: owner.companyId, pdmUserId: owner.userId },
-    session: { principalId: 'qc-principal', profileVersion: 1 } }
   await assert.rejects(database.transaction(async tx => deleteVerifiedDraftNumberingBundleInClient(tx, {
     companyId: owner.companyId, rootCode: 'A0063',
     fingerprint: policy.draftNumberingDeleteFingerprint(blockedBasis, { userId: owner.userId, systemAdmin: false }),
@@ -226,6 +333,19 @@ try {
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_numbers WHERE part_root_id=$1', [seeded.rootId])).rows[0].n, 0)
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.transfer_package_items WHERE package_id=$1', [packageRow.id])).rows[0].n, 0)
   assert.equal((await admin.query('SELECT row_version FROM ai_pdm_core.transfer_packages WHERE id=$1', [packageRow.id])).rows[0].row_version, 2)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_recognition_sessions WHERE id=$1', ['qc-recognition-session'])).rows[0].n, 0,
+    'successful work cancellation must remove the exact queued recognition session')
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.openswx_metadata_jobs WHERE id=$1', ['qc-terminal-openswx'])).rows[0].n, 0,
+    'terminal OpenSWX job attached to the deleted draft revision must be cleaned')
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_revision_works WHERE id=$1', ['qc-revision-work'])).rows[0].n, 0,
+    'exact owner-handled current revision work must be cancelled and removed')
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.canonical_workbench_states WHERE id=$1', ['qc-revision-state'])).rows[0].n, 0)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_revision_claims WHERE id=$1', ['qc-revision-claim'])).rows[0].n, 0)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_rd_branches WHERE id=$1', ['qc-drawing-branch'])).rows[0].n, 0)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawing_revisions WHERE id=$1', ['qc-revision'])).rows[0].n, 0)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_pdm_core.drawings WHERE id=$1', ['qc-canonical-drawing'])).rows[0].n, 0)
+  assert.ok((await admin.query('SELECT deleted_at FROM ai_pdm_core.file_assets WHERE id=$1', ['qc-recognition-file'])).rows[0].deleted_at,
+    'source file asset must be soft-deleted by scoped work cancellation')
   const occupied = await readV3OccupiedRootCodes(database, owner.companyId)
   assert.equal(occupied.includes(rootCode), false, `deleted root ${rootCode} must be released by the actual shared occupied-code reader`)
   mark(`real repository deletes root/part/drawing and Draft transfer; ${rootCode} is reusable by readV3OccupiedRootCodes`)

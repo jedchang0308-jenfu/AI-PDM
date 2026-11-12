@@ -120,4 +120,14 @@ describe("draft numbering delete policy", () => {
 
     expect(draftNumberingDeleteFingerprint(reversed, actor)).toBe(draftNumberingDeleteFingerprint(first, actor));
   });
+
+  it("binds confirmation to each queued recognition session and its version", () => {
+    const recognition = { id: "recognition-1", rowVersion: 1, status: "queued" };
+    const withoutRecognition = draftNumberingDeleteFingerprint(basis(), actor);
+    const preview = draftNumberingDeleteFingerprint(basis({ recognitionSessions: [recognition] }), actor);
+    expect(draftNumberingDeleteFingerprint(basis({ recognitionSessions: [] }), actor)).toBe(withoutRecognition);
+    expect(preview).not.toBe(withoutRecognition);
+    expect(draftNumberingDeleteFingerprint(basis({ recognitionSessions: [{ ...recognition, rowVersion: 2 }] }), actor))
+      .not.toBe(preview);
+  });
 });

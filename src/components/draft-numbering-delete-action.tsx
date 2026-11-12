@@ -12,6 +12,7 @@ type DeletePreview = {
   affectedFileAssets: number;
   fileNames: string[];
   affectedAuxiliaryJobs: number;
+  affectedRecognitionSessions?: number;
   transferReferences: { packageCode: string; entityCode: string }[];
   fingerprint: string;
 };
@@ -84,6 +85,7 @@ export function DraftNumberingDeleteAction({ rootCode, onBeforeOpen, onDeleted }
         {preview.partNumbers.length ? <p>料號 {preview.partNumbers.join("、")}</p> : null}
         {preview.affectedFileAssets > 0 ? <p>受影響附件 {preview.affectedFileAssets} 筆{preview.fileNames.length ? ` · ${preview.fileNames.join("、")}` : ""}</p> : null}
         {preview.affectedAuxiliaryJobs > 0 ? <p>已終止的 OpenSWX 工作 {preview.affectedAuxiliaryJobs} 筆</p> : null}
+        {preview.affectedRecognitionSessions ? <p>未正式化的圖面辨識 {preview.affectedRecognitionSessions} 筆</p> : null}
         {preview.transferReferences.length ? <ul aria-label="將移除的技轉引用">{preview.transferReferences.map(ref =>
           <li key={`${ref.packageCode}/${ref.entityCode}`}>{ref.packageCode} · {ref.entityCode}</li>)}</ul> : null}
         {error ? <p className="canonical-error" role="alert">{error}</p> : null}

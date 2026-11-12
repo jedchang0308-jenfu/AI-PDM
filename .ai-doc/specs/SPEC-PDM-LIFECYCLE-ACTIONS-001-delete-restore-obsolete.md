@@ -4,6 +4,8 @@
 
 > 永久刪除走獨立的伺服器命令與權限。畫面一次列出整組根號、圖料、受影響附件與可移除的草稿技轉引用，經確認後以同一交易重查身分、公司、責任、資料快照、核准歷史及引用。可處理的草稿技轉範圍項目與草稿圖料一起清除，技轉包保留。其他公司的資料、正式引用及不明引用不得自動移除。資料刪除與編號釋放同交易完成，保留舊資料 ID、編號、操作者、時間與結果的最小稽核。此修訂取代下列 DEV-077 對合格草稿一律作廢及永久禁止刪除的決策。
 
+> 只屬於這組圖料目前草稿版次、未正式化的辨識工作，列入同一次刪除預覽與交易。排隊工作須為尚未被 worker 領取的原始辨識。已領取且仍在排隊或執行中的工作、正式化紀錄、辨識修訂與無法確認範圍的工作會阻擋刪除。
+
 > 2026-08-22 DEV-087 Amendment（RD Implementation Ready）：Drawing open idle branch 的 latest approved RD 可執行次要風險動作 `申請作廢`。送審時不建立新 revision；退回後恢復 idle open；核准並 system formalize 後關閉整個 branch、移出 current list、釋放一個 branch-cap slot，且不得 reopen。branch 內已核准 identity、minimal review trace 與 controlled artifact 保留供追溯。未核准 physical bytes 僅在零有效引用且 canonical-only gate 通過後永久刪除，DEV-087 不提供備份回復、使用者恢復或 UI 復原入口；DB/schema/binding migration backup／rollback 仍須保留。若舊 restore／obsolete／current-row action與本 amendment 衝突，以 DEV-087 新決策為主；可安全拆除的舊 current-state action、command與fallback在同一DEV移除，不保留雙軌相容。
 >
 > 2026-08-18 DEV-077 Amendment：已配置 official root／drawing／part number 的 Draft／NeedInfo bundle 不再走一般可還原 `刪除`。符合 zero-controlled-reference gate 時走免正式審核的 `作廢草稿編號 → Obsolete`，永久不回收並進受控歷史；Active／Released 或需正式責任鏈者仍走 `申請作廢 → approval → Obsolete`。本 amendment 對 DEV-077 scope 優先於本文件舊條款。
