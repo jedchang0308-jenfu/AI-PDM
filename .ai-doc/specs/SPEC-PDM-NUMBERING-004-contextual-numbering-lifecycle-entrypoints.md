@@ -556,7 +556,7 @@ Stop and return to PM/human decision if:
 | root或任一child為Active／Released、root為`MainDrawingInvalid` formal-responsibility投影，或Draft／NeedInfo bundle已有受控引用 | `申請圖料根號作廢` | 開impact preview與root-level approval request | `GET .../obsolete-impact`＋`POST /api/lifecycle/obsolete-requests` | 核准前不變；approved後核定targets為`Obsolete` |
 | mixed／pending／terminal／blocked reference／no permission | 依policy hidden或inert | 顯示最小充分原因與可恢復路徑 | direct call fail closed | zero mutation |
 
-`作廢草稿編號` 與 `申請圖料根號作廢` 不得同時 enabled。`DELETE /api/numbering/records/[rootCode]/draft`不得再由root drawer呼叫，production永久不列入allowlist。
+`作廢草稿編號` 與 `申請圖料根號作廢` 不得同時 enabled。符合永久刪除條件的草稿，圖號及料號工作台明細可先讀取根號整組影響範圍，再呼叫 `DELETE /api/numbering/records/[rootCode]/draft`。伺服器按草稿刪除的獨立網域規則判權，並在交易內重查資格與影響範圍。已核准或已正式使用的資料適用原作廢流程。
 
 ### Server-Owned Action Policy
 

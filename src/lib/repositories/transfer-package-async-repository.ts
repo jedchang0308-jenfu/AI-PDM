@@ -584,8 +584,8 @@ export class AsyncTransferPackageRepository {
     itemId: string;
     actor: TransferPackageActor;
     expectedRowVersion: number;
-  }) {
-    await this.client.transaction(async (client) => {
+  }, transactionClient?: AsyncDatabaseClient) {
+    const run = async (client: AsyncDatabaseClient) => {
       const row = await this.requireEditableRow(client, input.packageId, input.actor);
       if (Number(row.row_version) !== input.expectedRowVersion) {
         throw new TransferPackageError("TRANSFER_PACKAGE_STALE", "技轉包範圍已變更，請重新整理後再試。", 409);
@@ -629,7 +629,12 @@ export class AsyncTransferPackageRepository {
         entityId: item.entity_id,
         entityCode: item.entity_code
       }, now);
-    });
+    };
+    if (transactionClient) {
+      await run(transactionClient);
+      return this.getById(input.packageId, input.actor.companyId, transactionClient);
+    }
+    await this.client.transaction(run);
     return this.getById(input.packageId, input.actor.companyId);
   }
 

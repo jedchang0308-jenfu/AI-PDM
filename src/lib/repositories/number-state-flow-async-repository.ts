@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { readV3OccupiedRootCodes } from "@/lib/repositories/numbering-async-repository";
 import { canonicalJsonStringify } from "@/lib/canonical-json";
 import {
   NUMBERING_RULE_V3_ID,
@@ -1649,10 +1650,7 @@ export class AsyncNumberStateFlowRepository {
     const reservedCodes = await this.usedCodes(input.companyId, input.itemType, input.sequenceScopeKey);
     let officialCodes: string[] = [];
     if (input.itemType === "root") {
-      officialCodes = (await this.client.query<{ code: string }>(
-        "SELECT root_code AS code FROM part_roots WHERE company_id = :companyId",
-        { companyId: input.companyId }
-      )).map((row) => row.code);
+      officialCodes = await readV3OccupiedRootCodes(this.client, input.companyId);
     } else if (input.itemType === "part") {
       officialCodes = (await this.client.query<{ code: string }>(
         "SELECT part_number AS code FROM part_numbers WHERE company_id = :companyId",

@@ -211,6 +211,8 @@ export async function createTransferPackageDraft(input: {
     client: getAsyncDatabaseClient(), command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    // Scope insertion must serialize with permanent deletion of its target.
+    serializable: Boolean(sourceType || sourceId),
     execute: async (client) => {
       const sourceItem = await resolveEntity({
         companyId: input.actor.companyId, entityType: sourceType,
@@ -364,6 +366,7 @@ async function executeTransferMutation(input: {
     client: getAsyncDatabaseClient(), command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    serializable: input.commandName === "pdm.transfer.add_scope_item",
     execute: (client, principalDecision: PrincipalWorkspaceDecision | null) => input.execute(client, {
       userId: input.metadata.actor.pdmUserId, companyId: input.metadata.actor.organizationId,
       principalId: input.metadata.actor.principalId, role: "Principal", principalDecision

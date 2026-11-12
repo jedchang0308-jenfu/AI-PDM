@@ -13,7 +13,7 @@ const reviewed = JSON.parse(readFileSync(join(root,
 
 test('v2 source hash binds every reviewed route and retired cross-owner mutation', () => {
   assert.deepEqual(buildPrincipalRouteMapV2(source, reviewed), reviewed)
-  assert.deepEqual(reviewed.denominator, { uniqueFiles: 153, uniqueMethods: 174, policyEntries: 184 })
+  assert.deepEqual(reviewed.denominator, { uniqueFiles: 154, uniqueMethods: 176, policyEntries: 186 })
   assert.equal(reviewed.entries.filter(entry => entry.path === 'src/app/api/numbering/export-jobs/route.ts' &&
     entry.method === 'POST' && entry.permissionCode === 'numbering.export.create' && entry.scopeResolver === 'workspace').length, 1)
   assert.equal(reviewed.entries.filter(entry =>

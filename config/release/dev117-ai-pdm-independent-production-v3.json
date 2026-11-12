@@ -493,6 +493,11 @@
         "order": 42,
         "path": "db/postgres/101_dev121_principal_session_16_hours.sql",
         "sha256": "700b747bda667fab3edba50a4f3d5a11513947f120386857977ddaecf85dbc37"
+      },
+      {
+        "order": 43,
+        "path": "db/postgres/102_draft_numbering_delete_terminal_openswx.sql",
+        "sha256": "9a0790d5efa212f29e3f1b72febfe55c420b4e34be1ee770e3c6fae3906711d1"
       }
     ]
   },

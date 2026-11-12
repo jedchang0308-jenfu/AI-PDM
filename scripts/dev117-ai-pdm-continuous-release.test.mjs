@@ -312,7 +312,7 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
   assert.deepEqual(bundle.bundle.entries.slice(17).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088', 'ai-pdm-089', 'ai-pdm-090', 'ai-pdm-096', 'ai-pdm-101'])
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088', 'ai-pdm-089', 'ai-pdm-090', 'ai-pdm-096', 'ai-pdm-101', 'ai-pdm-102'])
   assert.deepEqual(profile.migrations.entries[29], { order: 30,
     path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
     sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })

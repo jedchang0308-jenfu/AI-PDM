@@ -540,6 +540,7 @@ export async function acquireNumberingDraftCandidates(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      serializable: true,
       execute: (client) => new AsyncNumberStateFlowRepository(client).acquireCandidates({
         workspaceId,
         companyId: input.metadata.actor.organizationId,
