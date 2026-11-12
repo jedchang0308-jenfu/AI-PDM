@@ -12,7 +12,7 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
 import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
-import { DraftNumberingDeleteAction } from "@/components/draft-numbering-delete-action";
+import { WorkbenchDeleteAction } from "@/components/draft-numbering-delete-action";
 import type { PartPreviewMutationResult } from "@/lib/pdm-part-preview";
 import type { CanonicalWorkbenchDetailDto, CanonicalWorkbenchRowDto, CanonicalWorkbenchAction, CanonicalDetailReadModelRow } from "@/lib/pdm-canonical-workbench-contract";
 
@@ -114,7 +114,7 @@ function AttachmentManagementAction({ allowed, onClick }: { allowed: boolean; on
     aria-busy={state.kind === "loading" ? true : undefined} onClick={onClick}>管理附件</button>;
 }
 
-export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart, onDraftBundleDeleted }: {
+export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart, onDeleteWork, onDraftBundleDeleted }: {
   detail: Detail | null; loading: boolean; error: string; onClose: () => void;
   width: number; onStartResize: (clientX: number) => void;
   canManageAttachments: boolean;
@@ -128,6 +128,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   onMatrixDirtyChange: (dirty: boolean) => void;
   onOpenMatrixDrawing: (detailHref: string) => void;
   onOpenMatrixPart: (detailHref: string) => void;
+  onDeleteWork: (row: CanonicalWorkbenchRowDto, href: string) => Promise<string | null>;
   onDraftBundleDeleted: () => void;
 }) {
   const [matrixEditing, setMatrixEditing] = useState(false);
@@ -142,11 +143,38 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   const relationAction = relationEditable && !matrixEditing
     ? <button type="button" className="secondary-button canonical-preview-relation-action" data-canonical-relation-edit="true" onClick={() => setMatrixEditing(true)}>編輯關聯</button>
     : null;
-  const footerActions = detail?.data.row.actions.filter((action) => action.key !== "edit_relation_matrix") ?? [];
+  const row = detail?.data.row;
+  const footerActions = row?.actions.filter((action) => action.key !== "edit_relation_matrix" && action.key !== "cancel_work") ?? [];
   const partPrimaryActions = footerActions.filter((action) => action.key === "edit" || action.key === "create_change" || action.key === "review");
   const partLifecycleActions = footerActions.filter((action) => !partPrimaryActions.includes(action));
-  const renderAction = (action: CanonicalWorkbenchAction) => <button key={action.key} type="button" className={action.key === "cancel_work" ? "danger-button" : action.key === "void_rd" ? "secondary-button" : "primary-button"} onClick={() => onAction(detail!.data.row, action)}>{action.label}</button>;
-  const footer = footerActions.length ? <div className="canonical-drawer-actions">{detail?.data.row.entityType === "part" ? <>{partPrimaryActions.map(renderAction)}{partLifecycleActions.length ? <details className="canonical-drawer-more-actions"><summary className="secondary-button">更多操作</summary><div>{partLifecycleActions.map(renderAction)}</div></details> : null}</> : footerActions.map(renderAction)}</div> : undefined;
+  const renderAction = (action: CanonicalWorkbenchAction) => <button key={action.key} type="button"
+    className={action.key === "void_rd" ? "secondary-button" : "primary-button"}
+    onClick={() => { if (row) onAction(row, action); }}>{action.key === "edit" ? "編輯" : action.label}</button>;
+  const cancelHref = row?.actions.find((action) => action.key === "cancel_work")?.href;
+  const historicalReason = historyRevisionId ? "歷史版次為唯讀，請回到目前資料。" : null;
+  const workBlockedReason = historicalReason ?? (cancelHref ? null : row?.handling === "owner"
+    ? "只有具備取消權限的負責人或授權人員可以捨棄此版的修改。"
+    : row?.dataState === "reviewing" ? "此版正在審核中，無法捨棄未核准的修改。"
+    : row?.dataState === "publishing" ? "此版正在發行，無法捨棄未核准的修改。"
+    : row?.handling === "none" ? "此版沒有可捨棄的未核准修改。"
+    : row?.blockerReason || "此版目前的工作狀態不允許捨棄修改。");
+  const rootCode = relationMatrix?.rootCode || null;
+  const deleteAction = row && (row.entityType === "drawing" || row.entityType === "part")
+    ? <WorkbenchDeleteAction key={row.rowKey + ":" + (rootCode ?? "") + ":" + (historyRevisionId ?? "")}
+      code={row.code} entityType={row.entityType} version={row.layerLabel} rootCode={rootCode}
+      workBlockedReason={workBlockedReason}
+      permanentBlockedReason={historicalReason ?? (rootCode ? null : "找不到圖料根號，無法確認永久刪除範圍。")}
+      onBeforeDelete={onBeforeCreate}
+      onDeleteWork={() => cancelHref ? onDeleteWork(row, cancelHref) : Promise.resolve("目前無法捨棄此版的修改。")}
+      onPermanentDeleted={onDraftBundleDeleted} />
+    : null;
+  const footer = footerActions.length || deleteAction ? <div className="canonical-drawer-actions">
+    {deleteAction}
+    {(row?.entityType === "part" ? partPrimaryActions : footerActions).map(renderAction)}
+    {row?.entityType === "part" && partLifecycleActions.length > 0
+      ? <details className="canonical-drawer-more-actions"><summary className="secondary-button">更多操作</summary><div>{partLifecycleActions.map(renderAction)}</div></details>
+      : null}
+  </div> : undefined;
   return <PdmEntityDetailDrawer
     open
     width={width}
@@ -167,8 +195,6 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   >
     {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入明細…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
        <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
-       {!historyRevisionId && detail.data.row.layer !== "production" && relationMatrix?.rootCode ? <DraftNumberingDeleteAction
-         key={relationMatrix.rootCode} rootCode={relationMatrix.rootCode} onBeforeOpen={onBeforeCreate} onDeleted={onDraftBundleDeleted} /> : null}
        <DetailRecognitionSections detail={detail} />
        {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}
       {presentation.kind === "part" && presentation.preview ? <CanonicalPartPreviewSection

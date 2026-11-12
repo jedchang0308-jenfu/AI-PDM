@@ -295,7 +295,7 @@ async function runAttachmentLifecycleEvidence(ownerContext) {
   await waitForPartWorkbench(owner);
   const changeRow = owner.locator("[data-canonical-workbench-row='true']").filter({ hasText: "A0002-P01" }).filter({ hasText: "修改中" }).first();
   await changeRow.locator(".canonical-row-open").click();
-  const edit = owner.locator(".pdm-entity-detail-drawer").last().getByRole("button", { name: "進行編輯", exact: true });
+  const edit = owner.locator(".pdm-entity-detail-drawer").last().getByRole("button", { name: "編輯", exact: true });
   await edit.waitFor({ state: "visible", timeout: 30_000 });
   await edit.click();
   await owner.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.get("workId") === workId, { timeout: 30_000 });
@@ -317,7 +317,7 @@ async function runAttachmentLifecycleEvidence(ownerContext) {
   await owner.screenshot({ path: p13AfterScreenshot, fullPage: true });
   writeCaseReceipt("P13", {
     assertionIds: ["P13:CANCEL_WORK_PRESERVES_LIVE_ATTACHMENTS"],
-    renderedUiActions: ["進行編輯", "取消本次工作", "重開附件頁"], viewport: { width: 1440, height: 900 },
+    renderedUiActions: ["編輯", "取消本次工作", "重開附件頁"], viewport: { width: 1440, height: 900 },
     apiReadback: { cancel: cancelled.status() }, dbReadback: { before: beforeCancel, after: afterCancel }, visibleErrorSweep: [],
     screenshot: path.relative(root, p13AfterScreenshot).replaceAll("\\", "/")
   });

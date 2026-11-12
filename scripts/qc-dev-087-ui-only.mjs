@@ -435,7 +435,7 @@ async function startCanonicalWork(page, definition, rowText, actionLabel) {
 }
 
 async function continueCanonicalWork(page, definition, rowText) {
-  const { dialog, action } = await openCanonicalAction(page, definition, rowText, "進行編輯");
+  const { dialog, action } = await openCanonicalAction(page, definition, rowText, "編輯");
   await action.click();
   await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
   await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
@@ -737,7 +737,7 @@ async function cleanupActiveWork(page, definition) {
   await row.locator(".canonical-row-open, .pdm-identity-code").first().click().catch(() => undefined);
   const dialog = page.locator(".pdm-entity-detail-drawer").last();
   if (await dialog.count() === 0) return;
-  const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+  const edit = dialog.getByRole("button", { name: "編輯", exact: true }).first();
   if (await edit.count() === 0) return;
   await edit.click();
   await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 }).catch(() => undefined);
@@ -1032,7 +1032,7 @@ async function cancelAllActiveDrawingWorks(page, spec) {
         await row.locator(".canonical-row-open").click();
         const dialog = cleanupPage.locator(".pdm-entity-detail-drawer").last();
         await dialog.waitFor({ state: "visible", timeout: 15_000 });
-        const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+        const edit = dialog.getByRole("button", { name: "編輯", exact: true }).first();
         if (await edit.count() === 0) {
           await closeCanonicalDrawer(cleanupPage);
           continue;
@@ -1609,7 +1609,7 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
             await row.locator(".canonical-row-open").click();
             const dialog = page.locator(".pdm-entity-detail-drawer").last();
             await dialog.waitFor({ state: "visible" });
-            const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+            const edit = dialog.getByRole("button", { name: "編輯", exact: true }).first();
             if (await edit.count() > 0) {
               await edit.click();
               await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
@@ -1653,7 +1653,7 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
             await row.locator(".pdm-identity-code, .canonical-row-open").first().click();
             const dialog = page.locator(".pdm-entity-detail-drawer").last();
             await dialog.waitFor({ state: "visible" });
-            const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+            const edit = dialog.getByRole("button", { name: "編輯", exact: true }).first();
             if (await edit.count() > 0) {
               await edit.click();
               await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });

@@ -122,6 +122,41 @@ describe("draft numbering bundle deletion route", () => {
     expect(mocks.canManageRolePolicy).toHaveBeenCalledWith(mocks.transactionClient, verified);
   });
 
+  it("previews a single member and passes only that target to the serializable delete command", async () => {
+    const target = { kind: "part", code: "A0062-P01" } as const;
+    const current = basis({ target, drawings: [], numberReuse: [{ ...target, status: "reusable" }] });
+    const url = "https://example.test/api/numbering/records/A0062/draft?kind=part&code=A0062-P01";
+    mocks.readBasis.mockResolvedValue(current);
+    const response = await GET(new Request(url), route);
+    expect(response.status).toBe(200);
+    const preview = await response.json();
+    expect(preview).toMatchObject({ target, drawingNumbers: [], partNumbers: [target.code], numberReuse: current.numberReuse });
+    expect(mocks.readBasis).toHaveBeenCalledWith("company-jenfu", "A0062", target);
+
+    const deleted = await DELETE(new Request(url, { method: "DELETE",
+      headers: { "content-type": "application/json", origin: "https://example.test" },
+      body: JSON.stringify({ confirmDelete: true, fingerprint: preview.fingerprint }) }), route);
+    expect(deleted.status).toBe(200);
+    expect(mocks.deleteBundle).toHaveBeenCalledWith(mocks.transactionClient, expect.objectContaining({ target }));
+    expect(mocks.lastOptions).toEqual({ readOnly: false, isolationLevel: "serializable" });
+  });
+
+  it("reports the named dependency for an owned member and withholds it from a non-owner", async () => {
+    const target = { kind: "drawing", code: "A0062-M01" } as const;
+    const message = "料號 A0062-P01 仍與這筆圖號關聯。";
+    const url = "https://example.test/api/numbering/records/A0062/draft?kind=drawing&code=A0062-M01";
+    mocks.readBasis.mockResolvedValue(basis({ target, parts: [], blockers: [message] }));
+    const blocked = await GET(new Request(url), route);
+    expect(blocked.status).toBe(409);
+    expect(await blocked.json()).toMatchObject({ code: "NUMBERING_DRAFT_DELETE_BLOCKED", message });
+
+    mocks.readBasis.mockResolvedValue(basis({ target, parts: [], blockers: [message],
+      drawings: [{ id: "drawing-1", code: target.code, status: "Draft", responsibleUserIds: ["rd-2"] }] }));
+    const forbidden = await GET(new Request(url), route);
+    expect(forbidden.status).toBe(403);
+    expect(await forbidden.text()).not.toContain(message);
+  });
+
   it("allows the separately authorized administrator to preview a bundle owned by another RD", async () => {
     mocks.evaluate.mockResolvedValue([decision(false, null), decision(false, null)]);
     mocks.readBasis.mockResolvedValue(basis({
