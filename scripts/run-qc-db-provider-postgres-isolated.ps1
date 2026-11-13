@@ -5,6 +5,7 @@ param(
   [switch]$Dev012Cutover,
   [switch]$Dev121Authorization,
   [switch]$Dev121FileRead,
+  [switch]$PartPreviewRepair,
   [switch]$CleanupOnly
 )
 
@@ -116,6 +117,11 @@ try {
     $tsPathLoaderUrl = [System.Uri]::new((Join-Path $projectRoot "scripts\qc-ts-path-loader.mjs")).AbsoluteUri
     & node --experimental-transform-types "--experimental-loader=$tsPathLoaderUrl" (Join-Path $projectRoot "scripts\qc-dev-121-postgres.mjs")
     if ($LASTEXITCODE -ne 0) { throw "DEV-121 PostgreSQL authorization rehearsal failed with exit code $LASTEXITCODE" }
+  }
+  if ($PartPreviewRepair) {
+    $env:PDM_POSTGRES_SHADOW_URL = $env:PDM_POSTGRES_URL
+    & node --conditions=react-server --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-065-part-preview-postgres.mjs --restore-on-isolated-cluster
+    if ($LASTEXITCODE -ne 0) { throw "Part preview repair rehearsal failed with exit code $LASTEXITCODE" }
   }
   if ($Dev121FileRead) {
     Write-Host "Postgres QC: running DEV-121 file source company proof"

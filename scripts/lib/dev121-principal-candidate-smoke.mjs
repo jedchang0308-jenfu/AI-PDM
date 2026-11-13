@@ -1,5 +1,39 @@
 const PLATFORM_ORIGIN = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const CALLBACK_PATH = '/api/auth/jenfu-sso/callback'
+const PART_PREVIEW_STATES = new Set(['ready', 'pending', 'delayed', 'missing', 'failed', 'unavailable'])
+
+export function isPartWorkbenchPreviewProbe(probe) {
+  return probe?.id === 'part-workbench-preview' && probe.path === '/api/parts/workbench' &&
+    probe.method === 'GET' && probe.expectedStatus === 200
+}
+
+function hasPartWorkbenchPreviews(body, origin) {
+  const { groups, previewByRowKey } = body?.data ?? {}
+  if (!Array.isArray(groups) || !groups.length ||
+    !previewByRowKey || typeof previewByRowKey !== 'object' || Array.isArray(previewByRowKey)) return false
+  const rowKeys = new Set()
+  for (const group of groups) {
+    if (!Array.isArray(group?.rows) || !group.rows.length) return false
+    for (const row of group.rows) {
+      const key = row?.rowKey
+      if (row?.entityType !== 'part' || !/^cw_[0-9a-f-]{36}$/iu.test(key ?? '') || rowKeys.has(key) ||
+        !Object.hasOwn(previewByRowKey, key)) return false
+      rowKeys.add(key)
+      const preview = previewByRowKey[key]
+      if (!PART_PREVIEW_STATES.has(preview?.state)) return false
+      if (preview.state !== 'ready') {
+        if (preview.media !== null) return false
+        continue
+      }
+      const { href, mode } = preview.media ?? {}
+      if (typeof href !== 'string' || !href.startsWith('/') || !['image', 'document'].includes(mode)) return false
+      try {
+        if (new URL(href, origin).origin !== origin) return false
+      } catch { return false }
+    }
+  }
+  return Object.keys(previewByRowKey).length === rowKeys.size
+}
 
 function fail(code) {
   const error = new Error(code)
@@ -113,13 +147,23 @@ export async function runPrincipalEntrySmoke({ profile, origin, candidateTag, ca
   }
 
   const probe = definition.authenticatedProbes?.[0]
+  const partProbe = definition.authenticatedProbes?.[1]
   const negative = definition.negativeProbes?.[0]
   if (!probe || !negative || probe.method !== 'GET' || negative.method !== 'GET' ||
       probe.path !== '/api/health/ready' || negative.path !== '/api/numbering/permissions' ||
+      definition.authenticatedProbes.length > 2 || (definition.authenticatedProbes.length === 2 && !isPartWorkbenchPreviewProbe(partProbe)) ||
       definition.authModePath !== '/api/auth/mode' || definition.mePath !== '/api/auth/me' ||
       definition.logoutPath !== '/api/auth/logout') fail('PRINCIPAL_SMOKE_PROFILE_INVALID')
   const authenticated = await call(new URL(probe.path, target), { headers: { cookie: targetCookie } })
   if (authenticated.status !== probe.expectedStatus) fail('PRINCIPAL_SMOKE_AUTHENTICATED_PROBE_FAILED')
+  let partWorkbench
+  if (partProbe) {
+    partWorkbench = await call(new URL(partProbe.path, target), { headers: { cookie: targetCookie } })
+    if (partWorkbench.status !== 200) fail('PRINCIPAL_SMOKE_PART_WORKBENCH_FAILED')
+    if (!hasPartWorkbenchPreviews(await partWorkbench.json().catch(() => null), target.origin)) {
+      fail('PRINCIPAL_SMOKE_PART_WORKBENCH_PREVIEW_INVALID')
+    }
+  }
   const unauthenticated = await call(new URL(negative.path, target))
   if (unauthenticated.status !== 401 || negative.expectedStatus !== 401) fail('PRINCIPAL_SMOKE_UNAUTHENTICATED_PROBE_FAILED')
 
@@ -139,6 +183,7 @@ export async function runPrincipalEntrySmoke({ profile, origin, candidateTag, ca
       { id: 'sso-start', status: start.status }, { id: 'sso-authorize', status: authorized.status },
       { id: 'sso-callback', status: exchanged.status }, { id: 'target-session', status: me.status },
       { id: 'authenticated-probe', status: authenticated.status },
+      ...(partWorkbench ? [{ id: partProbe.id, status: partWorkbench.status }] : []),
       { id: 'unauthenticated-probe', status: unauthenticated.status },
       { id: 'session-revoked', status: revoked.status }
     ], status: 'PASS'

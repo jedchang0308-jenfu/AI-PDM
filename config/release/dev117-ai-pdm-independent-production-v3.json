@@ -90,6 +90,12 @@
         "path": "/api/health/ready",
         "method": "GET",
         "expectedStatus": 200
+      },
+      {
+        "id": "part-workbench-preview",
+        "path": "/api/parts/workbench",
+        "method": "GET",
+        "expectedStatus": 200
       }
     ],
     "negativeProbes": [
@@ -498,6 +504,11 @@
         "order": 43,
         "path": "db/postgres/102_draft_numbering_delete_terminal_openswx.sql",
         "sha256": "9a0790d5efa212f29e3f1b72febfe55c420b4e34be1ee770e3c6fae3906711d1"
+      },
+      {
+        "order": 44,
+        "path": "db/postgres/103_restore_part_preview_settings.sql",
+        "sha256": "249e0be42297599a9790656a0335da0befac299acba43b4449199d2f799febfd"
       }
     ]
   },
