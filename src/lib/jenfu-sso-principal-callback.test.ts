@@ -74,6 +74,63 @@ afterEach(() => {
 });
 
 describe("principal-first SSO callback routing", () => {
+  it("allows a valid broker exchange that finishes after the former 10 second limit", async () => {
+    vi.useFakeTimers();
+    try {
+      const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start?returnTo=%2Fdrawings"));
+      const state = new URL(started.headers.get("location")!).searchParams.get("state");
+      const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+      const proof = principalProof();
+      vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
+        setTimeout(() => resolve(new Response(JSON.stringify(proof), { status: 200 })), 11_500);
+      })));
+      mocks.issuePrincipal.mockResolvedValueOnce({ token: "principal.session.token" });
+
+      const pending = jenfuSsoCallback(new Request(
+        `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent(proof.issuer)}`,
+        { headers: { cookie: transactionCookie } }
+      ));
+      await vi.advanceTimersByTimeAsync(11_500);
+      const accepted = await pending;
+
+      expect(accepted.status).toBe(303);
+      expect(accepted.headers.get("location")).toBe("https://pdm.example/drawings");
+      expect(accepted.headers.get("set-cookie")).toContain("principal.session.token");
+      expect(mocks.issuePrincipal).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails closed when the broker exchange reaches the 20 second limit", async () => {
+    vi.useFakeTimers();
+    try {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+      const state = new URL(started.headers.get("location")!).searchParams.get("state");
+      const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+      vi.stubGlobal("fetch", vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")), { once: true });
+      })));
+
+      const pending = jenfuSsoCallback(new Request(
+        `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent("https://platform.example/api/sso")}`,
+        { headers: { cookie: transactionCookie } }
+      ));
+      await vi.advanceTimersByTimeAsync(20_000);
+      const rejected = await pending;
+
+      expect(rejected.status).toBe(303);
+      expect(rejected.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_dependency_unavailable");
+      expect(rejected.headers.get("set-cookie")).toContain("Max-Age=0");
+      expect(rejected.headers.get("set-cookie")).not.toContain("principal.session.token");
+      expect(mocks.issuePrincipal).not.toHaveBeenCalled();
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('"code":"BROKER_EXCHANGE_TIMEOUT"'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([[1000, 1020], [12000, 12020]])("routes deterministic principals A and B from local broker %i into app %i", async (brokerPort, appPort) => {
     const broker = `http://localhost:${brokerPort}`, base = `http://localhost:${appPort}`;
     mocks.producerConfig = { broker, base, issuer: `${broker}/api/sso`, callback: `${base}/api/auth/jenfu-sso/callback` };
