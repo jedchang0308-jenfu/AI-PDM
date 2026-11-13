@@ -2,7 +2,7 @@ import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyE
 import { assertStageReceipt, canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
 import { GCC_PBDS_CVE, readNativeInventoryProgram, gccPbdsOccurrenceMatches, readGccApplicabilityPolicy, assertGccApplicabilityAssessment } from './dev015-gcc-applicability.mjs'
 import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccurrenceMatches, readAlignedNewApplicabilityPolicy, assertAlignedNewApplicabilityAssessment } from './dev015-gcc-aligned-new-applicability.mjs'
-import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
+import { isPartWorkbenchPreviewProbe, runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 import { readAiPdmReleaseObservation, verifyOwnerProviderReadback, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
 import { fetchProviderBytes, fetchProviderRead } from './dev012-read-retry.mjs'
@@ -1385,7 +1385,9 @@ export function createOwnerTransport({ token, githubToken = null, migrationExecu
         candidateTag, candidateRevision, artifactDigest, environment, fetchImpl })
       const expected = [['auth-mode', 200], ['platform-session', 200], ['sso-start', 303],
         ['sso-authorize', 303], ['sso-callback', 303], ['target-session', 200],
-        ['authenticated-probe', 200], ['unauthenticated-probe', 401], ['session-revoked', 401]]
+        ['authenticated-probe', 200],
+        ...(isPartWorkbenchPreviewProbe(definition.authenticatedProbes?.[1]) ? [['part-workbench-preview', 200]] : []),
+        ['unauthenticated-probe', 401], ['session-revoked', 401]]
       if (result?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1' ||
           result.ownerApplicationId !== profile.application.id || result.candidateRevision !== candidateRevision ||
           result.artifactDigest !== artifactDigest || result.tokenSource !== 'GITHUB_PRODUCTION_SECRET' ||

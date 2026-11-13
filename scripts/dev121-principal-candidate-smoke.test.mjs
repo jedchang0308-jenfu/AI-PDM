@@ -33,7 +33,7 @@ function redirect(target, cookies = []) {
   return new Response(null, { status: 303, headers })
 }
 
-function fakeFlow({ badCallback = false, targetAuthRejected = false } = {}) {
+function fakeFlow({ badCallback = false, targetAuthRejected = false, partResponse } = {}) {
   const calls = []
   let meCount = 0
   const authorize = new URL('/api/sso/authorize', platform)
@@ -80,6 +80,11 @@ function fakeFlow({ badCallback = false, targetAuthRejected = false } = {}) {
         : Response.json({ code: 'auth_session_invalid' }, { status: 401 })
     }
     if (url.pathname === '/api/health/ready') return Response.json({ status: 'ready' })
+    if (url.pathname === '/api/parts/workbench' && partResponse) {
+      assert.equal(init.headers.cookie, 'pdm_session=opaque-cookie-secret-value')
+      assert.equal(init.method ?? 'GET', 'GET')
+      return partResponse()
+    }
     if (url.pathname === '/api/numbering/permissions') {
       assert.equal(init.headers?.cookie, undefined)
       return Response.json({ code: 'auth_session_invalid' }, { status: 401 })
@@ -92,6 +97,31 @@ function fakeFlow({ badCallback = false, targetAuthRejected = false } = {}) {
   }
   return { fetchImpl, calls }
 }
+
+test('authenticated candidate and canonical checks require populated parts with a preview projection for every row', async () => {
+  const rowKey = 'cw_01234567-0123-0123-0123-0123456789ab'
+  const partRow = { rowKey, entityType: 'part', code: 'private-part-number' }
+  const groups = [{ rows: [partRow] }]
+  const v3 = { ...profile, verification: { ...profile.verification, authenticatedProbes: [
+    ...profile.verification.authenticatedProbes,
+    { id: 'part-workbench-preview', path: '/api/parts/workbench', method: 'GET', expectedStatus: 200 }
+  ] } }
+  for (const origin of [candidate, canonical]) {
+    const candidateInputs = origin === candidate ? { candidateTag: tag, candidateRevision: revision, artifactDigest: image } : {}
+    const run = partResponse => runPrincipalEntrySmoke({ profile: v3, origin, environment, ...candidateInputs,
+      fetchImpl: fakeFlow({ partResponse }).fetchImpl })
+    const result = await run(() => Response.json({ data: { groups, previewByRowKey: {
+      [rowKey]: { state: 'ready', media: { mode: 'image', href: '/api/pdm/file-assets/asset' } }
+    } } }))
+    assert.deepEqual(result.observations.find(row => row.id === 'part-workbench-preview'), { id: 'part-workbench-preview', status: 200 })
+    assert.doesNotMatch(JSON.stringify(result), /private-part-number|01234567/u)
+    for (const data of [{ groups: [], previewByRowKey: {} }, { groups }, { groups, previewByRowKey: {} },
+      { groups, previewByRowKey: { [rowKey]: { state: 'ready', media: { mode: 'image', href: '//external.example/asset' } } } }]) {
+      await assert.rejects(run(() => Response.json({ data })), { code: 'PRINCIPAL_SMOKE_PART_WORKBENCH_PREVIEW_INVALID' })
+    }
+    await assert.rejects(run(() => Response.json({}, { status: 500 })), { code: 'PRINCIPAL_SMOKE_PART_WORKBENCH_FAILED' })
+  }
+})
 
 test('candidate and canonical Principal SSO smoke use the same verified redirect chain without returning credentials', async () => {
   for (const origin of [candidate, canonical]) {

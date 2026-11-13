@@ -21,14 +21,15 @@ function reseal(input) {
   input.files.set(profilePath,Buffer.from(canonicalize(input.profile)))
   return input
 }
-test('current owner proof accepts the draft deletion migration and preserves the DEV-123 prefix',()=>{
+test('current owner proof accepts the part preview repair and preserves the existing migration prefix',()=>{
   const input=fixture()
-  assert.equal(input.bundle.entries.length,43)
+  assert.equal(input.bundle.entries.length,44)
   assert.equal(input.bundle.baselineCount,15)
   assert.doesNotThrow(()=>assertAiPdmMigrationContent(input))
   assert.equal(input.bundle.entries[40].version,'ai-pdm-096')
   assert.equal(input.bundle.entries[41].version,'ai-pdm-101')
   assert.equal(input.bundle.entries[42].version,'ai-pdm-102')
+  assert.equal(input.bundle.entries[43].version,'ai-pdm-103')
   assert.equal(input.bundle.entries.some(entry=>/^ai-pdm-09[1-5]$/u.test(entry.version)),false)
   const previous=structuredClone(input.profile)
   previous.migrations.entries=previous.migrations.entries.slice(0,35)
@@ -37,7 +38,7 @@ test('current owner proof accepts the draft deletion migration and preserves the
   assert.deepEqual(input.bundle.entries.slice(0,35),prefix.bundle.entries)
 })
 test('DEV-123 owner proof rejects a substituted source or applied SQL in every appended migration',()=>{
-  for(const index of [35,36,37,38,39,40,41,42]) for(const kind of ['source','applied']) {
+  for(const index of [35,36,37,38,39,40,41,42,43]) for(const kind of ['source','applied']) {
     const input=fixture(), entry=input.bundle.entries[index]
     if(kind==='source') {
       const bytes=Buffer.concat([input.files.get(entry.path),Buffer.from('\n-- forged source\n')])

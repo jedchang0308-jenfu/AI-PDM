@@ -26,6 +26,7 @@ const CORE_TESTS = [
   'scripts/dev123-role-policy-release-contract.test.mjs',
   'scripts/dev117-ai-pdm-continuous-release.test.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs',
+  'scripts/dev121-principal-candidate-smoke.test.mjs',
   'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev012-owner-prerequisite-producer.test.mjs',
   'scripts/dev121-principal-owner-recovery.test.mjs',

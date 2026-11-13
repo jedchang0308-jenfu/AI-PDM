@@ -9,6 +9,7 @@ import pg from "pg";
 
 import { createAsyncDatabaseClient } from "../src/lib/db-async-provider.ts";
 import { resolvePartPreviewsAsync } from "../src/lib/pdm-part-preview.ts";
+import { deriveAiPdmMigration } from "./dev010-n1c-ai-pdm-package.mjs";
 
 const connectionString = process.env.PDM_POSTGRES_SHADOW_URL?.trim();
 if (!connectionString) {
@@ -26,26 +27,37 @@ if (!(localHost || (disposableName && explicitlyDisposable))) {
   throw new Error(`DEV065_POSTGRES_UNSAFE_TARGET:${target.hostname}/${databaseName}`);
 }
 
-const migration = fs.readFileSync(path.join(process.cwd(), "db", "postgres", "046_part_preview_settings.sql"), "utf8")
+const repair = process.argv.includes("--restore-on-isolated-cluster");
+if (repair && (!localHost || databaseName !== "postgres" || target.username !== "postgres")) {
+  throw new Error("PART_PREVIEW_REPAIR_REQUIRES_ISOLATED_CLUSTER");
+}
+const repairPath = "db/postgres/103_restore_part_preview_settings.sql";
+const migration = repair ? deriveAiPdmMigration(repairPath, fs.readFileSync(repairPath)).output
+  : fs.readFileSync(path.join(process.cwd(), "db", "postgres", "046_part_preview_settings.sql"), "utf8")
   .replace(/^\s*BEGIN;\s*/iu, "")
   .replace(/\s*COMMIT;\s*$/iu, "");
-const schema = `dev065_${crypto.randomUUID().replaceAll("-", "")}`;
+const schema = repair ? "ai_pdm_core" : `dev065_${crypto.randomUUID().replaceAll("-", "")}`;
 const pool = new pg.Pool({ connectionString, max: 3, connectionTimeoutMillis: 10_000, statement_timeout: 20_000 });
 const client = await pool.connect();
 const checks = [];
+let ownsSchema = false;
 const check = async (id, fn) => {
   try { await fn(); checks.push({ id, pass: true }); }
   catch (error) { checks.push({ id, pass: false, error: error instanceof Error ? error.message : String(error) }); }
 };
 
 try {
+  if (repair) {
+    await client.query("CREATE ROLE jenfu_ai_pdm_migrator NOLOGIN; CREATE ROLE jenfu_ai_pdm_runtime NOLOGIN");
+  }
   await client.query("BEGIN");
   await client.query(`CREATE SCHEMA ${schema}`);
+  ownsSchema = true;
   await client.query(`SET LOCAL search_path TO ${schema}, public`);
   await client.query(`
     CREATE TABLE companies (id TEXT PRIMARY KEY);
     CREATE TABLE users (id TEXT PRIMARY KEY);
-    CREATE TABLE part_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id), part_number TEXT NOT NULL);
+    CREATE TABLE part_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id), part_number TEXT NOT NULL, part_name TEXT NOT NULL DEFAULT '');
     CREATE TABLE file_assets (
       id TEXT PRIMARY KEY, storage_provider TEXT, original_path TEXT, storage_bucket TEXT, storage_key TEXT,
       file_name TEXT NOT NULL, file_ext TEXT, mime_type TEXT, file_size BIGINT, content_hash TEXT,
@@ -55,15 +67,19 @@ try {
     CREATE TABLE drawing_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL, drawing_number TEXT NOT NULL);
     CREATE TABLE drawings (id TEXT PRIMARY KEY, company_id TEXT NOT NULL, formal_drawing_number_id TEXT NOT NULL);
     CREATE TABLE drawing_part_links (id TEXT PRIMARY KEY, drawing_number_id TEXT NOT NULL, part_number_id TEXT NOT NULL, link_type TEXT NOT NULL);
-    CREATE TABLE drawing_revisions (id TEXT PRIMARY KEY, company_id TEXT NOT NULL, drawing_id TEXT NOT NULL, revision TEXT NOT NULL);
+    CREATE TABLE drawing_revisions (
+      id TEXT PRIMARY KEY, company_id TEXT NOT NULL, drawing_id TEXT NOT NULL, revision TEXT NOT NULL,
+      lifecycle_state TEXT NOT NULL DEFAULT 'released', updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE drawing_rd_branches (id TEXT PRIMARY KEY, company_id TEXT NOT NULL, drawing_id TEXT NOT NULL, status TEXT NOT NULL);
     CREATE TABLE canonical_workbench_states (
       id TEXT PRIMARY KEY, company_id TEXT NOT NULL, entity_type TEXT NOT NULL, canonical_entity_id TEXT NOT NULL,
-      data_layer TEXT NOT NULL, revision_id TEXT
+      data_layer TEXT NOT NULL, revision_id TEXT, branch_id TEXT, updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE TABLE drawing_revision_files (
       id TEXT PRIMARY KEY, company_id TEXT NOT NULL, drawing_revision_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL,
       role TEXT, display_name TEXT, is_primary INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0,
-      removed_at TIMESTAMPTZ
+      removed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE TABLE file_derivatives (
       id TEXT PRIMARY KEY, company_id TEXT NOT NULL, source_file_asset_id TEXT NOT NULL, source_content_hash TEXT NOT NULL,
@@ -76,14 +92,34 @@ try {
     );
     INSERT INTO companies VALUES ('company-a'), ('company-b');
     INSERT INTO users VALUES ('user-a');
-    INSERT INTO part_numbers VALUES ('part-a', 'company-a', 'A-001'), ('part-b', 'company-b', 'B-001');
+    INSERT INTO part_numbers (id, company_id, part_number) VALUES ('part-a', 'company-a', 'A-001'), ('part-b', 'company-b', 'B-001');
     INSERT INTO drawing_numbers VALUES ('drawing-number-a', 'company-a', 'A-M01');
     INSERT INTO drawings VALUES ('drawing-a', 'company-a', 'drawing-number-a');
-    INSERT INTO drawing_revisions VALUES ('revision-a', 'company-a', 'drawing-a', 'A');
-    INSERT INTO canonical_workbench_states VALUES ('drawing-state-a', 'company-a', 'drawing', 'drawing-a', 'drawing_production', 'revision-a');
+    INSERT INTO drawing_revisions (id, company_id, drawing_id, revision) VALUES ('revision-a', 'company-a', 'drawing-a', 'A');
+    INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer, revision_id)
+      VALUES ('drawing-state-a', 'company-a', 'drawing', 'drawing-a', 'drawing_production', 'revision-a');
     INSERT INTO drawing_part_links VALUES ('link-a', 'drawing-number-a', 'part-a', 'primary_manufacturing');
   `);
-  await check("PPC-PG-001 migration fresh apply and re-run", async () => { await client.query(migration); await client.query(migration); });
+  await check("PPC-PG-001 migration fresh apply and re-run", async () => {
+    if (repair) {
+      assert.equal((await client.query("SELECT to_regclass('ai_pdm_core.part_preview_settings') AS relation")).rows[0].relation, null);
+      await client.query(`
+        ALTER SCHEMA ai_pdm_core OWNER TO jenfu_ai_pdm_migrator;
+        GRANT USAGE ON SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
+        ALTER TABLE companies OWNER TO jenfu_ai_pdm_migrator;
+        ALTER TABLE users OWNER TO jenfu_ai_pdm_migrator;
+        ALTER TABLE part_numbers OWNER TO jenfu_ai_pdm_migrator;
+        ALTER TABLE file_assets OWNER TO jenfu_ai_pdm_migrator;
+      `);
+    }
+    await client.query(migration);
+    await client.query(migration);
+    if (repair) {
+      await client.query("SET LOCAL ROLE jenfu_ai_pdm_runtime");
+      assert.equal((await client.query("SELECT count(*)::int AS count FROM ai_pdm_core.part_preview_settings")).rows[0].count, 0);
+      await client.query("RESET ROLE");
+    }
+  });
   await check("PPC-PG-002 valid custom setting", async () => {
     await client.query("INSERT INTO file_assets (id, file_name, file_ext, mime_type, file_size, content_hash, linked_entity_type, linked_entity_id, document_category, deleted_at) VALUES ('asset-a', 'part.png', 'png', 'image/png', 100, repeat('a', 64), 'part_number', 'part-a', 'part_preview_image', NULL)");
     await client.query("INSERT INTO part_preview_settings (id, company_id, part_number_id, source_mode, file_asset_id, created_by, updated_by) VALUES ('setting-a', 'company-a', 'part-a', 'custom_image', 'asset-a', 'user-a', 'user-a')");
@@ -157,7 +193,7 @@ try {
     const results = await Promise.all(competitors.map(race));
     assert.equal(results.filter((count) => count === 1).length, 1);
     assert.equal(results.filter((count) => count === 0).length, 1);
-    const final = await client.query("SELECT row_version FROM part_preview_settings WHERE id = 'setting-a'");
+    const final = await client.query(`SELECT row_version FROM ${schema}.part_preview_settings WHERE id = 'setting-a'`);
     assert.equal(Number(final.rows[0].row_version), 3);
   });
 
@@ -191,7 +227,7 @@ try {
   console.error(error instanceof Error ? error.stack : error);
   process.exitCode = 1;
 } finally {
-  try { await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); } catch {}
+  if (ownsSchema) try { await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); } catch {}
   client.release();
   await pool.end();
 }
