@@ -19,7 +19,7 @@ function transactionCookieName(config: ReturnType<typeof getJenfuSsoHandoffConfi
   return config.base.startsWith("https://") ? COOKIE : "ai_pdm_sso_tx";
 }
 const MAX_RETURN_TO = 1024;
-const BROKER_TIMEOUT_MS = 10_000;
+const BROKER_TIMEOUT_MS = 20_000;
 const SSO_TRANSACTION_TTL_MS = 15 * 60_000;
 const SSO_TRANSACTION_TTL_SECONDS = SSO_TRANSACTION_TTL_MS / 1000;
 
@@ -35,6 +35,10 @@ const BROKER_PUBLIC_FAILURES = new Map<string, number>([
 
 class BrokerExchangeFailure extends Error {
   constructor(readonly publicCode: string) { super("BROKER_EXCHANGE_FAILED"); }
+}
+
+class BrokerExchangeTimeout extends Error {
+  constructor() { super("BROKER_EXCHANGE_TIMEOUT"); }
 }
 
 async function brokerFailure(response: Response): Promise<never> {
@@ -224,14 +228,22 @@ export async function jenfuSsoCallback(request: Request) {
   }
   let stage: CallbackStage = "service_identity";
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
     const service = await jenfuSsoServiceToken(config.broker);
     stage = "broker_exchange";
-    const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) }).finally(() => clearTimeout(timeout));
-    if (!brokerResponse.ok) await brokerFailure(brokerResponse);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
+    let proof: unknown;
+    try {
+      const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) });
+      if (!brokerResponse.ok) await brokerFailure(brokerResponse);
+      proof = await brokerResponse.json();
+    } catch (errorValue) {
+      if (controller.signal.aborted) throw new BrokerExchangeTimeout();
+      throw errorValue;
+    } finally {
+      clearTimeout(timeout);
+    }
     stage = "handoff_parse";
-    const proof: unknown = await brokerResponse.json();
     const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
     stage = "session_issue";
     const issued = await issueSessionForPrincipalHandoff({
