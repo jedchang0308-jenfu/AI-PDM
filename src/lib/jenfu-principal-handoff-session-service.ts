@@ -67,13 +67,17 @@ export async function issueSessionForPrincipalHandoff(input: {
       if (!(error instanceof JenfuPrincipalAccountError) || error.code !== "principal_account_missing") {
         throw error;
       }
-      await validatePrincipalPublishedGrantSnapshot(snapshot, {
-        identityIssuer: handoff.identity.identityIssuer,
-        identitySubject: handoff.identity.identitySubject,
-        principalId: handoff.identity.principalId,
-        employeeId: handoff.identity.employeeId
-      });
-      publishedGrantValidated = true;
+      if (!usePermissions) {
+        await validatePrincipalPublishedGrantSnapshot(snapshot, {
+          identityIssuer: handoff.identity.identityIssuer,
+          identitySubject: handoff.identity.identitySubject,
+          principalId: handoff.identity.principalId,
+          employeeId: handoff.identity.employeeId
+        });
+        publishedGrantValidated = true;
+      }
+      // The native provision function validates the published grant. The
+      // subsequently derived session snapshot commits with provisioning.
       await accountRepository.ensureFirstLogin({
         identityIssuer: typed.identityIssuer,
         identitySubject: typed.identitySubject,
