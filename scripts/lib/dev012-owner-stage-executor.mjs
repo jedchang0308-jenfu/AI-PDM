@@ -23,6 +23,32 @@ import { assertDailyReleaseMode, classifyFailureFamily, classifyReleaseMode, nor
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
+export function assertSessionSnapshotPredecessor(profile, runtimeConfig, revision) {
+  if (runtimeConfig?.plainEnvironment?.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED !== '1') return
+  if (revision?.reconciling === true ||
+    revision?.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED') {
+    fail('SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE')
+  }
+  const app = revision?.containers?.find(row => row.name === profile.runtime.containerName)
+  const fixed = profile.environment.fixedValues
+  const expected = {
+    PDM_SESSION_REVOCATION_ENABLED: '1',
+    PDM_SESSION_REVOCATION_AUDIENCE: fixed.PDM_SESSION_REVOCATION_AUDIENCE,
+    PDM_SESSION_REVOCATION_PLATFORM_SUBJECT: fixed.PDM_SESSION_REVOCATION_PLATFORM_SUBJECT,
+    PDM_SESSION_REVOCATION_PLATFORM_EMAIL: fixed.PDM_SESSION_REVOCATION_PLATFORM_EMAIL,
+  }
+  const snapshotFlags = app?.env?.filter(row => row.name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED') ?? []
+  // The first activation can only follow the receiver stage. A later routine
+  // release can retain snapshots and its exact, already-serving predecessor.
+  if (snapshotFlags.length !== 1 || snapshotFlags[0].valueSource || !['0', '1'].includes(snapshotFlags[0].value)) {
+    fail('SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE')
+  }
+  if (Object.entries(expected).some(([name, value]) => {
+    const entries = app?.env?.filter(row => row.name === name) ?? []
+    return typeof value !== 'string' || entries.length !== 1 || entries[0].value !== value || entries[0].valueSource
+  })) fail('SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE')
+}
+
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const STAGES = new Set(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
@@ -56,14 +82,25 @@ export function createGitSourceReader(root) {
 export async function runReleaseSmoke({ phase, transport, profile, intent, origin, candidateTag = null,
   candidateRevision, artifactDigest, deadlineAt, environment = process.env }) {
   if (!['candidate', 'canonical'].includes(phase)) fail('RELEASE_SMOKE_PHASE_INVALID')
+  let smoke
   if (Object.hasOwn(intent ?? {}, 'appliedMigrationContinuation')) {
     if (profile?.application?.id !== 'ai-pdm' || typeof transport?.runHttpSuite !== 'function') fail('RD_PERMISSION_SMOKE_INVALID')
-    return transport.runHttpSuite({ origin, suite: appliedRdPermissionSmokeSuite(), environment })
+    smoke = await transport.runHttpSuite({ origin, suite: appliedRdPermissionSmokeSuite(), environment })
+  } else {
+    smoke = phase === 'candidate'
+      ? await transport.runInternalCandidateSmoke({ profile, origin, candidateTag, candidateRevision, artifactDigest, deadlineAt, environment })
+      : await transport.runAuthenticatedSmoke({ profile, origin, environment })
   }
-  if (phase === 'candidate') {
-    return transport.runInternalCandidateSmoke({ profile, origin, candidateTag, candidateRevision, artifactDigest, deadlineAt, environment })
-  }
-  return transport.runAuthenticatedSmoke({ profile, origin, environment })
+  if (profile.environment?.fixedValues?.PDM_SESSION_REVOCATION_ENABLED !== '1') return smoke
+  // Credential-free smoke reaches the enabled route without creating events,
+  // entering the producer DB reader, or widening the existing smoke identity.
+  const receiver = await transport.runHttpSuite({ origin, suite: { probes: ['', '/readback'].map(suffix => ({
+    id: suffix ? 'pdm-revocation-readback-denies-unauthenticated' : 'pdm-revocation-denies-unauthenticated',
+    path: `/api/internal/pdm-session-revocation/v1${suffix}`, method: 'POST',
+    expectedStatus: 401, requireProvenance: false,
+  })) } })
+  if (receiver.status !== 'PASS') fail('SESSION_REVOCATION_RECEIVER_SMOKE_FAILED')
+  return { ...smoke, receiver }
 }
 
 export function parseOwnerStageArgs(argv, expectedBucket) {
@@ -933,10 +970,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (repair && (!recovery || repair.activeRevision !== intent.previousRevision
         || service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount)
         || canonicalize(repair.runtimeConfig) !== canonicalize(derived.runtimeConfig))) fail('PRINCIPAL_ONLY_FORWARD_REPAIR_MISMATCH')
+      const previous = repair ? null : await transport.getRevision(profile, intent.previousRevision)
       const previousControlledEnvironment = repair
         ? Object.fromEntries(Object.keys(profile.environment.controlledValues).map((name) => [name, repair.runtimeConfig.plainEnvironment[name]]))
-        : revisionControlledEnvironment(profile, await transport.getRevision(profile, intent.previousRevision))
+        : revisionControlledEnvironment(profile, previous)
       assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment })
+      assertSessionSnapshotPredecessor(profile, derived.runtimeConfig, previous)
     }
     const prerequisite = await repairPrerequisite({ basis: repair, transport, paths, profile, intent, intentRef, publish: true })
     if (existing) {
@@ -1153,6 +1192,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const decision = await readStage(transport, paths, profile, intent, 'decision')
     if (decision.value.facts.decision !== 'GO') fail('MACHINE_DECISION_NO_GO')
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
+    if (profile.environment?.fixedValues?.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED === '1') {
+      const baseline = await transport.getService(profile)
+      if (transport.effectiveRevision(baseline) !== intent.previousRevision) fail('SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE')
+      assertSessionSnapshotPredecessor(profile, { plainEnvironment: profile.environment.fixedValues },
+        await transport.getRevision(profile, intent.previousRevision))
+    }
     const service = requiresPrincipalOnlyRuntimeAuthority(intent)
       ? await transport.activatePrincipalOnly({ profile, oldRevision: intent.previousRevision,
         recovery: intent.principalOnlyRecovery, candidateRevision: candidate.value.facts.candidateRevision,

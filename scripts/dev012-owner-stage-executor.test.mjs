@@ -22,6 +22,30 @@ const candidateRevision = 'jenfu-platform-prod-candidate'
 const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
+
+test('DEV-121 receiver smoke checks both routes at each origin without a service token', async () => {
+  const profile = { environment: { fixedValues: { PDM_SESSION_REVOCATION_ENABLED: '1' } } }
+  const probes = []
+  const transport = {
+    runInternalCandidateSmoke: async () => ({ status: 'PASS' }),
+    runAuthenticatedSmoke: async () => ({ status: 'PASS' }),
+    runHttpSuite: async ({ origin, suite }) => {
+      probes.push({ origin, paths: suite.probes.map(probe => probe.path) })
+      assert.ok(suite.probes.every(probe => probe.method === 'POST' && probe.expectedStatus === 401 &&
+        probe.headers === undefined && probe.body === undefined))
+      return { status: 'PASS' }
+    },
+  }
+  for (const [phase, origin] of [['candidate', candidateOrigin], ['canonical', canonicalOrigin]]) {
+    assert.equal((await runReleaseSmoke({ phase, origin, transport, profile })).receiver.status, 'PASS')
+  }
+  assert.deepEqual(probes, [candidateOrigin, canonicalOrigin].map(origin => ({
+    origin, paths: ['/api/internal/pdm-session-revocation/v1', '/api/internal/pdm-session-revocation/v1/readback'],
+  })))
+  transport.runHttpSuite = async () => ({ status: 'FAIL' })
+  await assert.rejects(runReleaseSmoke({ phase: 'candidate', origin: candidateOrigin, transport, profile }),
+    /SESSION_REVOCATION_RECEIVER_SMOKE_FAILED/u)
+})
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
 
 test('applied RD continuation keeps provider provenance authoritative and checks only RD HTTP behaviour', async () => {

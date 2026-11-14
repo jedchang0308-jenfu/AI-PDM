@@ -196,7 +196,12 @@
       "PDM_SESSION_CURRENT_KEY_ID",
       "PDM_SESSION_PREVIOUS_KEY_ID",
       "PDM_JENFU_SSO_HANDOFF_MODE",
-      "PDM_JENFU_SSO_BROKER_ORIGIN"
+      "PDM_JENFU_SSO_BROKER_ORIGIN",
+      "PDM_SESSION_REVOCATION_ENABLED",
+      "PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED",
+      "PDM_SESSION_REVOCATION_AUDIENCE",
+      "PDM_SESSION_REVOCATION_PLATFORM_SUBJECT",
+      "PDM_SESSION_REVOCATION_PLATFORM_EMAIL"
     ],
     "requiredSecretNames": [
       "PDM_SESSION_CURRENT_SECRET",
@@ -257,6 +262,11 @@
       "PDM_SESSION_CURRENT_KEY_ID": "production-session-v1",
       "PDM_SESSION_PREVIOUS_KEY_ID": "production-session-v0",
       "PDM_JENFU_SSO_BROKER_ORIGIN": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
+      "PDM_SESSION_REVOCATION_ENABLED": "1",
+      "PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED": "0",
+      "PDM_SESSION_REVOCATION_AUDIENCE": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+      "PDM_SESSION_REVOCATION_PLATFORM_SUBJECT": "101029748006912113815",
+      "PDM_SESSION_REVOCATION_PLATFORM_EMAIL": "platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com",
       "PDM_STORAGE_PROVIDER": "google_cloud_storage",
       "PDM_GCS_PROJECT_ID": "jenfu-platform-prod",
       "PDM_GCS_BUCKET": "jenfu-platform-prod-aipdm-files",

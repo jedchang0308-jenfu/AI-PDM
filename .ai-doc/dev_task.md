@@ -10,7 +10,9 @@
 - 首次開通與回訪登入的正常 SSO handler 測試使用合成 broker 與資料庫介面，各讀一次 V6 授權；兩次正常權限 API 各只查 PDM session。隔離 PostgreSQL 另驗原生開通回傳同一來源、精確身分時間、公司範圍與舊版原子性。
 - 首次登入單一來源程式 SHA 為 `47dd762dbd752c0c89e6617760e6bb19cdfaa3b5`，後續交接文件與該程式同分支。合併以 PR 最新提交的兩項 required CI 為準。
 - OrgMaster 的登入來源須同時授予現有 `jenfu_ai_pdm_runtime` 和 `jenfu_ai_pdm_migrator` 精確 `EXECUTE`。後者是 PDM 首次開通 SECURITY DEFINER 的既有 owner，不能由 PDM migration 代授。隔離及正式開啟快照前須實際讀回這筆跨專案依賴。
-- 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。正式 profile 啟用設定仍須接入受保護入口。
+- 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。
+- 正式接收候選使用原 DEV-117 owner profile，以來源固定撤銷 `1`、快照 `0`，保留現有上游檢查。2026-11-14 Cloud Run v2 唯讀查證 generation 425 已收斂、100% 在 `ai-pdm-prod-28014e0d12e5`、無 tag、兩旗標未設定；PDM canonical origin 與 Platform workload 的帳號及唯一識別值已核對。此資料僅為準備證據，正式 prepare 仍讀回目前 revision。
+- 快照切換使用下一個受保護來源，將 profile 的快照值由 `0` 改為 `1`。prepare 與切流前核對 rollback 所用的現役 PDM revision 已支援相同接收設定。首次快照 release 後若需回復，沿正常 owner 流程以接收版設定恢復中央檢查；切流驗收失敗則沿原 workflow 回到該接收版。先回復 PDM 再考慮回復上游，保留 migration、回執與 pending 屏障。正式 candidate、切流及啟用待主控驗收結論。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
 <a id="dev-128-masked-local-production-snapshot"></a>

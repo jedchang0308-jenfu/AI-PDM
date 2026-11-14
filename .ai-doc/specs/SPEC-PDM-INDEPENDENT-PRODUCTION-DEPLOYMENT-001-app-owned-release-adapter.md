@@ -667,6 +667,12 @@ AI-PDM唯一standalone入口為 `node scripts/dev117-build-migration-runner.mjs 
 
 成功後封存own content-addressed runner-build receipt，記source-lock/generation、profile與實際recipe/input hashes、source archive/generation/CRC、原Cloud Build request/provenance、immutable digest、Artifact Registry與當次scan／SBOM。相同input重用原build；不同source不能改寫既有build的source/provenance。此入口只建立source／artifact／receipt，不執行Job apply、SQL、runtime、traffic、IAM／Secret；後續APP_INFRA與normal owner release仍須各自既有gate及provider readback。本輪source/mock結果不是正式runner rotation、catalog upgrade或§6.3真人接受。
 
+### 26.9 DEV-121 登出撤銷接收與快照分段發布
+
+延用同一 owner profile、單一 capsule 及現有 stage 與 rollback。首次發布以來源固定撤銷接收 `1`、快照 `0`，保留中央查核；精確 canonical origin 作為 Google OIDC audience，接收端固定 Platform runtime 的 email 和 subject。候選與 canonical smoke 另以無憑證 POST 確認 dispatch、readback 都回 401，且現有登入 smoke 仍須通過。工作負載正向驗收使用各 owner 已有的受控身分。
+
+主控先確認其他 owner 的發布屏障、全域登出及補送在正式已生效且驗證，再用新受保護來源將快照值改為 `1`。prepare 與 activate 核對現役 predecessor 的接收設定，首次快照切換的原生 rollback 回到接收版。若正式快照需刻意停用，以正常 owner release 將快照回到 `0` 並保留接收器，才依 pending 狀態評估上游回復。兩次不新增 IAM、Secret、workflow 參數或手動正規化正式資料；migration 與既有撤銷紀錄不倒退。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

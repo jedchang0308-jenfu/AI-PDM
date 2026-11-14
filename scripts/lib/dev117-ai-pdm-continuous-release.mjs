@@ -20,6 +20,13 @@ const H40 = /^[a-f0-9]{40}$/
 const H64 = /^[a-f0-9]{64}$/
 const V3_CONTRACT_SHA256 = 'e90585d9e0e329708a033f0537273ea69a40d83a3b8b8cc484b76c09898a87b0'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const sessionRevocationBindings = {
+  PDM_SESSION_REVOCATION_ENABLED: '1',
+  PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED: '0',
+  PDM_SESSION_REVOCATION_AUDIENCE: 'https://ai-pdm-prod-9536592944.asia-east1.run.app',
+  PDM_SESSION_REVOCATION_PLATFORM_SUBJECT: '101029748006912113815',
+  PDM_SESSION_REVOCATION_PLATFORM_EMAIL: 'platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',
+}
 export const LEGACY_STRICT_VALIDATORS = Object.freeze({ assertDev117ArtifactReceipt, assertDev117CandidateReceipt, assertDev117Level4Join, assertDev117AppReleaseReceipt, assertDev116R02Receipt })
 function fail(code, message) { const error = new Error(message); error.code = code; throw error }
 export function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex') }
@@ -78,13 +85,22 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner' || profile.migrations?.serviceAccount !== 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' || profile.migrations?.baselineCount !== 15) fail('MIGRATION_JOB_MISMATCH', 'AI-PDM migration job mismatch')
   const integrationPlain = ['PDM_STORAGE_PROVIDER', 'PDM_GCS_PROJECT_ID', 'PDM_GCS_BUCKET', 'PDM_GCS_LIVE_ENABLED', 'PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
   const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_GCP_EXPECTED_PROJECT_NUMBER', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
-  const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain]
+  const fixed = profile.environment.fixedValues || {}
+  // Historical profiles lacked these bindings. Their archived receipts retain
+  // that shape; sources using the receiver contract must carry the full set.
+  const hasSessionRevocation = Object.keys(sessionRevocationBindings).some(name =>
+    Object.hasOwn(fixed, name) || profile.environment.requiredPlainEnvironmentNames.includes(name))
+  const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain,
+    ...(hasSessionRevocation ? Object.keys(sessionRevocationBindings) : [])]
   const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames]
   if (profile.environment.optionalExtensions != null) fail('RUNTIME_EXTENSION_RETIRED', 'Runtime extensions are not supported')
   const expectedSecretIds = { ...v1.environment.allowedSecretReferences }
   if (JSON.stringify([...profile.environment.requiredPlainEnvironmentNames].sort()) !== JSON.stringify([...expectedPlain].sort()) || JSON.stringify([...profile.environment.requiredSecretNames].sort()) !== JSON.stringify([...expectedSecrets].sort())) fail('ENVIRONMENT_SET_DRIFT', 'V3 environment set must preserve owner integration and workload bindings')
   if (JSON.stringify(Object.entries(profile.environment.allowedSecretIds ?? {}).sort()) !== JSON.stringify(Object.entries(expectedSecretIds).sort())) fail('SECRET_BINDING_DRIFT', 'V3 secret bindings drifted')
-  const fixed = profile.environment.fixedValues || {}
+  if (hasSessionRevocation && Object.entries(sessionRevocationBindings).some(([name, expected]) =>
+    name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED' ? !['0', '1'].includes(fixed[name]) : fixed[name] !== expected)) {
+    fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM session revocation workload or phase mismatch')
+  }
   if (profile.environment.candidateOriginEnvironmentName !== 'PDM_RELEASE_CANDIDATE_ORIGIN'
     || fixed.PDM_PUBLIC_BASE_URL !== target.canonicalOrigin
     || fixed.PDM_SESSION_ISSUER !== target.canonicalOrigin
