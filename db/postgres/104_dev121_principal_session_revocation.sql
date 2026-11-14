@@ -17,6 +17,8 @@ BEGIN
   PERFORM 1 FROM ai_pdm_core.role_catalog_publications
     WHERE application_id = 'ai-pdm' AND status = 'active' AND catalog_version = p_catalog_version
     FOR SHARE;
+  IF NOT FOUND THEN RETURN false; END IF;
+  PERFORM 1 FROM ai_pdm_core.role_priority_versions WHERE status = 'active' FOR SHARE;
   RETURN FOUND;
 END;
 $function$;
@@ -38,6 +40,23 @@ CREATE TRIGGER revoke_sessions_for_retired_catalog_v1
   AFTER UPDATE OF status ON ai_pdm_core.role_catalog_publications
   FOR EACH ROW WHEN (OLD.application_id = 'ai-pdm' AND OLD.status = 'active' AND NEW.status IS DISTINCT FROM OLD.status)
   EXECUTE FUNCTION ai_pdm_core.revoke_sessions_for_retired_catalog_v1();
+
+CREATE FUNCTION ai_pdm_core.revoke_sessions_for_retired_priority_v1()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog
+AS $function$
+BEGIN
+  UPDATE ai_pdm_core.principal_session_records
+    SET revoked_at = clock_timestamp(), revoke_reason = 'pdm_role_priority_retired'
+    WHERE revoked_at IS NULL AND permission_snapshot IS NOT NULL;
+  RETURN NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION ai_pdm_core.revoke_sessions_for_retired_priority_v1() FROM PUBLIC, jenfu_ai_pdm_runtime;
+CREATE TRIGGER revoke_sessions_for_retired_priority_v1
+  AFTER UPDATE ON ai_pdm_core.role_priority_versions
+  FOR EACH ROW WHEN (OLD.status = 'active' AND
+    (NEW.status IS DISTINCT FROM OLD.status OR NEW.priority_json IS DISTINCT FROM OLD.priority_json))
+  EXECUTE FUNCTION ai_pdm_core.revoke_sessions_for_retired_priority_v1();
 
 CREATE TABLE ai_pdm_core.principal_session_revocation_events (
   event_id uuid PRIMARY KEY,

@@ -62,6 +62,8 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
         expires_at timestamptz, revoked_at timestamptz, revoke_reason text, PRIMARY KEY(principal_id, session_id_hash)
       );
       CREATE TABLE ai_pdm_core.role_catalog_publications (application_id text, catalog_version text, status text);
+      CREATE TABLE ai_pdm_core.role_priority_versions (status text, priority_json text);
+      INSERT INTO ai_pdm_core.role_priority_versions VALUES ('active','["rd"]');
       CREATE TABLE ai_pdm_core.command_writes (id text);
       GRANT USAGE ON SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
       GRANT SELECT, INSERT ON ai_pdm_core.principal_session_records,ai_pdm_core.command_writes TO jenfu_ai_pdm_runtime;
@@ -129,6 +131,14 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
     await login.query("COMMIT");
     await retirement;
     assert.equal(await lock(writer, unseen, "policy-snapshot"), false);
+    assert.equal(await lock(writer, unseen, "fresh-snapshot"), true);
+
+    await login.query(`
+      INSERT INTO ai_pdm_core.principal_session_records
+        VALUES ($1,'priority-snapshot',1,'2026-11-01T13:00:00.000Z',now()+interval '1 hour',NULL,NULL,'{"catalogVersion":"policy-v2"}')
+    `, [unseen]);
+    await revoker.query("UPDATE ai_pdm_core.role_priority_versions SET status='retired'");
+    assert.equal(await lock(writer, unseen, "priority-snapshot"), false);
     assert.equal(await lock(writer, unseen, "fresh-snapshot"), true);
   } finally {
     for (const client of [writer, revoker, login]) client.release();
