@@ -23,8 +23,8 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 
-test('DEV-121 receiver smoke checks both routes at each origin without a service token', async () => {
-  const profile = { environment: { fixedValues: { PDM_SESSION_REVOCATION_ENABLED: '1' } } }
+test('DEV-121 receiver smoke checks all enabled routes at each origin without a service token', async () => {
+  const profile = { environment: { fixedValues: { PDM_SESSION_REVOCATION_ENABLED: '1', PDM_SESSION_REVIEWER_AUTHORITY_ENABLED: '1' } } }
   const probes = []
   const transport = {
     runInternalCandidateSmoke: async () => ({ status: 'PASS' }),
@@ -40,7 +40,8 @@ test('DEV-121 receiver smoke checks both routes at each origin without a service
     assert.equal((await runReleaseSmoke({ phase, origin, transport, profile })).receiver.status, 'PASS')
   }
   assert.deepEqual(probes, [candidateOrigin, canonicalOrigin].map(origin => ({
-    origin, paths: ['/api/internal/pdm-session-revocation/v1', '/api/internal/pdm-session-revocation/v1/readback'],
+    origin, paths: ['/api/internal/pdm-session-revocation/v1', '/api/internal/pdm-session-revocation/v1/readback',
+      '/api/internal/pdm-session-revocation/v1/reviewer-bootstrap'],
   })))
   transport.runHttpSuite = async () => ({ status: 'FAIL' })
   await assert.rejects(runReleaseSmoke({ phase: 'candidate', origin: candidateOrigin, transport, profile }),

@@ -33,6 +33,8 @@ export function assertSessionSnapshotPredecessor(profile, runtimeConfig, revisio
   const fixed = profile.environment.fixedValues
   const expected = {
     PDM_SESSION_REVOCATION_ENABLED: '1',
+    ...(fixed.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED === '1'
+      ? { PDM_SESSION_REVIEWER_AUTHORITY_ENABLED: '1' } : {}),
     PDM_SESSION_REVOCATION_AUDIENCE: fixed.PDM_SESSION_REVOCATION_AUDIENCE,
     PDM_SESSION_REVOCATION_PLATFORM_SUBJECT: fixed.PDM_SESSION_REVOCATION_PLATFORM_SUBJECT,
     PDM_SESSION_REVOCATION_PLATFORM_EMAIL: fixed.PDM_SESSION_REVOCATION_PLATFORM_EMAIL,
@@ -94,8 +96,10 @@ export async function runReleaseSmoke({ phase, transport, profile, intent, origi
   if (profile.environment?.fixedValues?.PDM_SESSION_REVOCATION_ENABLED !== '1') return smoke
   // Credential-free smoke reaches the enabled route without creating events,
   // entering the producer DB reader, or widening the existing smoke identity.
-  const receiver = await transport.runHttpSuite({ origin, suite: { probes: ['', '/readback'].map(suffix => ({
-    id: suffix ? 'pdm-revocation-readback-denies-unauthenticated' : 'pdm-revocation-denies-unauthenticated',
+  const suffixes = ['', '/readback']
+  if (profile.environment?.fixedValues?.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED === '1') suffixes.push('/reviewer-bootstrap')
+  const receiver = await transport.runHttpSuite({ origin, suite: { probes: suffixes.map(suffix => ({
+    id: suffix ? `pdm-revocation-${suffix.slice(1)}-denies-unauthenticated` : 'pdm-revocation-denies-unauthenticated',
     path: `/api/internal/pdm-session-revocation/v1${suffix}`, method: 'POST',
     expectedStatus: 401, requireProvenance: false,
   })) } })

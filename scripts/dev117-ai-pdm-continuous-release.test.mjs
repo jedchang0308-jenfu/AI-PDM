@@ -24,10 +24,11 @@ const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex'
 test('DEV-121 source-bound production profile makes receiver-only the rollback predecessor', () => {
   const receiver = profile.environment.fixedValues
   assert.equal(receiver.PDM_SESSION_REVOCATION_ENABLED, '1')
+  assert.equal(receiver.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED, '1')
   assert.equal(receiver.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED, '0')
   assert.equal(assertDev117V3Profile(profile, v1, n1c), profile)
   const names = Object.keys(receiver).filter(name => name.startsWith('PDM_SESSION_REVOCATION_') ||
-    name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED')
+    name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED' || name === 'PDM_SESSION_REVIEWER_AUTHORITY_ENABLED')
   const environment = Object.fromEntries(names.map(name => [name, receiver[name]]))
   const fixtureRevision = { conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: profile.runtime.containerName,
     env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }
@@ -42,6 +43,7 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
   assert.doesNotThrow(() => assertSessionSnapshotPredecessor(snapshot, runtime, snapshotRevision))
   for (const [name, bad] of [
     ['PDM_SESSION_REVOCATION_ENABLED', '0'],
+    ['PDM_SESSION_REVIEWER_AUTHORITY_ENABLED', '0'],
     ['PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED', 'unknown'],
     ['PDM_SESSION_REVOCATION_AUDIENCE', 'https://wrong.example'],
     ['PDM_SESSION_REVOCATION_PLATFORM_SUBJECT', '00000000'],
