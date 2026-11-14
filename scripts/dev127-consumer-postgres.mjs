@@ -277,6 +277,28 @@ try {
   await client.query('ROLLBACK')
   assert.equal((await client.query(candidate,[reviewer])).rowCount,0)
   checks.push('prepare-fences-selected-offline-reviewer-in-old-repeatable-read')
+
+  const newDraft = randomUUID(), newCommand = randomUUID(), newHash = 'f'.repeat(64)
+  const pendingEdit = applyRolePolicyDraftChanges({
+    candidate:{...edit,candidateCatalogVersion:'ai-pdm.role-policy.'+newDraft},
+    roleChanges:[],changes:[{roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'edit',enabled:true}]
+  }).candidate
+  const {contentHash:newContentHash,...newStored}=pendingEdit
+  await other.query(`INSERT INTO ai_pdm_core.role_policy_drafts(draft_id,candidate_catalog_version,
+    base_catalog_version,base_catalog_sha256,registry_hash,candidate_json,revision,status,created_by,updated_by)
+    VALUES($1,$2,$3,$4,$5,$6,1,'OPEN','principal-a','principal-a')`,
+  [newDraft,pendingEdit.candidateCatalogVersion,applied.catalogVersion,applied.catalogSha256,
+    pendingEdit.registryHash,JSON.stringify(newStored)])
+  await issueSession(newHash,60)
+  // The legacy producer is ineligible and no Platform epoch is needed.
+  assert.equal((await other.query("SELECT eligible FROM dev127_fixture.authority")).rows[0].eligible,false)
+  const native = (await client.query(snapshotApplySql,[newCommand,'principal-a',newHash,'issuer-a',
+    'subject-a',newDraft,applied.catalogVersion,applied.catalogSha256,'發布本地政策'])).rows[0].result
+  assert.equal(native.status,'ACTIVE')
+  assert.equal(native.catalogSha256,newContentHash)
+  assert.ok((await other.query('SELECT revoked_at FROM ai_pdm_core.principal_session_records WHERE session_id_hash=$1',[newHash])).rows[0].revoked_at)
+  await rejected(managerSql,['principal-a',newHash,'issuer-a','subject-a'],'42501')
+  checks.push('snapshot-native-publishes-new-catalog-and-revokes-old-session')
   console.log(JSON.stringify({status:'PASS',checks,producer:'SYNTHETIC_CONTRACT',persistentDatabasesTouched:false}))
 } finally {
   if (client._connected) await client.end().catch(()=>{}); if (other._connected) await other.end().catch(()=>{})
