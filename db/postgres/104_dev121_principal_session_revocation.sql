@@ -61,10 +61,14 @@ CREATE TRIGGER revoke_sessions_for_retired_priority_v1
 CREATE TABLE ai_pdm_core.principal_session_revocation_events (
   event_id uuid PRIMARY KEY,
   operation_id uuid NOT NULL,
-  phase text NOT NULL CHECK (phase IN ('prepare', 'published', 'cancelled', 'global_logout')),
+  phase text NOT NULL CHECK (phase IN (
+    'prepare', 'published', 'cancelled', 'global_prepare', 'global_logout', 'global_cancelled'
+  )),
   request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$'),
   operation_hash text NOT NULL CHECK (operation_hash ~ '^[0-9a-f]{64}$'),
+  baseline_epoch bigint CHECK (baseline_epoch BETWEEN 0 AND 9007199254740991),
   receipt jsonb NOT NULL,
+  CHECK ((phase = 'global_prepare') = (baseline_epoch IS NOT NULL)),
   UNIQUE (operation_id, phase)
 );
 
@@ -73,6 +77,7 @@ CREATE TABLE ai_pdm_core.principal_session_revocation_events (
 CREATE TABLE ai_pdm_core.principal_session_issuance_controls (
   principal_id text PRIMARY KEY CHECK (char_length(principal_id) BETWEEN 1 AND 255),
   pending_operation_id uuid,
+  pending_global_count integer NOT NULL DEFAULT 0 CHECK (pending_global_count >= 0),
   minimum_auth_epoch bigint NOT NULL DEFAULT 0
     CHECK (minimum_auth_epoch BETWEEN 0 AND 9007199254740991),
   last_publication_version bigint,
@@ -95,7 +100,7 @@ BEGIN
     VALUES (NEW.principal_id) ON CONFLICT (principal_id) DO NOTHING;
   SELECT * INTO STRICT control FROM ai_pdm_core.principal_session_issuance_controls
     WHERE principal_id = NEW.principal_id FOR SHARE;
-  IF control.pending_operation_id IS NOT NULL OR
+  IF control.pending_operation_id IS NOT NULL OR control.pending_global_count > 0 OR
      NEW.principal_auth_epoch < control.minimum_auth_epoch OR
      NEW.authenticated_at <= control.revoked_before THEN
     RAISE EXCEPTION 'AIPDM_PRINCIPAL_SESSION_ISSUANCE_BLOCKED' USING ERRCODE = '42501';
@@ -148,7 +153,10 @@ DECLARE
   prior ai_pdm_core.principal_session_revocation_events%ROWTYPE;
 BEGIN
   SELECT * INTO prior FROM ai_pdm_core.principal_session_revocation_events
-    WHERE event_id = p_event OR (operation_id = p_operation AND phase = p_phase)
+    WHERE event_id = p_event OR (operation_id = p_operation AND (
+      phase = p_phase OR
+      (phase IN ('global_logout','global_cancelled') AND p_phase IN ('global_logout','global_cancelled'))
+    ))
     ORDER BY (event_id = p_event) DESC LIMIT 1;
   IF NOT FOUND THEN RETURN NULL; END IF;
   IF prior.event_id IS DISTINCT FROM p_event OR prior.operation_id IS DISTINCT FROM p_operation
@@ -172,20 +180,22 @@ DECLARE
   prior jsonb;
   principal text;
   result jsonb;
+  global_event boolean := p_phase IN ('global_prepare','global_logout','global_cancelled');
 BEGIN
   IF current_setting('transaction_isolation') <> 'read committed' OR p_event IS NULL OR
-    p_operation IS NULL OR p_phase IS NULL OR p_phase NOT IN ('prepare','published','cancelled','global_logout') OR
+    p_operation IS NULL OR p_phase IS NULL OR NOT (global_event OR p_phase IN ('prepare','published','cancelled')) OR
     p_request_hash IS NULL OR p_request_hash !~ '^[0-9a-f]{64}$' OR
     p_operation_hash IS NULL OR p_operation_hash !~ '^[0-9a-f]{64}$' OR
     coalesce(cardinality(p_principals), 0) NOT BETWEEN 1 AND 4096 OR
     p_principals IS DISTINCT FROM ARRAY(
       SELECT DISTINCT id COLLATE "C" FROM unnest(p_principals) AS p(id)
       WHERE id ~ '^[A-Za-z0-9._:@/-]{1,255}$' ORDER BY 1
-    ) OR (p_phase = 'global_logout' AND (cardinality(p_principals) <> 1 OR
+    ) OR (global_event AND (cardinality(p_principals) <> 1 OR
       p_epoch IS NULL OR p_epoch NOT BETWEEN 0 AND 9007199254740991 OR
-      p_revoked_before IS NULL OR NOT isfinite(p_revoked_before) OR
+      (p_phase = 'global_logout' AND (p_epoch = 0 OR p_revoked_before IS NULL OR NOT isfinite(p_revoked_before))) OR
+      (p_phase <> 'global_logout' AND p_revoked_before IS NOT NULL) OR
       p_baseline_version IS NOT NULL OR p_publication_version IS NOT NULL)) OR
-    (p_phase <> 'global_logout' AND (p_epoch IS NOT NULL OR p_revoked_before IS NOT NULL OR
+    (NOT global_event AND (p_epoch IS NOT NULL OR p_revoked_before IS NOT NULL OR
       p_baseline_version IS NULL OR p_baseline_version < 0 OR p_publication_version IS NULL OR
       p_publication_version <= p_baseline_version)) THEN
     RAISE EXCEPTION 'AIPDM_SESSION_REVOCATION_INVALID' USING ERRCODE = '22023';
@@ -194,13 +204,17 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('ai_pdm:session-revocation:' || p_operation::text, 0));
   prior := ai_pdm_core.read_principal_session_revocation_v1(p_event, p_operation, p_phase, p_request_hash);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
-  IF p_phase IN ('published','cancelled') AND NOT EXISTS (
-    SELECT 1 FROM ai_pdm_core.principal_session_revocation_events
-      WHERE operation_id = p_operation AND phase = 'prepare' AND operation_hash = p_operation_hash
-  ) OR EXISTS (
+  IF (p_phase NOT IN ('prepare','global_prepare') AND NOT EXISTS (
+    SELECT 1 FROM ai_pdm_core.principal_session_revocation_events event
+      WHERE event.operation_id = p_operation
+        AND event.phase = CASE WHEN global_event THEN 'global_prepare' ELSE 'prepare' END
+        AND event.operation_hash = p_operation_hash
+        AND (NOT global_event OR event.baseline_epoch =
+          CASE WHEN p_phase = 'global_logout' THEN p_epoch - 1 ELSE p_epoch END)
+  )) OR EXISTS (
     SELECT 1 FROM ai_pdm_core.principal_session_revocation_events
       WHERE operation_id = p_operation AND
-      (p_phase IN ('prepare','global_logout') OR phase IN ('published','cancelled','global_logout'))
+      (p_phase IN ('prepare','global_prepare') OR phase IN ('published','cancelled','global_logout','global_cancelled'))
   ) THEN
     RAISE EXCEPTION 'AIPDM_SESSION_REVOCATION_CONFLICT' USING ERRCODE = '23505';
   END IF;
@@ -223,14 +237,24 @@ BEGIN
     UPDATE ai_pdm_core.principal_session_records
       SET revoked_at = clock_timestamp(), revoke_reason = 'platform_permission_change'
       WHERE principal_id = ANY(p_principals) AND revoked_at IS NULL;
-  ELSIF p_phase = 'global_logout' THEN
+  ELSIF p_phase = 'global_prepare' THEN
     UPDATE ai_pdm_core.principal_session_issuance_controls
-      SET minimum_auth_epoch = greatest(minimum_auth_epoch, p_epoch),
-          revoked_before = greatest(revoked_before, p_revoked_before)
+      SET pending_global_count = pending_global_count + 1
       WHERE principal_id = ANY(p_principals);
     UPDATE ai_pdm_core.principal_session_records
       SET revoked_at = clock_timestamp(), revoke_reason = 'platform_global_logout'
       WHERE principal_id = ANY(p_principals) AND revoked_at IS NULL
+        AND principal_auth_epoch <= p_epoch;
+  ELSIF global_event THEN
+    UPDATE ai_pdm_core.principal_session_issuance_controls
+      SET pending_global_count = pending_global_count - 1,
+          minimum_auth_epoch = CASE WHEN p_phase = 'global_logout'
+            THEN greatest(minimum_auth_epoch, p_epoch) ELSE minimum_auth_epoch END,
+          revoked_before = greatest(revoked_before, p_revoked_before)
+      WHERE principal_id = ANY(p_principals);
+    UPDATE ai_pdm_core.principal_session_records
+      SET revoked_at = clock_timestamp(), revoke_reason = 'platform_global_logout'
+      WHERE p_phase = 'global_logout' AND principal_id = ANY(p_principals) AND revoked_at IS NULL
         AND (principal_auth_epoch < p_epoch OR authenticated_at <= p_revoked_before);
   ELSE
     IF EXISTS (SELECT 1 FROM ai_pdm_core.principal_session_issuance_controls
@@ -249,8 +273,9 @@ BEGIN
     to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
   );
   INSERT INTO ai_pdm_core.principal_session_revocation_events
-    (event_id, operation_id, phase, request_hash, operation_hash, receipt)
-    VALUES (p_event, p_operation, p_phase, p_request_hash, p_operation_hash, result);
+    (event_id, operation_id, phase, request_hash, operation_hash, baseline_epoch, receipt)
+    VALUES (p_event, p_operation, p_phase, p_request_hash, p_operation_hash,
+      CASE WHEN p_phase = 'global_prepare' THEN p_epoch END, result);
   RETURN result;
 END;
 $function$;

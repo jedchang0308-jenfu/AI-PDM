@@ -3,9 +3,10 @@
 
 ## DEV-121：登入期間重用權限與工作階段撤銷
 
-- 狀態：`PDM 候選實作／三系統整合及啟用待主控驗收`。
+- 狀態：`PDM 雙階段全域登出候選／待主控重跑三系統整合`。
 - 主控：Jenfu-Platform 專案 session（`JENFU/DEV-015#pdm-session-revocation`）。
-- 下一步：以三方候選的正常改權及登入入口驗證發布與復原，確認所有正式寫入 revision 都已具備撤銷屏障，才啟用派送及工作階段快照。
+- PDM 交付分支 `codex/pdm-session-revocation`，沿用 [PR #614](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614)。歷史候選 `4ff428be92cb47a50f3b97ed525d3f9f7b2d6a84` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43589103117) 均通過，證據只適用該提交。此次接收端對接 [Platform PR #219](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/219) 的雙階段協定。
+- 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。正式 profile 啟用設定仍須接入受保護入口。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
 <a id="dev-128-masked-local-production-snapshot"></a>

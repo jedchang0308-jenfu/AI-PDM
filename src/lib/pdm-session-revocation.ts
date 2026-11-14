@@ -46,10 +46,16 @@ async function readReceipt(database: AsyncDatabaseClient, command: PdmRevocation
 }
 
 async function verifySource(database: AsyncDatabaseClient, command: PdmRevocationCommand) {
-  if (command.phase === "global_logout") {
+  if (command.phase === "global_prepare") return;
+  if (command.phase === "global_logout" || command.phase === "global_cancelled") {
     const current = await new JenfuAuthEpochRepository(database).readCanonicalPrincipalState(command.principalIds[0]);
-    if (current.authEpoch < command.sourceEpoch || !current.revokedBefore ||
-        Date.parse(current.revokedBefore) < Date.parse(command.revokedBefore)) {
+    // Platform cancels only when the frozen epoch has drifted. Never clear a
+    // barrier while our readback still observes that operation's baseline.
+    const sourceReadable = command.phase === "global_cancelled"
+      ? current.authEpoch > command.sourceEpoch
+      : command.revokedBefore !== null && current.authEpoch >= command.sourceEpoch && current.revokedBefore !== null &&
+        Date.parse(current.revokedBefore) >= Date.parse(command.revokedBefore);
+    if (!sourceReadable) {
       throw new PdmRevocationError(409, "pdm_revocation_source_not_readable");
     }
     return;

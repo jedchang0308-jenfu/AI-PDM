@@ -17,6 +17,7 @@
 - Migration 104 安裝回執、Principal 簽發屏障及選用的 session 權限快照。原有 `revoked_at` 同步保存撤銷，且從已撤銷狀態回寫時會被拒絕。SQL 簽發屏障對仍使用原始 registry INSERT 的版本也有效。
 - Platform 端點與寫入屏障由 `PDM_SESSION_REVOCATION_ENABLED=1` 啟用。設定 `PDM_SESSION_REVOCATION_AUDIENCE` 為 PDM 精確 HTTPS origin，以及 `PDM_SESSION_REVOCATION_PLATFORM_SUBJECT`、`PDM_SESSION_REVOCATION_PLATFORM_EMAIL` 為實際派送 workload。發布讀回依 OrgMaster 的 `read_ai_pdm_session_publication_v1`。取消只接受已驗身分的 Platform 隨 OrgMaster 終止送達，並核對 PDM 既有操作與綁定。
 - `PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED=1` 還需撤銷旗標與 OrgMaster `read_ai_pdm_session_authority_v1`。啟用時無快照的既有 session 會被拒絕並要求重登。啟用或回復前查證服務、入口及寫入 revision，撤銷啟用期間回復目標仍須支援寫入屏障。
+- 全域登出接收 `global_prepare`、`global_logout`、`global_cancelled`。準備先撤銷基線世代及更早的 session、排空其在途寫入、封鎖新登入；回執提交後 Platform 才可推進 epoch。PDM 核對正式中央 epoch 與撤銷時間，並以 prepare 綁定操作、Principal 與基線。取消須見中央基線確已漂移。每筆終態只解除自己的屏障，剩餘全域操作或 OrgMaster 發布仍可封鎖登入。未知回應先用同事件讀回，已撤銷的 session 保持撤銷。
 
 
 <a id="architecture-final"></a>

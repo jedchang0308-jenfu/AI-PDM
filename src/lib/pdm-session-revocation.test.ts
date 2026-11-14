@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
-  digestPdmRevocation, pdmRevocationReceiptVersion, pdmRevocationVersion,
+  digestPdmRevocation, parsePdmRevocationCommand, pdmRevocationReceiptVersion, pdmRevocationVersion,
   type PdmRevocationPayload
 } from "@/lib/pdm-session-revocation-contract";
 import { applyPdmSessionRevocation, handlePdmSessionRevocation } from "@/lib/pdm-session-revocation";
@@ -35,6 +35,47 @@ afterEach(() => {
 });
 
 describe("PDM Platform revocation", () => {
+  const global = {
+    ...payload, sourceApp: "platform", baselineVersion: null, publicationVersion: null,
+    phase: "global_prepare", sourceEpoch: 7, revokedBefore: null
+  } as const;
+  const wire = (input: PdmRevocationPayload) => parsePdmRevocationCommand({ ...input, digest: digestPdmRevocation(input) });
+
+  it("prepares locally without waiting for the central epoch change", async () => {
+    const { database, queryOne } = fixture();
+    const prepare = wire(global);
+    const preparedReceipt = { ...receipt, phase: prepare.phase, digest: prepare.digest };
+    queryOne.mockResolvedValueOnce({ receipt: null }).mockResolvedValueOnce({ receipt: preparedReceipt });
+    await expect(applyPdmSessionRevocation(database, prepare, false)).resolves.toEqual(preparedReceipt);
+    expect(queryOne).toHaveBeenCalledTimes(2);
+    expect(queryOne.mock.calls[1][0]).toContain("ai_pdm_core.apply_principal_session_revocation_v1");
+  });
+
+  it.each(["global_logout", "global_cancelled"] as const)(
+    "keeps the barrier on unreadable %s and returns the durable receipt after source recovery",
+    async phase => {
+      const { database, queryOne } = fixture();
+      const cutoff = "2026-11-14T00:00:00.000Z";
+      const terminal = phase === "global_logout"
+        ? wire({ ...global, phase, sourceEpoch: 8, revokedBefore: cutoff })
+        : wire({ ...global, phase });
+      const terminalReceipt = { ...receipt, phase, digest: terminal.digest };
+      queryOne.mockResolvedValueOnce({ receipt: null })
+        .mockResolvedValueOnce({ principal_id: "principal-1", auth_epoch: 7, revoked_before: null });
+      await expect(applyPdmSessionRevocation(database, terminal, false))
+        .rejects.toMatchObject({ status: 409, code: "pdm_revocation_source_not_readable" });
+      expect(queryOne).toHaveBeenCalledTimes(2);
+      expect(queryOne.mock.calls[1][0]).toContain("platform_contract.read_principal_auth_state_v3");
+      queryOne.mockReset().mockResolvedValueOnce({ receipt: null })
+        .mockResolvedValueOnce({ principal_id: "principal-1", auth_epoch: 8, revoked_before: cutoff })
+        .mockResolvedValueOnce({ receipt: terminalReceipt });
+      await expect(applyPdmSessionRevocation(database, terminal, false)).resolves.toEqual(terminalReceipt);
+      queryOne.mockReset().mockResolvedValueOnce({ receipt: terminalReceipt });
+      await expect(applyPdmSessionRevocation(database, terminal, true)).resolves.toEqual(terminalReceipt);
+      expect(queryOne).toHaveBeenCalledOnce();
+    }
+  );
+
   it("requires publication readback before attempting to release the barrier", async () => {
     const { database, queryOne } = fixture();
     queryOne.mockResolvedValueOnce({ receipt: null }).mockResolvedValueOnce(null);

@@ -18,7 +18,7 @@ type CommandBase = {
   targetApp: 'ai-pdm'
   eventId: string
   operationId: string
-  principalIds: string[]
+  principalIds: readonly string[]
 }
 
 export type PdmRevocationPayload = CommandBase & (
@@ -26,6 +26,8 @@ export type PdmRevocationPayload = CommandBase & (
       publicationVersion: string; sourceEpoch: null; revokedBefore: null }
   | { sourceApp: 'platform'; phase: 'global_logout'; baselineVersion: null;
       publicationVersion: null; sourceEpoch: number; revokedBefore: string }
+  | { sourceApp: 'platform'; phase: 'global_prepare' | 'global_cancelled'; baselineVersion: null;
+      publicationVersion: null; sourceEpoch: number; revokedBefore: null }
 )
 export type PdmRevocationCommand = PdmRevocationPayload & { digest: string }
 export type PdmRevocationReceipt = {
@@ -45,6 +47,8 @@ function isObject(value: unknown, fields: readonly string[]): value is Record<st
 const matches = (value: unknown, pattern: RegExp): value is string => typeof value === 'string' && pattern.test(value)
 const isTimestamp = (value: unknown) => matches(value, timestamp) && Number.isFinite(Date.parse(value))
   && new Date(value).toISOString() === value
+const isPublicationVersion = (value: unknown): value is string => matches(value, /^(0|[1-9]\d{0,18})$/u)
+  && BigInt(value) <= 9223372036854775807n
 
 export function digestPdmRevocation(c: PdmRevocationPayload) {
   return createHash('sha256').update(JSON.stringify([c.contractVersion, c.sourceApp, c.targetApp, c.eventId,
@@ -65,12 +69,16 @@ export function parsePdmRevocationCommand(value: unknown): PdmRevocationCommand 
   }
   if (value.sourceApp === 'orgmaster') {
     if ((value.phase !== 'prepare' && value.phase !== 'published' && value.phase !== 'cancelled')
-      || !matches(value.baselineVersion, opaque) || !matches(value.publicationVersion, opaque)
-      || value.baselineVersion === value.publicationVersion || value.sourceEpoch !== null || value.revokedBefore !== null) throw invalid()
+      || !isPublicationVersion(value.baselineVersion) || !isPublicationVersion(value.publicationVersion)
+      || BigInt(value.publicationVersion) !== BigInt(value.baselineVersion) + 1n
+      || value.sourceEpoch !== null || value.revokedBefore !== null) throw invalid()
   } else if (value.sourceApp === 'platform') {
-    if (value.phase !== 'global_logout' || value.principalIds.length !== 1
+    if (value.principalIds.length !== 1
       || value.baselineVersion !== null || value.publicationVersion !== null || typeof value.sourceEpoch !== 'number'
-      || !Number.isSafeInteger(value.sourceEpoch) || value.sourceEpoch < 0 || !isTimestamp(value.revokedBefore)) throw invalid()
+      || !Number.isSafeInteger(value.sourceEpoch) || value.sourceEpoch < 0) throw invalid()
+    if (value.phase === 'global_logout') {
+      if (!isTimestamp(value.revokedBefore)) throw invalid()
+    } else if ((value.phase !== 'global_prepare' && value.phase !== 'global_cancelled') || value.revokedBefore !== null) throw invalid()
   } else throw invalid()
   const command = value as PdmRevocationCommand
   if (command.digest !== digestPdmRevocation(command)) throw invalid()

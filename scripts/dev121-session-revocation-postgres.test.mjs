@@ -26,7 +26,7 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
     baseline = 1) =>
     client.query("SELECT ai_pdm_core.apply_principal_session_revocation_v1($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) AS receipt",
       [event, operationId, phase, hash, operationHash, principals, epoch, cutoff,
-        phase === "global_logout" ? null : baseline, phase === "global_logout" ? null : baseline + 1])
+        phase.startsWith("global_") ? null : baseline, phase.startsWith("global_") ? null : baseline + 1])
       .then(result => result.rows[0].receipt);
   const session = (client, principal, hash, epoch = 0, authenticatedAt = "2026-11-01T10:00:00.000Z") =>
     client.query(`
@@ -36,6 +36,9 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
   const lock = async (client, principal, hash) =>
     (await client.query("SELECT ai_pdm_core.lock_principal_session_for_command_v1($1,$2) AS valid",
       [principal, hash])).rows[0].valid;
+  const readback = async (client, event, operationId, phase, hash = digest) =>
+    (await client.query("SELECT ai_pdm_core.read_principal_session_revocation_v1($1,$2,$3,$4) AS receipt",
+      [event, operationId, phase, hash])).rows[0].receipt;
   const untilLockWait = async pid => {
     for (let attempt = 0; attempt < 100; attempt++) {
       const [{ wait_event_type }] = (await pool.query(
@@ -97,7 +100,11 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
     assert.deepEqual(await apply(revoker, prepare, operation, "prepare"), receipt);
     await apply(revoker, terminal, operation, "cancelled");
     await assert.rejects(session(login, unseen, "blocked-again"), { code: "42501" });
-    await apply(revoker, randomUUID(), randomUUID(), "global_logout", [unseen], 1, "2026-11-01T12:00:00.000Z");
+    const logout = randomUUID(), logoutPrepare = randomUUID();
+    await assert.rejects(apply(revoker, logout, logout, "global_logout", [unseen], 1,
+      "2026-11-01T12:00:00.000Z"), { code: "23505" });
+    await apply(revoker, logoutPrepare, logout, "global_prepare", [unseen], 0);
+    await apply(revoker, logout, logout, "global_logout", [unseen], 1, "2026-11-01T12:00:00.000Z");
     await assert.rejects(session(login, unseen, "still-blocked", 1, "2026-11-01T13:00:00.000Z"), { code: "42501" });
     await apply(revoker, randomUUID(), nextOperation, "published");
     await assert.rejects(apply(revoker, randomUUID(), randomUUID(), "prepare", [unseen]), { code: "23505" });
@@ -140,6 +147,40 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
     await revoker.query("UPDATE ai_pdm_core.role_priority_versions SET status='retired'");
     assert.equal(await lock(writer, unseen, "priority-snapshot"), false);
     assert.equal(await lock(writer, unseen, "fresh-snapshot"), true);
+
+    const secondLogout = randomUUID(), secondPrepare = randomUUID(), concurrentLogout = randomUUID();
+    await writer.query("BEGIN");
+    assert.equal(await lock(writer, unseen, "fresh-snapshot"), true);
+    const preparing = apply(revoker, secondPrepare, secondLogout, "global_prepare", [unseen], 1);
+    void preparing.catch(() => {});
+    await untilLockWait(revoker.processID);
+    assert.equal(await readback(login, secondPrepare, secondLogout, "global_prepare"), null);
+    await writer.query("INSERT INTO ai_pdm_core.command_writes VALUES ('global-write-first')");
+    await writer.query("COMMIT");
+    const prepared = await preparing;
+    assert.deepEqual(await readback(login, secondPrepare, secondLogout, "global_prepare"), prepared);
+    assert.deepEqual(await apply(login, secondPrepare, secondLogout, "global_prepare", [unseen], 1), prepared);
+    assert.equal(await lock(writer, unseen, "fresh-snapshot"), false);
+    await assert.rejects(session(login, unseen, "terminal-delayed", 2, "2026-11-01T14:00:00.000Z"), { code: "42501" });
+    await apply(revoker, randomUUID(), concurrentLogout, "global_prepare", [unseen], 1);
+    const overlap = randomUUID();
+    await apply(revoker, randomUUID(), overlap, "prepare", [unseen], null, null, digest, 3);
+    await apply(revoker, randomUUID(), overlap, "cancelled", [unseen], null, null, digest, 3);
+    await assert.rejects(apply(revoker, secondLogout, secondLogout, "global_logout", [unseen], 3,
+      "2026-11-01T13:30:00.000Z"), { code: "23505" });
+    await assert.rejects(apply(revoker, secondLogout, secondLogout, "global_cancelled", [unseen], 0), { code: "23505" });
+    const committed = await apply(revoker, secondLogout, secondLogout, "global_logout", [unseen], 2,
+      "2026-11-01T13:30:00.000Z");
+    assert.deepEqual(await readback(login, secondLogout, secondLogout, "global_logout"), committed);
+    await assert.rejects(readback(login, randomUUID(), secondLogout, "global_cancelled"), { code: "23505" });
+    await assert.rejects(session(login, unseen, "other-logout-still-pending", 2, "2026-11-01T14:00:00.000Z"),
+      { code: "42501" });
+    await apply(revoker, concurrentLogout, concurrentLogout, "global_cancelled", [unseen], 1);
+    await assert.rejects(session(login, unseen, "old-after-cancel", 1, "2026-11-01T14:00:00.000Z"),
+      { code: "42501" });
+    await session(login, unseen, "new-after-both", 2, "2026-11-01T14:00:00.000Z");
+    assert.equal(await lock(writer, unseen, "fresh-snapshot"), false);
+    assert.equal(await lock(writer, unrelated, "device-c"), true);
   } finally {
     for (const client of [writer, revoker, login]) client.release();
     await pool.end();

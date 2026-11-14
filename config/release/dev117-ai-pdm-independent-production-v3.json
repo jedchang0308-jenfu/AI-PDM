@@ -513,7 +513,7 @@
       {
         "order": 45,
         "path": "db/postgres/104_dev121_principal_session_revocation.sql",
-        "sha256": "819c1747e31998ab1ea25e7756c267fec6db1140b46740134aa6e967aaba3e9e"
+        "sha256": "c717f612e2a902a098b4ec7865364f7efa0231fa9c8fe424f029cd7c3b92ec1a"
       }
     ]
   },
