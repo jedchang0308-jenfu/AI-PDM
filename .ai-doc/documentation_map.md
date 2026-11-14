@@ -1,5 +1,8 @@
 `.ai-doc` is the single project documentation center；本檔只提供現行文件導覽與狀態入口。
 
+- 登入期間重用權限與工作階段撤銷：[任務入口](dev_task.md#pdm-session-revocation) · [開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)。
+
+
 ## DEV-126 地端 SSO 與前端權限投影（Local Principal Sandbox 實作中）
 
 2026-11-06 新增 [§14 PDM 獨立本機測試超級管理員](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-test-super-admin)：PR #573 merged，地端 1020 固定入口 `npm run dev:local` 會啟動或重用專用隔離 PostgreSQL 18 與 TestAdmin web runtime；登入提供全部 PDM page／action 與純 PDM policy 授權，獨立於 SSO。最新地端啟用與資料邊界見 §14 及 DEV-126 任務入口。

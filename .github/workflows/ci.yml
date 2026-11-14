@@ -80,6 +80,14 @@ jobs:
           node --test scripts/dev012-production-data-cutover-postgres.test.mjs
           node --test scripts/dev127-local-owner-postgres.test.mjs
 
+      - name: Verify PDM login, command and revocation ordering
+        if: steps.slice.outputs.database == 'true' && steps.slice.outputs.authorization == 'true'
+        env:
+          PDM_SESSION_REVOCATION_TEST_DATABASE: postgresql://postgres:postgres@127.0.0.1:5432/dev121_session_revocation_test
+        run: |
+          createdb --maintenance-db=postgresql://postgres:postgres@127.0.0.1:5432/postgres dev121_session_revocation_test
+          node --test scripts/dev121-session-revocation-postgres.test.mjs
+
       - name: Verify PDM-only local administrator against owned loopback PostgreSQL
         if: steps.slice.outputs.database == 'true'
         timeout-minutes: 4
@@ -247,6 +255,7 @@ jobs:
           npm exec vitest run src/app/api/auth/me/principal-me.test.ts src/app/api/auth/logout/principal-logout.test.ts src/app/api/account/sessions/principal-sessions.test.ts 'src/app/api/account/sessions/[sessionId]/revoke/principal-revoke.test.ts' 'src/app/api/pdm/file-assets/[fileAssetId]/principal-review-file.test.ts'
           npm exec vitest run src/lib/settings-secret-lifecycle.principal.test.ts src/app/api/settings/principal-secret-commands.test.ts src/lib/worker-service-auth.test.ts src/app/api/preview-jobs/claim/route.workload.test.ts 'src/app/api/preview-jobs/[jobId]/content/route.principal.test.ts' src/lib/preview-worker-source.principal.test.ts src/lib/drawing-revision-work-file.principal.test.ts src/lib/preview-derivatives.principal-provenance.test.ts 'src/app/api/parts/[partNumber]/attachments/principal-read.test.ts' src/lib/drawing-preview-asset.principal.test.ts src/lib/file-response.security.test.ts src/lib/google-cloud-file-storage.test.ts src/lib/master-attachment-principal-command.test.ts src/lib/master-attachment-response.principal.test.ts src/lib/repositories/master-attachment-company-read.test.ts
           npm exec vitest run src/lib/production-slice.principal-workbench.test.ts src/lib/jenfu-principal-provision-service.test.ts src/lib/jenfu-principal-provision-contract.test.ts src/lib/jenfu-principal-candidate-repository.test.ts src/lib/jenfu-principal-account-repository.test.ts src/lib/jenfu-principal-request-guard.test.ts src/lib/jenfu-sso-principal-callback.test.ts src/lib/jenfu-principal-handoff-session-service.test.ts
+          npm exec vitest run src/lib/pdm-session-revocation.test.ts
           npm run qc:pdm-principal-account-boundary
           npm run qc:pdm-production-slice-numbering-draft
 

@@ -12,6 +12,8 @@ import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 import { reportLocalPrincipalDiagnostic } from "@/lib/local-principal-diagnostics";
 import { LOCAL_IDENTITY_ISSUER } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
 import { isLocalTestAdminRequestInput, withVerifiedLocalTestAdminRequest } from "@/lib/local-test-admin";
+import { principalPermissionSnapshotsEnabled, type PrincipalSessionPermissions } from "@/lib/principal-session-permission-snapshot";
+import type { JenfuPrincipalSessionClaims } from "@/lib/jenfu-principal-session";
 
 export class JenfuPrincipalRequestError extends Error {
   constructor(readonly code: "auth_session_invalid" | "auth_epoch_stale" | "principal_dependency_unavailable") {
@@ -53,7 +55,27 @@ export type PrincipalRequestInput = {
 export type VerifiedPrincipalRequest = {
   profile: { pdmUserId: string; companyId: string };
   session: VerifiedJenfuPrincipalAppSession;
+  permissions?: PrincipalSessionPermissions;
 };
+
+function principalSession(claims: JenfuPrincipalSessionClaims): VerifiedJenfuPrincipalAppSession {
+  return {
+    contractVersion: "jenfu.ai-pdm-session.v2",
+    appId: "ai-pdm",
+    sessionId: claims.sessionId,
+    identityIssuer: claims.identityIssuer,
+    identitySubject: claims.identitySubject,
+    principalId: claims.principalId,
+    employeeId: claims.employeeId,
+    authEpoch: claims.authEpoch,
+    profileVersion: claims.profileVersion,
+    accountLifecycleVersion: claims.accountLifecycleVersion,
+    authenticatedAt: new Date(claims.authenticatedAt * 1000).toISOString(),
+    issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
+    expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
+    assuranceLevel: claims.assuranceLevel
+  };
+}
 
 /** Keep principal admission and the eventual permission/resource decision in one snapshot. */
 export async function withVerifiedJenfuPrincipalRequest<TResult>(
@@ -84,62 +106,60 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
       try {
         await client.execute("SET LOCAL statement_timeout = '5s'");
         await client.execute("SET LOCAL lock_timeout = '2s'");
-        const typed = await new JenfuPrincipalAdmissionRepository(client)
-          .requireActiveTypedPrincipal(claims.identityIssuer, claims.identitySubject);
-        const state = await new JenfuAuthEpochRepository(client)
-          .readCanonicalPrincipalState(claims.principalId);
-        const account = await new JenfuPrincipalAccountRepository(client)
-          .requireActive(claims.principalId);
-        const registered = await new JenfuPrincipalSessionRegistry(client)
-          .isActive(claims, nowSeconds * 1000);
-        // The historical PDM user row is a domain profile, never a role or
-        // lifecycle authority for a principal session.
-        const profile = await client.queryOne<{ id: string; company_id: string }>(`
-          SELECT profile.id,profile.company_id
-          FROM ai_pdm_core.users profile
-          JOIN ai_pdm_core.principal_accounts owner
-            ON owner.pdm_user_id=profile.id AND owner.company_id=profile.company_id
-           AND owner.principal_id=:principalId
-          WHERE profile.id=:pdmUserId AND profile.company_id=:companyId
-        `, { pdmUserId: account.pdmUserId, companyId: account.companyId,
-          principalId: account.principalId });
+        if (principalPermissionSnapshotsEnabled()) {
+          const local = await new JenfuPrincipalSessionRegistry(client).readPermissions(claims, options.readOnly === false);
+          if (!local) throw new JenfuPrincipalRequestError("auth_session_invalid");
+          verified = {
+            profile: { pdmUserId: local.pdmUserId, companyId: claims.companyId },
+            permissions: local.permissions, session: principalSession(claims)
+          };
+        } else {
+          if (options.readOnly === false && process.env.PDM_SESSION_REVOCATION_ENABLED === "1" &&
+              !await new JenfuPrincipalSessionRegistry(client).lockForCommand(claims)) {
+            throw new JenfuPrincipalRequestError("auth_session_invalid");
+          }
+          const typed = await new JenfuPrincipalAdmissionRepository(client)
+            .requireActiveTypedPrincipal(claims.identityIssuer, claims.identitySubject);
+          const state = await new JenfuAuthEpochRepository(client)
+            .readCanonicalPrincipalState(claims.principalId);
+          const account = await new JenfuPrincipalAccountRepository(client)
+            .requireActive(claims.principalId);
+          const registered = await new JenfuPrincipalSessionRegistry(client)
+            .isActive(claims, nowSeconds * 1000);
+          // The historical PDM user row is a domain profile, never a role or
+          // lifecycle authority for a principal session.
+          const profile = await client.queryOne<{ id: string; company_id: string }>(`
+            SELECT profile.id,profile.company_id
+            FROM ai_pdm_core.users profile
+            JOIN ai_pdm_core.principal_accounts owner
+              ON owner.pdm_user_id=profile.id AND owner.company_id=profile.company_id
+             AND owner.principal_id=:principalId
+            WHERE profile.id=:pdmUserId AND profile.company_id=:companyId
+          `, { pdmUserId: account.pdmUserId, companyId: account.companyId,
+            principalId: account.principalId });
 
-        if (typed.principalId !== claims.principalId || typed.employeeId !== claims.employeeId ||
-          typed.accountType !== account.accountType || account.employeeId !== claims.employeeId ||
-          account.companyId !== claims.companyId ||
-          account.lifecycleVersion !== claims.accountLifecycleVersion ||
-          account.profileVersion !== claims.profileVersion ||
-          state.authEpoch !== claims.authEpoch || !registered ||
-          !profile || profile.id !== account.pdmUserId || profile.company_id !== account.companyId) {
-          throw new JenfuPrincipalRequestError("auth_session_invalid");
+          if (typed.principalId !== claims.principalId || typed.employeeId !== claims.employeeId ||
+            typed.accountType !== account.accountType || account.employeeId !== claims.employeeId ||
+            account.companyId !== claims.companyId ||
+            account.lifecycleVersion !== claims.accountLifecycleVersion ||
+            account.profileVersion !== claims.profileVersion ||
+            state.authEpoch !== claims.authEpoch || !registered ||
+            !profile || profile.id !== account.pdmUserId || profile.company_id !== account.companyId) {
+            throw new JenfuPrincipalRequestError("auth_session_invalid");
+          }
+          if (state.revokedBefore && claims.authenticatedAt * 1000 <= Date.parse(state.revokedBefore)) {
+            throw new JenfuPrincipalRequestError("auth_epoch_stale");
+          }
+          if (account.sessionInvalidBefore &&
+              claims.issuedAt * 1000 <= Date.parse(account.sessionInvalidBefore)) {
+            throw new JenfuPrincipalRequestError("auth_session_invalid");
+          }
+          await validatePrincipalPublishedGrantSnapshot(client, {
+            principalId: claims.principalId, employeeId: claims.employeeId,
+            identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject
+          });
+          verified = { profile: { pdmUserId: profile.id, companyId: profile.company_id }, session: principalSession(claims) };
         }
-        if (state.revokedBefore && claims.authenticatedAt * 1000 <= Date.parse(state.revokedBefore)) {
-          throw new JenfuPrincipalRequestError("auth_epoch_stale");
-        }
-        if (account.sessionInvalidBefore &&
-            claims.issuedAt * 1000 <= Date.parse(account.sessionInvalidBefore)) {
-          throw new JenfuPrincipalRequestError("auth_session_invalid");
-        }
-        await validatePrincipalPublishedGrantSnapshot(client, {
-          principalId: claims.principalId, employeeId: claims.employeeId,
-          identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject
-        });
-        verified = { profile: { pdmUserId: profile.id, companyId: profile.company_id }, session: {
-          contractVersion: "jenfu.ai-pdm-session.v2",
-          appId: "ai-pdm",
-          sessionId: claims.sessionId,
-          identityIssuer: claims.identityIssuer,
-          identitySubject: claims.identitySubject,
-          principalId: claims.principalId,
-          employeeId: claims.employeeId,
-          authEpoch: claims.authEpoch,
-          profileVersion: claims.profileVersion,
-          accountLifecycleVersion: claims.accountLifecycleVersion,
-          authenticatedAt: new Date(claims.authenticatedAt * 1000).toISOString(),
-          issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
-          expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
-          assuranceLevel: claims.assuranceLevel
-        } };
       } catch (error) {
         if (knownInactivePrincipal(error)) {
           throw new JenfuPrincipalRequestError("auth_session_invalid");

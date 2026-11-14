@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { JenfuPrincipalSessionClaims } from "@/lib/jenfu-principal-session";
+import type { PrincipalSessionPermissions } from "@/lib/principal-session-permission-snapshot";
 
 export function hashJenfuPrincipalSessionId(sessionId: string) {
   if (typeof sessionId !== "string" || sessionId.length < 16 || sessionId.length > 512) {
@@ -20,6 +21,8 @@ type PrincipalSessionRow = {
   revoked_at: Date | string | null;
   assurance_level: "aal1" | "aal2";
   assurance_policy_hash: string;
+  pdm_user_id?: string;
+  permission_snapshot?: PrincipalSessionPermissions;
 };
 
 function milliseconds(value: Date | string) {
@@ -29,15 +32,17 @@ function milliseconds(value: Date | string) {
 export class JenfuPrincipalSessionRegistry {
   constructor(private readonly client: Pick<AsyncDatabaseClient, "kind" | "execute" | "queryOne">) {}
 
-  async register(claims: JenfuPrincipalSessionClaims) {
+  async register(claims: JenfuPrincipalSessionClaims, permissions?: PrincipalSessionPermissions) {
     if (this.client.kind !== "postgres") throw new Error("PRINCIPAL_SESSION_REGISTRY_UNAVAILABLE");
     await this.client.execute(`
       INSERT INTO ai_pdm_core.principal_session_records
         (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,
-         profile_version,authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
+         profile_version,authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash
+         ${permissions ? ",permission_snapshot" : ""})
       VALUES
         (:principalId,:sessionIdHash,:authEpoch,:lifecycleVersion,
-         :profileVersion,:authenticatedAt,:issuedAt,:expiresAt,:assuranceLevel,:assurancePolicyHash)
+         :profileVersion,:authenticatedAt,:issuedAt,:expiresAt,:assuranceLevel,:assurancePolicyHash
+         ${permissions ? ",:permissionSnapshot" : ""})
     `, {
       principalId: claims.principalId,
       sessionIdHash: hashJenfuPrincipalSessionId(claims.sessionId),
@@ -48,8 +53,40 @@ export class JenfuPrincipalSessionRegistry {
       issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
       expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
       assuranceLevel: claims.assuranceLevel,
-      assurancePolicyHash: claims.assurancePolicyHash
+      assurancePolicyHash: claims.assurancePolicyHash,
+      ...(permissions ? { permissionSnapshot: JSON.stringify(permissions) } : {})
     });
+  }
+
+  async readPermissions(claims: JenfuPrincipalSessionClaims, lock: boolean) {
+    const row = await this.client.queryOne<PrincipalSessionRow>(`
+      SELECT session.*,account.pdm_user_id
+      FROM ai_pdm_core.principal_session_records session
+      JOIN ai_pdm_core.principal_accounts account USING (principal_id)
+      JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id AND profile.company_id=account.company_id
+      WHERE session.principal_id=:principalId AND session.session_id_hash=:sessionIdHash
+        AND session.revoked_at IS NULL AND session.expires_at>clock_timestamp()
+        AND session.issued_at=:issuedAt AND session.expires_at=:expiresAt
+        AND session.authenticated_at=:authenticatedAt AND session.principal_auth_epoch=:authEpoch
+        AND session.assurance_level=:assuranceLevel AND session.assurance_policy_hash=:assurancePolicyHash
+        AND session.lifecycle_version=:lifecycleVersion AND session.profile_version=:profileVersion
+        AND account.lifecycle_version=session.lifecycle_version AND account.profile_version=session.profile_version
+        AND account.company_id=:companyId AND account.employee_id=:employeeId
+        AND account.account_status='active' AND account.system_role_enabled
+        AND (account.session_invalid_before IS NULL OR session.issued_at>account.session_invalid_before)
+        AND session.permission_snapshot->>'version'='1'
+      ${lock ? "FOR SHARE OF session" : ""}
+    `, {
+      principalId: claims.principalId, sessionIdHash: hashJenfuPrincipalSessionId(claims.sessionId),
+      issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
+      expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
+      authenticatedAt: new Date(claims.authenticatedAt * 1000).toISOString(),
+      authEpoch: claims.authEpoch, assuranceLevel: claims.assuranceLevel,
+      assurancePolicyHash: claims.assurancePolicyHash, lifecycleVersion: claims.accountLifecycleVersion,
+      profileVersion: claims.profileVersion, companyId: claims.companyId, employeeId: claims.employeeId
+    });
+    return row?.pdm_user_id && row.permission_snapshot
+      ? { pdmUserId: row.pdm_user_id, permissions: row.permission_snapshot } : null;
   }
 
   async isActive(claims: JenfuPrincipalSessionClaims, nowMs = Date.now()) {
@@ -73,6 +110,17 @@ export class JenfuPrincipalSessionRegistry {
       milliseconds(row.expires_at) > nowMs &&
       row.assurance_level === claims.assuranceLevel &&
       row.assurance_policy_hash === claims.assurancePolicyHash);
+  }
+
+  async lockForCommand(claims: JenfuPrincipalSessionClaims) {
+    if (this.client.kind !== "postgres") return false;
+    const row = await this.client.queryOne<{ active: boolean }>(`
+      SELECT ai_pdm_core.lock_principal_session_for_command_v1(:principalId,:sessionIdHash) AS active
+    `, {
+      principalId: claims.principalId,
+      sessionIdHash: hashJenfuPrincipalSessionId(claims.sessionId)
+    });
+    return row?.active === true;
   }
 
   async revoke(claims: JenfuPrincipalSessionClaims, reason: string) {

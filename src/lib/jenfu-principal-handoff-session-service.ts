@@ -10,6 +10,7 @@ import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/j
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
+import { createPrincipalSessionPermissions, principalPermissionSnapshotsEnabled } from "@/lib/principal-session-permission-snapshot";
 
 /** No provider call or legacy UID/profile lookup occurs inside this transaction. */
 export async function issueSessionForPrincipalHandoff(input: {
@@ -58,6 +59,7 @@ export async function issueSessionForPrincipalHandoff(input: {
       throw new Error("STALE_HANDOFF");
     }
     let publishedGrantValidated = false;
+    const usePermissions = principalPermissionSnapshotsEnabled();
     let account;
     try {
       account = await accountRepository.requireActive(handoff.identity.principalId);
@@ -100,7 +102,7 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!profile || profile.id !== account.pdmUserId ||
       profile.company_id !== account.companyId) throw new Error("PRINCIPAL_PROFILE_INVALID");
 
-    if (!publishedGrantValidated) {
+    if (!publishedGrantValidated && !usePermissions) {
       await validatePrincipalPublishedGrantSnapshot(snapshot, {
         identityIssuer: handoff.identity.identityIssuer,
         identitySubject: handoff.identity.identitySubject,
@@ -122,6 +124,11 @@ export async function issueSessionForPrincipalHandoff(input: {
     const assurance = resolvePrincipalHandoffAssurance({
       authentication: handoff.authentication, policy: input.trustPolicy
     });
+    const permissions = usePermissions ? await createPrincipalSessionPermissions(snapshot, {
+      principalId: account.principalId, employeeId: account.employeeId,
+      identityIssuer: handoff.identity.identityIssuer, identitySubject: handoff.identity.identitySubject,
+      companyId: account.companyId, localPrincipalId: account.pdmUserId, sessionSchemaVersion: 2
+    }) : null;
     // A proof may expire while the transaction is waiting on producer reads.
     // Test clocks stay fixed; production rechecks the wall clock before write.
     const issuanceNowMs = input.nowMs ?? Date.now();
@@ -132,7 +139,8 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!Number.isSafeInteger(barrierSeconds) || barrierSeconds > actualNowSeconds + 1) {
       throw new Error("PRINCIPAL_SESSION_BARRIER_INVALID");
     }
-    const maxExpiry = resolveJenfuTargetSessionExpiry(actualNowSeconds, handoff.sourceSessionExpiresAt);
+    const maxExpiry = Math.min(resolveJenfuTargetSessionExpiry(actualNowSeconds, handoff.sourceSessionExpiresAt),
+      permissions ? Math.floor(permissions.nextExpiry / 1000) : Infinity);
     if (barrierSeconds >= maxExpiry) throw new Error("HANDOFF_EXPIRED");
     const token = issueJenfuPrincipalSession({
       principalId: account.principalId, employeeId: account.employeeId,
@@ -149,7 +157,16 @@ export async function issueSessionForPrincipalHandoff(input: {
       maxAgeSeconds: maxExpiry - barrierSeconds
     }, input.keyRing, barrierSeconds);
     const claims = verifyJenfuPrincipalSession(token, input.keyRing, { nowSeconds: actualNowSeconds });
-    await new JenfuPrincipalSessionRegistry(snapshot).register(claims);
+    try {
+      const registry = new JenfuPrincipalSessionRegistry(snapshot);
+      if (permissions) await registry.register(claims, permissions.snapshot);
+      else await registry.register(claims);
+    } catch (error) {
+      if (error instanceof Error && error.message === "AIPDM_PRINCIPAL_SESSION_ISSUANCE_BLOCKED") {
+        throw new Error("STALE_HANDOFF");
+      }
+      throw error;
+    }
     return { token, claims };
   }, { isolationLevel: "serializable" });
 }

@@ -1,3 +1,13 @@
+
+<a id="pdm-session-revocation"></a>
+
+## DEV-121：登入期間重用權限與工作階段撤銷
+
+- 狀態：`PDM 候選實作／三系統整合及啟用待主控驗收`。
+- 主控：Jenfu-Platform 專案 session（`JENFU/DEV-015#pdm-session-revocation`）。
+- 下一步：以三方候選的正常改權及登入入口驗證發布與復原，確認所有正式寫入 revision 都已具備撤銷屏障，才啟用派送及工作階段快照。
+- [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
+
 <a id="dev-128-masked-local-production-snapshot"></a>
 
 ## DEV-128：遮罩正式資料供 AI-PDM 1020 地端測試

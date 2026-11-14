@@ -10,6 +10,7 @@ import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
 import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
+import { resolvePrincipalSessionPermissions } from "@/lib/principal-session-permission-snapshot";
 
 export type PrincipalWorkspacePermission = {
   permissionKind: "page" | "action";
@@ -45,6 +46,8 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
   verified: VerifiedPrincipalRequest,
   permissions: readonly PrincipalWorkspacePermission[]
 ): Promise<PrincipalWorkspaceDecision[]> {
+  if (verified.permissions) return resolvePrincipalSessionPermissions(verified.permissions,
+    { principalId: verified.session.principalId, companyId: verified.profile.companyId }, permissions, {});
   if (isVerifiedLocalTestAdmin(verified, snapshot)) {
     return localTestAdminPermissions(verified, permissions);
   }
@@ -62,6 +65,8 @@ export async function evaluatePrincipalResourcePermissionsInSnapshot(
   permissions: readonly PrincipalWorkspacePermission[],
   resource: PrincipalResourceScope
 ): Promise<PrincipalWorkspaceDecision[]> {
+  if (verified.permissions) return resolvePrincipalSessionPermissions(verified.permissions,
+    { principalId: verified.session.principalId, companyId: verified.profile.companyId }, permissions, resource);
   if (isVerifiedLocalTestAdmin(verified, snapshot)) {
     return localTestAdminPermissions(verified, permissions);
   }

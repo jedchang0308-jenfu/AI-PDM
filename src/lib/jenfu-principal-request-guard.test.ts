@@ -7,6 +7,8 @@ import { principalRequestFailure } from "@/lib/jenfu-principal-http";
 import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
 import type { AsyncDatabaseClient, AsyncDatabaseTransactionOptions } from "@/lib/db-async-provider";
+import { evaluatePrincipalResourcePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import type { PrincipalSessionPermissions } from "@/lib/principal-session-permission-snapshot";
 
 const now = 1_800_000_000;
 const ring = { issuer: "https://pdm.example.test", audience: "ai-pdm",
@@ -34,6 +36,37 @@ const request = (client: AsyncDatabaseClient, policy = trustPolicy) =>
   withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
     identityIssuer: claims.identityIssuer, trustPolicy: policy, database: client, nowSeconds: now },
   async (_transaction, verified) => verified);
+
+it("reads only the PDM session and resolves its scoped permission without upstream access", async () => {
+  vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
+  vi.stubEnv("PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED", "1");
+  const permissions: PrincipalSessionPermissions = {
+    version: 1, sourceVersion: "source-4", assignmentVersion: 4, assignmentVersionId: "assignment-version-4",
+    catalogVersion: "catalog-4", employeeName: null, scopes: [["project", "p-denied"], ["global", null]],
+    permissions: { "action:numbering.draft.update": [[0, false, "rd", "deny"], [1, true, "rd", "allow"]] }
+  };
+  const queryOne = vi.fn(async (_sql: string) => ({ pdm_user_id: "profile-one", permission_snapshot: permissions }));
+  const snapshot = { kind: "postgres", queryOne, execute: vi.fn(), query: vi.fn() };
+  const input = { token, keyRing: ring, identityIssuer: claims.identityIssuer, trustPolicy,
+    database: { kind: "postgres", transaction: async (callback: (client: typeof snapshot) => unknown) =>
+      callback(snapshot) } as unknown as AsyncDatabaseClient,
+    nowSeconds: now };
+  try {
+    const result = await withVerifiedJenfuPrincipalRequest(input, async (client, verified) => {
+      const requested = [{ permissionKind: "action" as const, permissionCode: "numbering.draft.update" }];
+      return Promise.all(["p-denied", "p-allowed"].map(projectCode =>
+        evaluatePrincipalResourcePermissionsInSnapshot(client, verified, requested, { projectCode })));
+    }, { readOnly: false });
+    expect(result[0][0]).toMatchObject({ allowed: false, decisionCode: "permission_explicit_deny" });
+    expect(result[1][0]).toMatchObject({ allowed: true, assignmentId: "allow", publishedAssignmentVersion: 4 });
+    expect(queryOne).toHaveBeenCalledOnce();
+    expect(queryOne.mock.calls[0][0]).toContain("FOR SHARE OF session");
+    expect(queryOne.mock.calls[0][0]).not.toMatch(/orgmaster_contract|platform_contract/u);
+    expect(snapshot.query).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
 
 function database(overrides: Record<string, unknown> = {}) {
   const currentClaims = (overrides.claims ?? claims) as typeof claims;

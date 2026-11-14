@@ -1,5 +1,24 @@
 # DEV-121：AI-PDM Principal-only 身分／授權整合（現行契約）
 
+<a id="pdm-session-revocation"></a>
+
+## 登入期間重用權限與工作階段撤銷
+
+主控為 Jenfu-Platform 專案的 session，跨系統流程與整合驗收以 `JENFU/DEV-015#pdm-session-revocation` 為準。OrgMaster 授權發布由 `ORGMASTER/DEV-057#pdm-session-revocation` 負責。[跨系統契約](../../../Jenfu-Platform/ai-doc/specs/DEV-015-authentication-authorization-boundary-refactor.md#pdm-session-revocation)
+
+- 沿用 PDM SSO 登入與 session registry。在登入交易中計算一次有效能力、拒絕及公司／專案範圍，與 Principal、來源版本和有效期同交易保存。有效期取來源 session、PDM 現有上限及會影響快照的下一個時間邊界的最早值（含預定生效與到期）；到期重登。前端讀同一份投影。
+- 正常請求驗證本應用的憑證，只用一次 PDM 自有工作階段讀取取得有效性及快照。每日切頁及既有業務命令不用查上游或重算角色。資源範圍併入資料讀寫。草稿版本、引用、刪除範圍與編號重用、審核狀態／指派與禁止自審仍由原子業務操作保證，省去等價的獨立預查。
+- 以現有 registry 與撤銷交易為基礎，提供 Platform 專用的受驗證服務命令。現有人類管理撤銷入口依其原權限運作。以事件 ID、內容摘要、範圍和順序綁定回執。在同一交易撤銷舊 session、持久化禁止簽發狀態；即使目前零 session，也要封住同時間登入。登入建立與撤銷共用本地的順序控制。若舊授權已入場的寫入可能在撤銷確認後才提交，將本地工作階段判定與寫入交易綁在同一順序控制內，先完成或拒絕，撤銷確認後舊請求不得再提交。
+- 只釋放已確認發布、且登入可讀到對應來源版本的事件。重送回原結果；較舊事件及取消不得解除較新的登入阻擋，或者復活已撤銷的 session。PDM 本地角色能力套用是另一個有效權限來源，其發布須在同一 PDM 交易封住舊快照並切換版本，並與跨系統的登入阻擋相容。
+- 最初切換前，證明前述撤銷路徑能涵蓋已進範圍的權限來源，並使啟用前的舊 session 重新建立；確認回復版本可識別已撤銷的 session。管理授權、附件交付及背景服務的獨立條件依現有契約驗證，不能把功能快照當作物件或服務身分。
+
+### PDM 候選與啟用條件
+
+- Migration 104 安裝回執、Principal 簽發屏障及選用的 session 權限快照。原有 `revoked_at` 同步保存撤銷，且從已撤銷狀態回寫時會被拒絕。SQL 簽發屏障對仍使用原始 registry INSERT 的版本也有效。
+- Platform 端點與寫入屏障由 `PDM_SESSION_REVOCATION_ENABLED=1` 啟用。設定 `PDM_SESSION_REVOCATION_AUDIENCE` 為 PDM 精確 HTTPS origin，以及 `PDM_SESSION_REVOCATION_PLATFORM_SUBJECT`、`PDM_SESSION_REVOCATION_PLATFORM_EMAIL` 為實際派送 workload。發布讀回依 OrgMaster 的 `read_ai_pdm_session_publication_v1`。取消只接受已驗身分的 Platform 隨 OrgMaster 終止送達，並核對 PDM 既有操作與綁定。
+- `PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED=1` 還需撤銷旗標與 OrgMaster `read_ai_pdm_session_authority_v1`。啟用時無快照的既有 session 會被拒絕並要求重登。啟用或回復前查證服務、入口及寫入 revision，撤銷啟用期間回復目標仍須支援寫入屏障。
+
+
 <a id="architecture-final"></a>
 
 2026-10-03 已核准原生「候選安全中止後續發」修正：普通 Principal-only 候選的 PRE_ACTIVATION_ABORTED 不偽裝 RELEASED，也不重用 terminal capsule；已封存 PRE_ACTIVATION_ABORTED 的未過期 capsule 在正常 stage 的 provider mutation 前拒絕，rollback 收束保留。routine producer 由已封存 failed intent 唯一引用的完整 RELEASED Principal anchor，核對原生 source/build/migration/entry/rollback/control 與實際 Build／Registry；兩份 authority 凍結相同 basis。prepare（含 cached replay）以既有 own GCS／Run 權限重讀封存鏈、已過期 failed-run lease、無切流／無 tag、復原入口、100% Principal retained revision 與 fresh service UID，basis 不一致即拒絕。首次轉換的 manual-zero／maintenance recovery 路徑及正式來源、CI、CAS 規則保持有效。此修正只接受 failed intent 直接引用完整 RELEASED anchor；若後續候選再中止而其直接 baseline 也是 aborted intent，仍 fail closed，不遞迴猜選或沿用未核准 carry-forward。此修正的本機/mock PASS 不替代 Production L4。
