@@ -3,8 +3,13 @@
 
 ## DEV-121：登入期間重用權限與工作階段撤銷
 
-- 狀態：`PDM 雙階段全域登出候選／待主控重跑三系統整合`。
+- 狀態：`三方隔離整合通過／AI-PDM 正式權限快照已啟用`。
 - 主控：Jenfu-Platform 專案 session（`JENFU/DEV-015#pdm-session-revocation`）。
+- 2026-11-15 正式讀回。OrgMaster `orgmaster-prod-92e871c4a0c8` 與 Platform `jenfu-platform-prod-87adc61bf43a` 先切流，OrgMaster 發布控制開啟至 revision 1，Platform 以原工作負載身分呼叫 PDM 初載回 200。PDM 正式 runtime 的唯讀 execution `aipdm-dev121-reviewer-readback-75b7feecf3b6-2ks8t` 同一交易核對本地及 OrgMaster 的初載來源版本皆為 302，綁 OrgMaster control receipt SHA-256 `75b7feecf3b6ed26c89e22ea3085275868de228cb0b6d21e1931a59ad8437f3c`，診斷 Job 已清理。
+- AI-PDM 接收端首次候選因 middleware 未放行精確初載路徑而回 403，受保護流程於切流前中止且保留已套用的 104–106。修正後 [接收版發布](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43608329126) 成功，`ai-pdm-prod-c92e4574ee8d` 為可辨識撤銷並保留中央檢查的回復目標。
+- [快照 PR #616](https://github.com/jedchang0308-jenfu/AI-PDM/pull/616) 合併為 `f9cecfed2eb4c64177a8d3d8e94e3e483f7f0d13`，[兩項合併後必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43613120826) 通過。[正式 owner run](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43613564908) 於 00:25 台灣時間完成。`AIPDM-REL-20261114-SNAPSHOT-R1 / FINALIZED / RELEASED`，`ai-pdm-prod-c922471168f0` 100% 流量、無暫時 tag、generation 436 已收斂。撤銷、審核資格投影及權限快照旗標均為 1。DB boundary 通過，核對已套用的 47 筆遷移，本輪新增 0 筆。
+- 零流量候選與正式入口均通過既有正式測試身分的 Portal SSO、PDM session 及料號工作台驗證。正式工作台回 200，登出後原 session 回 401，readiness 回 200。派送、讀回及審核初載三個入口無憑證皆回 401。候選與正式 smoke 收據位於 `gs://jenfu-platform-prod-aipdm-release/receipts/releases/AIPDM-REL-20261114-SNAPSHOT-R1/db72496c22ccdf5cdda040636588375b3b4f11326849402448e0ee08952bc221/` 的 `verify.json` 和 `canonical.json`。
+- 三方隔離環境用正常行政發布及 Portal SSO 驗證先撤銷舊工作階段、終態後新權限可登入、首次與回訪登入各計算一次權限、兩個工作台及權限 API 上游查詢為 0。料號、圖號、圖號 RD 作廢與技轉四種送審及審核案例的上游查詢也為 0，涵蓋未登入候選可指派及已撤銷審核者拒絕。正式驗證使用發布測試身分，未修改員工授權、未重跑四種業務送審，也未量測正式資料庫的上游查詢次數。
 - PDM 交付分支 `codex/pdm-session-revocation`，沿用 [PR #614](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614)。歷史候選 `4ff428be92cb47a50f3b97ed525d3f9f7b2d6a84` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43589103117) 均通過，證據只適用該提交。此次接收端對接 [Platform PR #219](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/219) 的雙階段協定。
 - 雙階段基線 `517a6e77faf9b551fba1c56a0ab09bd56a86ff89` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43590449213) 均通過。首次登入單一來源變更以 [PR 最新提交的檢查](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614/checks) 為準。
 - 首次開通與回訪登入的正常 SSO handler 測試使用合成 broker 與資料庫介面，各讀一次 V6 授權；兩次正常權限 API 各只查 PDM session。隔離 PostgreSQL 另驗原生開通回傳同一來源、精確身分時間、公司範圍與舊版原子性。
@@ -12,8 +17,8 @@
 - OrgMaster 的登入來源須同時授予現有 `jenfu_ai_pdm_runtime` 和 `jenfu_ai_pdm_migrator` 精確 `EXECUTE`。後者是 PDM 首次開通 SECURITY DEFINER 的既有 owner，不能由 PDM migration 代授。隔離及正式開啟快照前須實際讀回這筆跨專案依賴。
 - 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。
 - 正式接收候選使用原 DEV-117 owner profile，以來源固定撤銷 `1`、快照 `0`，保留現有上游檢查。2026-11-14 Cloud Run v2 唯讀查證 generation 425 已收斂、100% 在 `ai-pdm-prod-28014e0d12e5`、無 tag、兩旗標未設定；PDM canonical origin 與 Platform workload 的帳號及唯一識別值已核對。此資料僅為準備證據，正式 prepare 仍讀回目前 revision。
-- 快照切換使用下一個受保護來源，將 profile 的快照值由 `0` 改為 `1`。prepare 與切流前核對 rollback 所用的現役 PDM revision 已支援相同接收設定。首次快照 release 後若需回復，沿正常 owner 流程以接收版設定恢復中央檢查；切流驗收失敗則沿原 workflow 回到該接收版。先回復 PDM 再考慮回復上游，保留 migration、回執與 pending 屏障。正式 candidate、切流及啟用待主控驗收結論。
-- 快照啟用缺口：圖號／料號／圖號 RD 作廢／技轉送審共用 reviewer selector，仍查 OrgMaster 的 active typed identity 和候選 grants。沿用主控已通過的工作台瀏覽器證據。正常送審須改讀 PDM 的未登入也可用的資格投影；投影須由 PDM 本地帳戶／公司、OrgMaster 有效授權及時間區間、PDM catalog／優先序共同決定。
+- 快照切換將受保護 profile 的值由 `0` 改為 `1`，prepare 與切流前核對回復目標支援相同接收設定。若需回復，沿正常 owner 流程以接收版設定恢復中央檢查。先回復 PDM 再考慮回復上游，保留 migration、回執與 pending 屏障。
+- 正常圖號／料號／圖號 RD 作廢／技轉送審共用本地審核資格投影。PDM 以本地帳戶與公司、OrgMaster 有效授權區間、PDM catalog 與優先序辨識候選，包含已開通而未登入的審核者。
 - 主控已定案 OrgMaster reviewer authority v1 初載與 exact publication reader。PDM migration 106 在 prepare 回執前封鎖候選，終態同交易更新有效區間，取消依同一操作解除。快照模式的四種送審入口讀本地候選。曾在 OrgMaster 發布控制關閉時預熱者，須在啟用控制後以已驗 Platform OIDC 的 reviewer-bootstrap 重建，再驗證零上游與真實核准。隔離 PostgreSQL 已證未登入候選的舊 repeatable-read 選擇在 prepare 先完成時以序列化衝突拒絕。
 - 角色設定正常導覽走 `/api/settings/access/role-policies/workspace`。快照模式的唯讀管理資格、草稿、發布及回執重放改用 PDM 本地權限。Migration 105 在一次登入授權讀取時記錄 native 資格，政策寫入在同一交易驗證 actor／會話／期限並保留 catalog 退役。隔離 PostgreSQL 已驗偽造 JSON、錯誤身分、撤銷與等待後到期的拒絕。舊旗標模式走原生 v2。
 - `GET /api/settings/access/role-capabilities` 先經 `settings.admin_matrix` 驗證。快照模式以同一 OrgMaster 投影計算同公司各角色的有效持有人數，保留 workspace／global 範圍、去重及排除固定管理角色。現行角色設定元件未讀取這支 API。
