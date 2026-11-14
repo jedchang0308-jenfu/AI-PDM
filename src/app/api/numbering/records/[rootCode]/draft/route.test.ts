@@ -122,6 +122,15 @@ describe("draft numbering bundle deletion route", () => {
     expect(mocks.canManageRolePolicy).toHaveBeenCalledWith(mocks.transactionClient, verified);
   });
 
+  it("uses the administrator proof from the session for draft deletion preview", async () => {
+    mocks.evaluate.mockResolvedValue([decision(false), decision(false)]);
+    mocks.withVerified.mockImplementationOnce(async (_input, evaluate) =>
+      evaluate(mocks.transactionClient, { ...verified, permissions: { canManageRolePolicy: true } }));
+    const response = await GET(new Request("https://example.test/api/numbering/records/A0062/draft"), route);
+    expect(response.status).toBe(200);
+    expect(mocks.canManageRolePolicy).not.toHaveBeenCalled();
+  });
+
   it("previews a single member and passes only that target to the serializable delete command", async () => {
     const target = { kind: "part", code: "A0062-P01" } as const;
     const current = basis({ target, drawings: [], numberReuse: [{ ...target, status: "reusable" }] });

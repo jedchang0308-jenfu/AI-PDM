@@ -61,7 +61,9 @@ async function handle(request: Request, route: Route, fingerprint?: string) {
         ? await repository.readDraftNumberingDeleteBasis(companyId, rootCode, target)
         : await repository.readDraftNumberingDeleteBasis(companyId, rootCode);
       const needsAdmin = !rd || Boolean(basis && !isResponsibleForDraftNumberingDelete(basis, pdmUserId));
-      const systemAdmin = needsAdmin && await canManageRolePolicy(client, verified);
+      const systemAdmin = needsAdmin && (verified.permissions
+        ? verified.permissions.canManageRolePolicy === true
+        : await canManageRolePolicy(client, verified));
       if (!rd && !systemAdmin) {
         return numberStateFlowJson({ code: "NUMBERING_DRAFT_DELETE_NOT_RESPONSIBLE",
           message: "需要研發草稿修改權限或系統管理員權限，才能永久刪除。" }, { status: 403 });

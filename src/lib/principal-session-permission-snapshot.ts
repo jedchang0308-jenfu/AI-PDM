@@ -21,6 +21,7 @@ export type PrincipalSessionPermissions = {
   assignmentVersionId: string;
   catalogVersion: string;
   employeeName: string | null;
+  canManageRolePolicy?: boolean;
   scopes: Scope[];
   permissions: Record<string, Candidate[]>;
 };
@@ -76,10 +77,17 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
     nextBoundary === null ? Infinity : Date.parse(nextBoundary),
     ...assignments.map(assignment => assignment.validUntil === null ? Infinity : Date.parse(assignment.validUntil))
   );
+  const manager = await client.queryOne<{ eligible: boolean }>(`
+    SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(
+      :principalId,:employeeId,:identityIssuer,:identitySubject
+    ) AS eligible
+  `, actor);
+  if (typeof manager?.eligible !== "boolean") throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
   const snapshot: PrincipalSessionPermissions = {
     version: 1, sourceVersion, assignmentVersion: publication.assignmentVersion,
     assignmentVersionId: publication.assignmentVersionId, catalogVersion: catalog.catalogVersion,
     employeeName: await readPrincipalChineseEmployeeName(client, actor.principalId, actor.employeeId),
+    canManageRolePolicy: manager.eligible,
     scopes, permissions
   };
   return { snapshot, nextExpiry };
