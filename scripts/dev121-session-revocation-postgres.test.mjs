@@ -60,6 +60,9 @@ test("DEV-121 revocation coordinates independent PostgreSQL sessions", { skip: !
       END $roles$;
       CREATE SCHEMA ai_pdm_core AUTHORIZATION jenfu_ai_pdm_migrator;
       SET ROLE jenfu_ai_pdm_migrator;
+      -- Migration 104 also installs the native first-login function. Its row
+      -- type must resolve during DDL even though this fixture only tests fencing.
+      CREATE TABLE ai_pdm_core.principal_accounts (principal_id text PRIMARY KEY);
       CREATE TABLE ai_pdm_core.principal_session_records (
         principal_id text, session_id_hash text, principal_auth_epoch bigint, authenticated_at timestamptz,
         expires_at timestamptz, revoked_at timestamptz, revoke_reason text, PRIMARY KEY(principal_id, session_id_hash)
