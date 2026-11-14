@@ -13,6 +13,11 @@
 - 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。
 - 正式接收候選使用原 DEV-117 owner profile，以來源固定撤銷 `1`、快照 `0`，保留現有上游檢查。2026-11-14 Cloud Run v2 唯讀查證 generation 425 已收斂、100% 在 `ai-pdm-prod-28014e0d12e5`、無 tag、兩旗標未設定；PDM canonical origin 與 Platform workload 的帳號及唯一識別值已核對。此資料僅為準備證據，正式 prepare 仍讀回目前 revision。
 - 快照切換使用下一個受保護來源，將 profile 的快照值由 `0` 改為 `1`。prepare 與切流前核對 rollback 所用的現役 PDM revision 已支援相同接收設定。首次快照 release 後若需回復，沿正常 owner 流程以接收版設定恢復中央檢查；切流驗收失敗則沿原 workflow 回到該接收版。先回復 PDM 再考慮回復上游，保留 migration、回執與 pending 屏障。正式 candidate、切流及啟用待主控驗收結論。
+- 快照啟用缺口：圖號／料號／圖號 RD 作廢／技轉送審共用 reviewer selector，仍查 OrgMaster 的 active typed identity 和候選 grants。沿用主控已通過的工作台瀏覽器證據。正常送審須改讀 PDM 的未登入也可用的資格投影；投影須由 PDM 本地帳戶／公司、OrgMaster 有效授權及時間區間、PDM catalog／優先序共同決定。
+- 請主控對齊投影來源契約：現有 `read_ai_pdm_session_authority_v1` 只回傳當前生效 grants 加下一個邊界。準時處理預定生效且送審零上游需要同源公開的未來有效區間（含 direct／delegated 授權、上游身分及管理任用的有效性），或由 OrgMaster 既有派送排程提供可見性保證。PDM 可在候選預熱與 authenticated `published` 通知中載入；`prepare` 後並行選人不得使用被封鎖的舊候選。待主控確認沿用的契約，不自行更新其他 owner 資源。
+- 角色設定的正常導覽走 `/api/settings/access/role-policies/workspace`。快照模式的 `admission.edit/apply`、發布歷史管理稽核可見性及跨 Principal 命令回執，已使用守門後的 `canManageRolePolicy`。該值由 V6（同一 V5 授權核心）的直接 Principal 全域授權、必要管理來源或 privileged 身分類型及 PDM catalog 決定。測試覆蓋允許、拒絕及缺欄位三種情形，未讀 OrgMaster／Platform；舊旗標模式維持原檢查。草稿寫入另有鎖後重驗。原生 `role_policy_apply_v2` 同交易鎖 OrgMaster 管理來源、PDM 帳戶／會話／catalog／草稿，並自行讀 Platform epoch、重驗 OrgMaster manager。若取代管理者即時查詢，須以前移 migration 在原生執行器驗證綁定 actor／會話／期限的 PDM 授權並保留發布與角色退役所需的交易互斥。
+- `GET /api/settings/access/role-capabilities` 仍存在。它先經 `settings.admin_matrix` 驗證，再讀 V6 計算同公司各角色的有效持有人數；現行角色設定元件未讀取這支 API。若本輪要求這個 API 也達到零上游，持有人數須由涵蓋全部有效 PDM 帳戶且可核對有效區間的資料計算，沿用 workspace／global 範圍、去重及排除固定管理角色。單一查看者的會話無法提供這份人數。
+- 其他上游來源仍納入驗收盤點。`/api/admin/accounts?view=principal-candidate` 讀的是待開通目標的 typed identity。帳戶外部登入方式的生命週期是管理目標資料。Windows service 裝置驗證、工作執行與秘密啟用會驗證裝置、發起者或留存同意，須沿各自入口檢查，不能用當前瀏覽者的 PDM 會話代替。驗收需保留既有工作台瀏覽器證據，補未登入候選可指派、登入後成功核准、撤權拒絕及四種送審入口的零上游查詢。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
 <a id="dev-128-masked-local-production-snapshot"></a>

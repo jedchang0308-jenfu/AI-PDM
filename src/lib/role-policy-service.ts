@@ -155,6 +155,7 @@ async function requireRolePolicyManager(client: AsyncDatabaseClient, verified: V
 }
 
 export async function canManageRolePolicy(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  if (verified.permissions) return verified.permissions.canManageRolePolicy === true
   try { await requireRolePolicyManager(client, verified); return true } catch (error) {
     if (error instanceof RolePolicyHttpError && error.status === 403) return false
     throw error
@@ -401,7 +402,9 @@ export async function readRolePolicyCommand(client: AsyncDatabaseClient, request
   const row = await client.queryOne<{ actor_principal_id: string; result_json: unknown; completed_at: string }>(
     'SELECT actor_principal_id,result_json,completed_at::text FROM ai_pdm_core.role_policy_commands WHERE request_id=:requestId', { requestId })
   if (!row) throw new RolePolicyHttpError('COMMAND_NOT_OBSERVED', 404)
-  if (row.actor_principal_id !== verified.session.principalId) await requireRolePolicyManager(client, verified)
+  if (row.actor_principal_id !== verified.session.principalId && !await canManageRolePolicy(client, verified)) {
+    throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+  }
   return { requestId, operation: 'apply', outcome: 'SUCCEEDED', originalHttpStatus: 200,
     result: json(row.result_json), completedAt: new Date(row.completed_at).toISOString() }
 }
