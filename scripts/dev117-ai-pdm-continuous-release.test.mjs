@@ -22,7 +22,10 @@ const ref = (name) => ({ uri: `gs://${profile.artifact.releaseBucket}/receipts/$
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex')
 
 test('DEV-121 source-bound production profile makes receiver-only the rollback predecessor', () => {
-  const receiver = profile.environment.fixedValues
+  assert.equal(profile.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED, '1')
+  const receiverProfile = structuredClone(profile)
+  receiverProfile.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED = '0'
+  const receiver = receiverProfile.environment.fixedValues
   assert.equal(receiver.PDM_SESSION_REVOCATION_ENABLED, '1')
   assert.equal(receiver.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED, '1')
   assert.equal(receiver.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED, '0')
@@ -61,12 +64,12 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
   const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
     .filter(name => !Object.hasOwn(receiver, name) && !Object.hasOwn(profile.environment.controlledValues, name))
     .map(name => [name, 'existing-bound-value']))
-  const receiverRuntime = buildRuntimeConfig(profile, {
-    plainEnvironment: resolvePlainEnvironment(profile, previous, { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }),
+  const receiverRuntime = buildRuntimeConfig(receiverProfile, {
+    plainEnvironment: resolvePlainEnvironment(receiverProfile, previous, { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }),
     secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1']))
   })
   assert.throws(() => assertRuntimeConfig(snapshot, receiverRuntime), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
-  assert.doesNotThrow(() => assertSessionSnapshotPredecessor(profile, receiverRuntime, null))
+  assert.doesNotThrow(() => assertSessionSnapshotPredecessor(receiverProfile, receiverRuntime, null))
 })
 
 test('DEV-121 operator provider proof retains app-owned reads and removes retired OpenSWX recovery access', () => {
