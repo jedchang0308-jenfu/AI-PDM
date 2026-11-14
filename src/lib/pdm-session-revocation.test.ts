@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
@@ -6,6 +7,8 @@ import {
   type PdmRevocationPayload
 } from "@/lib/pdm-session-revocation-contract";
 import { applyPdmSessionRevocation, handlePdmSessionRevocation } from "@/lib/pdm-session-revocation";
+import { middleware } from "@/middleware";
+import { POST as reviewerBootstrap } from "@/app/api/internal/pdm-session-revocation/v1/reviewer-bootstrap/route";
 
 const mocks = vi.hoisted(() => ({ verify: vi.fn(), database: vi.fn() }));
 vi.mock("google-auth-library", () => ({ OAuth2Client: class { verifyIdToken = mocks.verify; } }));
@@ -40,6 +43,21 @@ describe("PDM Platform revocation", () => {
     phase: "global_prepare", sourceEpoch: 7, revokedBefore: null
   } as const;
   const wire = (input: PdmRevocationPayload) => parsePdmRevocationCommand({ ...input, digest: digestPdmRevocation(input) });
+
+  it("passes the production write allowlist before denying an unauthenticated reviewer bootstrap", async () => {
+    vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+    vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
+    vi.stubEnv("PDM_SESSION_REVIEWER_AUTHORITY_ENABLED", "1");
+    vi.stubEnv("PDM_SESSION_REVOCATION_AUDIENCE", "https://pdm.example.test");
+    vi.stubEnv("PDM_SESSION_REVOCATION_PLATFORM_SUBJECT", "12345");
+    vi.stubEnv("PDM_SESSION_REVOCATION_PLATFORM_EMAIL", "platform@example.iam.gserviceaccount.com");
+    const request = new NextRequest("https://pdm.example.test/api/internal/pdm-session-revocation/v1/reviewer-bootstrap",
+      { method: "POST" });
+    expect(middleware(request).headers.get("x-middleware-next")).toBe("1");
+    expect((await reviewerBootstrap(request)).status).toBe(401);
+    expect(mocks.database).not.toHaveBeenCalled();
+    expect(middleware(new NextRequest(new URL(`${request.url}/extra`), { method: "POST" })).status).toBe(403);
+  });
 
   it("prepares locally without waiting for the central epoch change", async () => {
     const { database, queryOne } = fixture();
