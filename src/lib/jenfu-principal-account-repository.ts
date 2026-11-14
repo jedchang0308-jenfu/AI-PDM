@@ -117,7 +117,8 @@ export class JenfuPrincipalAccountRepository {
     }
   }
 
-  async ensureFirstLogin(input: JenfuAuthorizedFirstLoginInput): Promise<JenfuAuthorizedFirstLoginReceipt> {
+  async ensureFirstLogin(input: JenfuAuthorizedFirstLoginInput, withSessionAuthority = false):
+    Promise<JenfuAuthorizedFirstLoginReceipt & { authority?: unknown }> {
     if (this.client.kind !== "postgres" || typeof input.identityIssuer !== "string" ||
       input.identityIssuer.length < 1 || input.identityIssuer.length > 2048 ||
       input.identityIssuer.trim() !== input.identityIssuer ||
@@ -132,7 +133,7 @@ export class JenfuPrincipalAccountRepository {
     let result: unknown;
     try {
       const row = await this.client.queryOne<{ receipt: unknown }>(`
-        SELECT ai_pdm_core.ensure_authorized_first_login_account_v1(
+        SELECT ai_pdm_core.${withSessionAuthority ? "ensure_principal_session_account_v2" : "ensure_authorized_first_login_account_v1"}(
           :identityIssuer,:identitySubject,:principalId,:employeeId,:accountType,
           :mappingVersion,:publishedAt::timestamptz,:verifiedEmail
         ) AS receipt
@@ -148,13 +149,14 @@ export class JenfuPrincipalAccountRepository {
       throw new JenfuPrincipalAccountError();
     }
     if (!result || typeof result !== "object") throw new JenfuPrincipalAccountError();
-    const receipt = result as Partial<JenfuAuthorizedFirstLoginReceipt>;
+    const receipt = result as Partial<JenfuAuthorizedFirstLoginReceipt> & { authority?: unknown };
     const lifecycleVersion = Number(receipt.lifecycleVersion);
     const profileVersion = Number(receipt.profileVersion);
     if (typeof receipt.created !== "boolean" || receipt.principalId !== input.principalId ||
       !validIdentifier(receipt.pdmUserId) || receipt.companyId !== "company-jenfu" ||
       !["active", "suspended", "expired", "offboarded"].includes(String(receipt.accountStatus)) ||
-      !validVersion(lifecycleVersion) || !validVersion(profileVersion)) {
+      !validVersion(lifecycleVersion) || !validVersion(profileVersion) ||
+      (withSessionAuthority && (!receipt.authority || typeof receipt.authority !== "object"))) {
       throw new JenfuPrincipalAccountError();
     }
     return { ...receipt, lifecycleVersion, profileVersion } as JenfuAuthorizedFirstLoginReceipt;

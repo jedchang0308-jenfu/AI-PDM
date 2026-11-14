@@ -61,6 +61,7 @@ export async function issueSessionForPrincipalHandoff(input: {
     let publishedGrantValidated = false;
     const usePermissions = principalPermissionSnapshotsEnabled();
     let account;
+    let provisionAuthority: unknown;
     try {
       account = await accountRepository.requireActive(handoff.identity.principalId);
     } catch (error) {
@@ -76,9 +77,7 @@ export async function issueSessionForPrincipalHandoff(input: {
         });
         publishedGrantValidated = true;
       }
-      // The native provision function validates the published grant. The
-      // subsequently derived session snapshot commits with provisioning.
-      await accountRepository.ensureFirstLogin({
+      const provisionInput = {
         identityIssuer: typed.identityIssuer,
         identitySubject: typed.identitySubject,
         principalId: typed.principalId,
@@ -87,7 +86,13 @@ export async function issueSessionForPrincipalHandoff(input: {
         mappingVersion: typed.mappingVersion,
         publishedAt: typed.publishedAt,
         verifiedEmail: handoff.authentication.email
-      });
+      };
+      if (usePermissions) {
+        provisionAuthority = (await accountRepository.ensureFirstLogin(provisionInput, true)).authority;
+        if (!provisionAuthority) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
+      } else {
+        await accountRepository.ensureFirstLogin(provisionInput);
+      }
       account = await accountRepository.requireActive(handoff.identity.principalId);
     }
     if (typed.accountType !== account.accountType ||
@@ -128,11 +133,13 @@ export async function issueSessionForPrincipalHandoff(input: {
     const assurance = resolvePrincipalHandoffAssurance({
       authentication: handoff.authentication, policy: input.trustPolicy
     });
-    const permissions = usePermissions ? await createPrincipalSessionPermissions(snapshot, {
+    const permissionActor = {
       principalId: account.principalId, employeeId: account.employeeId,
       identityIssuer: handoff.identity.identityIssuer, identitySubject: handoff.identity.identitySubject,
-      companyId: account.companyId, localPrincipalId: account.pdmUserId, sessionSchemaVersion: 2
-    }) : null;
+      companyId: account.companyId, localPrincipalId: account.pdmUserId, sessionSchemaVersion: 2 as const
+    };
+    const permissions = usePermissions ? await createPrincipalSessionPermissions(snapshot, permissionActor,
+      account.accountType, provisionAuthority) : null;
     // A proof may expire while the transaction is waiting on producer reads.
     // Test clocks stay fixed; production rechecks the wall clock before write.
     const issuanceNowMs = input.nowMs ?? Date.now();

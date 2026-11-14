@@ -455,8 +455,8 @@ function assertContentBundle(bundle, sourceRevision) {
     const entry = bundle.entries[44]
     if (entry.path !== 'db/postgres/104_dev121_principal_session_revocation.sql' || entry.version !== 'ai-pdm-104' ||
         entry.name !== 'dev121_principal_session_revocation' ||
-        entry.sourceSha256 !== 'c717f612e2a902a098b4ec7865364f7efa0231fa9c8fe424f029cd7c3b92ec1a' ||
-        entry.appliedSha256 !== 'f3b8a8b7bbc39dd885c4fe2f0c53ac669f3a9d73e28e3c41a84909a2c6648916') fail('ARCHIVE_BUNDLE_INVALID')
+        entry.sourceSha256 !== '8076ec244a06ec8784fac4a02b018143b21219d5f799b1f134ee8653bfcd3b88' ||
+        entry.appliedSha256 !== 'cdd7a78e44ff222ad452d4e776cb42fa2080199bcfac9e3907847a1664e82093') fail('ARCHIVE_BUNDLE_INVALID')
   }
   assertUnlinkedProfileCleanupBundleBinding(bundle)
   return paths

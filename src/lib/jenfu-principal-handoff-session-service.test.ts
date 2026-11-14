@@ -112,9 +112,28 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(result.claims.expiresAt).toBe(Math.floor(nextExpiry / 1000));
     expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot, expect.objectContaining({
       principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
-    }));
+    }), "human_personal", undefined);
     expect(mocks.assignments).not.toHaveBeenCalled();
     expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissions);
+  });
+
+  it("passes the authority returned by native first login into the session snapshot", async () => {
+    const active = await mocks.account(handoff.identity.principalId);
+    mocks.account.mockReset().mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"))
+      .mockResolvedValueOnce(active);
+    mocks.snapshotsEnabled.mockReturnValueOnce(true);
+    const authority = { source_version: "4" };
+    mocks.ensureFirstLogin.mockResolvedValueOnce({ authority });
+    const permissionSnapshot = { version: 1, sourceVersion: "4" };
+    mocks.createPermissions.mockResolvedValueOnce({ snapshot: permissionSnapshot, nextExpiry: Infinity });
+    const result = await issueSessionForPrincipalHandoff(base);
+    expect(mocks.ensureFirstLogin).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
+    }), true);
+    expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot,
+      expect.objectContaining({ principalId: handoff.identity.principalId }), "human_personal", authority);
+    expect(mocks.assignments).not.toHaveBeenCalled();
+    expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissionSnapshot);
   });
 
   it("rejects mismatched producer identity or epoch before session registration", async () => {

@@ -75,9 +75,9 @@ async function asRuntime(client, action) {
   }
 }
 
-async function ensure(client, input) {
+async function ensure(client, input, snapshot = false) {
   return await asRuntime(client, async () => {
-    const result = await client.query(`SELECT ai_pdm_core.ensure_authorized_first_login_account_v1(
+    const result = await client.query(`SELECT ai_pdm_core.${snapshot ? 'ensure_principal_session_account_v2' : 'ensure_authorized_first_login_account_v1'}(
       $1,$2,$3,$4,$5,$6,$7::timestamptz,$8
     ) AS receipt`, [input.identityIssuer, input.identitySubject, input.principalId,
       input.employeeId, input.accountType, input.mappingVersion, input.publishedAt,
@@ -217,6 +217,30 @@ try {
       stable_role_id text, role_code text, catalog_version text, scope_kind text,
       scope_key text, valid_from timestamptz, valid_until timestamptz, published_at timestamptz
     );
+    CREATE TABLE ai_pdm_core.role_catalog_publications (application_id text, catalog_version text, status text);
+    CREATE TABLE ai_pdm_core.role_priority_versions (status text, priority_json text);
+    CREATE TABLE ai_pdm_core.principal_session_records (
+      principal_id text, session_id_hash text, principal_auth_epoch bigint, authenticated_at timestamptz,
+      expires_at timestamptz, revoked_at timestamptz, revoke_reason text
+    );
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_session_authority_v1(p_principal text, p_employee text)
+    RETURNS TABLE(contract_version text, source_version text, evaluated_at timestamptz,
+      next_boundary timestamptz, accounts jsonb, grants jsonb)
+    LANGUAGE sql STABLE AS $fixture$
+      SELECT 'orgmaster.ai-pdm-session-authority.v1', '1', transaction_timestamp(),
+        transaction_timestamp() + interval '10 minutes',
+        (SELECT coalesce(jsonb_agg(to_jsonb(a)), '[]') FROM orgmaster_contract.v_active_principal_accounts_v1 a
+          WHERE a.principal_id=p_principal AND a.employee_id=p_employee),
+        (SELECT coalesce(jsonb_agg(to_jsonb(g) || '{"contract_version":"jenfu.orgmaster.ai-pdm-principal-grants.v6"}'), '[]')
+          FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 g
+          WHERE g.principal_id=p_principal AND g.employee_id=p_employee)
+    $fixture$;
+    REVOKE ALL ON FUNCTION orgmaster_contract.read_ai_pdm_session_authority_v1(text,text) FROM PUBLIC;
+    GRANT EXECUTE ON FUNCTION orgmaster_contract.read_ai_pdm_session_authority_v1(text,text)
+      TO jenfu_ai_pdm_migrator, jenfu_ai_pdm_runtime;
+    ALTER TABLE ai_pdm_core.role_catalog_publications OWNER TO jenfu_ai_pdm_migrator;
+    ALTER TABLE ai_pdm_core.role_priority_versions OWNER TO jenfu_ai_pdm_migrator;
+    ALTER TABLE ai_pdm_core.principal_session_records OWNER TO jenfu_ai_pdm_migrator;
     ALTER TABLE ai_pdm_core.companies OWNER TO jenfu_ai_pdm_migrator;
     ALTER TABLE ai_pdm_core.users OWNER TO jenfu_ai_pdm_migrator;
     ALTER TABLE ai_pdm_core.principal_identity_operations OWNER TO jenfu_ai_pdm_migrator;
@@ -234,6 +258,26 @@ try {
   const migration = fs.readFileSync(path.join(root,
     'db/postgres/083_dev121_authorized_first_login_account.sql'), 'utf8')
   await admin.query(migration)
+  await admin.query(fs.readFileSync(path.join(root, 'db/postgres/104_dev121_principal_session_revocation.sql'), 'utf8'))
+
+  await check('snapshot provisioning returns the same scoped V6 source and rejects mismatched identity or scope', async () => {
+    const input = { ...fixture('snapshot-login'), publishedAt: '2026-10-08T12:34:56.123456Z' }
+    await addIdentity(input)
+    await addGrant(input)
+    await assert.rejects(ensure(admin, { ...input, publishedAt: '2026-10-08T12:34:56.123Z' }, true), { code: '23514' })
+    const first = await ensure(admin, input, true)
+    assert.equal(first.created, true)
+    assert.equal(first.authority.grants[0].contract_version, 'jenfu.orgmaster.ai-pdm-principal-grants.v6')
+    assert.equal(first.authority.grants[0].scope_key, 'current')
+    const wrongScope = fixture('snapshot-wrong-scope')
+    await addIdentity(wrongScope)
+    await addGrant(wrongScope, { scopeKey: 'company-other' })
+    await assert.rejects(ensure(admin, wrongScope, true), { code: '42501' })
+    const result = await admin.query('SELECT count(*)::int AS count FROM ai_pdm_core.principal_accounts WHERE principal_id=$1',
+      [wrongScope.principalId])
+    assert.equal(result.rows[0].count, 0)
+    return { sameSourceReturned: true, wrongScopeRejected: true }
+  })
 
   await check('no effective grant creates no local account or receipt', async () => {
     const input = fixture('no-grant')

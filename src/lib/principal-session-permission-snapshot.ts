@@ -32,7 +32,8 @@ export function principalPermissionSnapshotsEnabled() {
 }
 
 export async function createPrincipalSessionPermissions(client: AsyncDatabaseClient,
-  actor: JenfuVerifiedAuthorizationActor) {
+  actor: JenfuVerifiedAuthorizationActor, accountType: "human_personal" | "human_privileged",
+  provisionAuthority?: unknown) {
   const catalog = await requirePublishedPrincipalCatalog(client);
   const catalogLocked = await client.queryOne<{ locked: boolean }>(`
     SELECT ai_pdm_core.lock_principal_session_catalog_v1(:version) AS locked
@@ -40,9 +41,9 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
   if (catalogLocked?.locked !== true) throw new Error("PRINCIPAL_SESSION_CATALOG_UNAVAILABLE");
   const rolePriority = await new AsyncAccessControlRepository(client).getEnforcedRolePriority([]);
   const entitlement = new JenfuEntitlementRepository(client, catalog);
-  const { assignments, sourceVersion, nextBoundary } = await entitlement.readAssignments(actor, true);
-  const time = await client.queryOne<{ decision_at: string }>("SELECT transaction_timestamp()::text AS decision_at");
-  const decisionAt = new Date(time?.decision_at ?? "");
+  const { assignments, sourceVersion, nextBoundary, evaluatedAt } =
+    await entitlement.readAssignments(actor, true, provisionAuthority);
+  const decisionAt = new Date(evaluatedAt ?? "");
   if (!sourceVersion || !Number.isFinite(decisionAt.getTime())) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
   if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("permission_not_granted");
   const { publication, preparedAssignments } = entitlement.preparePermissions(actor, assignments, rolePriority, decisionAt);
@@ -77,17 +78,18 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
     nextBoundary === null ? Infinity : Date.parse(nextBoundary),
     ...assignments.map(assignment => assignment.validUntil === null ? Infinity : Date.parse(assignment.validUntil))
   );
-  const manager = await client.queryOne<{ eligible: boolean }>(`
-    SELECT orgmaster_contract.ai_pdm_role_policy_manager_eligible_v2(
-      :principalId,:employeeId,:identityIssuer,:identitySubject
-    ) AS eligible
-  `, actor);
-  if (typeof manager?.eligible !== "boolean") throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
+  const manager = preparedAssignments.some(({ assignment }) =>
+    assignment.grantKind === "direct" && assignment.delegationId === null &&
+    assignment.subjectKind === "principal" && assignment.targetPrincipalId === actor.principalId &&
+    assignment.scopeKind === "global" && assignment.scopeKey === null &&
+    ((assignment.stableRoleId === "role-application-system-admin" && assignment.sourceGrantId !== null) ||
+      (assignment.stableRoleId === "role-system-admin" && assignment.roleCode === "system_admin" &&
+        accountType === "human_privileged")));
   const snapshot: PrincipalSessionPermissions = {
     version: 1, sourceVersion, assignmentVersion: publication.assignmentVersion,
     assignmentVersionId: publication.assignmentVersionId, catalogVersion: catalog.catalogVersion,
     employeeName: await readPrincipalChineseEmployeeName(client, actor.principalId, actor.employeeId),
-    canManageRolePolicy: manager.eligible,
+    canManageRolePolicy: manager,
     scopes, permissions
   };
   return { snapshot, nextExpiry };

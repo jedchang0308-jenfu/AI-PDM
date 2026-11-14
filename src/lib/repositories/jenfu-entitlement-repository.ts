@@ -69,6 +69,11 @@ type ActiveAccountRow = {
   employee_status: string;
 };
 
+type SessionAuthorityRow = {
+  contract_version: string; source_version: string; evaluated_at: string;
+  next_boundary: string | null; accounts: ActiveAccountRow[]; grants: AssignmentRow[];
+};
+
 export type JenfuEntitlementRoleCatalog = {
   roles: Array<JenfuApplicationRole & { roleStatus?: "active" | "inactive" }>;
   catalogVersion?: string;
@@ -98,7 +103,7 @@ export class JenfuEntitlementRepository {
     principalId: string;
     employeeId: string;
     applicationId?: string;
-  }, sessionAuthority = false) {
+  }, sessionAuthority = false, provisionAuthority?: unknown) {
     if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     const applicationId = input.applicationId ?? JENFU_AI_PDM_APPLICATION_ID;
     if (applicationId !== JENFU_AI_PDM_APPLICATION_ID || !input.principalId || !input.employeeId ||
@@ -109,22 +114,23 @@ export class JenfuEntitlementRepository {
     let rows: AssignmentRow[];
     let sourceVersion: string | null = null;
     let nextBoundary: string | null = null;
+    let evaluatedAt: string | null = null;
     try {
       if (sessionAuthority) {
-        const source = await this.client.queryOne<{
-          contract_version: string; source_version: string; next_boundary: string | null;
-          accounts: ActiveAccountRow[]; grants: AssignmentRow[];
-        }>(`
-          SELECT contract_version,source_version,next_boundary::text,accounts,grants
+        // The private provisioner returns the exact row that authorized it.
+        const source = (provisionAuthority ?? await this.client.queryOne<SessionAuthorityRow>(`
+          SELECT contract_version,source_version,evaluated_at::text,next_boundary::text,accounts,grants
           FROM orgmaster_contract.read_ai_pdm_session_authority_v1(:principalId,:employeeId)
-        `, input);
+        `, input)) as SessionAuthorityRow | null;
         if (source?.contract_version !== "orgmaster.ai-pdm-session-authority.v1" ||
-          !source.source_version || !Array.isArray(source.accounts) || !Array.isArray(source.grants) ||
+          !source.source_version || !Number.isFinite(Date.parse(source.evaluated_at)) ||
+          !Array.isArray(source.accounts) || !Array.isArray(source.grants) ||
           (source.next_boundary !== null && !Number.isFinite(Date.parse(source.next_boundary)))) {
           throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
         }
         sourceVersion = source.source_version;
         nextBoundary = source.next_boundary;
+        evaluatedAt = source.evaluated_at;
         accounts = source.accounts;
         rows = source.grants;
       } else {
@@ -214,7 +220,7 @@ export class JenfuEntitlementRepository {
         adminCatalogSha256: row.admin_catalog_sha256, roleDefinitionHash: row.role_definition_hash
       });
     }
-    return { assignments, sourceVersion, nextBoundary };
+    return { assignments, sourceVersion, nextBoundary, evaluatedAt };
   }
 
   async evaluatePermissions(inputs: readonly JenfuEnforcedPermissionInput[], decisionAt = new Date()) {

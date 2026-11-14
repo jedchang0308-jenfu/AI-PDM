@@ -6,7 +6,9 @@
 - 狀態：`PDM 雙階段全域登出候選／待主控重跑三系統整合`。
 - 主控：Jenfu-Platform 專案 session（`JENFU/DEV-015#pdm-session-revocation`）。
 - PDM 交付分支 `codex/pdm-session-revocation`，沿用 [PR #614](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614)。歷史候選 `4ff428be92cb47a50f3b97ed525d3f9f7b2d6a84` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43589103117) 均通過，證據只適用該提交。此次接收端對接 [Platform PR #219](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/219) 的雙階段協定。
-- 雙階段功能來源為 `e7ee35b308991171fd3dcccdf3096c59e0bd4f32`，工作分支另含本交接紀錄。[以該功能 SHA 查詢必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions?query=head%3Ae7ee35b308991171fd3dcccdf3096c59e0bd4f32)，合併前以 [PR 最新提交的檢查](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614/checks) 為準。隔離 PostgreSQL 多連線、30 項接收與守門測試、27 項發布契約、TypeScript 與資料庫邊界已通過。
+- 雙階段基線 `517a6e77faf9b551fba1c56a0ab09bd56a86ff89` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43590449213) 均通過。首次登入單一來源變更以 [PR 最新提交的檢查](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614/checks) 為準。
+- 首次開通與回訪登入的正常 SSO handler 測試使用合成 broker 與資料庫介面，各讀一次 V6 授權；兩次正常權限 API 各只查 PDM session。隔離 PostgreSQL 另驗原生開通回傳同一來源、精確身分時間、公司範圍與舊版原子性。
+- OrgMaster 的登入來源須同時授予現有 `jenfu_ai_pdm_runtime` 和 `jenfu_ai_pdm_migrator` 精確 `EXECUTE`。後者是 PDM 首次開通 SECURITY DEFINER 的既有 owner，不能由 PDM migration 代授。隔離及正式開啟快照前須實際讀回這筆跨專案依賴。
 - 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。正式 profile 啟用設定仍須接入受保護入口。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
