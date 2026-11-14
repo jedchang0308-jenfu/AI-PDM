@@ -69,6 +69,11 @@ type ActiveAccountRow = {
   employee_status: string;
 };
 
+type SessionAuthorityRow = {
+  contract_version: string; source_version: string; evaluated_at: string;
+  next_boundary: string | null; accounts: ActiveAccountRow[]; grants: AssignmentRow[];
+};
+
 export type JenfuEntitlementRoleCatalog = {
   roles: Array<JenfuApplicationRole & { roleStatus?: "active" | "inactive" }>;
   catalogVersion?: string;
@@ -89,6 +94,16 @@ export class JenfuEntitlementRepository {
     employeeId: string;
     applicationId?: string;
   }): Promise<JenfuEffectiveRoleAssignment[]> {
+    return (await this.readAssignments(input)).assignments;
+  }
+
+  async readAssignments(input: {
+    identityIssuer: string;
+    identitySubject: string;
+    principalId: string;
+    employeeId: string;
+    applicationId?: string;
+  }, sessionAuthority = false, provisionAuthority?: unknown, sessionHash?: string) {
     if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     const applicationId = input.applicationId ?? JENFU_AI_PDM_APPLICATION_ID;
     if (applicationId !== JENFU_AI_PDM_APPLICATION_ID || !input.principalId || !input.employeeId ||
@@ -97,29 +112,53 @@ export class JenfuEntitlementRepository {
     }
     let accounts: ActiveAccountRow[];
     let rows: AssignmentRow[];
+    let sourceVersion: string | null = null;
+    let nextBoundary: string | null = null;
+    let evaluatedAt: string | null = null;
     try {
-      accounts = await this.client.query<ActiveAccountRow>(`
-        SELECT contract_version, principal_issuer, principal_subject, principal_id,
-               employee_id, employee_status
-        FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)
-        WHERE principal_id = :principalId
-        ORDER BY principal_issuer, principal_subject
-        LIMIT 3
-      `, { principalId: input.principalId });
-      rows = await this.client.query<AssignmentRow>(`
-        SELECT contract_version, assignment_version_id, assignment_version, assignment_id,
-               grant_kind, delegation_id, application_id,
-               principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
-               role_code, catalog_version, scope_kind, scope_key, valid_from::text,
-               valid_until::text, published_at::text,
-               source_assignment_id, source_grant_id, admin_catalog_sha256, role_definition_hash
-        FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(:principalId, :employeeId)
-        WHERE application_id = :applicationId
-          AND principal_id = :principalId
-          AND employee_id = :employeeId
-        ORDER BY stable_role_id, assignment_id
-        LIMIT 33
-      `, { ...input, applicationId });
+      if (sessionAuthority) {
+        if (!sessionHash) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
+        // The private provisioner returns the exact row that authorized it.
+        const source = (provisionAuthority ?? await this.client.queryOne<SessionAuthorityRow>(`
+          SELECT contract_version,source_version,evaluated_at::text,next_boundary::text,accounts,grants
+          FROM ai_pdm_core.read_principal_session_authority_v2(
+            :principalId,:employeeId,:identityIssuer,:identitySubject,:sessionHash)
+        `, { ...input, sessionHash })) as SessionAuthorityRow | null;
+        if (source?.contract_version !== "orgmaster.ai-pdm-session-authority.v1" ||
+          !source.source_version || !Number.isFinite(Date.parse(source.evaluated_at)) ||
+          !Array.isArray(source.accounts) || !Array.isArray(source.grants) ||
+          (source.next_boundary !== null && !Number.isFinite(Date.parse(source.next_boundary)))) {
+          throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
+        }
+        sourceVersion = source.source_version;
+        nextBoundary = source.next_boundary;
+        evaluatedAt = source.evaluated_at;
+        accounts = source.accounts;
+        rows = source.grants;
+      } else {
+        accounts = await this.client.query<ActiveAccountRow>(`
+          SELECT contract_version, principal_issuer, principal_subject, principal_id,
+                 employee_id, employee_status
+          FROM orgmaster_contract.read_ai_pdm_active_principal_accounts_v1(:principalId)
+          WHERE principal_id = :principalId
+          ORDER BY principal_issuer, principal_subject
+          LIMIT 3
+        `, { principalId: input.principalId });
+        rows = await this.client.query<AssignmentRow>(`
+          SELECT contract_version, assignment_version_id, assignment_version, assignment_id,
+                 grant_kind, delegation_id, application_id,
+                 principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
+                 role_code, catalog_version, scope_kind, scope_key, valid_from::text,
+                 valid_until::text, published_at::text,
+                 source_assignment_id, source_grant_id, admin_catalog_sha256, role_definition_hash
+          FROM orgmaster_contract.read_ai_pdm_principal_effective_grants_v6(:principalId, :employeeId)
+          WHERE application_id = :applicationId
+            AND principal_id = :principalId
+            AND employee_id = :employeeId
+          ORDER BY stable_role_id, assignment_id
+          LIMIT 33
+        `, { ...input, applicationId });
+      }
     } catch {
       throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     }
@@ -183,21 +222,62 @@ export class JenfuEntitlementRepository {
         adminCatalogSha256: row.admin_catalog_sha256, roleDefinitionHash: row.role_definition_hash
       });
     }
-    return assignments;
+    return { assignments, sourceVersion, nextBoundary, evaluatedAt };
   }
 
   async evaluatePermissions(inputs: readonly JenfuEnforcedPermissionInput[], decisionAt = new Date()) {
     if (inputs.length === 0) return [];
+    this.assertSingleActor(inputs);
+    const assignments = await this.listEffectiveAssignments(inputs[0].actor);
+    return this.evaluatePublishedAssignments(inputs, assignments, decisionAt);
+  }
+
+  evaluatePublishedAssignments(inputs: readonly JenfuEnforcedPermissionInput[],
+    assignments: JenfuEffectiveRoleAssignment[], decisionAt: Date) {
+    if (inputs.length === 0) return [];
+    this.assertSingleActor(inputs);
     const input = inputs[0];
-    if (inputs.some((candidate) => candidate.actor.identityIssuer !== input.actor.identityIssuer
-      || candidate.actor.identitySubject !== input.actor.identitySubject
-      || candidate.actor.principalId !== input.actor.principalId
-      || candidate.actor.employeeId !== input.actor.employeeId
-      || candidate.actor.localPrincipalId !== input.actor.localPrincipalId
-      || candidate.actor.companyId !== input.actor.companyId)) {
+    const { publication, preparedAssignments, evaluatedRoles } =
+      this.preparePermissions(input.actor, assignments, input.rolePriority, decisionAt);
+    if (inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
-    const assignments = await this.listEffectiveAssignments(input.actor);
+    return inputs.map((candidate) => {
+      let scopeCandidate = false;
+      for (const { assignment, role } of preparedAssignments) {
+        const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
+        const permissionDecision = rolePolicyPermissionDecision(role, candidate.permissionKind, candidate.permissionCode,
+          dynamicPolicy, candidate.resourceGroup, candidate.resourceGroups);
+        if (permissionDecision === "not_granted") continue;
+        const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
+          ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
+          : null;
+        const inScope = assignment.scopeKind === "workspace"
+          ? workspaceKey !== null && workspaceKey === candidate.actor.companyId
+          : scopeMatches(assignment, { workspaceKey: candidate.workspaceCode, projectKey: candidate.projectCode });
+        if (!inScope) { scopeCandidate = true; continue; }
+        if (permissionDecision === "explicit_deny") {
+          return { publication, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
+        }
+        return { publication, assignments, decisionCode: "allowed" as const, role, assignment, evaluatedRoles };
+      }
+      if (scopeCandidate) return { publication, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
+      return { publication, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
+    });
+  }
+
+  private assertSingleActor(inputs: readonly JenfuEnforcedPermissionInput[]) {
+    const { actor } = inputs[0];
+    if (inputs.some(candidate => candidate.actor.identityIssuer !== actor.identityIssuer ||
+      candidate.actor.identitySubject !== actor.identitySubject ||
+      candidate.actor.principalId !== actor.principalId || candidate.actor.employeeId !== actor.employeeId ||
+      candidate.actor.localPrincipalId !== actor.localPrincipalId || candidate.actor.companyId !== actor.companyId)) {
+      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    }
+  }
+
+  preparePermissions(actor: JenfuEnforcedPermissionInput["actor"], assignments: JenfuEffectiveRoleAssignment[],
+    rolePriority: readonly string[], decisionAt: Date) {
     if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_assignment_not_found");
     const publication = {
       assignmentVersionId: assignments[0].assignmentVersionId,
@@ -209,15 +289,14 @@ export class JenfuEntitlementRepository {
       assignment.publishedAt !== publication.publishedAt)) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
-    const effectivePriority = [...input.rolePriority];
+    const effectivePriority = [...rolePriority];
     if (this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true) {
       for (const role of this.activeCatalog.roles) if (!effectivePriority.includes(role.roleCode)) effectivePriority.push(role.roleCode);
     }
     if (assignments.some(assignment => assignment.stableRoleId === AI_PDM_ADMINISTRATIVE_PROFILE_ID) &&
         !effectivePriority.includes('application_system_admin')) effectivePriority.push('application_system_admin');
     const priorityRank = new Map(effectivePriority.map((roleCode, index) => [roleCode, index]));
-    if (new Set(input.rolePriority).size !== input.rolePriority.length ||
-        inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
+    if (new Set(rolePriority).size !== rolePriority.length) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
     const preparedAssignments: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole }> = [];
@@ -236,7 +315,7 @@ export class JenfuEntitlementRepository {
           && role.recommendationAllowed === false
           && role.delegationAllowed === false
           && assignment.subjectKind === "principal"
-          && assignment.targetPrincipalId === input.actor.principalId
+          && assignment.targetPrincipalId === actor.principalId
           && assignment.scopeKind === "global"
           && assignment.scopeKey === null
           && assignment.grantKind === "direct"
@@ -246,7 +325,7 @@ export class JenfuEntitlementRepository {
           role.roleCode !== 'application_system_admin' || role.assignable !== false || role.risk !== 'critical' ||
           role.subjectKind !== 'principal' || role.assignmentTier !== 'app_admin' || role.recommendationAllowed || role.delegationAllowed ||
           JSON.stringify(role.allowedScopeKinds) !== '["global"]' || assignment.subjectKind !== 'principal' ||
-          assignment.targetPrincipalId !== input.actor.principalId || assignment.grantKind !== 'direct' || assignment.delegationId !== null ||
+          assignment.targetPrincipalId !== actor.principalId || assignment.grantKind !== 'direct' || assignment.delegationId !== null ||
           assignment.scopeKind !== 'global' || assignment.scopeKey !== null ||
           !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(assignment.sourceGrantId ?? '') ||
           assignment.sourceGrantId !== assignment.sourceAssignmentId || assignment.assignmentId !== assignment.sourceGrantId ||
@@ -255,44 +334,17 @@ export class JenfuEntitlementRepository {
           assignment.roleDefinitionHash !== role.roleDefinitionHash || role.roleStatus === 'inactive'
         )) throw new JenfuEntitlementRepositoryError('entitlement_contract_mismatch');
       if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || (!role.assignable && !administrator) || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-      const validationIssues = validateEffectiveRoleAssignment(assignment, input.actor, decisionAt);
+      const validationIssues = validateEffectiveRoleAssignment(assignment, actor, decisionAt);
       if (validationIssues.length) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       // Retain and validate tombstones, then omit only their authorization.
       // A legitimate inactive grant must not deny another active role.
       if (role.roleStatus === "inactive") continue;
       preparedAssignments.push({ assignment, role });
     }
-    return inputs.map((candidate) => {
-      let scopeCandidate = false;
-      let permissionCandidate = false;
-      const evaluatedRoles: string[] = [];
-      const decisionCandidates: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole; allowed: boolean }> = [];
-      for (const { assignment, role } of preparedAssignments) {
-        if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
-        const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
-        const permissionDecision=rolePolicyPermissionDecision(role,candidate.permissionKind,candidate.permissionCode,dynamicPolicy,
-          candidate.resourceGroup,candidate.resourceGroups);
-        if(permissionDecision==='not_granted')continue;
-        permissionCandidate = true;
-        const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
-          ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
-          : null;
-        const inScope = assignment.scopeKind === "workspace"
-          ? workspaceKey !== null && workspaceKey === candidate.actor.companyId
-          : scopeMatches(assignment, { workspaceKey: candidate.workspaceCode, projectKey: candidate.projectCode });
-        if (!inScope) {
-          scopeCandidate = true;
-          continue;
-        }
-        decisionCandidates.push({ assignment, role, allowed: permissionDecision==='allowed' });
-      }
-      decisionCandidates.sort((left, right) => (priorityRank.get(left.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER) - (priorityRank.get(right.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER));
-      const selected = decisionCandidates[0];
-      if (selected && !selected.allowed) return { publication, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
-      if (selected) return { publication, assignments, decisionCode: "allowed" as const, role: selected.role, assignment: selected.assignment, evaluatedRoles };
-      if (scopeCandidate && permissionCandidate) return { publication, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
-      return { publication, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
-    });
+    const evaluatedRoles = [...new Set(preparedAssignments.map(({ assignment }) => assignment.roleCode))];
+    preparedAssignments.sort((left, right) =>
+      (priorityRank.get(left.assignment.roleCode) ?? Infinity) - (priorityRank.get(right.assignment.roleCode) ?? Infinity));
+    return { publication, preparedAssignments, evaluatedRoles };
   }
 
   async evaluatePermission(input: JenfuEnforcedPermissionInput, decisionAt = new Date()) {

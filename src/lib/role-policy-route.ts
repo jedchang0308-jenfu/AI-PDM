@@ -46,5 +46,5 @@ export async function rolePolicyWriteRoute(request: Request, routePath: string,
       return dataResponse(await handler(client, company, verified, body), status)
     }
     catch (error) { return rolePolicyErrorResponse(error) }
-  }, { isolationLevel: 'read_committed' })
+  }, { isolationLevel: 'read_committed', lockRolePolicyCatalog: true })
 }

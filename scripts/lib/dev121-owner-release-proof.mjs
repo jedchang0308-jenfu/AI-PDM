@@ -374,7 +374,7 @@ function assertContentBundle(bundle, sourceRevision) {
   const core = { ...bundle }; delete core.manifestSha256
   if (!exactKeys(bundle, keys) || bundle.schemaVersion !== 'jenfu.dev012.migration-bundle.v1' || bundle.ownerApplicationId !== 'ai-pdm' || bundle.sourceRevision !== sourceRevision ||
       bundle.projectId !== PROJECT_ID || bundle.region !== 'asia-east1' || bundle.database !== 'jenfu_prod' || bundle.ledger !== 'ai_pdm_core.schema_migrations' || bundle.baselineCount !== 15 ||
-      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
+      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
   const paths = new Set(), versions = new Set()
   for (const [index, entry] of bundle.entries.entries()) {
     if (!exactKeys(entry, ['order', 'version', 'name', 'path', 'sourceSha256', 'appliedSha256', 'sqlBase64']) || entry.order !== index + 1 ||
@@ -444,12 +444,33 @@ function assertContentBundle(bundle, sourceRevision) {
         entry.sourceSha256 !== '9a0790d5efa212f29e3f1b72febfe55c420b4e34be1ee770e3c6fae3906711d1' ||
         entry.appliedSha256 !== '88c2feb1719fb29751a3cd5fa27a84fd6fce2cb7ac9bb2f79c7af26703acb442') fail('ARCHIVE_BUNDLE_INVALID')
   }
-  if (bundle.entries.length === 44) {
+  if (bundle.entries.length >= 44) {
     const entry = bundle.entries[43]
     if (entry.path !== 'db/postgres/103_restore_part_preview_settings.sql' || entry.version !== 'ai-pdm-103' ||
         entry.name !== 'restore_part_preview_settings' ||
         entry.sourceSha256 !== '249e0be42297599a9790656a0335da0befac299acba43b4449199d2f799febfd' ||
         entry.appliedSha256 !== 'ab8ea9d917a6ce2e47318648124c97bbe175a5be6567f1583391b0a8ade3fdb4') fail('ARCHIVE_BUNDLE_INVALID')
+  }
+  if (bundle.entries.length >= 45) {
+    const entry = bundle.entries[44]
+    if (entry.path !== 'db/postgres/104_dev121_principal_session_revocation.sql' || entry.version !== 'ai-pdm-104' ||
+        entry.name !== 'dev121_principal_session_revocation' ||
+        entry.sourceSha256 !== '8076ec244a06ec8784fac4a02b018143b21219d5f799b1f134ee8653bfcd3b88' ||
+        entry.appliedSha256 !== 'cdd7a78e44ff222ad452d4e776cb42fa2080199bcfac9e3907847a1664e82093') fail('ARCHIVE_BUNDLE_INVALID')
+  }
+  if (bundle.entries.length >= 46) {
+    const entry = bundle.entries[45]
+    if (entry.path !== 'db/postgres/105_dev121_role_policy_session_guard.sql' || entry.version !== 'ai-pdm-105' ||
+        entry.name !== 'dev121_role_policy_session_guard' ||
+        entry.sourceSha256 !== 'ebe55e609e95ea0b80ee10050a39afbb0708b5782f237a2bf2ae060f81d325f8' ||
+        entry.appliedSha256 !== '98c6fa72122579cf384d668d10ba000bb33ffd613bddbb29344e56611b50bdda') fail('ARCHIVE_BUNDLE_INVALID')
+  }
+  if (bundle.entries.length === 47) {
+    const entry = bundle.entries[46]
+    if (entry.path !== 'db/postgres/106_dev121_reviewer_authority.sql' || entry.version !== 'ai-pdm-106' ||
+        entry.name !== 'dev121_reviewer_authority' ||
+        entry.sourceSha256 !== '493918dcb60c044b70698d00270bbf7cf68922943a05298169d2e3ce7a2d41fc' ||
+        entry.appliedSha256 !== 'ba7ee630d25fadac48dbe94855db1416de7fd33c97f4d54438ab4a4351ad92e4') fail('ARCHIVE_BUNDLE_INVALID')
   }
   assertUnlinkedProfileCleanupBundleBinding(bundle)
   return paths

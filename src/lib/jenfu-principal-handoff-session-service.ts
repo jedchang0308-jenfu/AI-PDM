@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
@@ -7,9 +8,10 @@ import { resolvePrincipalHandoffAssurance } from "@/lib/jenfu-principal-assuranc
 import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
 import type { JenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
-import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
+import { hashJenfuPrincipalSessionId, JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
+import { createPrincipalSessionPermissions, principalPermissionSnapshotsEnabled } from "@/lib/principal-session-permission-snapshot";
 
 /** No provider call or legacy UID/profile lookup occurs inside this transaction. */
 export async function issueSessionForPrincipalHandoff(input: {
@@ -58,21 +60,27 @@ export async function issueSessionForPrincipalHandoff(input: {
       throw new Error("STALE_HANDOFF");
     }
     let publishedGrantValidated = false;
+    const usePermissions = principalPermissionSnapshotsEnabled();
+    const sessionId = randomUUID();
+    const sessionHash = hashJenfuPrincipalSessionId(sessionId);
     let account;
+    let provisionAuthority: unknown;
     try {
       account = await accountRepository.requireActive(handoff.identity.principalId);
     } catch (error) {
       if (!(error instanceof JenfuPrincipalAccountError) || error.code !== "principal_account_missing") {
         throw error;
       }
-      await validatePrincipalPublishedGrantSnapshot(snapshot, {
-        identityIssuer: handoff.identity.identityIssuer,
-        identitySubject: handoff.identity.identitySubject,
-        principalId: handoff.identity.principalId,
-        employeeId: handoff.identity.employeeId
-      });
-      publishedGrantValidated = true;
-      await accountRepository.ensureFirstLogin({
+      if (!usePermissions) {
+        await validatePrincipalPublishedGrantSnapshot(snapshot, {
+          identityIssuer: handoff.identity.identityIssuer,
+          identitySubject: handoff.identity.identitySubject,
+          principalId: handoff.identity.principalId,
+          employeeId: handoff.identity.employeeId
+        });
+        publishedGrantValidated = true;
+      }
+      const provisionInput = {
         identityIssuer: typed.identityIssuer,
         identitySubject: typed.identitySubject,
         principalId: typed.principalId,
@@ -81,7 +89,13 @@ export async function issueSessionForPrincipalHandoff(input: {
         mappingVersion: typed.mappingVersion,
         publishedAt: typed.publishedAt,
         verifiedEmail: handoff.authentication.email
-      });
+      };
+      if (usePermissions) {
+        provisionAuthority = (await accountRepository.ensureFirstLogin(provisionInput, true, sessionHash)).authority;
+        if (!provisionAuthority) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
+      } else {
+        await accountRepository.ensureFirstLogin(provisionInput);
+      }
       account = await accountRepository.requireActive(handoff.identity.principalId);
     }
     if (typed.accountType !== account.accountType ||
@@ -100,7 +114,7 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!profile || profile.id !== account.pdmUserId ||
       profile.company_id !== account.companyId) throw new Error("PRINCIPAL_PROFILE_INVALID");
 
-    if (!publishedGrantValidated) {
+    if (!publishedGrantValidated && !usePermissions) {
       await validatePrincipalPublishedGrantSnapshot(snapshot, {
         identityIssuer: handoff.identity.identityIssuer,
         identitySubject: handoff.identity.identitySubject,
@@ -122,6 +136,13 @@ export async function issueSessionForPrincipalHandoff(input: {
     const assurance = resolvePrincipalHandoffAssurance({
       authentication: handoff.authentication, policy: input.trustPolicy
     });
+    const permissionActor = {
+      principalId: account.principalId, employeeId: account.employeeId,
+      identityIssuer: handoff.identity.identityIssuer, identitySubject: handoff.identity.identitySubject,
+      companyId: account.companyId, localPrincipalId: account.pdmUserId, sessionSchemaVersion: 2 as const
+    };
+    const permissions = usePermissions ? await createPrincipalSessionPermissions(snapshot, permissionActor,
+      account.accountType, provisionAuthority, sessionHash) : null;
     // A proof may expire while the transaction is waiting on producer reads.
     // Test clocks stay fixed; production rechecks the wall clock before write.
     const issuanceNowMs = input.nowMs ?? Date.now();
@@ -132,9 +153,11 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!Number.isSafeInteger(barrierSeconds) || barrierSeconds > actualNowSeconds + 1) {
       throw new Error("PRINCIPAL_SESSION_BARRIER_INVALID");
     }
-    const maxExpiry = resolveJenfuTargetSessionExpiry(actualNowSeconds, handoff.sourceSessionExpiresAt);
+    const maxExpiry = Math.min(resolveJenfuTargetSessionExpiry(actualNowSeconds, handoff.sourceSessionExpiresAt),
+      permissions ? Math.floor(permissions.nextExpiry / 1000) : Infinity);
     if (barrierSeconds >= maxExpiry) throw new Error("HANDOFF_EXPIRED");
     const token = issueJenfuPrincipalSession({
+      sessionId,
       principalId: account.principalId, employeeId: account.employeeId,
       identityIssuer: handoff.identity.identityIssuer,
       identitySubject: handoff.identity.identitySubject,
@@ -149,7 +172,16 @@ export async function issueSessionForPrincipalHandoff(input: {
       maxAgeSeconds: maxExpiry - barrierSeconds
     }, input.keyRing, barrierSeconds);
     const claims = verifyJenfuPrincipalSession(token, input.keyRing, { nowSeconds: actualNowSeconds });
-    await new JenfuPrincipalSessionRegistry(snapshot).register(claims);
+    try {
+      const registry = new JenfuPrincipalSessionRegistry(snapshot);
+      if (permissions) await registry.register(claims, permissions.snapshot);
+      else await registry.register(claims);
+    } catch (error) {
+      if (error instanceof Error && error.message === "AIPDM_PRINCIPAL_SESSION_ISSUANCE_BLOCKED") {
+        throw new Error("STALE_HANDOFF");
+      }
+      throw error;
+    }
     return { token, claims };
   }, { isolationLevel: "serializable" });
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 const mocks = vi.hoisted(() => ({
-  priority: vi.fn(), entitlement: vi.fn(), catalog: vi.fn()
+  priority: vi.fn(), entitlement: vi.fn(), projectedEntitlement: vi.fn(), catalog: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-role-catalog", () => ({
   requirePublishedPrincipalCatalog: mocks.catalog
@@ -11,7 +11,10 @@ vi.mock("@/lib/repositories/access-control-async-repository", () => ({
   AsyncAccessControlRepository: class { getEnforcedRolePriority = mocks.priority; }
 }));
 vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
-  JenfuEntitlementRepository: class { evaluatePermissions = mocks.entitlement; },
+  JenfuEntitlementRepository: class {
+    evaluatePermissions = mocks.entitlement;
+    evaluatePublishedAssignments = mocks.projectedEntitlement;
+  },
   JenfuEntitlementRepositoryError: class extends Error {
     constructor(readonly code: string) { super(code); }
   }
@@ -72,6 +75,31 @@ describe("principal reviewer selection", () => {
     await expect(selectPrincipalReviewerIdentityInSnapshot(snapshot, input))
       .resolves.toEqual({ principalId: "principal-manager", profileId: "profile-manager" });
     expect(mocks.entitlement).toHaveBeenCalledTimes(2);
+  });
+
+  it("selects an offline projected reviewer and locks their row without upstream SQL", async () => {
+    vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
+    vi.stubEnv("PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED", "1");
+    try {
+      const snapshot = client([{
+        ...candidate("principal-manager", "profile-manager"),
+        projected_grants: [{
+          employee_id: "principal-manager-employee", subject_kind: "employee", target_principal_id: null,
+          stable_role_id: "role-rd-manager", role_code: "rd_manager", catalog_version: "catalog-1",
+          scope_kind: "workspace", scope_key: "current", grant_kind: "direct",
+          admin_catalog_sha256: null, role_definition_hash: null
+        }]
+      } as ReturnType<typeof candidate>]);
+      mocks.projectedEntitlement.mockReturnValue([{ decisionCode: "allowed", role: { roleCode: "rd_manager" } }]);
+      await expect(selectPrincipalReviewerIdentityInSnapshot(snapshot, input))
+        .resolves.toEqual({ principalId: "principal-manager", profileId: "profile-manager" });
+      expect(mocks.entitlement).not.toHaveBeenCalled();
+      expect(snapshot.query).toHaveBeenCalledWith(expect.stringContaining("reviewer_authority_intervals"), { companyId: input.companyId });
+      expect(snapshot.queryOne).toHaveBeenLastCalledWith(expect.stringContaining("FOR SHARE OF authority"),
+        { principalId: "principal-manager" });
+      expect(mocks.projectedEntitlement).toHaveBeenCalledExactlyOnceWith(expect.any(Array),
+        [expect.objectContaining({ roleCode: "rd_manager", scopeKey: "current" })], expect.any(Date));
+    } finally { vi.unstubAllEnvs(); }
   });
 
   it("does not nominate a candidate without published OrgMaster authority", async () => {

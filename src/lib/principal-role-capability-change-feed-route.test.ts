@@ -2,22 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   authorize: vi.fn(),
+  authorizeWorkspace: vi.fn(),
   changeFeed: vi.fn(),
   commandReceipt: vi.fn(),
-  workspace: vi.fn(),
-  privilegedWorkspace: vi.fn()
+  workspace: vi.fn()
 }));
 
 vi.mock("@/lib/principal-company-read", () => ({
-  authorizePrincipalWorkspaceExternalRead: mocks.authorize
+  authorizePrincipalWorkspaceExternalRead: mocks.authorize,
+  withPrincipalCompanyRead: mocks.authorizeWorkspace
 }));
 vi.mock("@/lib/repositories/ai-pdm-role-capability-repository", () => ({
   getRoleCapabilityChangeFeed: mocks.changeFeed,
   getRoleCapabilityCommandReceipt: mocks.commandReceipt
 }));
-vi.mock("@/lib/ai-pdm-role-capability-service", () => ({
-  readRoleCapabilityWorkspace: mocks.workspace,
-  readPrivilegedRoleCapabilityWorkspace: mocks.privilegedWorkspace
+vi.mock("@/lib/ai-pdm-published-role-capability-workspace", () => ({
+  readPublishedRoleCapabilityWorkspace: mocks.workspace
 }));
 
 import { GET } from "@/app/api/settings/access/role-capabilities/change-feed/route";
@@ -56,27 +56,27 @@ describe("principal-only role capability change feed", () => {
   });
 
   it("does not read role workspace data after a denied principal grant", async () => {
-    mocks.authorize.mockResolvedValue(Response.json({ code: "permission_not_granted" }, { status: 403 }));
+    mocks.authorizeWorkspace.mockResolvedValue(Response.json({ code: "permission_not_granted" }, { status: 403 }));
 
     const response = await getWorkspace(new Request("https://ai-pdm.test/api/settings/access/role-capabilities"));
 
     expect(response.status).toBe(403);
     expect(mocks.workspace).not.toHaveBeenCalled();
-    expect(mocks.privilegedWorkspace).not.toHaveBeenCalled();
   });
 
   it("reads the role workspace after the admin-matrix grant", async () => {
-    mocks.authorize.mockResolvedValue({ principalId: "principal-one", profileId: "profile-one",
-      company: { companyId: "company-one" } });
-    mocks.workspace.mockResolvedValue({ dataState: "ready", roles: [] });
+    const snapshot = { kind: "postgres", transactionScope: "postgres" };
+    mocks.authorizeWorkspace.mockImplementation(async (_request, _company, _permissions, read) =>
+      read(snapshot, { companyId: "company-one" }));
+    mocks.workspace.mockResolvedValue({ dataState: "current", roles: [] });
 
     const response = await getWorkspace(new Request("https://ai-pdm.test/api/settings/access/role-capabilities"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(mocks.workspace).toHaveBeenCalledTimes(1);
-    expect(mocks.authorize).toHaveBeenCalledWith(expect.any(Request),
-      "src/app/api/settings/access/role-capabilities/route.ts", "settings.admin_matrix");
+    expect(mocks.workspace).toHaveBeenCalledExactlyOnceWith(snapshot, "company-one", null);
+    expect(mocks.authorizeWorkspace).toHaveBeenCalledWith(expect.any(Request), expect.anything(),
+      [{ permissionKind: "action", permissionCode: "settings.admin_matrix" }], expect.any(Function));
   });
 
   it("keeps command receipts private until the same principal grant succeeds", async () => {

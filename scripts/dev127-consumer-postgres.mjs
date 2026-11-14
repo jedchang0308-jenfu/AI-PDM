@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import pg from 'pg'
 import { installDev127ConsumerFixture } from './lib/dev127-consumer-postgres-fixture.mjs'
@@ -177,6 +178,127 @@ try {
   assert.equal((await client.query('SELECT 1 AS authenticated_snapshot_still_usable')).rows[0].authenticated_snapshot_still_usable,1)
   await client.query('COMMIT')
   checks.push('optional-display-view-failure-preserves-real-readonly-principal-transaction')
+  await client.query(`ALTER TABLE ai_pdm_core.principal_session_records ADD COLUMN revoke_reason text;
+    SET ROLE jenfu_ai_pdm_migrator;
+    CREATE TABLE ai_pdm_core.role_priority_versions (status text,priority_json text);
+    RESET ROLE;`);
+  await client.query(readFileSync('db/postgres/104_dev121_principal_session_revocation.sql','utf8'))
+  await client.query(readFileSync('db/postgres/106_dev121_reviewer_authority.sql','utf8'))
+  await client.query(`
+    CREATE FUNCTION orgmaster_contract.read_ai_pdm_session_authority_v1(text,text)
+    RETURNS TABLE(contract_version text,source_version text,evaluated_at timestamptz,next_boundary timestamptz,accounts jsonb,grants jsonb)
+    LANGUAGE sql STABLE SECURITY DEFINER AS $source$
+      SELECT 'orgmaster.ai-pdm-session-authority.v1','1',transaction_timestamp(),NULL::timestamptz,
+        jsonb_build_array(jsonb_build_object('contract_version','organization.active-principal.v1',
+          'principal_id',$1,'employee_id',$2,'principal_issuer','issuer-a','principal_subject','subject-a',
+          'employee_status','active','account_type','human_personal')),
+        jsonb_build_array(jsonb_build_object('contract_version','jenfu.orgmaster.ai-pdm-principal-grants.v6',
+          'application_id','ai-pdm','principal_id',$1,'employee_id',$2,'grant_kind','direct','subject_kind','principal',
+          'target_principal_id',$1,'scope_kind','global','valid_from',transaction_timestamp()-interval '1 day',
+          'stable_role_id','role-application-system-admin','role_code','application_system_admin','source_grant_id','grant-a'))
+      WHERE $1='principal-a' AND $2='employee-a'
+    $source$;
+    GRANT SELECT,INSERT ON ai_pdm_core.principal_session_records TO jenfu_ai_pdm_runtime;`)
+  await client.query(readFileSync('db/postgres/105_dev121_role_policy_session_guard.sql','utf8'))
+  const managerSql = 'SELECT ai_pdm_core.require_role_policy_session_manager_v1($1,$2,$3,$4)'
+  const snapshotApplySql = applySql.replace('role_policy_apply_v2','role_policy_apply_snapshot_v1')
+  const managerValues = ['principal-a','c'.repeat(64),'issuer-a','subject-a']
+  const snapshotVersion = applied.catalogVersion
+  const snapshot = JSON.stringify({version:1,catalogVersion:snapshotVersion,canManageRolePolicy:true})
+  const insertSession = (hash, seconds) => client.query(`INSERT INTO ai_pdm_core.principal_session_records
+    (principal_id,session_id_hash,principal_auth_epoch,revoked_at,assurance_level,issued_at,authenticated_at,
+      expires_at,lifecycle_version,profile_version,permission_snapshot)
+    VALUES('principal-a',$1,1,NULL,'aal1',clock_timestamp()-interval '1 minute',
+      clock_timestamp()-interval '1 minute',clock_timestamp()+$2::integer*interval '1 second',1,1,$3)`, [hash,seconds,snapshot])
+  const issuerSql = 'SELECT * FROM ai_pdm_core.read_principal_session_authority_v2($1,$2,$3,$4,$5)'
+  const issueSession = async (hash, seconds) => {
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE')
+    await client.query(issuerSql,['principal-a','employee-a','issuer-a','subject-a',hash])
+    await insertSession(hash,seconds)
+    await client.query('COMMIT')
+  }
+  await client.query('SET ROLE jenfu_ai_pdm_runtime')
+  await insertSession('d'.repeat(64),60)
+  await rejected(managerSql,['principal-a','d'.repeat(64),'issuer-a','subject-a'],'42501')
+  await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE')
+  await client.query(issuerSql,['principal-a','employee-a','issuer-a','subject-a','d'.repeat(64)])
+  await client.query('COMMIT')
+  await rejected(managerSql,['principal-a','d'.repeat(64),'issuer-a','subject-a'],'42501')
+  await issueSession(managerValues[1],60)
+  await rejected(managerSql,[...managerValues.slice(0,3),'other-subject'],'42501')
+  await client.query(managerSql,managerValues)
+  const snapshotReplay = [command,'principal-a',managerValues[1],'issuer-a','subject-a',
+    draft,first.catalogVersion,first.catalogSha256,'測試管理政策']
+  assert.deepEqual((await client.query(snapshotApplySql,snapshotReplay)).rows[0].result,applied)
+  checks.push('snapshot-native-replay-without-upstream-and-forged-session-denials')
+
+  const proveDeniedAfterWait = async ({hash,revoke}) => {
+    await other.query('BEGIN')
+    if (revoke) await other.query('UPDATE ai_pdm_core.principal_session_records SET revoked_at=clock_timestamp() WHERE session_id_hash=$1',[hash])
+    else await other.query("SELECT 1 FROM ai_pdm_core.active_role_catalog WHERE application_id='ai-pdm' FOR UPDATE")
+    const blocked = assert.rejects(client.query(snapshotApplySql,
+      [snapshotReplay[0],snapshotReplay[1],hash,...snapshotReplay.slice(3)]), {code:'42501'})
+    let observed = false
+    for (let attempt=0;attempt<100;attempt++) {
+      const {rows:[state]}=await other.query('SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',[client.processID])
+      if (state?.wait_event_type==='Lock') { observed=true; break }
+      await new Promise(resolveWait=>setTimeout(resolveWait,10))
+    }
+    assert.equal(observed,true,'snapshot apply must actually wait')
+    if (!revoke) await other.query('SELECT pg_sleep(2)')
+    await other.query('COMMIT')
+    await blocked
+  }
+  await proveDeniedAfterWait({hash:managerValues[1],revoke:true})
+  const expiringHash='e'.repeat(64)
+  await issueSession(expiringHash,2)
+  await proveDeniedAfterWait({hash:expiringHash,revoke:false})
+  checks.push('snapshot-revocation-and-expiry-while-native-apply-waits')
+  const reviewer = 'reviewer-with-no-session'
+  await other.query('INSERT INTO ai_pdm_core.reviewer_authority VALUES($1,1,NULL)',[reviewer])
+  const candidate = 'SELECT principal_id FROM ai_pdm_core.reviewer_authority WHERE principal_id=$1 AND pending_operation_id IS NULL'
+  const prepareReviewer = async () => other.query(
+    "SELECT ai_pdm_core.apply_principal_session_revocation_v1($1,$2,'prepare',$3,$4,ARRAY[$5],NULL,NULL,1,2)",
+    [randomUUID(),randomUUID(),'a'.repeat(64),'b'.repeat(64),reviewer])
+  await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ')
+  assert.equal((await client.query(candidate,[reviewer])).rowCount,1)
+  await other.query('BEGIN')
+  await prepareReviewer()
+  await other.query('SET CONSTRAINTS ALL IMMEDIATE')
+  const stale = assert.rejects(client.query(candidate+' FOR SHARE',[reviewer]),{code:'40001'})
+  for (let attempt=0;attempt<100;attempt++) {
+    const {rows:[state]}=await other.query('SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',[client.processID])
+    if (state?.wait_event_type==='Lock') break
+    if (attempt===99) assert.fail('old reviewer snapshot must wait for prepare')
+    await new Promise(resolveWait=>setTimeout(resolveWait,10))
+  }
+  await other.query('COMMIT')
+  await stale
+  await client.query('ROLLBACK')
+  assert.equal((await client.query(candidate,[reviewer])).rowCount,0)
+  checks.push('prepare-fences-selected-offline-reviewer-in-old-repeatable-read')
+
+  const newDraft = randomUUID(), newCommand = randomUUID(), newHash = 'f'.repeat(64)
+  const pendingEdit = applyRolePolicyDraftChanges({
+    candidate:{...edit,candidateCatalogVersion:'ai-pdm.role-policy.'+newDraft},
+    roleChanges:[],changes:[{roleRef:{stableRoleId:'role-rd'},groupId:'drawing',actionId:'edit',enabled:true}]
+  }).candidate
+  const {contentHash:newContentHash,...newStored}=pendingEdit
+  await other.query(`INSERT INTO ai_pdm_core.role_policy_drafts(draft_id,candidate_catalog_version,
+    base_catalog_version,base_catalog_sha256,registry_hash,candidate_json,revision,status,created_by,updated_by)
+    VALUES($1,$2,$3,$4,$5,$6,1,'OPEN','principal-a','principal-a')`,
+  [newDraft,pendingEdit.candidateCatalogVersion,applied.catalogVersion,applied.catalogSha256,
+    pendingEdit.registryHash,JSON.stringify(newStored)])
+  await issueSession(newHash,60)
+  // The legacy producer is ineligible and no Platform epoch is needed.
+  assert.equal((await other.query("SELECT eligible FROM dev127_fixture.authority")).rows[0].eligible,false)
+  const native = (await client.query(snapshotApplySql,[newCommand,'principal-a',newHash,'issuer-a',
+    'subject-a',newDraft,applied.catalogVersion,applied.catalogSha256,'發布本地政策'])).rows[0].result
+  assert.equal(native.status,'ACTIVE')
+  assert.equal(native.catalogSha256,newContentHash)
+  assert.ok((await other.query('SELECT revoked_at FROM ai_pdm_core.principal_session_records WHERE session_id_hash=$1',[newHash])).rows[0].revoked_at)
+  await rejected(managerSql,['principal-a',newHash,'issuer-a','subject-a'],'42501')
+  checks.push('snapshot-native-publishes-new-catalog-and-revokes-old-session')
   console.log(JSON.stringify({status:'PASS',checks,producer:'SYNTHETIC_CONTRACT',persistentDatabasesTouched:false}))
 } finally {
   if (client._connected) await client.end().catch(()=>{}); if (other._connected) await other.end().catch(()=>{})

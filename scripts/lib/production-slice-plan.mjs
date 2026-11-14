@@ -97,6 +97,8 @@ const AUTHORIZATION = [
   /^scripts\/dev123-(?:build-role-policy-registry|role-policy)/u,
   /^src\/(?:lib\/role-policy-|components\/access-governance\/role-capability-settings|app\/api\/settings\/access\/role-policies\/)/u,
   /^scripts\/qc-pdm-production-slice-numbering-draft\.mjs$/u,
+  /^scripts\/qc-dev-121-route-classification\.mjs$/u,
+  /^scripts\/qc-dev-121-first-login-postgres\.mjs$/u,
   /^config\/access-control\//u,
   /^scripts\/.*(?:role-catalog|rd-permission|principal|permission|grant|session|sso|acl)/u,
   /^src\/.*(?:principal|permission|authorization|access-control|role-catalog|grant|session|sso|acl)/u,

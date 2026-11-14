@@ -155,6 +155,7 @@ async function requireRolePolicyManager(client: AsyncDatabaseClient, verified: V
 }
 
 export async function canManageRolePolicy(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  if (verified.permissions) return verified.permissions.canManageRolePolicy === true
   try { await requireRolePolicyManager(client, verified); return true } catch (error) {
     if (error instanceof RolePolicyHttpError && error.status === 403) return false
     throw error
@@ -226,7 +227,7 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
   const sourceHistoryVersion = body.sourceHistoryVersion == null ? null : String(body.sourceHistoryVersion)
   if (sourceHistoryVersion !== null && !/^ai-pdm\.role-policy\.[a-f0-9-]{36}$/u.test(sourceHistoryVersion)) throw new RolePolicyHttpError('UNSUPPORTED_HISTORY_FORMAT', 422)
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended(:draftId,0))', { draftId })
-  await requireRolePolicyManager(client, verified)
+  if (!verified.permissions) await requireRolePolicyManager(client, verified)
   await revalidateRolePolicyManager(client, verified)
   const existing = await findDraftById(client, draftId)
   if (existing) {
@@ -255,7 +256,9 @@ export async function createRolePolicyDraft(client: AsyncDatabaseClient, verifie
     baseHash: current.active.catalogSha256, registryHash: rolePolicyRegistryHash, candidate: storedCandidate(candidate),
     actor: verified.session.principalId, sourceHistoryVersion,
     templateId: current.rows[0]?.publication_format === 'legacy-static-v1' ? 'ai-pdm.legacy-preserving-first-draft.v1' : null })
-  return draftResult(await draftById(client, draftId))
+  const created = draftResult(await draftById(client, draftId))
+  if (verified.permissions) await revalidateRolePolicyManager(client, verified)
+  return created
 }
 export async function saveRolePolicyDraft(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
   draftIdInput: string, body: Record<string, unknown>) {
@@ -263,7 +266,7 @@ export async function saveRolePolicyDraft(client: AsyncDatabaseClient, verified:
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new RolePolicyHttpError('REQUEST_SCHEMA_INVALID', 422)
   const roleChanges = parseRoleChanges(body.roleChanges), changes = parseCapabilityChanges(body.changes)
   const row = await draftById(client, draftId, true)
-  await requireRolePolicyManager(client, verified)
+  if (!verified.permissions) await requireRolePolicyManager(client, verified)
   await revalidateRolePolicyManager(client, verified)
   if (row.status !== 'OPEN' || Number(row.revision) !== expectedRevision) throw new RolePolicyHttpError('DRAFT_CONFLICT', 409)
   if (row.registry_hash !== rolePolicyRegistryHash) throw new RolePolicyHttpError('DRAFT_REGISTRY_CONFLICT', 409)
@@ -273,7 +276,9 @@ export async function saveRolePolicyDraft(client: AsyncDatabaseClient, verified:
   if (changed) await client.execute("UPDATE ai_pdm_core.role_policy_drafts SET candidate_json=CAST(:candidate AS jsonb),revision=revision+1,updated_by=:actor,updated_at=clock_timestamp(),role_bindings=role_bindings || CAST(:bindings AS jsonb) WHERE draft_id=:draftId AND revision=:expectedRevision AND status='OPEN'", {
     candidate: storedCandidate(candidate), bindings: JSON.stringify(roleBindings),
     actor: verified.session.principalId, draftId, expectedRevision })
-  return { ...draftResult(await draftById(client, draftId)), changed, roleBindings }
+  const result = { ...draftResult(await draftById(client, draftId)), changed, roleBindings }
+  if (changed && verified.permissions) await revalidateRolePolicyManager(client, verified)
+  return result
 }
 export async function previewRolePolicyDraft(client: AsyncDatabaseClient, draftIdInput: string, expectedRevision: number) {
   const row = await draftById(client, uuid(draftIdInput, 'DRAFT_ID_INVALID'))
@@ -310,7 +315,8 @@ export async function applyRolePolicy(client: AsyncDatabaseClient, verified: Ver
   if (preview.diff.policyTransition !== 'legacy-to-dynamic' && !preview.diff.roleChanges.length &&
       !preview.diff.capabilityChanges.length && !preview.diff.profileChanges.length) throw new RolePolicyHttpError('NO_CHANGE', 409)
   const applyFunction = isVerifiedLocalTestAdmin(verified, client)
-    ? 'role_policy_apply_local_test_admin_v1' : 'role_policy_apply_v2'
+    ? 'role_policy_apply_local_test_admin_v1'
+    : verified.permissions ? 'role_policy_apply_snapshot_v1' : 'role_policy_apply_v2'
   const row = await client.queryOne<{ result: unknown }>(`SELECT ai_pdm_core.${applyFunction}(CAST(:requestId AS uuid),:actor,:sessionHash,:issuer,:subject,CAST(:draftId AS uuid),:expectedRevision,:catalogVersion,:catalogHash,:reason) AS result`, {
     requestId, actor: verified.session.principalId,
     sessionHash: hashJenfuPrincipalSessionId(verified.session.sessionId),
@@ -401,7 +407,9 @@ export async function readRolePolicyCommand(client: AsyncDatabaseClient, request
   const row = await client.queryOne<{ actor_principal_id: string; result_json: unknown; completed_at: string }>(
     'SELECT actor_principal_id,result_json,completed_at::text FROM ai_pdm_core.role_policy_commands WHERE request_id=:requestId', { requestId })
   if (!row) throw new RolePolicyHttpError('COMMAND_NOT_OBSERVED', 404)
-  if (row.actor_principal_id !== verified.session.principalId) await requireRolePolicyManager(client, verified)
+  if (row.actor_principal_id !== verified.session.principalId && !await canManageRolePolicy(client, verified)) {
+    throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+  }
   return { requestId, operation: 'apply', outcome: 'SUCCEEDED', originalHttpStatus: 200,
     result: json(row.result_json), completedAt: new Date(row.completed_at).toISOString() }
 }

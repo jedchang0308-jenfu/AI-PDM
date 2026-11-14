@@ -44,6 +44,8 @@ const openPagePaths = [
 ];
 
 const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // Dedicated workload authentication and the feature switch live in the route.
+  { method: "POST", pattern: /^\/api\/internal\/pdm-session-revocation\/v1(?:\/readback)?$/u },
   { method: "POST", pattern: /^\/api\/auth\/login$/ },
   { method: "POST", pattern: /^\/api\/auth\/logout$/ },
   { method: "POST", pattern: /^\/api\/auth\/employee-login-intents$/ },

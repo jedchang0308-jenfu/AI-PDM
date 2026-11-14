@@ -1,3 +1,25 @@
+
+<a id="pdm-session-revocation"></a>
+
+## DEV-121：登入期間重用權限與工作階段撤銷
+
+- 狀態：`PDM 雙階段全域登出候選／待主控重跑三系統整合`。
+- 主控：Jenfu-Platform 專案 session（`JENFU/DEV-015#pdm-session-revocation`）。
+- PDM 交付分支 `codex/pdm-session-revocation`，沿用 [PR #614](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614)。歷史候選 `4ff428be92cb47a50f3b97ed525d3f9f7b2d6a84` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43589103117) 均通過，證據只適用該提交。此次接收端對接 [Platform PR #219](https://github.com/jedchang0308-jenfu/Jenfu-Platform/pull/219) 的雙階段協定。
+- 雙階段基線 `517a6e77faf9b551fba1c56a0ab09bd56a86ff89` 的 [兩項必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43590449213) 均通過。首次登入單一來源變更以 [PR 最新提交的檢查](https://github.com/jedchang0308-jenfu/AI-PDM/pull/614/checks) 為準。
+- 首次開通與回訪登入的正常 SSO handler 測試使用合成 broker 與資料庫介面，各讀一次 V6 授權；兩次正常權限 API 各只查 PDM session。隔離 PostgreSQL 另驗原生開通回傳同一來源、精確身分時間、公司範圍與舊版原子性。
+- 首次登入單一來源程式 SHA 為 `47dd762dbd752c0c89e6617760e6bb19cdfaa3b5`，後續交接文件與該程式同分支。合併以 PR 最新提交的兩項 required CI 為準。
+- OrgMaster 的登入來源須同時授予現有 `jenfu_ai_pdm_runtime` 和 `jenfu_ai_pdm_migrator` 精確 `EXECUTE`。後者是 PDM 首次開通 SECURITY DEFINER 的既有 owner，不能由 PDM migration 代授。隔離及正式開啟快照前須實際讀回這筆跨專案依賴。
+- 啟用前提：主控須從正常登出、改權與登入入口驗證跨系統屏障及故障重送，並核對全部能改變 PDM 授權的中央來源。先以受保護 owner release 套用 migration 並部署支援新協定的 PDM 接收端與寫入屏障，綁定 Platform workload 及精確 OIDC audience；確認所有服務寫入 revision 與回復目標均支援屏障，再啟用派送，最後啟用 PDM 快照並要求舊 session 重登。
+- 正式接收候選使用原 DEV-117 owner profile，以來源固定撤銷 `1`、快照 `0`，保留現有上游檢查。2026-11-14 Cloud Run v2 唯讀查證 generation 425 已收斂、100% 在 `ai-pdm-prod-28014e0d12e5`、無 tag、兩旗標未設定；PDM canonical origin 與 Platform workload 的帳號及唯一識別值已核對。此資料僅為準備證據，正式 prepare 仍讀回目前 revision。
+- 快照切換使用下一個受保護來源，將 profile 的快照值由 `0` 改為 `1`。prepare 與切流前核對 rollback 所用的現役 PDM revision 已支援相同接收設定。首次快照 release 後若需回復，沿正常 owner 流程以接收版設定恢復中央檢查；切流驗收失敗則沿原 workflow 回到該接收版。先回復 PDM 再考慮回復上游，保留 migration、回執與 pending 屏障。正式 candidate、切流及啟用待主控驗收結論。
+- 快照啟用缺口：圖號／料號／圖號 RD 作廢／技轉送審共用 reviewer selector，仍查 OrgMaster 的 active typed identity 和候選 grants。沿用主控已通過的工作台瀏覽器證據。正常送審須改讀 PDM 的未登入也可用的資格投影；投影須由 PDM 本地帳戶／公司、OrgMaster 有效授權及時間區間、PDM catalog／優先序共同決定。
+- 主控已定案 OrgMaster reviewer authority v1 初載與 exact publication reader。PDM migration 106 在 prepare 回執前封鎖候選，終態同交易更新有效區間，取消依同一操作解除。快照模式的四種送審入口讀本地候選。曾在 OrgMaster 發布控制關閉時預熱者，須在啟用控制後以已驗 Platform OIDC 的 reviewer-bootstrap 重建，再驗證零上游與真實核准。隔離 PostgreSQL 已證未登入候選的舊 repeatable-read 選擇在 prepare 先完成時以序列化衝突拒絕。
+- 角色設定正常導覽走 `/api/settings/access/role-policies/workspace`。快照模式的唯讀管理資格、草稿、發布及回執重放改用 PDM 本地權限。Migration 105 在一次登入授權讀取時記錄 native 資格，政策寫入在同一交易驗證 actor／會話／期限並保留 catalog 退役。隔離 PostgreSQL 已驗偽造 JSON、錯誤身分、撤銷與等待後到期的拒絕。舊旗標模式走原生 v2。
+- `GET /api/settings/access/role-capabilities` 先經 `settings.admin_matrix` 驗證。快照模式以同一 OrgMaster 投影計算同公司各角色的有效持有人數，保留 workspace／global 範圍、去重及排除固定管理角色。現行角色設定元件未讀取這支 API。
+- 其他上游來源仍納入驗收盤點。`/api/admin/accounts?view=principal-candidate` 讀的是待開通目標的 typed identity。帳戶外部登入方式的生命週期是管理目標資料。Windows service 裝置驗證、工作執行與秘密啟用會驗證裝置、發起者或留存同意，須沿各自入口檢查，不能用當前瀏覽者的 PDM 會話代替。驗收需保留既有工作台瀏覽器證據，補未登入候選可指派、登入後成功核准、撤權拒絕及四種送審入口的零上游查詢。
+- [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
+
 <a id="dev-128-masked-local-production-snapshot"></a>
 
 ## DEV-128：遮罩正式資料供 AI-PDM 1020 地端測試

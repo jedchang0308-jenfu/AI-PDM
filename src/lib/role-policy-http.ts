@@ -66,6 +66,10 @@ export function assertExactKeys(value: Record<string, unknown>, required: string
 export function rolePolicyErrorResponse(error: unknown, correlationId = randomUUID()) {
   if (error instanceof RolePolicyHttpError) return Response.json({ code: error.code, correlationId },
     { status: error.status, headers: { 'cache-control': 'private, no-store' } })
+  if (error instanceof Error && 'code' in error && error.code === '42501' && error.message === 'DEV123_MANAGER_REQUIRED') {
+    return Response.json({ code: 'ROLE_POLICY_MANAGER_REQUIRED', correlationId },
+      { status: 403, headers: { 'cache-control': 'private, no-store' } })
+  }
   const code = error instanceof Error && /^[A-Z][A-Z0-9_]+$/u.test(error.message) ? error.message : 'ROLE_POLICY_DEPENDENCY_UNAVAILABLE'
   const status = code.includes('CONFLICT') || code === 'REQUEST_ID_REUSE' ? 409
     : code.includes('NOT_READY') || code.includes('NOT_ENABLED') || code.includes('PAUSED') || code.includes('UNAVAILABLE') ? 503

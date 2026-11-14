@@ -80,6 +80,7 @@ export async function withPrincipalCompanyWrite(
   options: {
     isolationLevel?: "read_committed" | "serializable";
     expectedScopeResolver?: "workspace" | "Part company" | "package company" | "baseline company";
+    lockRolePolicyCatalog?: boolean;
   } = {}
 ): Promise<Response> {
   const policy = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
@@ -108,7 +109,8 @@ export async function withPrincipalCompanyWrite(
       // not accidentally commit that partial write.
       if (!response.ok) throw new PrincipalWriteRejected(response);
       return response;
-    }, { readOnly: false, isolationLevel: options.isolationLevel ?? "serializable" });
+    }, { readOnly: false, isolationLevel: options.isolationLevel ?? "serializable",
+      lockRolePolicyCatalog: options.lockRolePolicyCatalog });
   } catch (error) {
     if (error instanceof PrincipalWriteRejected) return error.response;
     return principalRequestFailure(error);

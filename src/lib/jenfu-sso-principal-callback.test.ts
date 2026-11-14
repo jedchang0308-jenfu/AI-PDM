@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   issuePrincipal: vi.fn(),
   legacyResolver: vi.fn(),
   producerConfig: null as null | { broker: string; base: string; issuer: string; callback: string },
-  producerIdentityIssuer: null as string | null
+  producerIdentityIssuer: null as string | null,
+  database: null as unknown
 }));
 
 vi.mock("google-auth-library", () => ({
@@ -24,6 +25,8 @@ vi.mock("google-auth-library", () => ({
 }));
 vi.mock("@/lib/auth-config", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-config")>(),
+  getAuthMode: () => "firebase_bff",
+  getJenfuPlatformAuthMode: () => "on",
   getJenfuSsoHandoffConfig: () => mocks.producerConfig ?? ({
     broker: "https://platform.example", base: "https://pdm.example",
     issuer: "https://platform.example/api/sso",
@@ -38,10 +41,25 @@ vi.mock("@/lib/platform-session-key-ring", () => ({
     keys: { one: "task-only-test-signing-key-at-least-32-bytes" }
   })
 }));
-vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres" }) }));
-vi.mock("@/lib/jenfu-principal-handoff-session-service", () => ({
-  issueSessionForPrincipalHandoff: mocks.issuePrincipal
+vi.mock("@/lib/db-async-provider", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/db-async-provider")>(),
+  getAsyncDatabaseClient: () => mocks.database ?? { kind: "postgres" }
 }));
+vi.mock("@/lib/jenfu-principal-handoff-session-service", async importOriginal => {
+  const native = await importOriginal<typeof import("@/lib/jenfu-principal-handoff-session-service")>();
+  return {
+    issueSessionForPrincipalHandoff: (input: Parameters<typeof native.issueSessionForPrincipalHandoff>[0]) =>
+      mocks.database ? native.issueSessionForPrincipalHandoff(input) : mocks.issuePrincipal(input)
+  };
+});
+vi.mock("@/lib/entitlement-config", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/entitlement-config")>(),
+  getJenfuEntitlementMode: () => "enforce"
+}));
+vi.mock("@/lib/jenfu-principal-role-catalog", async importOriginal => {
+  const catalog = await importOriginal<typeof import("@/lib/jenfu-principal-role-catalog")>();
+  return { ...catalog, requirePublishedPrincipalCatalog: async () => catalog.principalCatalog };
+});
 vi.mock("@/lib/firebase-platform-principal-repository", () => ({
   FirebasePlatformPrincipalRepository: class {
     constructor() { mocks.legacyResolver(); }
@@ -49,6 +67,7 @@ vi.mock("@/lib/firebase-platform-principal-repository", () => ({
 }));
 
 import { jenfuSsoCallback, jenfuSsoStart } from "@/lib/jenfu-sso-handoff";
+import { GET as numberingPermissions } from "@/app/api/numbering/permissions/route";
 
 function principalProof(now = Date.now()) {
   return {
@@ -71,9 +90,114 @@ afterEach(() => {
   vi.restoreAllMocks();
   mocks.producerConfig = null;
   mocks.producerIdentityIssuer = null;
+  mocks.database = null;
 });
 
 describe("principal-first SSO callback routing", () => {
+  it("reads one grant source on first and returning SSO login, then serves the normal permission API locally", async () => {
+    vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
+    vi.stubEnv("PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED", "1");
+    let provisioned = false;
+    let storedPermissions: unknown;
+    let sourceCalls = 0;
+    const proof = principalProof();
+    const { identity } = proof;
+    const now = new Date().toISOString();
+    const identityRow = {
+      contract_version: "organization.active-principal.v1", principal_issuer: identity.identityIssuer,
+      principal_subject: identity.identitySubject, principal_id: identity.principalId,
+      employee_id: identity.employeeId, employee_status: "active", account_type: "human_personal",
+      mapping_version: 1, published_at: now
+    };
+    const authority = {
+      contract_version: "orgmaster.ai-pdm-session-authority.v1", source_version: "9",
+      evaluated_at: now, next_boundary: null, accounts: [identityRow], grants: [{
+        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v6", application_id: "ai-pdm",
+        assignment_version_id: "version-9", assignment_version: 9, assignment_id: "rd-grant",
+        grant_kind: "direct", delegation_id: null, principal_id: identity.principalId, employee_id: identity.employeeId,
+        subject_kind: "employee", target_principal_id: null, stable_role_id: "role-rd", role_code: "rd",
+        catalog_version: "catalog-1", scope_kind: "workspace", scope_key: "current", valid_from: now,
+        valid_until: null, published_at: now, source_assignment_id: null, source_grant_id: null
+      }]
+    };
+    const calls: string[] = [];
+    const database = {
+      kind: "postgres",
+      async query(sql: string) {
+        calls.push(sql);
+        if (sql.includes("read_ai_pdm_active_principal_identity_v1")) return [identityRow];
+        if (sql.includes("role_priority_versions")) return [{ priority_json: '["rd"]' }];
+        if (sql.includes("v_principal_display_profiles_v1")) return [];
+        throw new Error(sql);
+      },
+      async queryOne(sql: string) {
+        calls.push(sql);
+        if (sql.includes("read_principal_auth_state_v3")) return { principal_id: identity.principalId, auth_epoch: 0, revoked_before: null };
+        if (sql.includes("FROM ai_pdm_core.principal_accounts")) return provisioned ? {
+          ...identityRow, pdm_user_id: "pdm-user-one", company_id: "company-jenfu",
+          lifecycle_version: 1, profile_version: 1, account_status: "active", system_role_enabled: true,
+          minimum_assurance: "aal1", session_invalid_before: null
+        } : null;
+        if (sql.includes("ensure_principal_session_account_v3")) {
+          sourceCalls++;
+          provisioned = true;
+          return { receipt: { created: true, principalId: identity.principalId,
+            pdmUserId: "pdm-user-one", companyId: "company-jenfu", accountStatus: "active",
+            lifecycleVersion: 1, profileVersion: 1, authority } };
+        }
+        if (sql.includes("read_principal_session_authority_v2")) {
+          sourceCalls++;
+          return authority;
+        }
+        if (sql.includes("lock_principal_session_catalog_v1")) return { locked: true };
+        if (sql.includes("FROM ai_pdm_core.users")) return { id: "pdm-user-one", company_id: "company-jenfu" };
+        if (sql.includes("FROM ai_pdm_core.principal_session_records")) {
+          return { pdm_user_id: "pdm-user-one", permission_snapshot: storedPermissions };
+        }
+        throw new Error(sql);
+      },
+      async execute(sql: string, params?: { permissionSnapshot?: string }) {
+        calls.push(sql);
+        if (sql.includes("INSERT INTO ai_pdm_core.principal_session_records")) {
+          storedPermissions = JSON.parse(params?.permissionSnapshot ?? "null");
+        }
+      },
+      async transaction(run: (client: unknown) => Promise<unknown>) { return await run(database); }
+    };
+    mocks.database = database;
+    const fetchBroker = vi.fn(async () => Response.json(proof));
+    vi.stubGlobal("fetch", fetchBroker);
+    async function login() {
+      const start = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start?returnTo=%2Fdrawings"));
+      const state = new URL(start.headers.get("location")!).searchParams.get("state");
+      const accepted = await jenfuSsoCallback(new Request(
+        `https://pdm.example/api/auth/jenfu-sso/callback?code=synthetic&state=${state}&iss=${encodeURIComponent(proof.issuer)}`,
+        { headers: { cookie: start.headers.get("set-cookie")!.split(";")[0] } }
+      ));
+      expect(accepted.headers.get("location")).toBe("https://pdm.example/drawings");
+      const sessionCookie = accepted.headers.getSetCookie().find(cookie => /eyJ/u.test(cookie));
+      expect(sessionCookie).toBeDefined();
+      return sessionCookie!.split(";")[0];
+    }
+    const firstCookie = await login();
+    expect(sourceCalls).toBe(1);
+    const returningCookie = await login();
+    expect(sourceCalls).toBe(2);
+    expect(calls.filter(sql => sql.includes("ensure_principal_session_account_v3"))).toHaveLength(1);
+    expect(calls.filter(sql => sql.includes("read_principal_session_authority_v2"))).toHaveLength(1);
+    expect(calls.join("\n")).not.toMatch(/ensure_authorized_first_login_account_v1|principal_effective_grants_v[456]|role_policy_manager_eligible/u);
+    calls.length = 0;
+    for (const cookie of [firstCookie, returningCookie]) {
+      const response = await numberingPermissions(new Request("https://pdm.example/api/numbering/permissions", { headers: { cookie } }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ pages: { "numbering.drawings.view": true } });
+    }
+    expect(calls.filter(sql => sql.includes("principal_session_records"))).toHaveLength(2);
+    expect(calls.join("\n")).not.toMatch(/orgmaster_contract|platform_contract|role_catalog/u);
+    expect(fetchBroker).toHaveBeenCalledTimes(2);
+    expect(sourceCalls).toBe(2);
+  });
+
   it("allows a valid broker exchange that finishes after the former 10 second limit", async () => {
     vi.useFakeTimers();
     try {

@@ -5,7 +5,12 @@ import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 
 const mocks = vi.hoisted(() => ({
   typed: vi.fn(), state: vi.fn(), account: vi.fn(),
-  ensureFirstLogin: vi.fn(), assignments: vi.fn(), register: vi.fn()
+  ensureFirstLogin: vi.fn(), assignments: vi.fn(), register: vi.fn(),
+  snapshotsEnabled: vi.fn(() => false), createPermissions: vi.fn()
+}));
+vi.mock("@/lib/principal-session-permission-snapshot", () => ({
+  principalPermissionSnapshotsEnabled: mocks.snapshotsEnabled,
+  createPrincipalSessionPermissions: mocks.createPermissions
 }));
 vi.mock("@/lib/jenfu-principal-admission-repository", () => ({
   JenfuPrincipalAdmissionRepository: class { requireActiveTypedPrincipal = mocks.typed; }
@@ -31,7 +36,8 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   }
 }));
 vi.mock("@/lib/jenfu-principal-session-registry", () => ({
-  JenfuPrincipalSessionRegistry: class { register = mocks.register; }
+  JenfuPrincipalSessionRegistry: class { register = mocks.register; },
+  hashJenfuPrincipalSessionId: (sessionId: string) => sessionId
 }));
 
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
@@ -93,6 +99,42 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(snapshot.queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
     expect(snapshot.queryOne.mock.calls[0][0]).toContain("owner.company_id=profile.company_id");
     expect(mocks.assignments).toHaveBeenCalledWith(expect.objectContaining({ principalId: "principal-one" }));
+  });
+
+  it("persists one permission snapshot and expires the token at the upcoming grant boundary", async () => {
+    mocks.snapshotsEnabled.mockReturnValueOnce(true);
+    const permissions = {
+      version: 1, sourceVersion: "4", assignmentVersion: 4, assignmentVersionId: "source-4",
+      catalogVersion: "catalog-1", employeeName: null, scopes: [], permissions: {}
+    };
+    const nextExpiry = nowMs + 60_500;
+    mocks.createPermissions.mockResolvedValueOnce({ snapshot: permissions, nextExpiry });
+    const result = await issueSessionForPrincipalHandoff(base);
+    expect(result.claims.expiresAt).toBe(Math.floor(nextExpiry / 1000));
+    expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot, expect.objectContaining({
+      principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
+    }), "human_personal", undefined, result.claims.sessionId);
+    expect(mocks.assignments).not.toHaveBeenCalled();
+    expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissions);
+  });
+
+  it("passes the authority returned by native first login into the session snapshot", async () => {
+    const active = await mocks.account(handoff.identity.principalId);
+    mocks.account.mockReset().mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"))
+      .mockResolvedValueOnce(active);
+    mocks.snapshotsEnabled.mockReturnValueOnce(true);
+    const authority = { source_version: "4" };
+    mocks.ensureFirstLogin.mockResolvedValueOnce({ authority });
+    const permissionSnapshot = { version: 1, sourceVersion: "4" };
+    mocks.createPermissions.mockResolvedValueOnce({ snapshot: permissionSnapshot, nextExpiry: Infinity });
+    const result = await issueSessionForPrincipalHandoff(base);
+    expect(mocks.ensureFirstLogin).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
+    }), true, result.claims.sessionId);
+    expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot,
+      expect.objectContaining({ principalId: handoff.identity.principalId }), "human_personal", authority, result.claims.sessionId);
+    expect(mocks.assignments).not.toHaveBeenCalled();
+    expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissionSnapshot);
   });
 
   it("rejects mismatched producer identity or epoch before session registration", async () => {

@@ -5,7 +5,7 @@ import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, assertDev121MigrationOnlyWorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConfig, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
-import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, assertSessionSnapshotPredecessor, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
 import { migrationDispositionFromStageResult, migrationSchemaStageOnlyFromStageResult } from './dev117-ai-pdm-continuous-release.mjs'
@@ -20,6 +20,54 @@ const H = 'a'.repeat(64)
 const ref = (name) => ({ uri: `gs://${profile.artifact.releaseBucket}/receipts/${name}.json`, sha256: H })
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex')
+
+test('DEV-121 source-bound production profile makes receiver-only the rollback predecessor', () => {
+  const receiver = profile.environment.fixedValues
+  assert.equal(receiver.PDM_SESSION_REVOCATION_ENABLED, '1')
+  assert.equal(receiver.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED, '1')
+  assert.equal(receiver.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED, '0')
+  assert.equal(assertDev117V3Profile(profile, v1, n1c), profile)
+  const names = Object.keys(receiver).filter(name => name.startsWith('PDM_SESSION_REVOCATION_') ||
+    name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED' || name === 'PDM_SESSION_REVIEWER_AUTHORITY_ENABLED')
+  const environment = Object.fromEntries(names.map(name => [name, receiver[name]]))
+  const fixtureRevision = { conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: profile.runtime.containerName,
+    env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }
+  const snapshot = structuredClone(profile)
+  snapshot.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED = '1'
+  assert.equal(assertDev117V3Profile(snapshot, v1, n1c), snapshot)
+  const runtime = { plainEnvironment: snapshot.environment.fixedValues }
+  assert.doesNotThrow(() => assertSessionSnapshotPredecessor(snapshot, runtime, fixtureRevision))
+  assert.throws(() => assertSessionSnapshotPredecessor(snapshot, runtime, null), /SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE/u)
+  const snapshotRevision = structuredClone(fixtureRevision)
+  snapshotRevision.containers[0].env.find(row => row.name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED').value = '1'
+  assert.doesNotThrow(() => assertSessionSnapshotPredecessor(snapshot, runtime, snapshotRevision))
+  for (const [name, bad] of [
+    ['PDM_SESSION_REVOCATION_ENABLED', '0'],
+    ['PDM_SESSION_REVIEWER_AUTHORITY_ENABLED', '0'],
+    ['PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED', 'unknown'],
+    ['PDM_SESSION_REVOCATION_AUDIENCE', 'https://wrong.example'],
+    ['PDM_SESSION_REVOCATION_PLATFORM_SUBJECT', '00000000'],
+    ['PDM_SESSION_REVOCATION_PLATFORM_EMAIL', 'other@example.test'],
+  ]) {
+    const drift = structuredClone(fixtureRevision)
+    drift.containers[0].env.find(row => row.name === name).value = bad
+    assert.throws(() => assertSessionSnapshotPredecessor(snapshot, runtime, drift), /SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE/u)
+    if (name !== 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED') {
+      const invalid = structuredClone(snapshot)
+      invalid.environment.fixedValues[name] = bad
+      assert.throws(() => assertDev117V3Profile(invalid, v1, n1c), /session revocation workload/u)
+    }
+  }
+  const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
+    .filter(name => !Object.hasOwn(receiver, name) && !Object.hasOwn(profile.environment.controlledValues, name))
+    .map(name => [name, 'existing-bound-value']))
+  const receiverRuntime = buildRuntimeConfig(profile, {
+    plainEnvironment: resolvePlainEnvironment(profile, previous, { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }),
+    secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1']))
+  })
+  assert.throws(() => assertRuntimeConfig(snapshot, receiverRuntime), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
+  assert.doesNotThrow(() => assertSessionSnapshotPredecessor(profile, receiverRuntime, null))
+})
 
 test('DEV-121 operator provider proof retains app-owned reads and removes retired OpenSWX recovery access', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
@@ -312,7 +360,7 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
   assert.deepEqual(bundle.bundle.entries.slice(17).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088', 'ai-pdm-089', 'ai-pdm-090', 'ai-pdm-096', 'ai-pdm-101', 'ai-pdm-102', 'ai-pdm-103'])
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085', 'ai-pdm-086', 'ai-pdm-087', 'ai-pdm-088', 'ai-pdm-089', 'ai-pdm-090', 'ai-pdm-096', 'ai-pdm-101', 'ai-pdm-102', 'ai-pdm-103', 'ai-pdm-104', 'ai-pdm-105', 'ai-pdm-106'])
   assert.deepEqual(profile.migrations.entries[29], { order: 30,
     path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
     sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })

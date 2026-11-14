@@ -336,6 +336,28 @@ describe('DEV-123 role-policy service contract', () => {
     expect(fixture.querySql.some(sql => sql.includes('manager_eligible_v2'))).toBe(true)
   })
 
+  it.each([true, false, undefined])('uses only the verified session for policy read admission (%s)', async canManage => {
+    const fixture = unitClientFixture({ directGrant: canManage !== true })
+    const verified = {
+      ...(managerVerified(otherActor, 'aal1') as object),
+      permissions: { canManageRolePolicy: canManage }
+    } as Parameters<typeof readRolePolicyCommand>[2]
+    fixture.commands.set(requestId, {
+      actor_principal_id: actor,
+      result_json: { draftId },
+      completed_at: '2026-10-23T00:00:00.000Z'
+    })
+    const workspace = await readRolePolicyWorkspace(fixture.client as never, undefined, verified)
+    expect(workspace.admission).toEqual({ read: true, edit: canManage === true, apply: canManage === true })
+    const receipt = readRolePolicyCommand(fixture.client as never, requestId, verified)
+    if (canManage === true) {
+      await expect(receipt).resolves.toMatchObject({ requestId, outcome: 'SUCCEEDED' })
+    } else {
+      await expect(receipt).rejects.toMatchObject({ code: 'ROLE_POLICY_MANAGER_REQUIRED', status: 403 })
+    }
+    expect(fixture.querySql.join('\n')).not.toMatch(/orgmaster_contract|platform_contract/u)
+  })
+
   it('creates, saves, previews, applies and reads a local admin draft without upstream authority', async () => {
     const fixture = unitClientFixture({ directGrant: false })
     const verified = managerVerified()
