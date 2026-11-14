@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
@@ -7,7 +8,7 @@ import { resolvePrincipalHandoffAssurance } from "@/lib/jenfu-principal-assuranc
 import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
 import type { JenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
-import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
+import { hashJenfuPrincipalSessionId, JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 import { createPrincipalSessionPermissions, principalPermissionSnapshotsEnabled } from "@/lib/principal-session-permission-snapshot";
@@ -60,6 +61,8 @@ export async function issueSessionForPrincipalHandoff(input: {
     }
     let publishedGrantValidated = false;
     const usePermissions = principalPermissionSnapshotsEnabled();
+    const sessionId = randomUUID();
+    const sessionHash = hashJenfuPrincipalSessionId(sessionId);
     let account;
     let provisionAuthority: unknown;
     try {
@@ -88,7 +91,7 @@ export async function issueSessionForPrincipalHandoff(input: {
         verifiedEmail: handoff.authentication.email
       };
       if (usePermissions) {
-        provisionAuthority = (await accountRepository.ensureFirstLogin(provisionInput, true)).authority;
+        provisionAuthority = (await accountRepository.ensureFirstLogin(provisionInput, true, sessionHash)).authority;
         if (!provisionAuthority) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
       } else {
         await accountRepository.ensureFirstLogin(provisionInput);
@@ -139,7 +142,7 @@ export async function issueSessionForPrincipalHandoff(input: {
       companyId: account.companyId, localPrincipalId: account.pdmUserId, sessionSchemaVersion: 2 as const
     };
     const permissions = usePermissions ? await createPrincipalSessionPermissions(snapshot, permissionActor,
-      account.accountType, provisionAuthority) : null;
+      account.accountType, provisionAuthority, sessionHash) : null;
     // A proof may expire while the transaction is waiting on producer reads.
     // Test clocks stay fixed; production rechecks the wall clock before write.
     const issuanceNowMs = input.nowMs ?? Date.now();
@@ -154,6 +157,7 @@ export async function issueSessionForPrincipalHandoff(input: {
       permissions ? Math.floor(permissions.nextExpiry / 1000) : Infinity);
     if (barrierSeconds >= maxExpiry) throw new Error("HANDOFF_EXPIRED");
     const token = issueJenfuPrincipalSession({
+      sessionId,
       principalId: account.principalId, employeeId: account.employeeId,
       identityIssuer: handoff.identity.identityIssuer,
       identitySubject: handoff.identity.identitySubject,

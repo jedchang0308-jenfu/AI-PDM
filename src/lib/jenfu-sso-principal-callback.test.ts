@@ -138,14 +138,14 @@ describe("principal-first SSO callback routing", () => {
           lifecycle_version: 1, profile_version: 1, account_status: "active", system_role_enabled: true,
           minimum_assurance: "aal1", session_invalid_before: null
         } : null;
-        if (sql.includes("ensure_principal_session_account_v2")) {
+        if (sql.includes("ensure_principal_session_account_v3")) {
           sourceCalls++;
           provisioned = true;
           return { receipt: { created: true, principalId: identity.principalId,
             pdmUserId: "pdm-user-one", companyId: "company-jenfu", accountStatus: "active",
             lifecycleVersion: 1, profileVersion: 1, authority } };
         }
-        if (sql.includes("read_ai_pdm_session_authority_v1")) {
+        if (sql.includes("read_principal_session_authority_v2")) {
           sourceCalls++;
           return authority;
         }
@@ -183,8 +183,8 @@ describe("principal-first SSO callback routing", () => {
     expect(sourceCalls).toBe(1);
     const returningCookie = await login();
     expect(sourceCalls).toBe(2);
-    expect(calls.filter(sql => sql.includes("ensure_principal_session_account_v2"))).toHaveLength(1);
-    expect(calls.filter(sql => sql.includes("read_ai_pdm_session_authority_v1"))).toHaveLength(1);
+    expect(calls.filter(sql => sql.includes("ensure_principal_session_account_v3"))).toHaveLength(1);
+    expect(calls.filter(sql => sql.includes("read_principal_session_authority_v2"))).toHaveLength(1);
     expect(calls.join("\n")).not.toMatch(/ensure_authorized_first_login_account_v1|principal_effective_grants_v[456]|role_policy_manager_eligible/u);
     calls.length = 0;
     for (const cookie of [firstCookie, returningCookie]) {

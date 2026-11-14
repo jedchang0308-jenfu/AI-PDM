@@ -199,6 +199,7 @@
       "PDM_JENFU_SSO_BROKER_ORIGIN",
       "PDM_SESSION_REVOCATION_ENABLED",
       "PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED",
+      "PDM_SESSION_REVIEWER_AUTHORITY_ENABLED",
       "PDM_SESSION_REVOCATION_AUDIENCE",
       "PDM_SESSION_REVOCATION_PLATFORM_SUBJECT",
       "PDM_SESSION_REVOCATION_PLATFORM_EMAIL"
@@ -264,6 +265,7 @@
       "PDM_JENFU_SSO_BROKER_ORIGIN": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
       "PDM_SESSION_REVOCATION_ENABLED": "1",
       "PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED": "0",
+      "PDM_SESSION_REVIEWER_AUTHORITY_ENABLED": "1",
       "PDM_SESSION_REVOCATION_AUDIENCE": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
       "PDM_SESSION_REVOCATION_PLATFORM_SUBJECT": "101029748006912113815",
       "PDM_SESSION_REVOCATION_PLATFORM_EMAIL": "platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com",
@@ -524,6 +526,16 @@
         "order": 45,
         "path": "db/postgres/104_dev121_principal_session_revocation.sql",
         "sha256": "8076ec244a06ec8784fac4a02b018143b21219d5f799b1f134ee8653bfcd3b88"
+      },
+      {
+        "order": 46,
+        "path": "db/postgres/105_dev121_role_policy_session_guard.sql",
+        "sha256": "ebe55e609e95ea0b80ee10050a39afbb0708b5782f237a2bf2ae060f81d325f8"
+      },
+      {
+        "order": 47,
+        "path": "db/postgres/106_dev121_reviewer_authority.sql",
+        "sha256": "493918dcb60c044b70698d00270bbf7cf68922943a05298169d2e3ce7a2d41fc"
       }
     ]
   },

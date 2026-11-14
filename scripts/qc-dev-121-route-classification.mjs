@@ -90,7 +90,8 @@ const identityProtocolRoutes = new Map([
   ["GET /api/auth/mode", "getFirebaseWebConfig"],
   ["POST /api/auth/token", "generateToken"],
   ["POST /api/internal/pdm-session-revocation/v1", "handlePdmSessionRevocation"],
-  ["POST /api/internal/pdm-session-revocation/v1/readback", "handlePdmSessionRevocation"]
+  ["POST /api/internal/pdm-session-revocation/v1/readback", "handlePdmSessionRevocation"],
+  ["POST /api/internal/pdm-session-revocation/v1/reviewer-bootstrap", "handlePdmReviewerBootstrap"]
 ]);
 const principalSessionRoutes = new Map([
   ["GET /api/numbering/permissions", ["principalSessionTokenFromRequest", "evaluatePrincipalWorkspacePermissions"]],

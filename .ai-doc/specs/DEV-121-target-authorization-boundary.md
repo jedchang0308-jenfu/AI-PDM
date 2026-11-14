@@ -18,6 +18,8 @@
 - Platform 端點與寫入屏障由 `PDM_SESSION_REVOCATION_ENABLED=1` 啟用。設定 `PDM_SESSION_REVOCATION_AUDIENCE` 為 PDM 精確 HTTPS origin，以及 `PDM_SESSION_REVOCATION_PLATFORM_SUBJECT`、`PDM_SESSION_REVOCATION_PLATFORM_EMAIL` 為實際派送 workload。發布讀回依 OrgMaster 的 `read_ai_pdm_session_publication_v1`。取消只接受已驗身分的 Platform 隨 OrgMaster 終止送達，並核對 PDM 既有操作與綁定。
 - `PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED=1` 還需撤銷旗標與 OrgMaster `read_ai_pdm_session_authority_v1`。啟用時無快照的既有 session 會被拒絕並要求重登。啟用或回復前查證服務、入口及寫入 revision，撤銷啟用期間回復目標仍須支援寫入屏障。
 - 全域登出接收 `global_prepare`、`global_logout`、`global_cancelled`。準備先撤銷基線世代及更早的 session、排空其在途寫入、封鎖新登入；回執提交後 Platform 才可推進 epoch。PDM 核對正式中央 epoch 與撤銷時間，並以 prepare 綁定操作、Principal 與基線。取消須見中央基線確已漂移。每筆終態只解除自己的屏障，剩餘全域操作或 OrgMaster 發布仍可封鎖登入。未知回應先用同事件讀回，已撤銷的 session 保持撤銷。
+- Migration 105 在既有單一次登入授權讀取中，由 native login reader 記錄精確 Principal、session hash、issuer／subject 與有效時間邊界。直接 Principal 的全域 `application_system_admin` 管理指派或 privileged 人類帳戶的直接全域 `system_admin` 才能取得管理資格。角色政策草稿與原生發布使用本地 registry、管理資格紀錄與 catalog／帳戶／session 鎖，等待後與最終寫入時重驗期限。政策退役與撤銷仍在既有交易更新 session。相容模式仍沿原生 v2 查中央管理權。
+- Migration 106 保存依 OrgMaster DEV-057 版本化區間建立的候選投影。原有 Platform OIDC 身分使用 `POST /api/internal/pdm-session-revocation/v1/reviewer-bootstrap` 預熱，或由第一個 OrgMaster prepare 觸發預熱。接收版啟用 `PDM_SESSION_REVIEWER_AUTHORITY_ENABLED=1` 並保持權限快照關閉。org-only prepare 持久封鎖被影響候選與在途指派，同一終態交易依精確事件／來源更新；取消只解除同 operation 封鎖。送審在當前交易以 PostgreSQL 時間挑區間，並鎖住選中候選直到提交。建立初載前不得開啟快照。審核者可以從未登入，仍須已開通、同公司、具案件所需能力且非案件擁有者；審核決定另行驗證其本身會話。
 
 
 <a id="architecture-final"></a>

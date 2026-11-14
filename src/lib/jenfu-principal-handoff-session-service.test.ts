@@ -36,7 +36,8 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   }
 }));
 vi.mock("@/lib/jenfu-principal-session-registry", () => ({
-  JenfuPrincipalSessionRegistry: class { register = mocks.register; }
+  JenfuPrincipalSessionRegistry: class { register = mocks.register; },
+  hashJenfuPrincipalSessionId: (sessionId: string) => sessionId
 }));
 
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
@@ -112,7 +113,7 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(result.claims.expiresAt).toBe(Math.floor(nextExpiry / 1000));
     expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot, expect.objectContaining({
       principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
-    }), "human_personal", undefined);
+    }), "human_personal", undefined, result.claims.sessionId);
     expect(mocks.assignments).not.toHaveBeenCalled();
     expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissions);
   });
@@ -129,9 +130,9 @@ describe("DEV-121 principal handoff session issuance", () => {
     const result = await issueSessionForPrincipalHandoff(base);
     expect(mocks.ensureFirstLogin).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId
-    }), true);
+    }), true, result.claims.sessionId);
     expect(mocks.createPermissions).toHaveBeenCalledExactlyOnceWith(snapshot,
-      expect.objectContaining({ principalId: handoff.identity.principalId }), "human_personal", authority);
+      expect.objectContaining({ principalId: handoff.identity.principalId }), "human_personal", authority, result.claims.sessionId);
     expect(mocks.assignments).not.toHaveBeenCalled();
     expect(mocks.register).toHaveBeenCalledExactlyOnceWith(result.claims, permissionSnapshot);
   });

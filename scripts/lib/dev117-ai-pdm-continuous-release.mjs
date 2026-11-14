@@ -23,6 +23,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const sessionRevocationBindings = {
   PDM_SESSION_REVOCATION_ENABLED: '1',
   PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED: '0',
+  PDM_SESSION_REVIEWER_AUTHORITY_ENABLED: '1',
   PDM_SESSION_REVOCATION_AUDIENCE: 'https://ai-pdm-prod-9536592944.asia-east1.run.app',
   PDM_SESSION_REVOCATION_PLATFORM_SUBJECT: '101029748006912113815',
   PDM_SESSION_REVOCATION_PLATFORM_EMAIL: 'platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',

@@ -16,9 +16,11 @@ export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClie
   const claims = verified.session
   const sessionHash = hashJenfuPrincipalSessionId(claims.sessionId)
   const lockFunction = isVerifiedLocalTestAdmin(verified, client)
-    ? 'role_policy_lock_apply_local_test_admin_v1' : 'role_policy_lock_apply_v2'
+    ? 'role_policy_lock_apply_local_test_admin_v1'
+    : verified.permissions ? 'role_policy_lock_apply_snapshot_v1' : 'role_policy_lock_apply_v2'
+  const actorArguments = lockFunction === 'role_policy_lock_apply_snapshot_v1' ? '' : ',:principalId,:sessionHash'
   await client.query(`SELECT ai_pdm_core.${lockFunction}(
-    CAST(:requestId AS uuid),CAST(:draftId AS uuid),:principalId,:sessionHash)`,
+    CAST(:requestId AS uuid),CAST(:draftId AS uuid)${actorArguments})`,
   { requestId, draftId, principalId: claims.principalId, sessionHash })
 
   await revalidateRolePolicyManager(client, verified)
@@ -28,6 +30,15 @@ export async function lockAndRevalidateRolePolicyApply(client: AsyncDatabaseClie
 export async function revalidateRolePolicyManager(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
   const claims = verified.session
   const sessionHash = hashJenfuPrincipalSessionId(claims.sessionId)
+  if (verified.permissions) {
+    if (verified.permissions.canManageRolePolicy !== true) {
+      throw new RolePolicyHttpError('ROLE_POLICY_MANAGER_REQUIRED', 403)
+    }
+    await client.query(`SELECT ai_pdm_core.require_role_policy_session_manager_v1(
+      :principalId,:sessionHash,:issuer,:subject)`, { principalId: claims.principalId,
+      sessionHash, issuer: claims.identityIssuer, subject: claims.identitySubject })
+    return
+  }
   // The preceding statement may have waited. These statements use new snapshots.
   let account
   try { account = await new JenfuPrincipalAccountRepository(client).requireActive(claims.principalId) }

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
+import { initializeReviewerAuthority, lockReviewerProjection, updateReviewerAuthority } from "@/lib/pdm-reviewer-authority";
 import {
   parsePdmRevocationCommand, parsePdmRevocationReceipt, PdmRevocationError,
   pdmRevocationBodyLimit, readPdmRevocationJson, type PdmRevocationCommand
@@ -11,6 +12,23 @@ const oidc = new OAuth2Client();
 
 export function pdmSessionRevocationConfigured() {
   return process.env.PDM_SESSION_REVOCATION_ENABLED === "1";
+}
+
+export async function handlePdmReviewerBootstrap(request: Request) {
+  const headers = { "cache-control": "no-store" };
+  if (!pdmSessionRevocationConfigured() || process.env.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED !== "1") {
+    return Response.json({ code: "pdm_reviewer_bootstrap_disabled" }, { status: 503, headers });
+  }
+  try {
+    await authenticate(request);
+    await initializeReviewerAuthority(getAsyncDatabaseClient(), true);
+    return Response.json({ status: "ready" }, { headers });
+  } catch (error) {
+    if (error instanceof PdmRevocationError) {
+      return Response.json({ code: error.code }, { status: error.status, headers });
+    }
+    return Response.json({ code: "pdm_reviewer_bootstrap_unavailable" }, { status: 503, headers });
+  }
 }
 
 async function authenticate(request: Request) {
@@ -79,6 +97,9 @@ export async function applyPdmSessionRevocation(database: AsyncDatabaseClient,
   return database.transaction(async snapshot => {
     await snapshot.execute("SET LOCAL statement_timeout = '10s'");
     await snapshot.execute("SET LOCAL lock_timeout = '5s'");
+    const writesProjection = !readback && command.sourceApp === "orgmaster" &&
+      process.env.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED === "1";
+    if (writesProjection) await lockReviewerProjection(snapshot);
     const prior = await readReceipt(snapshot, command);
     if (prior || readback) return prior;
     // DEV-057's publication sequence is a monotonic PostgreSQL bigint.
@@ -96,6 +117,9 @@ export async function applyPdmSessionRevocation(database: AsyncDatabaseClient,
         :baselineVersion,:publicationVersion
       ) AS receipt
     `, { ...command, operationHash });
+    if (writesProjection) {
+      await updateReviewerAuthority(snapshot, command);
+    }
     return parsePdmRevocationReceipt(row?.receipt, command);
   }, { isolationLevel: "read_committed", readOnly: readback });
 }
@@ -108,7 +132,12 @@ export async function handlePdmSessionRevocation(request: Request, readback: boo
   try {
     await authenticate(request);
     const command = parsePdmRevocationCommand(await readPdmRevocationJson(request, pdmRevocationBodyLimit));
-    const receipt = await applyPdmSessionRevocation(getAsyncDatabaseClient(), command, readback);
+    const database = getAsyncDatabaseClient();
+    if (!readback && command.sourceApp === "orgmaster" && command.phase === "prepare" &&
+        process.env.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED === "1") {
+      await initializeReviewerAuthority(database);
+    }
+    const receipt = await applyPdmSessionRevocation(database, command, readback);
     if (!receipt) return Response.json({ code: "pdm_revocation_event_not_found" }, { status: 404, headers });
     return Response.json(receipt, { headers });
   } catch (error) {

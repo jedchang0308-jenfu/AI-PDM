@@ -117,7 +117,7 @@ export class JenfuPrincipalAccountRepository {
     }
   }
 
-  async ensureFirstLogin(input: JenfuAuthorizedFirstLoginInput, withSessionAuthority = false):
+  async ensureFirstLogin(input: JenfuAuthorizedFirstLoginInput, withSessionAuthority = false, sessionHash?: string):
     Promise<JenfuAuthorizedFirstLoginReceipt & { authority?: unknown }> {
     if (this.client.kind !== "postgres" || typeof input.identityIssuer !== "string" ||
       input.identityIssuer.length < 1 || input.identityIssuer.length > 2048 ||
@@ -133,11 +133,11 @@ export class JenfuPrincipalAccountRepository {
     let result: unknown;
     try {
       const row = await this.client.queryOne<{ receipt: unknown }>(`
-        SELECT ai_pdm_core.${withSessionAuthority ? "ensure_principal_session_account_v2" : "ensure_authorized_first_login_account_v1"}(
+        SELECT ai_pdm_core.${withSessionAuthority ? "ensure_principal_session_account_v3" : "ensure_authorized_first_login_account_v1"}(
           :identityIssuer,:identitySubject,:principalId,:employeeId,:accountType,
-          :mappingVersion,:publishedAt::timestamptz,:verifiedEmail
+          :mappingVersion,:publishedAt::timestamptz,:verifiedEmail${withSessionAuthority ? ",:sessionHash" : ""}
         ) AS receipt
-      `, input);
+      `, { ...input, sessionHash });
       result = row?.receipt;
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error &&

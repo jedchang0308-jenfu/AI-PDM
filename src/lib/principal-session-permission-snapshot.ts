@@ -33,7 +33,7 @@ export function principalPermissionSnapshotsEnabled() {
 
 export async function createPrincipalSessionPermissions(client: AsyncDatabaseClient,
   actor: JenfuVerifiedAuthorizationActor, accountType: "human_personal" | "human_privileged",
-  provisionAuthority?: unknown) {
+  provisionAuthority: unknown, sessionHash: string) {
   const catalog = await requirePublishedPrincipalCatalog(client);
   const catalogLocked = await client.queryOne<{ locked: boolean }>(`
     SELECT ai_pdm_core.lock_principal_session_catalog_v1(:version) AS locked
@@ -42,7 +42,7 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
   const rolePriority = await new AsyncAccessControlRepository(client).getEnforcedRolePriority([]);
   const entitlement = new JenfuEntitlementRepository(client, catalog);
   const { assignments, sourceVersion, nextBoundary, evaluatedAt } =
-    await entitlement.readAssignments(actor, true, provisionAuthority);
+    await entitlement.readAssignments(actor, true, provisionAuthority, sessionHash);
   const decisionAt = new Date(evaluatedAt ?? "");
   if (!sourceVersion || !Number.isFinite(decisionAt.getTime())) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
   if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("permission_not_granted");

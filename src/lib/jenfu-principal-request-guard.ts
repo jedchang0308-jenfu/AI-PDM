@@ -81,7 +81,8 @@ function principalSession(claims: JenfuPrincipalSessionClaims): VerifiedJenfuPri
 export async function withVerifiedJenfuPrincipalRequest<TResult>(
   input: PrincipalRequestInput,
   evaluate: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) => Promise<TResult>,
-  options: { readOnly?: boolean; isolationLevel?: "read_committed" | "repeatable_read" | "serializable" } = {}
+  options: { readOnly?: boolean; isolationLevel?: "read_committed" | "repeatable_read" | "serializable";
+    lockRolePolicyCatalog?: boolean } = {}
 ): Promise<TResult> {
   if (isLocalTestAdminRequestInput(input)) {
     return withVerifiedLocalTestAdminRequest(input, evaluate, options);
@@ -107,6 +108,9 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
         await client.execute("SET LOCAL statement_timeout = '5s'");
         await client.execute("SET LOCAL lock_timeout = '2s'");
         if (principalPermissionSnapshotsEnabled()) {
+          if (options.lockRolePolicyCatalog) {
+            await client.query("SELECT ai_pdm_core.lock_role_policy_catalog_v1()");
+          }
           const local = await new JenfuPrincipalSessionRegistry(client).readPermissions(claims, options.readOnly === false);
           if (!local) throw new JenfuPrincipalRequestError("auth_session_invalid");
           verified = {

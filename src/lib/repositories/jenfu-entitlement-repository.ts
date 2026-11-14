@@ -103,7 +103,7 @@ export class JenfuEntitlementRepository {
     principalId: string;
     employeeId: string;
     applicationId?: string;
-  }, sessionAuthority = false, provisionAuthority?: unknown) {
+  }, sessionAuthority = false, provisionAuthority?: unknown, sessionHash?: string) {
     if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     const applicationId = input.applicationId ?? JENFU_AI_PDM_APPLICATION_ID;
     if (applicationId !== JENFU_AI_PDM_APPLICATION_ID || !input.principalId || !input.employeeId ||
@@ -117,11 +117,13 @@ export class JenfuEntitlementRepository {
     let evaluatedAt: string | null = null;
     try {
       if (sessionAuthority) {
+        if (!sessionHash) throw new Error("PRINCIPAL_SESSION_AUTHORITY_INVALID");
         // The private provisioner returns the exact row that authorized it.
         const source = (provisionAuthority ?? await this.client.queryOne<SessionAuthorityRow>(`
           SELECT contract_version,source_version,evaluated_at::text,next_boundary::text,accounts,grants
-          FROM orgmaster_contract.read_ai_pdm_session_authority_v1(:principalId,:employeeId)
-        `, input)) as SessionAuthorityRow | null;
+          FROM ai_pdm_core.read_principal_session_authority_v2(
+            :principalId,:employeeId,:identityIssuer,:identitySubject,:sessionHash)
+        `, { ...input, sessionHash })) as SessionAuthorityRow | null;
         if (source?.contract_version !== "orgmaster.ai-pdm-session-authority.v1" ||
           !source.source_version || !Number.isFinite(Date.parse(source.evaluated_at)) ||
           !Array.isArray(source.accounts) || !Array.isArray(source.grants) ||
@@ -225,16 +227,16 @@ export class JenfuEntitlementRepository {
 
   async evaluatePermissions(inputs: readonly JenfuEnforcedPermissionInput[], decisionAt = new Date()) {
     if (inputs.length === 0) return [];
+    this.assertSingleActor(inputs);
+    const assignments = await this.listEffectiveAssignments(inputs[0].actor);
+    return this.evaluatePublishedAssignments(inputs, assignments, decisionAt);
+  }
+
+  evaluatePublishedAssignments(inputs: readonly JenfuEnforcedPermissionInput[],
+    assignments: JenfuEffectiveRoleAssignment[], decisionAt: Date) {
+    if (inputs.length === 0) return [];
+    this.assertSingleActor(inputs);
     const input = inputs[0];
-    if (inputs.some((candidate) => candidate.actor.identityIssuer !== input.actor.identityIssuer
-      || candidate.actor.identitySubject !== input.actor.identitySubject
-      || candidate.actor.principalId !== input.actor.principalId
-      || candidate.actor.employeeId !== input.actor.employeeId
-      || candidate.actor.localPrincipalId !== input.actor.localPrincipalId
-      || candidate.actor.companyId !== input.actor.companyId)) {
-      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-    }
-    const assignments = await this.listEffectiveAssignments(input.actor);
     const { publication, preparedAssignments, evaluatedRoles } =
       this.preparePermissions(input.actor, assignments, input.rolePriority, decisionAt);
     if (inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
@@ -262,6 +264,16 @@ export class JenfuEntitlementRepository {
       if (scopeCandidate) return { publication, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
       return { publication, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
     });
+  }
+
+  private assertSingleActor(inputs: readonly JenfuEnforcedPermissionInput[]) {
+    const { actor } = inputs[0];
+    if (inputs.some(candidate => candidate.actor.identityIssuer !== actor.identityIssuer ||
+      candidate.actor.identitySubject !== actor.identitySubject ||
+      candidate.actor.principalId !== actor.principalId || candidate.actor.employeeId !== actor.employeeId ||
+      candidate.actor.localPrincipalId !== actor.localPrincipalId || candidate.actor.companyId !== actor.companyId)) {
+      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    }
   }
 
   preparePermissions(actor: JenfuEnforcedPermissionInput["actor"], assignments: JenfuEffectiveRoleAssignment[],
