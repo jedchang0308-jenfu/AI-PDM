@@ -10,6 +10,7 @@ const request = new Request("https://pdm.example/api/parts/workbench", {
   headers: { "x-cloud-trace-context": `${"a".repeat(32)}/123;o=1` }
 });
 const expiresAt = "2026-11-16T04:50:00Z";
+const testEmployeeId = "01a0c82b-11c6-77ab-887f-58df9d243e63";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -37,7 +38,7 @@ describe("short-lived permission diagnostic", () => {
     const result = await withPdmShortLivedPermissionDiagnostic(
       "part_workbench", request, undefined, async () => {
         recordPdmDiagnosticDatabaseQuery("SELECT * FROM ai_pdm_core.principal_session_records WHERE principal_id=$1");
-        markPdmDiagnosticVerifiedEmployee("JFS9014");
+        markPdmDiagnosticVerifiedEmployee(testEmployeeId);
         recordPdmDiagnosticDatabaseQuery("SELECT ai_pdm_core.read_principal_session_authority_v2($1,$2,$3,$4,$5)");
         recordPdmDiagnosticDatabaseQuery("SELECT * FROM ai_pdm_core.users WHERE id=$1");
         return Response.json({ ok: true });
@@ -67,6 +68,15 @@ describe("short-lived permission diagnostic", () => {
     await withPdmShortLivedPermissionDiagnostic("drawing_workbench", request,
       "JFS0001", async () => Response.json({ ok: true }));
     vi.stubEnv("PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS", "0");
+    await withPdmShortLivedPermissionDiagnostic("drawing_workbench", request,
+      "JFS9014", async () => Response.json({ ok: true }));
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("does not match the human-readable employee number to the session UUID gate", async () => {
+    vi.stubEnv("PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS", "1");
+    vi.stubEnv("PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL", expiresAt);
+    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
     await withPdmShortLivedPermissionDiagnostic("drawing_workbench", request,
       "JFS9014", async () => Response.json({ ok: true }));
     expect(log).not.toHaveBeenCalled();

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-const TEST_EMPLOYEE_ID = "JFS9014";
+// Authenticated sessions identify employees by immutable UUID, not employee number.
+const TEST_EMPLOYEE_ID = "01a0c82b-11c6-77ab-887f-58df9d243e63";
 const MAX_ACTIVE_WINDOW_MS = 36 * 60 * 60 * 1000;
 
 type DiagnosticKind = "sso_callback" | "drawing_workbench" | "part_workbench";
