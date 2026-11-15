@@ -73,7 +73,7 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
 })
 
 test('short-lived permission diagnostics require a fixed boolean and strict UTC expiry', () => {
-  assert.equal(profile.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS, '1')
+  assert.equal(profile.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS, '0')
   assert.equal(profile.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL, '2026-11-16T04:50:00Z')
   assert.equal(assertDev117V3Profile(profile, v1, n1c), profile)
   for (const [name, value] of [
