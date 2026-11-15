@@ -87,12 +87,16 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   const integrationPlain = ['PDM_STORAGE_PROVIDER', 'PDM_GCS_PROJECT_ID', 'PDM_GCS_BUCKET', 'PDM_GCS_LIVE_ENABLED', 'PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
   const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_GCP_EXPECTED_PROJECT_NUMBER', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
   const fixed = profile.environment.fixedValues || {}
+  const permissionDiagnosticNames = ['PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS', 'PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL']
+  const hasPermissionDiagnostic = permissionDiagnosticNames.some(name =>
+    Object.hasOwn(fixed, name) || profile.environment.requiredPlainEnvironmentNames.includes(name))
   // Historical profiles lacked these bindings. Their archived receipts retain
   // that shape; sources using the receiver contract must carry the full set.
   const hasSessionRevocation = Object.keys(sessionRevocationBindings).some(name =>
     Object.hasOwn(fixed, name) || profile.environment.requiredPlainEnvironmentNames.includes(name))
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain,
-    ...(hasSessionRevocation ? Object.keys(sessionRevocationBindings) : [])]
+    ...(hasSessionRevocation ? Object.keys(sessionRevocationBindings) : []),
+    ...(hasPermissionDiagnostic ? permissionDiagnosticNames : [])]
   const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames]
   if (profile.environment.optionalExtensions != null) fail('RUNTIME_EXTENSION_RETIRED', 'Runtime extensions are not supported')
   const expectedSecretIds = { ...v1.environment.allowedSecretReferences }
@@ -101,6 +105,14 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (hasSessionRevocation && Object.entries(sessionRevocationBindings).some(([name, expected]) =>
     name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED' ? !['0', '1'].includes(fixed[name]) : fixed[name] !== expected)) {
     fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM session revocation workload or phase mismatch')
+  }
+  if (hasPermissionDiagnostic) {
+    const expiry = fixed.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL
+    if (!['0', '1'].includes(fixed.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS)
+      || typeof expiry !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(expiry)
+      || !Number.isFinite(Date.parse(expiry))) {
+      fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM short-lived permission diagnostic binding mismatch')
+    }
   }
   if (profile.environment.candidateOriginEnvironmentName !== 'PDM_RELEASE_CANDIDATE_ORIGIN'
     || fixed.PDM_PUBLIC_BASE_URL !== target.canonicalOrigin

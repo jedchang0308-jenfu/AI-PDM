@@ -10,6 +10,7 @@ import type { WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract
 import type { CanonicalWorkbenchActor } from "@/lib/pdm-canonical-workbench-state";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
+import { markPdmDiagnosticVerifiedEmployee, withPdmShortLivedPermissionDiagnostic } from "@/lib/pdm-short-lived-permission-diagnostic";
 
 const actionCodes = [
   "numbering.workspace.create", "numbering.workspace.update",
@@ -57,29 +58,33 @@ export async function principalCanonicalWorkbenchResponse(
   request: Request, routePath: string, entityType: WorkbenchEntityType,
   read: (service: PdmCanonicalWorkbenchService, actor: CanonicalWorkbenchActor) => Promise<unknown>
 ): Promise<Response> {
-  if (!principalSessionTokenFromRequest(request)) {
-    return Response.json({ code: "auth_session_invalid" },
-      { status: 401, headers: { "cache-control": "no-store" } });
-  }
-  const pagePermission = entityType === "drawing" ? "numbering.drawings.view" : "numbering.search";
-  const policy = resolveJenfuRoutePolicyFromRequest(request, pagePermission);
-  if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||
-      policy.scopeResolver !== "workspace") {
-    return Response.json({ code: "principal_route_policy_unavailable" },
-      { status: 503, headers: { "cache-control": "no-store" } });
-  }
-  return await withPrincipalNumberingCompanyRead(request, pagePermission,
-    async (snapshot, company, verified) => {
-      const actor = await actorInSnapshot(snapshot, verified, company, entityType);
-      try {
-        // Admission and disclosure share a read-only snapshot. Preview job
-        // scheduling belongs to a separately authorized write/worker path.
-        const data = await read(new PdmCanonicalWorkbenchService(snapshot,
-          { queuePreviewJobs: false }), actor);
-        return Response.json(data, { headers: { "cache-control": "private, no-store" } });
-      } catch (error) {
-        return dev087RouteError(error);
+  return await withPdmShortLivedPermissionDiagnostic(
+    entityType === "drawing" ? "drawing_workbench" : "part_workbench", request, undefined, async () => {
+      if (!principalSessionTokenFromRequest(request)) {
+        return Response.json({ code: "auth_session_invalid" },
+          { status: 401, headers: { "cache-control": "no-store" } });
       }
-    }) ?? Response.json({ code: "principal_authorization_unavailable" },
-      { status: 503, headers: { "cache-control": "no-store" } });
+      const pagePermission = entityType === "drawing" ? "numbering.drawings.view" : "numbering.search";
+      const policy = resolveJenfuRoutePolicyFromRequest(request, pagePermission);
+      if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||
+        policy.scopeResolver !== "workspace") {
+        return Response.json({ code: "principal_route_policy_unavailable" },
+          { status: 503, headers: { "cache-control": "no-store" } });
+      }
+      return await withPrincipalNumberingCompanyRead(request, pagePermission,
+        async (snapshot, company, verified) => {
+          markPdmDiagnosticVerifiedEmployee(verified.session.employeeId);
+          const actor = await actorInSnapshot(snapshot, verified, company, entityType);
+          try {
+            // Admission and disclosure share a read-only snapshot. Preview job
+            // scheduling belongs to a separately authorized write/worker path.
+            const data = await read(new PdmCanonicalWorkbenchService(snapshot,
+              { queuePreviewJobs: false }), actor);
+            return Response.json(data, { headers: { "cache-control": "private, no-store" } });
+          } catch (error) {
+            return dev087RouteError(error);
+          }
+        }) ?? Response.json({ code: "principal_authorization_unavailable" },
+        { status: 503, headers: { "cache-control": "no-store" } });
+    });
 }

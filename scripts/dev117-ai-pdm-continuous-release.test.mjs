@@ -72,6 +72,23 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
   assert.doesNotThrow(() => assertSessionSnapshotPredecessor(receiverProfile, receiverRuntime, null))
 })
 
+test('short-lived permission diagnostics require a fixed boolean and strict UTC expiry', () => {
+  assert.equal(profile.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS, '1')
+  assert.equal(profile.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL, '2026-11-16T04:50:00Z')
+  assert.equal(assertDev117V3Profile(profile, v1, n1c), profile)
+  for (const [name, value] of [
+    ['PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS', 'true'],
+    ['PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL', 'tomorrow'],
+  ]) {
+    const changed = structuredClone(profile)
+    changed.environment.fixedValues[name] = value
+    assert.throws(() => assertDev117V3Profile(changed, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+  }
+  const missing = structuredClone(profile)
+  delete missing.environment.fixedValues.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL
+  assert.throws(() => assertDev117V3Profile(missing, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+})
+
 test('DEV-121 operator provider proof retains app-owned reads and removes retired OpenSWX recovery access', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
   const artifact = readText('infra/google-cloud/dev-117-production-release/artifact.tf')

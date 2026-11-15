@@ -4,6 +4,7 @@ import { resolveCloudSqlRuntimeConfig } from "@/lib/cloud-sql-contract";
 import type { CloudSqlStartupTarget } from "@/lib/cloud-sql-contract";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import { createHash } from "node:crypto";
+import { recordPdmDiagnosticDatabaseQuery } from "@/lib/pdm-short-lived-permission-diagnostic";
 
 export type AsyncDatabaseProviderKind = "sqlite" | "postgres";
 type RuntimeAsyncDatabaseProviderKind = AsyncDatabaseProviderKind | "cloud_sql_postgres";
@@ -146,6 +147,7 @@ async function runPostgresQuery<T extends QueryResultRow>(
   params: AsyncDatabaseQueryParams | undefined
 ): Promise<T[]> {
   const query = normalizePostgresQuery(sql, params);
+  recordPdmDiagnosticDatabaseQuery(sql);
   const result = await queryable.query<T>(query.text, query.values);
   return result.rows;
 }

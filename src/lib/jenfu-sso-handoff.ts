@@ -7,6 +7,7 @@ import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cooki
 import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHandoffConfig } from "@/lib/auth-config";
 import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
+import { withPdmShortLivedPermissionDiagnostic } from "@/lib/pdm-short-lived-permission-diagnostic";
 import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
@@ -245,15 +246,18 @@ export async function jenfuSsoCallback(request: Request) {
     }
     stage = "handoff_parse";
     const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
-    stage = "session_issue";
-    const issued = await issueSessionForPrincipalHandoff({
-      handoff, database: getAsyncDatabaseClient(),
-      expectedIdentityIssuer: getJenfuIdentityConfig().identityIssuer,
-      keyRing: getPlatformSessionKeyRing(),
-      trustPolicy: getGoogleWorkspaceMfaTrustPolicy()
-    });
-    stage = "response";
-    return callbackSuccess(config, tx, issued.token);
+    return await withPdmShortLivedPermissionDiagnostic("sso_callback", request,
+      handoff.identity.employeeId, async () => {
+        stage = "session_issue";
+        const issued = await issueSessionForPrincipalHandoff({
+          handoff, database: getAsyncDatabaseClient(),
+          expectedIdentityIssuer: getJenfuIdentityConfig().identityIssuer,
+          keyRing: getPlatformSessionKeyRing(),
+          trustPolicy: getGoogleWorkspaceMfaTrustPolicy()
+        });
+        stage = "response";
+        return callbackSuccess(config, tx, issued.token);
+      });
   } catch (errorValue) {
     console.error(JSON.stringify({ event: "jenfu_sso_callback_failed", stage, code: callbackFailureCode(errorValue) }));
     return callbackFailure(config, callbackErrorCode(errorValue));
