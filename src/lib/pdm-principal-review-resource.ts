@@ -2,6 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
+import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 import type {
   ReviewPackageEntityType,
   ReviewPackageEnvelope,
@@ -249,22 +250,48 @@ export async function resolvePrincipalReviewResourceGroupsInSnapshot(
   return resolveCanonicalResourceGroups(tx, input);
 }
 
+export async function sharedWorkReviewAssignment(tx: AsyncDatabaseClient,
+  input: ReviewResourceInput, submittedBy: string) {
+  const groups = await resolveCanonicalResourceGroups(tx, input);
+  const intent = input.envelope.decisionBasis.lifecycle?.intent;
+  return {
+    reviewerUserId: null,
+    submittedBy,
+    requiresModelReview: groups.includes("model"),
+    requiresPublish: intent === "first_release" || intent === "production_release"
+  };
+}
+
 /** Dynamic reviewers must hold the parent decision and, for CAD/BOM files, model.review too. */
 export async function requirePrincipalReviewResourceCapabilitiesInSnapshot(
   tx: AsyncDatabaseClient, verified: VerifiedPrincipalRequest, input: ReviewResourceInput,
-  options: { strictSnapshot?: boolean } = {}
+  options: { strictSnapshot?: boolean; shared?: boolean } = {}
 ): Promise<PrincipalCapabilityGroup[]> {
   const parent = parentGroup(input.entityType);
-  if (!await isDynamicRolePolicyInSnapshot(tx)) return [parent];
+  const shared = options.shared === true;
+  if (shared && !verified.permissions && !isVerifiedLocalTestAdmin(verified, tx)) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
+  }
+  const dynamic = verified.permissions
+    ? verified.permissions.catalogVersion.startsWith("ai-pdm.role-policy.")
+    : await isDynamicRolePolicyInSnapshot(tx);
+  if (!dynamic && !shared) return [parent];
   const envelope = verifyReviewPackageIntegrity(input.envelope, input.envelope.packageHash);
   const workspace = requirePrimaryTarget({ ...input, envelope });
-  const files = input.entityType === "drawing" ? workspace.files : workspace.attachments;
-  const rows = await readCanonicalFiles(tx, input, workspace.revisionId, options.strictSnapshot === false);
-  const groups = validatedGroups(input, files, rows, options.strictSnapshot ?? true);
+  let groups: PrincipalCapabilityGroup[] = [parent];
+  if (dynamic) {
+    const files = input.entityType === "drawing" ? workspace.files : workspace.attachments;
+    const rows = await readCanonicalFiles(tx, input, workspace.revisionId, options.strictSnapshot === false);
+    groups = validatedGroups(input, files, rows, options.strictSnapshot ?? true);
+  }
+  const release = shared ? envelope.decisionBasis.lifecycle?.intent : undefined;
   const permissions = [
     { permissionKind: "action" as const, permissionCode: "approval.request.decide", resourceGroup: parent },
     ...(groups.includes("model")
       ? [{ permissionKind: "action" as const, permissionCode: "pdm.model.review", resourceGroup: "model" as const }]
+      : []),
+    ...(shared && (release === "first_release" || release === "production_release")
+      ? [{ permissionKind: "action" as const, permissionCode: "numbering.publish", resourceGroup: parent }]
       : [])
   ];
   const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, permissions);

@@ -10,7 +10,8 @@ export type PdmWorkReviewRequestRecord = {
   canonicalEntityId: string;
   workId: string | null;
   branchId: string | null;
-  reviewerUserId: string;
+  reviewerUserId: string | null;
+  submission?: { userId: string; submittedAt: string };
   reviewCycleId: string;
   snapshotPayload: unknown;
   snapshotHash: string;
@@ -25,9 +26,10 @@ export type PdmWorkReviewTerminalReceipt = {
 type ReviewRow = {
   id: string; company_id: string; request_kind: PdmWorkReviewRequestRecord["requestKind"];
   entity_type: HistoricalWorkbenchEntityType; canonical_entity_id: string; work_id: string | null; branch_id: string | null;
-  reviewer_user_id: string; review_cycle_id: string; snapshot_payload: string | unknown; snapshot_hash: string;
+  reviewer_user_id: string | null; review_cycle_id: string; snapshot_payload: string | unknown; snapshot_hash: string;
   request_status: PdmWorkReviewRequestRecord["requestStatus"]; row_version: number;
 };
+
 function map(row: ReviewRow): PdmWorkReviewRequestRecord {
   return {
     id: row.id, companyId: row.company_id, requestKind: row.request_kind, entityType: row.entity_type,
@@ -72,18 +74,24 @@ export class PdmWorkReviewAsyncRepository {
 
   async create(tx: AsyncDatabaseClient, input: {
     companyId: string; requestKind: PdmWorkReviewRequestRecord["requestKind"]; entityType: HistoricalWorkbenchEntityType;
-    canonicalEntityId: string; workId?: string | null; branchId?: string | null; reviewerUserId: string;
+    canonicalEntityId: string; workId?: string | null; branchId?: string | null;
     snapshotPayload: unknown; snapshotHash: string;
-  }) {
+  } & ({ reviewerUserId: string; submittedBy?: never } | {
+    reviewerUserId: null; submittedBy: string; requiresModelReview: boolean; requiresPublish: boolean
+  })) {
     const id = crypto.randomUUID();
     const reviewCycleId = crypto.randomUUID();
+    const shared = input.reviewerUserId === null;
+    if (shared && (tx.kind !== "postgres" || !input.submittedBy)) {
+      throw new Error("SHARED_WORK_REVIEW_SUBMITTER_REQUIRED");
+    }
     await tx.execute(
       `INSERT INTO pdm_work_review_requests (
         id, company_id, request_kind, entity_type, canonical_entity_id, work_id, branch_id,
-        reviewer_user_id, review_cycle_id, snapshot_payload, snapshot_hash, request_status, row_version
+        reviewer_user_id, review_cycle_id, snapshot_payload, snapshot_hash, request_status, row_version${shared ? ", submitted_by, requires_model_review, requires_publish" : ""}
       ) VALUES (
         :id, :companyId, :requestKind, :entityType, :canonicalEntityId, :workId, :branchId,
-        :reviewerUserId, :reviewCycleId, :snapshotPayload, :snapshotHash, 'pending', 1
+        :reviewerUserId, :reviewCycleId, :snapshotPayload, :snapshotHash, 'pending', 1${shared ? ", :submittedBy, :requiresModelReview, :requiresPublish" : ""}
       )`,
       { ...input, id, reviewCycleId, workId: input.workId ?? null, branchId: input.branchId ?? null, snapshotPayload: JSON.stringify(input.snapshotPayload) }
     );
@@ -97,7 +105,18 @@ export class PdmWorkReviewAsyncRepository {
        FROM pdm_work_review_requests WHERE id = :requestId AND company_id = :companyId${lock && tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
       input
     );
-    return row ? map(row) : null;
+    if (!row) return null;
+    const request = map(row);
+    if (request.reviewerUserId === null && tx.kind === "postgres") {
+      const submission = await tx.queryOne<{ user_id: string; submitted_at: string }>(
+        `SELECT submitted_by AS user_id, created_at::text AS submitted_at
+         FROM pdm_work_review_requests WHERE id = :requestId AND company_id = :companyId
+           AND reviewer_user_id IS NULL AND submitted_by IS NOT NULL`,
+        input
+      );
+      if (submission) request.submission = { userId: submission.user_id, submittedAt: submission.submitted_at };
+    }
+    return request;
   }
 
   async appendTrace(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord) {
@@ -116,7 +135,25 @@ export class PdmWorkReviewAsyncRepository {
     );
   }
 
-  async recordTerminalReceipt(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord) {
+  async recordTerminalReceipt(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord,
+    result?: { actorId: string; decision: "approve" | "return_for_correction"; applyFailed?: boolean }) {
+    if (request.reviewerUserId === null) {
+      if (!request.submission || !result || tx.kind !== "postgres") {
+        throw new Error("SHARED_WORK_REVIEW_OUTCOME_REQUIRED");
+      }
+      await tx.execute(
+        `INSERT INTO pdm_work_review_terminal_receipts (
+           request_id, company_id, decided_at, submitted_by, submitted_at, request_kind,
+           canonical_entity_id, decided_by, decision, apply_failed
+         ) VALUES (
+           :id, :companyId, CURRENT_TIMESTAMP, :submittedBy, CAST(:submittedAt AS timestamptz), :requestKind,
+           :canonicalEntityId, :actorId, :decision, :applyFailed
+         )`,
+        { ...request, ...result, submittedBy: request.submission.userId,
+          submittedAt: request.submission.submittedAt, applyFailed: result.applyFailed ?? false }
+      );
+      return;
+    }
     await tx.execute(
       `INSERT INTO pdm_work_review_terminal_receipts (request_id, company_id, decided_at)
        VALUES (:id, :companyId, CURRENT_TIMESTAMP)`,

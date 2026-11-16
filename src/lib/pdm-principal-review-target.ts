@@ -1,3 +1,4 @@
+import { canAccessWorkReviewAssignment } from "@/lib/pdm-work-review";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
@@ -20,11 +21,12 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
   const companyId = verified.profile.companyId;
   const item = await new PdmWorkReviewAsyncRepository(client).get(client,
     { companyId, requestId: input.requestId });
-  if (!item || item.reviewerUserId !== verified.profile.pdmUserId ||
+  if (!item || !canAccessWorkReviewAssignment(item, verified.profile.pdmUserId) ||
       item.requestStatus !== "pending") {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核對象不存在", 404);
   }
-  if (!["part_change", "drawing_revision"].includes(item.requestKind)) {
+  if (item.requestKind !== "part_change" && item.requestKind !== "drawing_revision" &&
+      !(item.requestKind === "drawing_rd_void" && item.reviewerUserId === null)) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "此審核類型尚未遷移", 503);
   }
   const parsed = parseReviewPackageSnapshot(item.snapshotPayload);
@@ -38,7 +40,7 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
       companyId, requestKind: item.requestKind,
       entityType: item.requestKind === "part_change" ? "part" : "drawing",
       entityId: item.canonicalEntityId, workId: item.workId, envelope: packageValue
-    }, { strictSnapshot: false });
+    }, { strictSnapshot: false, shared: item.reviewerUserId === null });
   }
   const entityType = input.entityType as ReviewPackageEntityType;
   const target = packageValue.targets.find((candidate) =>

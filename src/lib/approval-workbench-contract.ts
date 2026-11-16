@@ -12,6 +12,7 @@ export type ApprovalWorkbenchStatus =
   | "applied";
 
 export type ApprovalWorkbenchQuery = {
+  view?: "submitted";
   status: ApprovalWorkbenchStatus;
   domain: string;
   action: string;

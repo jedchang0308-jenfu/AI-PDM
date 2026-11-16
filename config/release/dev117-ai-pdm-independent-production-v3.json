@@ -540,6 +540,11 @@
         "order": 47,
         "path": "db/postgres/106_dev121_reviewer_authority.sql",
         "sha256": "493918dcb60c044b70698d00270bbf7cf68922943a05298169d2e3ce7a2d41fc"
+      },
+      {
+        "order": 48,
+        "path": "db/postgres/107_dev121_shared_work_review.sql",
+        "sha256": "4d9e28a9b2f7c396481c7e40f6d3eafcc16581e578e959b9d4781a0428f2e5b9"
       }
     ]
   },

@@ -7,12 +7,12 @@ import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
-import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
+import { beginDev087Approval, canAccessWorkReviewAssignment, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, sharedWorkReviewWritesEnabled, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 import { resolvePrincipalReviewResourceGroupsInSnapshot,
-  requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
+  requirePrincipalReviewResourceCapabilitiesInSnapshot, sharedWorkReviewAssignment } from "@/lib/pdm-principal-review-resource";
 import { assertReviewPackagePrimaryRoot, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import type { ReviewPackageEnvelope } from "@/lib/pdm-review-package-contract";
 import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
@@ -218,21 +218,25 @@ export class PartChangeWorkService {
           ...(workRowVersion === undefined ? {} : { workRowVersion }) }
       })
       : snapshotPayload;
-    const reviewerUserId = principalOnly
-      ? await selectPrincipalReviewerInSnapshot(tx, {
-        companyId, ownerUserId: locked.owner_user_id, resourceGroup: "part",
-        resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
-          companyId, requestKind: "part_change", entityType: "part",
-          entityId: locked.part_id, workId,
-          envelope: packagePayload as ReviewPackageEnvelope
-        }),
-        ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {})
-      })
-      : await reviewRepository.selectReviewer(tx,
-        { companyId, ownerUserId: locked.owner_user_id });
+    const assignment = principalOnly && sharedWorkReviewWritesEnabled()
+      ? await sharedWorkReviewAssignment(tx, {
+        companyId, requestKind: "part_change", entityType: "part",
+        entityId: locked.part_id, workId, envelope: packagePayload as ReviewPackageEnvelope
+      }, principalOwnerId!)
+      : { reviewerUserId: principalOnly
+        ? await selectPrincipalReviewerInSnapshot(tx, {
+          companyId, ownerUserId: locked.owner_user_id, resourceGroup: "part",
+          resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+            companyId, requestKind: "part_change", entityType: "part",
+            entityId: locked.part_id, workId,
+            envelope: packagePayload as ReviewPackageEnvelope
+          }),
+          ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {})
+        })
+        : await reviewRepository.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id }) };
     const request = await reviewRepository.create(tx, {
       companyId, requestKind: "part_change", entityType: "part",
-      canonicalEntityId: locked.part_id, workId, reviewerUserId,
+      canonicalEntityId: locked.part_id, workId, ...assignment,
       snapshotPayload: packagePayload,
       snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : snapshotHash
     });
@@ -317,7 +321,8 @@ export class PartChangeWorkService {
     const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
     const locked = await reviewRepository.get(tx, { companyId, requestId }, true);
     if (!locked || locked.requestKind !== "part_change" ||
-        locked.reviewerUserId !== actorId || locked.requestStatus !== "pending" ||
+        !(principalOnly ? canAccessWorkReviewAssignment(locked, actorId) : locked.reviewerUserId === actorId) ||
+        locked.requestStatus !== "pending" ||
         locked.rowVersion !== expectedRowVersion) {
       throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE", "重新開啟目前審核項目", 409);
     }
@@ -332,9 +337,9 @@ export class PartChangeWorkService {
         companyId, requestKind: "part_change", entityType: "part",
         entityId: locked.canonicalEntityId, workId: locked.workId,
         envelope: verifiedPackage
-      }, { strictSnapshot: decision !== "return_for_correction" });
+      }, { strictSnapshot: decision !== "return_for_correction", shared: locked.reviewerUserId === null });
     }
-    if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked);
+    if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked, actorId);
     if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
     const workRepository = new PartChangeWorkAsyncRepository(tx);
     const work = await workRepository.readWork(tx, companyId, locked.workId, true);
@@ -361,13 +366,13 @@ export class PartChangeWorkService {
       { companyId, entityType: "part", entityId: work.part_id });
     await beginDev087Approval(tx, locked);
     const faultHandling = dev087FaultHandling();
-    if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
+    if (faultHandling) return recordDev087Fault(tx, locked, faultHandling, actorId);
     const formalized = await workRepository.formalize(tx, { companyId, work,
       reviewCycleId: locked.reviewCycleId, lifecycle, expectedWorkRowVersion: frozenWorkRowVersion,
       ...(verified && verifiedPackage ? { approval: { requestId: locked.id,
         packageHash: verifiedPackage.packageHash, reviewerPrincipalId: verified.session.principalId,
         reviewerProfileId: actorId } } : {}) });
-    await reviewRepository.recordTerminalReceipt(tx, locked);
+    await reviewRepository.recordTerminalReceipt(tx, locked, { actorId, decision });
     await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked);
     return { acknowledged: true, ...formalized };
   }

@@ -25,6 +25,16 @@
 - 其他上游來源仍納入驗收盤點。`/api/admin/accounts?view=principal-candidate` 讀的是待開通目標的 typed identity。帳戶外部登入方式的生命週期是管理目標資料。Windows service 裝置驗證、工作執行與秘密啟用會驗證裝置、發起者或留存同意，須沿各自入口檢查，不能用當前瀏覽者的 PDM 會話代替。驗收需保留既有工作台瀏覽器證據，補未登入候選可指派、登入後成功核准、撤權拒絕及四種送審入口的零上游查詢。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
+<a id="role-matrix-shared-review"></a>
+
+### DEV-121：單一角色與能力矩陣及共用待審
+
+- 2026-11-16 已確認方案，待實作及驗收。[開發契約與驗收條件](specs/DEV-121-target-authorization-boundary.md#role-matrix-shared-review)
+- 本機 A0001-M01 原始案例，送審因相容選人路徑查詢隔離庫中不存在的 OrgMaster 檢視表而回 500。工作仍在，審核單 0 筆。
+- 引導決策 1A、2B 已確認。新案由審核工作台與待審數呈現，送審人用同一工作台的「我的送審」跨四類追蹤本人案件。
+- 獨立工作樹已接上四類共用送審、既有審核工作台與「我的送審」；新案寫入以 `PDM_SHARED_WORK_REVIEW_WRITE_ENABLED=1` 啟用。Migration 107 已接 owner 封存校驗。初次實作自查為 121 項聚焦測試、3 項 migration 封存契約與獨立 PostgreSQL 的舊案相容／本人追蹤／跨公司隔離／分頁通過。
+- 續驗 A0001-M01 完整產品入口、四類流程、授權計數、決策並行、撤權與回復。核准前核對附件與技轉相關入口及待審數適用同一資格。舊案完成後按剩餘呼叫端與回復需求決定投影退役。
+
 <a id="dev-128-masked-local-production-snapshot"></a>
 
 ## DEV-128：遮罩正式資料供 AI-PDM 1020 地端測試

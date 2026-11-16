@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  mode: "on", withVerified: vi.fn(), evaluate: vi.fn(), listPrincipal: vi.fn()
+  mode: "on", withVerified: vi.fn(), evaluate: vi.fn(), listPrincipal: vi.fn(), listSubmitted: vi.fn()
 }));
 vi.mock("@/lib/auth-config", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-config")>(),
@@ -20,7 +20,10 @@ vi.mock("@/lib/jenfu-principal-permission-service", () => ({
 }));
 vi.mock("@/lib/repositories/approval-platform-async-repository", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/repositories/approval-platform-async-repository")>(),
-  AsyncApprovalPlatformRepository: class { listPrincipalWorkReviewInbox = mocks.listPrincipal; }
+  AsyncApprovalPlatformRepository: class {
+    listPrincipalWorkReviewInbox = mocks.listPrincipal;
+    listPrincipalSubmittedReviews = mocks.listSubmitted;
+  }
 }));
 import { GET } from "@/app/api/approvals/inbox/route";
 
@@ -29,10 +32,10 @@ const verified = {
   session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const snapshot = { kind: "postgres", transactionScope: "postgres" };
-function request(token = true) {
+function request(token = true, filters = "status=active") {
   const header = Buffer.from(JSON.stringify({ type: "JENFU-AI-PDM-PRINCIPAL", version: 2 }))
     .toString("base64url");
-  return new Request("https://pdm.example/api/approvals/inbox?status=active", {
+  return new Request(`https://pdm.example/api/approvals/inbox?${filters}`, {
     headers: token ? { cookie: `__session=${header}.payload.signature` } : {}
   });
 }
@@ -47,9 +50,31 @@ beforeEach(() => {
   }]);
   mocks.listPrincipal.mockResolvedValue({ items: [], nextCursor: null, previousCursor: null,
     summary: { total: 0, pending: 0, needsInfo: 0, applyFailed: 0 } });
+  mocks.listSubmitted.mockResolvedValue({ items: [], nextCursor: null, previousCursor: null,
+    summary: { total: 0, pending: 0, needsInfo: 0, applyFailed: 0 } });
 });
 
 describe("Principal approval inbox", () => {
+  it("uses the verified actor and available source permissions for my submissions", async () => {
+    mocks.withVerified.mockImplementationOnce(async (_input, action) => action(snapshot, {
+      ...verified, permissions: { catalogVersion: "ai-pdm.role-policy.fixture" }
+    }));
+    mocks.evaluate.mockImplementationOnce(async (_tx, _verified, checks: { permissionCode: string }[]) =>
+      checks.map((check, index) => ({ ...check, allowed: index === 0,
+        principalId: "principal-one", decisionCode: index === 0 ? "allowed" : "permission_not_granted" })));
+
+    const response = await GET(request(true, "view=submitted&actorId=other-profile&companyId=other-company"));
+
+    expect(response.status).toBe(200);
+    expect(mocks.withVerified).toHaveBeenCalledOnce();
+    expect(mocks.evaluate).toHaveBeenCalledOnce();
+    expect(mocks.listPrincipal).not.toHaveBeenCalled();
+    expect(mocks.listSubmitted).toHaveBeenCalledWith(expect.objectContaining({
+      companyId: "company-jenfu", actorId: "profile-one", status: "all",
+      readable: { drawing: true, part: false, transfer: false }
+    }));
+  });
+
   it("uses the verified Principal grant and reads assigned reviews in the same snapshot", async () => {
     const response = await GET(request());
     expect(response.status).toBe(200);

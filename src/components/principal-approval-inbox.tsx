@@ -22,6 +22,7 @@ const statusFilters = [
 const actionFilters = [
   { value: "all", label: "全部" },
   { value: "numbering.pdm_drawing_revision_review", label: "圖面研發版審核" },
+  { value: "numbering.pdm_drawing_rd_void_review", label: "圖面研發版作廢審核" },
   { value: "numbering.pdm_part_change_review", label: "料號變更審核" },
   { value: "transfer.package_review", label: "技轉包審核" }
 ] as const;
@@ -86,6 +87,7 @@ export function PrincipalApprovalInbox() {
 
   const showAction = useMemo(() => new Set(rows.map((item) => item.actionCode)).size > 1, [rows]);
   const openApprovalRow = useCallback((item: ApprovalWorkbenchRow) => {
+    if (item.historyOnly) return;
     const transferReview = item.source === "platform" && item.actionCode === "transfer.package_review";
     if (!(transferReview || (item.source === "pdm_work_review" && isPdmOwnerApprovalAction(item.actionCode))) ||
         item.status !== "pending" || !item.ownerHref) {
@@ -134,6 +136,19 @@ export function PrincipalApprovalInbox() {
     {(error || controllerError) && state === "ready" ?
       <div className="approval-message error" role="alert">{error || controllerError}</div> : null}
     <section className="approval-filter-bar pdm-workbench-filter-bar" aria-label="審核篩選">
+      <label className="approval-filter-field">
+        <span>檢視</span>
+        <select value={query.view ?? "review"} onChange={event => {
+          const mine = event.target.value === "submitted";
+          setError("");
+          setState("loading");
+          setQuery(current => ({ ...current, view: mine ? "submitted" : undefined,
+            status: mine ? "all" : "active" }));
+        }}>
+          <option value="review">待審工作</option>
+          <option value="submitted">我的送審</option>
+        </select>
+      </label>
       <label className="approval-filter-field approval-filter-search">
         <span>搜尋</span>
         <div className="approval-filter-search-control">
@@ -157,8 +172,9 @@ export function PrincipalApprovalInbox() {
           {actionFilters.map((filter) => <option value={filter.value} key={filter.value}>{filter.label}</option>)}
         </select>
       </label>
-      {query.status !== "active" || query.action !== "all" || query.query ?
-        <button className="secondary-button" type="button" onClick={() => setQuery(initialQuery)}>
+      {query.status !== (query.view === "submitted" ? "all" : "active") || query.action !== "all" || query.query ?
+        <button className="secondary-button" type="button" onClick={() =>
+          setQuery({ ...initialQuery, view: query.view, status: query.view === "submitted" ? "all" : "active" })}>
           清除篩選
         </button> : null}
     </section>
@@ -167,7 +183,7 @@ export function PrincipalApprovalInbox() {
     {(state === "loading" || (state === "ready" && !controllerError)) ? <div className="approval-platform-layout">
       <section className="panel approval-inbox-panel" aria-label="審核清單">
         <div className="panel-header">
-          <h2>審核清單</h2>
+          <h2>{query.view === "submitted" ? "我的送審" : "審核清單"}</h2>
           <span className="approval-count">{loading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${rows.length} 筆`}</span>
         </div>
         <PdmWorkbenchList rows={rows} getRowKey={rowKey} selectedKey={selectedKey}
@@ -176,7 +192,8 @@ export function PrincipalApprovalInbox() {
           rowAriaKeyShortcuts={keyboard.shortcuts} containerRef={listRef}
           onContainerKeyDown={keyboard.handleKeyDown} loading={loading}
           loadingState={<div className="approval-empty"><LoadingIndicator>正在載入審核清單...</LoadingIndicator></div>}
-          emptyState={state === "ready" ? <div className="approval-empty">目前沒有符合條件的待處理審核。</div> : null}
+          emptyState={state === "ready" ? <div className="approval-empty">{query.view === "submitted"
+            ? "目前沒有符合條件的送審紀錄。" : "目前沒有符合條件的待處理審核。"}</div> : null}
           onOpenRow={openApprovalRow}
           columns={[
             { key: "target", header: "審核項目", dataLabel: "審核項目", className: "approval-workbench-col-target",
@@ -201,12 +218,13 @@ function readLocation(): PdmWorkbenchLocationState<ApprovalWorkbenchQuery> {
   const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
   const statusValue = params.get("status");
   const actionValue = params.get("action");
-  const status = statusFilters.find((item) => item.value === statusValue)?.value ?? "active";
+  const mine = params.get("view") === "submitted";
+  const status = statusFilters.find((item) => item.value === statusValue)?.value ?? (mine ? "all" : "active");
   const action = actionFilters.find((item) => item.value === actionValue)?.value ?? "all";
   const requestId = params.get("requestId")?.trim();
   const page = Number(params.get("page"));
   return {
-    query: { ...initialQuery, status, action, query: normalizeQuery(params.get("query")) },
+    query: { ...initialQuery, ...(mine ? { view: "submitted" } : {}), status, action, query: normalizeQuery(params.get("query")) },
     detailKey: requestId ? `approval:${requestId.startsWith("APR-TRF-") ? "platform" : "pdm_work_review"}:${requestId}` : null,
     legacyDetail: null,
     cursor: params.get("cursor"),
@@ -217,6 +235,8 @@ function readLocation(): PdmWorkbenchLocationState<ApprovalWorkbenchQuery> {
 function writeLocation(state: PdmWorkbenchLocationState<ApprovalWorkbenchQuery>, mode: "replace" | "push") {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
+  if (state.query.view) params.set("view", state.query.view);
+  else params.delete("view");
   params.set("status", state.query.status);
   if (state.query.query) params.set("query", normalizeQuery(state.query.query));
   else params.delete("query");
@@ -243,6 +263,7 @@ function writeLocation(state: PdmWorkbenchLocationState<ApprovalWorkbenchQuery>,
 
 function buildListUrl(query: ApprovalWorkbenchQuery, cursor: string | null) {
   const params = new URLSearchParams({ status: query.status, limit: String(query.limit), domain: "all" });
+  if (query.view) params.set("view", query.view);
   if (query.query) params.set("query", normalizeQuery(query.query));
   if (query.action !== "all") params.set("action", query.action);
   if (cursor) params.set("cursor", cursor);

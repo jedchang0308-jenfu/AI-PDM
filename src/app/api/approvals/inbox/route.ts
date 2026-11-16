@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { AsyncApprovalPlatformRepository, type ApprovalPlatformInboxCursor,
-  type ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
+  type ApprovalPlatformStatus, type SharedReviewInboxAccess } from "@/lib/repositories/approval-platform-async-repository";
 import { principalRequestFailure, principalRequestInput,
   principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
-import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
-import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot, type PrincipalWorkspacePermission } from "@/lib/jenfu-principal-permission-service";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
@@ -44,6 +46,14 @@ export async function GET(request: Request) {
         { status: 503, headers: { "cache-control": "no-store" } });
     }
     return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (snapshot, verified) => {
+      const mine = new URL(request.url).searchParams.get("view") === "submitted";
+      const repository = new AsyncApprovalPlatformRepository(snapshot);
+      if (mine) {
+        const readable = await readSubmittedAccess(snapshot, verified);
+        if (!readable) return jenfuEntitlementFailureResponse("permission_not_granted");
+        return renderInbox(request, verified.profile.companyId, verified.session.principalId,
+          verified.profile.pdmUserId, repository, { readable });
+      }
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
         [{ permissionKind: "action", permissionCode: "approval.inbox.view" }]);
       const decision = decisions[0];
@@ -53,8 +63,9 @@ export async function GET(request: Request) {
           { status: 503, headers: { "cache-control": "no-store" } });
       }
       if (!decision.allowed) return jenfuEntitlementFailureResponse(decision.decisionCode);
+      const sharedAccess = await readSharedAccess(snapshot, verified);
       return renderInbox(request, verified.profile.companyId, verified.session.principalId,
-        verified.profile.pdmUserId, new AsyncApprovalPlatformRepository(snapshot));
+        verified.profile.pdmUserId, repository, { sharedAccess });
     });
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError
@@ -64,10 +75,54 @@ export async function GET(request: Request) {
   }
 }
 
+async function readSubmittedAccess(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  if (!verified.permissions && !isVerifiedLocalTestAdmin(verified, snapshot)) return null;
+  const checks = [
+    { permissionKind: "page", permissionCode: "numbering.drawings.view", resourceGroup: "drawing" },
+    { permissionKind: "page", permissionCode: "numbering.search", resourceGroup: "part" },
+    { permissionKind: "action", permissionCode: "transfer.package.view", resourceGroup: "transfer" }
+  ] satisfies PrincipalWorkspacePermission[];
+  const [drawing, part, transfer] = await readInboxDecisions(snapshot, verified, checks);
+  return drawing.allowed || part.allowed || transfer.allowed
+    ? { drawing: drawing.allowed, part: part.allowed, transfer: transfer.allowed }
+    : null;
+}
+
+async function readSharedAccess(snapshot: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest): Promise<SharedReviewInboxAccess | undefined> {
+  if (!verified.permissions && !isVerifiedLocalTestAdmin(verified, snapshot)) return undefined;
+  const checks = [
+    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" },
+    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" },
+    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "transfer" },
+    { permissionKind: "action", permissionCode: "pdm.model.review", resourceGroup: "model" },
+    { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "drawing" },
+    { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "part" }
+  ] satisfies PrincipalWorkspacePermission[];
+  const [drawing, part, transfer, model, publishDrawing, publishPart] =
+    await readInboxDecisions(snapshot, verified, checks);
+  const dynamic = verified.permissions?.catalogVersion.startsWith("ai-pdm.role-policy.") === true;
+  return { drawing: drawing.allowed, part: part.allowed, transfer: transfer.allowed,
+    model: !dynamic || model.allowed, publishDrawing: publishDrawing.allowed, publishPart: publishPart.allowed };
+}
+
+async function readInboxDecisions(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
+  checks: readonly PrincipalWorkspacePermission[]) {
+  const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified, checks);
+  if (decisions.length !== checks.length || decisions.some((decision, index) =>
+    decision.principalId !== verified.session.principalId ||
+    decision.permissionCode !== checks[index].permissionCode ||
+    decision.allowed !== (decision.decisionCode === "allowed"))) {
+    throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+  }
+  return decisions;
+}
+
 async function renderInbox(request: Request, companyId: string, principalId: string,
-  reviewerProfileId: string, repository: AsyncApprovalPlatformRepository) {
+  reviewerProfileId: string, repository: AsyncApprovalPlatformRepository,
+  access: { sharedAccess?: SharedReviewInboxAccess; readable?: Pick<SharedReviewInboxAccess, "drawing" | "part" | "transfer"> }) {
   const url = new URL(request.url);
-  const statusParam = url.searchParams.get("status") ?? "active";
+  const statusParam = url.searchParams.get("status") ?? (access.readable ? "all" : "active");
   const status = (allowedStatuses.has(statusParam) ? statusParam : "active") as
     | "active"
     | "all"
@@ -80,7 +135,8 @@ async function renderInbox(request: Request, companyId: string, principalId: str
   const query = normalizeApprovalQuery(url.searchParams.get("query"));
   const filterHash = pdmWorkbenchFilterHash({
     namespace: "approval-inbox-principal-v2",
-    filters: { status, domain: domainCode ?? "all", action: actionCode ?? "all", query, limit },
+    filters: { status, domain: domainCode ?? "all", action: actionCode ?? "all", query, limit,
+      ...(access.readable ? { view: "submitted" } : {}) },
     companyId,
     actorId: principalId
   });
@@ -97,7 +153,7 @@ async function renderInbox(request: Request, companyId: string, principalId: str
       return NextResponse.json({ error: { code: "workbench_invalid_cursor", message, retryable: true } }, { status: 400 });
     }
   }
-  const page = await repository.listPrincipalWorkReviewInbox({
+  const filter = {
     companyId,
     actorId: reviewerProfileId,
     principalId,
@@ -107,10 +163,13 @@ async function renderInbox(request: Request, companyId: string, principalId: str
     actionCode,
     query,
     cursor
-  });
+  };
+  const page = access.readable
+    ? await repository.listPrincipalSubmittedReviews({ ...filter, readable: access.readable })
+    : await repository.listPrincipalWorkReviewInbox({ ...filter, ...(access.sharedAccess ? { sharedAccess: access.sharedAccess } : {}) });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
-  const ownerItems = page.items.map((item) => ({
+  const ownerItems = access.readable ? page.items : page.items.map((item) => ({
     ...item,
     ownerHref: item.source === "platform" && item.actionCode === "transfer.package_review"
       ? `/approvals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnTo)}`

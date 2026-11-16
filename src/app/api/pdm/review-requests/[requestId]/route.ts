@@ -1,3 +1,4 @@
+import { canAccessWorkReviewAssignment } from "@/lib/pdm-work-review";
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
@@ -9,10 +10,11 @@ import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
-import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
   const principalToken = principalSessionTokenFromRequest(request);
@@ -35,10 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
           return jenfuEntitlementFailureResponse(
             decisions.find((decision) => !decision.allowed)?.decisionCode ?? "permission_not_granted");
         }
-        return readAssignedReview(tx, requestId, {
-          id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
-          permissions: { decide: true }
-        });
+        return readWorkReview(tx, requestId, verified);
       }, { readOnly: true, isolationLevel: "repeatable_read" });
     } catch (error) {
       return error instanceof JenfuPrincipalRequestError
@@ -48,11 +47,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
   return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
 }
 
-async function readAssignedReview(client: AsyncDatabaseClient, requestId: string,
-  actor: { id: string; companyId: string; permissions: { decide: boolean } }) {
+async function readWorkReview(client: AsyncDatabaseClient, requestId: string,
+  verified: VerifiedPrincipalRequest) {
+  const actor = { id: verified.profile.pdmUserId, companyId: verified.profile.companyId };
   try {
     const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: actor.companyId, requestId });
-    if (!item || item.reviewerUserId !== actor.id || !actor.permissions.decide || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
+    if (!item || !canAccessWorkReviewAssignment(item, actor.id) || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
     if (!["part_change", "drawing_revision", "drawing_rd_void"].includes(item.requestKind)) {
       return Response.json({ code: "principal_review_kind_not_migrated" },
         { status: 503, headers: { "cache-control": "no-store" } });
@@ -68,6 +68,13 @@ async function readAssignedReview(client: AsyncDatabaseClient, requestId: string
           `${item.entityType}:${item.canonicalEntityId}`) {
       throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
         "審核包格式無效", 409);
+    }
+    if (item.reviewerUserId === null) {
+      await requirePrincipalReviewResourceCapabilitiesInSnapshot(client, verified, {
+        companyId: actor.companyId, requestKind: item.requestKind,
+        entityType: item.requestKind === "part_change" ? "part" : "drawing",
+        entityId: item.canonicalEntityId, workId: item.workId, envelope: packageValue
+      }, { shared: true, strictSnapshot: false });
     }
     const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
     const targetSummaries = packageValue.targets.map((target) => ({
