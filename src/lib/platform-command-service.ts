@@ -332,16 +332,15 @@ async function executeWithinClient<TPayload, TResult>(
       if (verifiedActor?.sessionSchemaVersion === 2 && !verified) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
       }
-      if (client.kind === "postgres") {
-        // The verified request and this command share a transaction. Reuse the
-        // account repository's fail-closed activation check; the command must
-        // not consult the per-profile cutover reader a second time.
+      if (client.kind === "postgres" && !verified?.permissions) {
+        // The session snapshot already joins and verifies the active account.
+        // Keep the account check for the compatibility admission path.
         const account = await new JenfuPrincipalAccountRepository(client).requireActive(platformPrincipalId);
         if (account.pdmUserId !== verifiedActor!.localPrincipalId ||
           account.companyId !== verifiedActor!.companyId) {
           throw new Error("PLATFORM_ACTOR_PRINCIPAL_MISMATCH");
         }
-      } else {
+      } else if (client.kind === "sqlite") {
         // SQLite is an isolated historical fixture. It cannot establish a
         // production security subject or publish a principal mapping.
         const principalMapping = await mappingRepository!.findCurrentPrincipal(input.command.actor.pdmUserId);

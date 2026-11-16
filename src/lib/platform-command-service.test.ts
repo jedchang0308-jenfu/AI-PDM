@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PrincipalRequestInput, VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { createAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createPdmCommand, createPlatformActorContext } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
@@ -232,6 +233,58 @@ describe("principal-first PDM command actor", () => {
       execute: vi.fn(async () => ({ ok: true })),
       event: () => ({ aggregateType: "test", aggregateId: "one", eventType: "changed", payload: {} })
     })).rejects.toThrow("PLATFORM_ACTOR_VERIFICATION_REQUIRED");
+  });
+
+  it("reuses the checked snapshot account and transfer capability without another account read", async () => {
+    const routePath = "src/app/api/approvals/requests/[requestId]/decisions/route.ts";
+    const requestId = "APR-TRF-00000000-0000-4000-8000-000000000001";
+    const token = Buffer.from(JSON.stringify({ type: "JENFU-AI-PDM-PRINCIPAL", version: 2 }))
+      .toString("base64url") + ".payload.signature";
+    const request = new Request(`https://ai-pdm.test/api/approvals/requests/${requestId}/decisions`, {
+      method: "POST", headers: { cookie: `__session=${token}` }
+    });
+    const queryOne = vi.fn(async (sql: string) => {
+      if (sql.includes("current_setting")) return { isolation_level: "serializable" };
+      throw new Error("unexpected database read");
+    });
+    const client = { kind: "postgres", transactionScope: "postgres", queryOne } as unknown as AsyncDatabaseClient;
+    const principalRequest = { token, database: client } as PrincipalRequestInput;
+    const verified: VerifiedPrincipalRequest = {
+      profile: { pdmUserId: verifiedActor.localPrincipalId, companyId: verifiedActor.companyId },
+      session: {
+        principalId: verifiedActor.principalId, employeeId: verifiedActor.employeeId,
+        identityIssuer: verifiedActor.identityIssuer, identitySubject: verifiedActor.identitySubject,
+        contractVersion: "jenfu.ai-pdm-session.v2", appId: "ai-pdm", sessionId: "fixture",
+        authEpoch: 0, profileVersion: 1, accountLifecycleVersion: 1, assuranceLevel: "aal1",
+        authenticatedAt: "2026-10-01T00:00:00Z", issuedAt: "2026-10-01T00:00:00Z",
+        expiresAt: "2026-10-01T01:00:00Z"
+      },
+      permissions: {
+        version: 1, sourceVersion: "test", assignmentVersion: 1, assignmentVersionId: "test",
+        catalogVersion: "ai-pdm.role-policy.fixture", employeeName: null, scopes: [["global", null]],
+        permissions: { "action:approval.request.decide:8": [[0, true, "rd_manager", "fixture"]] }
+      }
+    };
+    const saved = vi.spyOn(PlatformOutboxAsyncRepository.prototype, "findCompletedCommand")
+      .mockResolvedValue({ completed: true, result: { approved: true } });
+    try {
+      const execute = vi.fn();
+      const result = await executePdmCommandWithOutbox({
+        client, command: createPdmCommand({
+          commandName: "pdm.transfer.decide_package_review", actor: actor(),
+          idempotencyKey: "snapshot-review", payload: { requestId, decision: "approved" }
+        }),
+        principalRequest, principalAuthorization: {
+          request, routePath, method: "POST", permissionCode: "approval.request.decide",
+          discriminator: "approval_decision:transfer_package"
+        },
+        inVerifiedSnapshot: (_input, run) => run(client, verified),
+        execute, event: () => []
+      });
+      expect(result).toEqual({ reusedFromCommandReceipt: true, result: { approved: true } });
+      expect(queryOne).toHaveBeenCalledExactlyOnceWith("SELECT current_setting('transaction_isolation') AS isolation_level");
+      expect(execute).not.toHaveBeenCalled();
+    } finally { saved.mockRestore(); }
   });
 
   it("rejects replay of a receipt created for a different principal", async () => {

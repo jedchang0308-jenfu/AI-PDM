@@ -65,7 +65,7 @@ flowchart TB
 #### 資料相容、切換與回復
 
 1. 沿用現有兩種審核資料儲存與業務狀態。前三類在 `pdm_work_review_requests` 使用 `reviewer_user_id`，技轉在 `approval_platform_requests` 的 payload 保存指派。新增可辨識的共用待審表示，以 forward-only migration 處理所需的資料契約變更，保留舊案原始指派與稽核資料。
-2. 先使所有必要讀取與決策入口能處理新舊案。Migration 107 的正式候選將 `PDM_SHARED_WORK_REVIEW_WRITE_ENABLED` 固定為 `0`。由既有 owner release 開啟寫入前，核對快照已啟用、前一個已就緒的 revision 支援相容讀取，並以新案驗收。關閉此旗標會停止新案共用寫入，新舊案的讀取與決策繼續適用。已產生共用案後，回復路徑須維持這些案件可見、可處理，並保留既有撤權屏障。
+2. 先使所有必要讀取與決策入口能處理新舊案。Migration 107 增加欄位，Migration 108 更新審核參照檢查及送審證據保護。正式相容候選將 `PDM_SHARED_WORK_REVIEW_WRITE_ENABLED` 固定為 `0`。由既有 owner release 開啟寫入前，核對快照已啟用、前一個已就緒的 revision 支援相容讀取，並以新案驗收。關閉此旗標會停止新案共用寫入，新舊案的讀取與決策繼續適用。已產生共用案後，回復路徑須維持這些案件可見、可處理，並保留既有撤權屏障。
 3. 舊案清空且相容回復需求解除後，移除退役的指定人判斷。退役 reviewer 資格投影前，查核 `GET /api/settings/access/role-capabilities` 持有人數、啟動 readiness、bootstrap 與撤權接收流程的呼叫情形。仍需的持有人統計由管理查詢向授權來源取得。投影完成退役時，同步收斂其初始化、更新與健康檢查，跨系統契約由各 owner 處理。
 
 #### 驗收

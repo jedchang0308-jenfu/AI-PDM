@@ -35,10 +35,11 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
         SET ROLE jenfu_ai_pdm_migrator;
         SET search_path = ai_pdm_core, pg_catalog;
         CREATE TABLE companies (id text PRIMARY KEY);
-        CREATE TABLE users (id text PRIMARY KEY, display_name text);
+        CREATE TABLE users (id text PRIMARY KEY, display_name text, company_id text);
         CREATE TABLE drawing_rd_branches (id text PRIMARY KEY);
         INSERT INTO companies VALUES ('company-one'), ('company-two');
-        INSERT INTO users VALUES ('submitter','Submitter'), ('assigned-reviewer','Reviewer');
+        INSERT INTO users VALUES ('submitter','Submitter','company-one'), ('assigned-reviewer','Reviewer','company-one'),
+          ('another-submitter','Another','company-one'), ('company-two-submitter','Other company','company-two');
         INSERT INTO drawing_rd_branches VALUES ('branch-one');
         ${baseline.slice(first, last)}
         INSERT INTO pdm_work_review_requests
@@ -69,6 +70,7 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
           'Transfer','submitter',CURRENT_TIMESTAMP,'approved','applied','{"transferPackageId":"package-one"}');
       `);
       await raw.query(readFileSync("db/postgres/107_dev121_shared_work_review.sql", "utf8"));
+      await raw.query(readFileSync("db/postgres/108_dev121_shared_work_review_guards.sql", "utf8"));
       await raw.query("RESET ROLE");
 
       const repository = new PdmWorkReviewAsyncRepository(database);
@@ -80,12 +82,15 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
         requestKind: "drawing_rd_void", entityType: "drawing", canonicalEntityId: "drawing-one", branchId: "branch-one" });
       const part = await repository.create(database, { ...assignment, companyId: "company-one",
         requestKind: "part_change", entityType: "part", canonicalEntityId: "part-one", workId: "work-part" });
-      await repository.create(database, { ...assignment, companyId: "company-two",
+      await repository.create(database, { ...assignment, submittedBy: "company-two-submitter", companyId: "company-two",
         requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: "drawing-other", workId: "work-other" });
       await repository.create(database, { ...assignment, submittedBy: "another-submitter", companyId: "company-one",
         requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: "drawing-one", workId: "work-another" });
-      await expect(raw.query("UPDATE pdm_work_review_requests SET submitted_by=NULL WHERE id=$1", [drawing.id]))
-        .rejects.toMatchObject({ code: "23514" });
+      await expect(raw.query("UPDATE ai_pdm_core.pdm_work_review_requests SET submitted_by='another-submitter' WHERE id=$1", [drawing.id]))
+        .rejects.toMatchObject({ code: "P0001", message: "DEV087_REVIEW_REQUEST_IDENTITY_IMMUTABLE" });
+      await expect(repository.create(database, { ...assignment, companyId: "company-two",
+        requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: "drawing-other", workId: "work-illegal" }))
+        .rejects.toMatchObject({ code: "P0001", message: "DEV087_REVIEW_REFERENCE_MISMATCH" });
       await expect(repository.get(database, { companyId: "company-one", requestId: "assigned" }))
         .resolves.toMatchObject({ reviewerUserId: "assigned-reviewer" });
       await database.transaction(async tx => {

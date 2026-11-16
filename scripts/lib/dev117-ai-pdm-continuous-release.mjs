@@ -96,6 +96,7 @@ export function assertDev117V3Profile(profile, v1, n1c) {
     Object.hasOwn(fixed, name) || profile.environment.requiredPlainEnvironmentNames.includes(name))
   const sharedReviewWrites = 'PDM_SHARED_WORK_REVIEW_WRITE_ENABLED'
   const hasSharedReviewMigration = profile.migrations.entries.some(entry => entry.path === 'db/postgres/107_dev121_shared_work_review.sql')
+  const hasSharedReviewGuard = profile.migrations.entries.some(entry => entry.path === 'db/postgres/108_dev121_shared_work_review_guards.sql')
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain,
     ...(hasSessionRevocation ? Object.keys(sessionRevocationBindings) : []),
     ...(hasPermissionDiagnostic ? permissionDiagnosticNames : []),
@@ -110,8 +111,8 @@ export function assertDev117V3Profile(profile, v1, n1c) {
     fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM session revocation workload or phase mismatch')
   }
   if (hasSharedReviewMigration && (!['0', '1'].includes(fixed[sharedReviewWrites]) ||
-    (fixed[sharedReviewWrites] === '1' && fixed.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED !== '1'))) {
-    fail('ENVIRONMENT_VALUE_DRIFT', 'Shared review writes require the local permission snapshot')
+    (fixed[sharedReviewWrites] === '1' && (!hasSharedReviewGuard || fixed.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED !== '1')))) {
+    fail('ENVIRONMENT_VALUE_DRIFT', 'Shared review writes require the local permission snapshot and the review guard migration')
   }
   if (hasPermissionDiagnostic) {
     const expiry = fixed.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL
