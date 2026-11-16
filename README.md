@@ -51,6 +51,8 @@ http://localhost:1020
 
 再次執行入口或 `-CheckOnly` 會重用已驗證的同一伺服器。入口以啟動 PID 與建立時間辨識程序；共用依賴目錄時會追溯本工作樹的 npm 祖先程序。
 
+`next-env.d.ts` 由 Next.js 產生並由 Git 忽略。`npm run typecheck` 與 `npm run typecheck:workspace` 會先產生型別；從全新工作樹直接執行需要此檔的舊版 QC 腳本時，可先執行 `npm exec -- next typegen`。
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-localhost-3000.ps1 -Port 12020 -NoBrowser
 ```

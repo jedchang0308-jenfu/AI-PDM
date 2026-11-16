@@ -315,6 +315,13 @@ test('required CI does not couple release control to unrelated product gates', (
   assert.match(runner, /plan\.files\.some\(isRdPermissionDatabasePath\)/u)
 })
 
+test('removing the generated Next declaration selects application and build checks', () => {
+  const plan = createProductionSlicePlan(['next-env.d.ts'])
+  assert.deepEqual(plan.slices, ['application'])
+  assert.equal(plan.gates.isolatedBuild, true)
+  assert.equal(plan.gates.full, false)
+})
+
 test('runtime-copied management policy is application input, not docs-only', () => {
   const plan = createProductionSlicePlan(['.ai-doc/reference/pdm-management-policy-draft.md'])
   assert.equal(plan.gates.application, true)
