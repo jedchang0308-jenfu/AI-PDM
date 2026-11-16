@@ -86,7 +86,8 @@ export function PrincipalApprovalInbox() {
     } else if (!loading) setState("ready");
   }, [controllerError, initialized, loading, state]);
 
-  const showAction = useMemo(() => new Set(rows.map((item) => item.actionCode)).size > 1, [rows]);
+  const showAction = useMemo(() => query.view === "submitted" ||
+    new Set(rows.map((item) => item.actionCode)).size > 1, [query.view, rows]);
   const openApprovalRow = useCallback((item: ApprovalWorkbenchRow) => {
     if (item.historyOnly) return;
     const transferReview = item.source === "platform" && item.actionCode === "transfer.package_review";
