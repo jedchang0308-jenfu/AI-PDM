@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   issueContract: vi.fn(), legacyActor: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
-  readWork: vi.fn(), resolveWorkBasis: vi.fn()
+  readWork: vi.fn(), resolveWorkBasis: vi.fn(), reviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
@@ -15,6 +15,9 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
+}));
+vi.mock("@/lib/pdm-principal-review-resource", () => ({
+  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.reviewResources
 }));
 vi.mock("@/lib/pdm-workbench-authority-control", () => ({
   issueCanonicalWorkbenchContract: mocks.issueContract
@@ -127,8 +130,40 @@ describe("principal DEV-087 review detail", () => {
       { allowed: false, decisionCode: "permission_not_granted" }
     ]);
     expect((await GET(request(), params)).status).toBe(403);
-    expect(mocks.getReview).toHaveBeenCalledOnce();
+    expect(mocks.issueContract).toHaveBeenCalledOnce();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+
+  it("reads a shared part review without leaking the drawing context to a part-only reviewer", async () => {
+    mocks.getReview.mockResolvedValueOnce({ id: "review-one", requestKind: "part_change",
+      requestStatus: "pending", reviewerUserId: null, entityType: "part", canonicalEntityId: "part-one",
+      snapshotPayload: {}, rowVersion: 3, submission: { userId: "submitter" } });
+    mocks.reviewResources.mockResolvedValueOnce(["part"]);
+    const workspace = (kind: string, code: string) => ({
+      kind, identity: { code, revision: null }, files: [], attachments: []
+    });
+    const drawing = { targetKey: "drawing:drawing-one", workspace: workspace("drawing", "DRAWING-HIDDEN") };
+    const part = { targetKey: "part:part-one", workspace: workspace("part", "PART-VISIBLE") };
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "part_change", primaryTargetKey: "part:part-one", decisionBasis: { version: 1 },
+      targets: [drawing, part], matrix: { drawings: [drawing], parts: [part],
+        cells: [{ drawingNumber: "DRAWING-HIDDEN", partNumber: "PART-VISIBLE" }] }
+    });
+    mocks.evaluate.mockImplementationOnce(async (_tx, _verified, checks) =>
+      checks.map((check: { permissionCode: string }) => ({
+        principalId: "principal-one", permissionCode: check.permissionCode, allowed: false
+      })));
+
+    const response = await GET(request(), params);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(JSON.stringify(body)).not.toContain("DRAWING-HIDDEN");
+    expect(body.data.targets.map((target: { targetKey: string }) => target.targetKey)).toEqual(["part:part-one"]);
+    expect(body.data.matrix).toMatchObject({ drawings: [], cells: [] });
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified, [
+      { permissionKind: "action", permissionCode: "approval.inbox.view", resourceGroup: "drawing" },
+      { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" }
+    ]);
   });
 
   it("hides other reviewers' requests and rejects unmigrated review kinds", async () => {

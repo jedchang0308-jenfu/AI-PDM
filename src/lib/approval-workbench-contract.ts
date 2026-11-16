@@ -1,5 +1,23 @@
 import type { PdmWorkbenchListResponse } from "@/lib/pdm-workbench-contract";
 
+export const SHARED_REVIEW_ENTRY_PERMISSIONS = [
+  { permissionKind: "action", permissionCode: "approval.inbox.view", resourceGroup: "drawing" },
+  { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" },
+  { permissionKind: "action", permissionCode: "approval.inbox.view", resourceGroup: "part" },
+  { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" },
+  { permissionKind: "action", permissionCode: "transfer.package.view", resourceGroup: "transfer" },
+  { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "transfer" },
+] as const;
+
+export function sharedReviewEntryAccess(decisions: readonly { allowed: boolean }[]) {
+  const [drawingView, drawingReview, partView, partReview, transferView, transferReview] = decisions;
+  return {
+    drawing: drawingView?.allowed === true && drawingReview?.allowed === true,
+    part: partView?.allowed === true && partReview?.allowed === true,
+    transfer: transferView?.allowed === true && transferReview?.allowed === true,
+  };
+}
+
 export type ApprovalWorkbenchStatus =
   | "active"
   | "all"

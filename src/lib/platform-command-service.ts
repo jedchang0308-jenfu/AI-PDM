@@ -261,6 +261,9 @@ async function executeWithinClient<TPayload, TResult>(
       if (input.command.commandName === "pdm.transfer.submit_package_review" ||
           input.command.commandName === "pdm.transfer.decide_package_review") {
         permissions[0] = { ...permissions[0], resourceGroup: "transfer" };
+        if (verified.permissions && input.command.commandName === "pdm.transfer.decide_package_review") {
+          permissions.push({ permissionKind: "action", permissionCode: "transfer.package.view", resourceGroup: "transfer" });
+        }
       }
       if (dynamicAttachmentPolicy && attachmentAuthorization) {
         const parentGroups = attachmentAuthorization.groups.filter(group => group !== "model");

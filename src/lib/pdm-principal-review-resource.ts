@@ -287,6 +287,7 @@ export async function requirePrincipalReviewResourceCapabilitiesInSnapshot(
   const release = shared ? envelope.decisionBasis.lifecycle?.intent : undefined;
   const permissions = [
     { permissionKind: "action" as const, permissionCode: "approval.request.decide", resourceGroup: parent },
+    ...(shared ? [{ permissionKind: "action" as const, permissionCode: "approval.inbox.view", resourceGroup: parent }] : []),
     ...(groups.includes("model")
       ? [{ permissionKind: "action" as const, permissionCode: "pdm.model.review", resourceGroup: "model" as const }]
       : []),

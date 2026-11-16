@@ -83,6 +83,24 @@ describe("Principal approval inbox", () => {
     }));
   });
 
+  it("opens the shared inbox for a drawing-only reviewer without relying on a broad inbox grant", async () => {
+    mocks.withVerified.mockImplementationOnce(async (_input, action) => action(snapshot, {
+      ...verified, permissions: { catalogVersion: "ai-pdm.role-policy.fixture" }
+    }));
+    mocks.evaluate.mockImplementation(async (_tx, _verified,
+      checks: { permissionCode: string; resourceGroup?: string }[]) => checks.map(check => {
+      const allowed = check.resourceGroup === "drawing";
+      return { ...check, allowed, principalId: "principal-one",
+        decisionCode: allowed ? "allowed" : "permission_not_granted" };
+    }));
+    expect((await GET(request())).status).toBe(200);
+    expect(mocks.withVerified).toHaveBeenCalledOnce();
+    expect(mocks.listPrincipal).toHaveBeenCalledWith(expect.objectContaining({
+      includeAssigned: false,
+      sharedAccess: expect.objectContaining({ drawing: true, part: false, transfer: false })
+    }));
+  });
+
   it("rejects missing or denied Principal access before reading an inbox", async () => {
     expect((await GET(request(false))).status).toBe(401);
     mocks.evaluate.mockResolvedValueOnce([{

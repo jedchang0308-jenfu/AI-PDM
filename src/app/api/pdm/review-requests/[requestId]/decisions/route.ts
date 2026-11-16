@@ -31,10 +31,13 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
     const context = dev087CommandContext(request);
     return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (tx, verified) => {
       const companyId = verified.profile.companyId;
-      const item = await new PdmWorkReviewAsyncRepository(tx).get(tx, { companyId, requestId });
-      const resourceGroup = item?.requestKind === "part_change" ? "part" as const
-        : item?.requestKind === "drawing_revision" || item?.requestKind === "drawing_rd_void"
-          ? "drawing" as const : undefined;
+      const reviews = new PdmWorkReviewAsyncRepository(tx);
+      const item = await reviews.get(tx, { companyId, requestId });
+      const terminal = item ? null
+        : await reviews.getTerminalReceipt(tx, { companyId, requestId }, { includeRequestKind: true });
+      const kind = item?.requestKind ?? terminal?.requestKind;
+      const resourceGroup = kind === "part_change" ? "part" as const
+        : kind === "drawing_revision" || kind === "drawing_rd_void" ? "drawing" as const : undefined;
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified,
         [{ permissionKind: "action", permissionCode: "approval.request.decide",
           ...(resourceGroup ? { resourceGroup } : {}) }]);

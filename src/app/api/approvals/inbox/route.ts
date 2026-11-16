@@ -11,6 +11,7 @@ import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { SHARED_REVIEW_ENTRY_PERMISSIONS, sharedReviewEntryAccess } from "@/lib/approval-workbench-contract";
 import { buildPdmApprovalOwnerHref } from "@/lib/pdm-approval-owner-route";
 import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
 
@@ -62,10 +63,12 @@ export async function GET(request: Request) {
         return NextResponse.json({ code: "principal_dependency_unavailable" },
           { status: 503, headers: { "cache-control": "no-store" } });
       }
-      if (!decision.allowed) return jenfuEntitlementFailureResponse(decision.decisionCode);
       const sharedAccess = await readSharedAccess(snapshot, verified);
+      if (!decision.allowed && !(sharedAccess?.drawing || sharedAccess?.part || sharedAccess?.transfer)) {
+        return jenfuEntitlementFailureResponse(decision.decisionCode);
+      }
       return renderInbox(request, verified.profile.companyId, verified.session.principalId,
-        verified.profile.pdmUserId, repository, { sharedAccess });
+        verified.profile.pdmUserId, repository, { sharedAccess, includeAssigned: decision.allowed });
     });
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError
@@ -92,18 +95,17 @@ async function readSharedAccess(snapshot: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest): Promise<SharedReviewInboxAccess | undefined> {
   if (!verified.permissions && !isVerifiedLocalTestAdmin(verified, snapshot)) return undefined;
   const checks = [
-    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" },
-    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "part" },
-    { permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "transfer" },
+    ...SHARED_REVIEW_ENTRY_PERMISSIONS,
     { permissionKind: "action", permissionCode: "pdm.model.review", resourceGroup: "model" },
     { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "drawing" },
     { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "part" }
   ] satisfies PrincipalWorkspacePermission[];
-  const [drawing, part, transfer, model, publishDrawing, publishPart] =
-    await readInboxDecisions(snapshot, verified, checks);
+  const decisions = await readInboxDecisions(snapshot, verified, checks);
+  const entry = sharedReviewEntryAccess(decisions);
+  const [model, publishDrawing, publishPart] = decisions.slice(SHARED_REVIEW_ENTRY_PERMISSIONS.length);
   const dynamic = verified.permissions?.catalogVersion.startsWith("ai-pdm.role-policy.") === true;
-  return { drawing: drawing.allowed, part: part.allowed, transfer: transfer.allowed,
-    model: !dynamic || model.allowed, publishDrawing: publishDrawing.allowed, publishPart: publishPart.allowed };
+  return { ...entry, model: !dynamic || model.allowed,
+    publishDrawing: publishDrawing.allowed, publishPart: publishPart.allowed };
 }
 
 async function readInboxDecisions(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
@@ -120,7 +122,8 @@ async function readInboxDecisions(snapshot: AsyncDatabaseClient, verified: Verif
 
 async function renderInbox(request: Request, companyId: string, principalId: string,
   reviewerProfileId: string, repository: AsyncApprovalPlatformRepository,
-  access: { sharedAccess?: SharedReviewInboxAccess; readable?: Pick<SharedReviewInboxAccess, "drawing" | "part" | "transfer"> }) {
+  access: { sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean;
+    readable?: Pick<SharedReviewInboxAccess, "drawing" | "part" | "transfer"> }) {
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status") ?? (access.readable ? "all" : "active");
   const status = (allowedStatuses.has(statusParam) ? statusParam : "active") as
@@ -166,7 +169,8 @@ async function renderInbox(request: Request, companyId: string, principalId: str
   };
   const page = access.readable
     ? await repository.listPrincipalSubmittedReviews({ ...filter, readable: access.readable })
-    : await repository.listPrincipalWorkReviewInbox({ ...filter, ...(access.sharedAccess ? { sharedAccess: access.sharedAccess } : {}) });
+    : await repository.listPrincipalWorkReviewInbox({ ...filter, includeAssigned: access.includeAssigned,
+      ...(access.sharedAccess ? { sharedAccess: access.sharedAccess } : {}) });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
   const ownerItems = access.readable ? page.items : page.items.map((item) => ({

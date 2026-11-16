@@ -262,7 +262,10 @@ describe("principal-first PDM command actor", () => {
       permissions: {
         version: 1, sourceVersion: "test", assignmentVersion: 1, assignmentVersionId: "test",
         catalogVersion: "ai-pdm.role-policy.fixture", employeeName: null, scopes: [["global", null]],
-        permissions: { "action:approval.request.decide:8": [[0, true, "rd_manager", "fixture"]] }
+        permissions: {
+          "action:approval.request.decide:8": [[0, true, "rd_manager", "fixture"]],
+          "action:transfer.package.view:8": [[0, true, "rd_manager", "fixture"]]
+        }
       }
     };
     const saved = vi.spyOn(PlatformOutboxAsyncRepository.prototype, "findCompletedCommand")

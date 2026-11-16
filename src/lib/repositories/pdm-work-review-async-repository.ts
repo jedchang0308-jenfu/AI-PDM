@@ -22,6 +22,7 @@ export type PdmWorkReviewTerminalReceipt = {
   requestId: string;
   companyId: string;
   decidedAt: string;
+  requestKind?: PdmWorkReviewRequestRecord["requestKind"] | null;
 };
 type ReviewRow = {
   id: string; company_id: string; request_kind: PdmWorkReviewRequestRecord["requestKind"];
@@ -126,9 +127,11 @@ export class PdmWorkReviewAsyncRepository {
     );
   }
 
-  async getTerminalReceipt(tx: AsyncDatabaseClient, input: { companyId: string; requestId: string }) {
+  async getTerminalReceipt(tx: AsyncDatabaseClient, input: { companyId: string; requestId: string },
+    options: { includeRequestKind?: boolean } = {}) {
     return tx.queryOne<PdmWorkReviewTerminalReceipt>(
       `SELECT request_id AS requestId, company_id AS companyId, decided_at AS decidedAt
+       ${options.includeRequestKind ? ', request_kind AS "requestKind"' : ""}
        FROM pdm_work_review_terminal_receipts
        WHERE request_id = :requestId AND company_id = :companyId`,
       input

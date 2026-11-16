@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), verifyContract: vi.fn(),
-  getReview: vi.fn(), decidePart: vi.fn(), decideDrawing: vi.fn(),
+  getReview: vi.fn(), getTerminalReceipt: vi.fn(), decidePart: vi.fn(), decideDrawing: vi.fn(),
   replay: vi.fn(), legacyActor: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
@@ -20,7 +20,7 @@ vi.mock("@/lib/pdm-workbench-authority-control", () => ({
   verifyCanonicalWorkbenchCommandContract: mocks.verifyContract
 }));
 vi.mock("@/lib/repositories/pdm-work-review-async-repository", () => ({
-  PdmWorkReviewAsyncRepository: class { get = mocks.getReview; }
+  PdmWorkReviewAsyncRepository: class { get = mocks.getReview; getTerminalReceipt = mocks.getTerminalReceipt; }
 }));
 vi.mock("@/lib/part-change-work", () => ({
   PartChangeWorkService: class { decidePrincipal = mocks.decidePart; }
@@ -107,8 +107,11 @@ describe("principal DEV-087 decision route", () => {
 
   it("reads an exact principal receipt when the completed request is gone", async () => {
     mocks.getReview.mockResolvedValueOnce(null);
+    mocks.getTerminalReceipt.mockResolvedValueOnce({ requestKind: "drawing_revision" });
     mocks.replay.mockResolvedValueOnce({ acknowledged: true });
     expect((await POST(request(), params)).status).toBe(200);
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
+      [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" }]);
     expect(mocks.replay).toHaveBeenCalledWith(tx, verified,
       expect.objectContaining({ command: "review.decision", effectKey: "review:review-one" }),
       expect.any(Function));

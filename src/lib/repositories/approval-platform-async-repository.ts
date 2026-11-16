@@ -817,7 +817,7 @@ export class AsyncApprovalPlatformRepository {
   }
 
   async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & {
-    companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess
+    companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean
   }):
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
@@ -930,7 +930,7 @@ export class AsyncApprovalPlatformRepository {
   }
 
   private async listPrincipalTransferReviewInbox(input: ApprovalPlatformInboxFilter &
-    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess }): Promise<ApprovalPlatformInboxItem[]> {
+    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean }): Promise<ApprovalPlatformInboxItem[]> {
     if (this.client.kind !== "postgres" || !input.principalId || !input.actorId) return [];
     if (input.domainCode && input.domainCode !== "transfer") return [];
     if (input.actionCode && input.actionCode !== "transfer.package_review") return [];
@@ -955,7 +955,7 @@ export class AsyncApprovalPlatformRepository {
         AND request.action_code = 'transfer.package_review'
         AND request.request_status = 'pending'
         AND (
-          (request.payload_json->'reviewer'->>'version' = '1'
+          (:includeAssigned AND request.payload_json->'reviewer'->>'version' = '1'
            AND request.payload_json->'reviewer'->>'principalId' = :principalId
            AND request.payload_json->'reviewer'->>'profileId' = :actorId)
           ${input.sharedAccess?.transfer ? `OR (request.payload_json->>'reviewMode' = 'shared'
@@ -964,7 +964,7 @@ export class AsyncApprovalPlatformRepository {
         ${search.sql}
       ORDER BY request.requested_at DESC, request.id DESC
     `, { companyId: input.companyId, principalId: input.principalId,
-      actorId: input.actorId, ...search.params });
+      actorId: input.actorId, includeAssigned: input.includeAssigned !== false, ...search.params });
     return rows.map((row) => ({
       rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id, source: "platform" as const, companyId: row.company_id,
@@ -1274,6 +1274,7 @@ export class AsyncApprovalPlatformRepository {
     cursor?: ApprovalPlatformInboxCursor | null;
     supportedRequestKinds?: readonly PdmWorkReviewRequestKind[];
     sharedAccess?: SharedReviewInboxAccess;
+    includeAssigned?: boolean;
     limit?: number;
   }): Promise<ApprovalPlatformInboxItem[]> {
     if (!input.actorId) return [];
@@ -1364,7 +1365,7 @@ export class AsyncApprovalPlatformRepository {
       LEFT JOIN users requester
         ON requester.id = ${requesterId}
       WHERE review.company_id = :companyId
-        AND (${shared ? `review.reviewer_user_id = :actorId OR (
+        AND (${shared ? `(:includeAssigned AND review.reviewer_user_id = :actorId) OR (
           review.reviewer_user_id IS NULL AND review.submitted_by IS NOT NULL
           AND (NOT review.requires_model_review OR :sharedModel)
           AND ((review.entity_type = 'drawing' AND :sharedDrawing
@@ -1387,6 +1388,7 @@ export class AsyncApprovalPlatformRepository {
         ...kindParams,
         ...search.params,
         ...(shared ? {
+          includeAssigned: input.includeAssigned !== false,
           sharedDrawing: shared.drawing, sharedPart: shared.part, sharedModel: shared.model,
           sharedPublishDrawing: shared.publishDrawing, sharedPublishPart: shared.publishPart
         } : {}),
