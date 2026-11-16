@@ -65,6 +65,22 @@ describe("principal-keyed numbering permission projection", () => {
     expect(mocks.legacyAuth).not.toHaveBeenCalled();
   });
 
+  it("shows the approval workbench for a reviewer of only one resource group", async () => {
+    vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
+    vi.stubEnv("PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED", "1");
+    mocks.evaluate.mockImplementation(async ({ permissions }) => permissions.map(
+      ({ permissionCode, resourceGroup }: { permissionCode: string; resourceGroup?: string }) => ({
+        permissionCode, allowed: resourceGroup === "drawing"
+      })));
+    try {
+      const response = await GET(request());
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.actions["approval.inbox.view"]).toBe(true);
+      expect(mocks.evaluate).toHaveBeenCalledOnce();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it("rejects absent and retired sessions before evaluating permissions", async () => {
     const absent = new Request("https://pdm.example/api/numbering/permissions");
     const retired = new Request("https://pdm.example/api/numbering/permissions", {

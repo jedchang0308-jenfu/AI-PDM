@@ -9,7 +9,7 @@ vi.mock("@/lib/auth-async", () => ({
   requirePdmRouteAuthorizationAsync: vi.fn()
 }));
 vi.mock("@/lib/platform-command-context", () => ({
-  requireNumberingPlatformCommandAsync: mocks.commandAccess
+  withTransferReviewCommand: mocks.commandAccess
 }));
 vi.mock("@/lib/transfer-package-phase1d", () => ({
   decideTransferPackageReview: mocks.decide
@@ -17,6 +17,9 @@ vi.mock("@/lib/transfer-package-phase1d", () => ({
 vi.mock("@/lib/approval-platform", () => ({
   getApprovalPlatformRequestDetailForCompanyAsync: mocks.readDetail,
   decideApprovalPlatformRequestAsync: vi.fn()
+}));
+vi.mock("@/lib/repositories/approval-platform-async-repository", () => ({
+  AsyncApprovalPlatformRepository: class { getRequestDetail = mocks.readDetail; }
 }));
 vi.mock("@/lib/number-state-flow-api", () => ({
   validateNumberStateMutationRequest: () => null
@@ -45,8 +48,9 @@ beforeEach(() => {
   mocks.sliceConfigured = false;
   mocks.sliceActive = false;
   mocks.oldAuth.mockResolvedValue({ response: Response.json({ code: "old_auth_rejected" }, { status: 503 }) });
-  mocks.commandAccess.mockResolvedValue({ response: null,
-    actor: { organizationId: "company-jenfu" }, metadata: { idempotencyKey: "transfer-decision-one" } });
+  mocks.commandAccess.mockImplementation((_request, _input, execute) => execute({}, {
+    actor: { organizationId: "company-jenfu" }, idempotencyKey: "transfer-decision-one"
+  }));
   mocks.readDetail.mockResolvedValue({ id: requestId, status: "approved" });
 });
 
@@ -56,10 +60,10 @@ describe("Principal transfer-review decision route", () => {
     expect(response.status).toBe(200);
     expect(mocks.oldAuth).not.toHaveBeenCalled();
     expect(mocks.commandAccess).toHaveBeenCalledWith(expect.any(Request), expect.objectContaining({
-      permissionCode: "approval.request.decide", discriminator: "approval_decision:transfer_package"
-    }));
+      action: "transfer.package.review.decide"
+    }), expect.any(Function));
     expect(mocks.decide).toHaveBeenCalledWith(expect.objectContaining({ requestId,
-      metadata: { idempotencyKey: "transfer-decision-one" } }));
+      metadata: expect.objectContaining({ idempotencyKey: "transfer-decision-one" }) }));
     expect(mocks.readDetail).toHaveBeenCalledWith(requestId, "company-jenfu");
   });
 

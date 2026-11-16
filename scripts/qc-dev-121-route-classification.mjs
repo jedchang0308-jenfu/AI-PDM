@@ -223,7 +223,7 @@ const explicitPermissionCalls = new Map([
   ["GET /api/numbering/drawings", ["approval.request.decide"]],
   ["POST /api/submissions/[id]/cancel", ["submission.view", "submission.review"]]
 ]);
-const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
+const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|withTransferReviewCommand|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
 const workerCapabilityGuard = /\b(?:authenticateWorkerService)\s*\(/u;
 function containsAll(source, needles, label) {
@@ -320,7 +320,7 @@ function permissionReferences(sourceFile) {
       const name = node.expression.text;
       if (["requireNumberingPermissionAsync", "requireNumberingPageAsync", "requireNumberingActionAsync", "canUserUseNumberingActionAsync", "requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"].includes(name)) literalAt(node, 1, name);
       if (name === "requireNumberingCompanyPermissionAsync") literalAt(node, 2, name);
-      if (name === "requireNumberingPlatformCommandAsync" && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
+      if (["requireNumberingPlatformCommandAsync", "withTransferReviewCommand"].includes(name) && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
         let actionCode = "";
         let permissionCode = "";
         for (const property of node.arguments[1].properties) {
@@ -328,6 +328,7 @@ function permissionReferences(sourceFile) {
           if (property.name.getText(sourceFile) === "action") actionCode = property.initializer.text;
           if (property.name.getText(sourceFile) === "permissionCode") permissionCode = property.initializer.text;
         }
+        if (name === "withTransferReviewCommand" && actionCode === "transfer.package.review.decide") permissionCode = "approval.request.decide";
         if (permissionCode || actionCode) references.push({ code: permissionCode || actionCode, call: name, line: lineAt(node) });
       }
       if (name === "checkNumberingPermissionAsync" && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) {

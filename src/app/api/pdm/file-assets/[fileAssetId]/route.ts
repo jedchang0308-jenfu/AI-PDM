@@ -1,3 +1,4 @@
+import { canAccessWorkReviewAssignment } from "@/lib/pdm-work-review";
 import { auditStorageAccess } from "@/lib/storage-access-audit";
 import { readApprovalEvidenceFileSource } from "@/lib/pdm-approval-evidence-file-source";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
@@ -17,6 +18,7 @@ import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { isVerifiedLocalTestAdmin } from "@/lib/local-test-admin";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
+import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { AsyncApprovalPlatformRepository } from "@/lib/repositories/approval-platform-async-repository";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
 import { authorizeDynamicResourceCapabilityInSnapshot, canonicalCapabilityGroups,
@@ -496,8 +498,9 @@ async function principalFileRead(request: Request, token: string, input: {
         const actorId = verified.profile.pdmUserId;
         const review = await new PdmWorkReviewAsyncRepository(tx).get(tx,
           { companyId, requestId: input.reviewRequestId });
-        if (!review || review.reviewerUserId !== actorId || review.requestStatus !== "pending" ||
-            !["part_change", "drawing_revision"].includes(review.requestKind) ||
+        if (!review || !canAccessWorkReviewAssignment(review, actorId) || review.requestStatus !== "pending" ||
+            (review.requestKind !== "part_change" && review.requestKind !== "drawing_revision" &&
+              !(review.requestKind === "drawing_rd_void" && review.reviewerUserId === null)) ||
             parseReviewPackageSnapshot(review.snapshotPayload).kind !== "v2") return null;
         const resourceGroup = review.requestKind === 'part_change' ? 'part' : 'drawing';
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, [
@@ -509,6 +512,19 @@ async function principalFileRead(request: Request, token: string, input: {
           contextId: input.contextId, bindingId: input.bindingId,
           fileAssetId: input.fileAssetId, companyId });
         if (!found) return null;
+        if (review.reviewerUserId === null) {
+          const envelope = verifyReviewPackageIntegrity(review.snapshotPayload, review.snapshotHash);
+          await requirePrincipalReviewResourceCapabilitiesInSnapshot(tx, verified, {
+            companyId, requestKind: review.requestKind, entityType: resourceGroup,
+            entityId: review.canonicalEntityId, workId: review.workId, envelope
+          }, { shared: true, strictSnapshot: false });
+          const target = envelope.targets.find(candidate =>
+            candidate.targetKey === reviewPackageTargetKey("drawing", found.linked_entity_id) ||
+            candidate.targetKey === reviewPackageTargetKey("part", found.linked_entity_id));
+          const file = target && [...target.workspace.files, ...target.workspace.attachments].find(candidate =>
+            candidate.bindingId === input.bindingId && candidate.sourceFileAssetId === found.id);
+          return file && (!file.contentHash || file.contentHash === found.content_hash) ? finish(found) : null;
+        }
         const scope = await verifyReviewScope({ client: tx, source: found,
           context: "review_package", contextId: input.contextId,
           bindingId: input.bindingId, reviewRequestId: input.reviewRequestId,

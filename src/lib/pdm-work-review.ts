@@ -4,6 +4,15 @@ import { PdmWorkReviewAsyncRepository, type PdmWorkReviewRequestRecord } from "@
 
 export type Dev087ReviewDecision = "approve" | "return_for_correction";
 
+/** The caller must separately verify the action, company and resource scope. */
+export function canAccessWorkReviewAssignment(request: PdmWorkReviewRequestRecord, actorId: string) {
+  return request.reviewerUserId === null ? Boolean(request.submission) : request.reviewerUserId === actorId;
+}
+
+export function sharedWorkReviewWritesEnabled() {
+  return process.env.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED === "1";
+}
+
 /** Disposable-local QC fault profile; empty in every normal runtime. */
 export type Dev087FaultHandling = "system_admin" | "blocked";
 
@@ -27,7 +36,8 @@ export function dev087FaultReason(handling: Dev087FaultHandling) {
 export async function recordDev087Fault(
   tx: AsyncDatabaseClient,
   request: PdmWorkReviewRequestRecord,
-  handling: Dev087FaultHandling
+  handling: Dev087FaultHandling,
+  actorId?: string
 ) {
   const repository = new PdmWorkReviewAsyncRepository(tx);
   await tx.execute(
@@ -35,7 +45,8 @@ export async function recordDev087Fault(
      WHERE company_id = :companyId AND work_id = :workId`,
     { ...request, handling, reason: handling === "blocked" ? dev087FaultReason(handling) : null }
   );
-  await repository.recordTerminalReceipt(tx, request);
+  await repository.recordTerminalReceipt(tx, request,
+    actorId ? { actorId, decision: "approve", applyFailed: true } : undefined);
   await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, request);
   return { acknowledged: true };
 }
@@ -47,14 +58,16 @@ export function validateDev087ReviewDecision(value: unknown): Dev087ReviewDecisi
   return value;
 }
 
-export async function returnDev087WorkForCorrection(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord) {
+export async function returnDev087WorkForCorrection(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord,
+  actorId?: string) {
   const repository = new PdmWorkReviewAsyncRepository(tx);
   await repository.appendTrace(tx, request);
   await tx.execute(
     `UPDATE canonical_workbench_states SET handling = 'owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
      WHERE company_id = :companyId AND work_id = :workId AND handling = 'review_owner'`, request
   );
-  await repository.recordTerminalReceipt(tx, request);
+  await repository.recordTerminalReceipt(tx, request,
+    actorId ? { actorId, decision: "return_for_correction" } : undefined);
   await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, request);
   return { acknowledged: true };
 }

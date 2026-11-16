@@ -4,6 +4,7 @@ import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-comman
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-package-principal-resource";
 import { selectPrincipalReviewerIdentityInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
+import { sharedWorkReviewWritesEnabled } from "@/lib/pdm-work-review";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
 import {
   AsyncNumberStateFlowRepository,
@@ -107,8 +108,10 @@ function parseJson<T>(value: string | T): T {
 type TransferReviewPayload = {
   transferPackageId: string;
   snapshotHash: string;
-  reviewer: { version: 1; principalId: string; profileId: string };
-};
+} & (
+  { reviewMode: "shared"; reviewer?: never } |
+  { reviewMode?: never; reviewer: { version: 1; principalId: string; profileId: string } }
+);
 
 function requireTransferReviewPayload(value: unknown): TransferReviewPayload {
   let parsed: unknown;
@@ -117,11 +120,16 @@ function requireTransferReviewPayload(value: unknown): TransferReviewPayload {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉審核者綁定無效。", 409);
   }
-  const payload = parsed as { transferPackageId?: unknown; snapshotHash?: unknown; reviewer?: unknown };
-  const reviewer = payload.reviewer;
+  const payload = parsed as { transferPackageId?: unknown; snapshotHash?: unknown; reviewer?: unknown; reviewMode?: unknown };
   if (typeof payload.transferPackageId !== "string" || !payload.transferPackageId ||
-      typeof payload.snapshotHash !== "string" || !/^[a-f0-9]{64}$/u.test(payload.snapshotHash) ||
-      !reviewer || typeof reviewer !== "object" || Array.isArray(reviewer) ||
+      typeof payload.snapshotHash !== "string" || !/^[a-f0-9]{64}$/u.test(payload.snapshotHash)) {
+    throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉送審快照綁定無效。", 409);
+  }
+  const reviewer = payload.reviewer;
+  if (payload.reviewMode === "shared" && reviewer === undefined) {
+    return { transferPackageId: payload.transferPackageId, snapshotHash: payload.snapshotHash, reviewMode: "shared" };
+  }
+  if (payload.reviewMode !== undefined || !reviewer || typeof reviewer !== "object" || Array.isArray(reviewer) ||
       (reviewer as { version?: unknown }).version !== 1 ||
       typeof (reviewer as { principalId?: unknown }).principalId !== "string" ||
       !(reviewer as { principalId: string }).principalId ||
@@ -757,6 +765,7 @@ export async function submitTransferPackageReview(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    inVerifiedSnapshot: input.metadata.inVerifiedSnapshot,
     execute: async (client, principalDecision) => {
       const companyId = input.metadata.actor.organizationId;
       const row = await client.queryOne<{ package_status: string; row_version: number; review_request_id: string | null; owner_id: string }>(
@@ -807,10 +816,10 @@ export async function submitTransferPackageReview(input: {
       if (!readiness.ready) {
         throw new TransferPackageError(readiness.firstBlocker?.code ?? "TRANSFER_NOT_READY", readiness.firstBlocker?.message ?? "技轉包尚未準備完成。", 409);
       }
-      const reviewer = await selectPrincipalReviewerIdentityInSnapshot(client, {
+      const reviewer = sharedWorkReviewWritesEnabled() ? null : await selectPrincipalReviewerIdentityInSnapshot(client, {
         companyId, ownerUserId: row.owner_id, resourceGroup: 'transfer'
       });
-      if (reviewer.profileId === row.owner_id) {
+      if (reviewer?.profileId === row.owner_id) {
         throw new TransferPackageError("TRANSFER_REVIEWER_REQUIRED", "技轉包負責人不可審核自己的送審。", 409);
       }
       const requestId = id("APR-TRF");
@@ -833,7 +842,9 @@ export async function submitTransferPackageReview(input: {
           requestedBy: input.metadata.actor.pdmUserId,
           requestedAt: now,
           payloadJson: JSON.stringify({ transferPackageId: input.packageId, snapshotHash: readiness.snapshotHash,
-            reviewer: { version: 1, principalId: reviewer.principalId, profileId: reviewer.profileId } }),
+            ...(reviewer
+              ? { reviewer: { version: 1, principalId: reviewer.principalId, profileId: reviewer.profileId } }
+              : { reviewMode: "shared" }) }),
           createdAt: now,
           updatedAt: now
         }
@@ -1028,6 +1039,7 @@ export async function decideTransferPackageReview(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    inVerifiedSnapshot: input.metadata.inVerifiedSnapshot,
     execute: async (client, principalDecision) => {
       const request = await client.queryOne<{ id: string; request_status: string; payload_json: unknown }>(
         `SELECT id, request_status, payload_json FROM approval_platform_requests
@@ -1038,11 +1050,11 @@ export async function decideTransferPackageReview(input: {
       if (!request) throw new TransferPackageError("APPROVAL_REQUEST_NOT_FOUND", "找不到審核申請。", 404);
       if (request.request_status !== "pending") throw new TransferPackageError("APPROVAL_REQUEST_ALREADY_DECIDED", "審核申請已有決定。", 409);
       const payload = requireTransferReviewPayload(request.payload_json);
-      if (payload.reviewer.principalId !== input.metadata.actor.principalId ||
-          payload.reviewer.profileId !== input.metadata.actor.pdmUserId ||
+      if ((payload.reviewer && (payload.reviewer.principalId !== input.metadata.actor.principalId ||
+          payload.reviewer.profileId !== input.metadata.actor.pdmUserId)) ||
           !principalDecision?.allowed || principalDecision.principalId !== input.metadata.actor.principalId ||
           principalDecision.permissionCode !== "approval.request.decide") {
-        throw new TransferPackageError("TRANSFER_REVIEWER_NOT_ASSIGNED", "僅指定且仍有權限的審核者可決定此技轉案。", 403);
+        throw new TransferPackageError("TRANSFER_REVIEWER_NOT_ASSIGNED", "無權限決定此技轉案。", 403);
       }
       const pkg = await client.queryOne<{ id: string; review_snapshot_hash: string }>(
         `SELECT id, review_snapshot_hash FROM transfer_packages

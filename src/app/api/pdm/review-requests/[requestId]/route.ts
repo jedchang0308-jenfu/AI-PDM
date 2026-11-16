@@ -1,3 +1,5 @@
+import { canAccessWorkReviewAssignment } from "@/lib/pdm-work-review";
+import { SHARED_REVIEW_ENTRY_PERMISSIONS } from "@/lib/approval-workbench-contract";
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
@@ -9,10 +11,11 @@ import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
-import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
   const principalToken = principalSessionTokenFromRequest(request);
@@ -26,20 +29,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
           { status: 503, headers: { "cache-control": "no-store" } });
       }
       const { requestId } = await params;
-      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request), async (tx, verified) => {
-        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, [
-          { permissionKind: "action", permissionCode: "approval.inbox.view" },
-          { permissionKind: "action", permissionCode: "approval.request.decide" }
-        ]);
-        if (decisions.length !== 2 || decisions.some((decision) => !decision.allowed)) {
-          return jenfuEntitlementFailureResponse(
-            decisions.find((decision) => !decision.allowed)?.decisionCode ?? "permission_not_granted");
-        }
-        return readAssignedReview(tx, requestId, {
-          id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
-          permissions: { decide: true }
-        });
-      }, { readOnly: true, isolationLevel: "repeatable_read" });
+      return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request),
+        (tx, verified) => readWorkReview(tx, requestId, verified),
+        { readOnly: true, isolationLevel: "repeatable_read" });
     } catch (error) {
       return error instanceof JenfuPrincipalRequestError
         ? principalRequestFailure(error) : dev087RouteError(error);
@@ -48,14 +40,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
   return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
 }
 
-async function readAssignedReview(client: AsyncDatabaseClient, requestId: string,
-  actor: { id: string; companyId: string; permissions: { decide: boolean } }) {
+async function readWorkReview(client: AsyncDatabaseClient, requestId: string,
+  verified: VerifiedPrincipalRequest) {
+  const actor = { id: verified.profile.pdmUserId, companyId: verified.profile.companyId };
   try {
     const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: actor.companyId, requestId });
-    if (!item || item.reviewerUserId !== actor.id || !actor.permissions.decide || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
+    if (!item || !canAccessWorkReviewAssignment(item, actor.id) || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
     if (!["part_change", "drawing_revision", "drawing_rd_void"].includes(item.requestKind)) {
       return Response.json({ code: "principal_review_kind_not_migrated" },
         { status: 503, headers: { "cache-control": "no-store" } });
+    }
+    if (item.reviewerUserId !== null) {
+      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, [
+        { permissionKind: "action", permissionCode: "approval.inbox.view" },
+        { permissionKind: "action", permissionCode: "approval.request.decide" }
+      ]);
+      if (decisions.length !== 2 || decisions.some((decision) => !decision.allowed)) {
+        return jenfuEntitlementFailureResponse(
+          decisions.find((decision) => !decision.allowed)?.decisionCode ?? "permission_not_granted");
+      }
     }
     const parsedSnapshot = parseReviewPackageSnapshot(item.snapshotPayload);
     if (parsedSnapshot.kind === "invalid") throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
@@ -69,8 +72,33 @@ async function readAssignedReview(client: AsyncDatabaseClient, requestId: string
       throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
         "審核包格式無效", 409);
     }
+    let visibleTargets = packageValue.targets;
+    let visibleMatrix = packageValue.matrix;
+    if (item.reviewerUserId === null) {
+      await requirePrincipalReviewResourceCapabilitiesInSnapshot(client, verified, {
+        companyId: actor.companyId, requestKind: item.requestKind,
+        entityType: item.requestKind === "part_change" ? "part" : "drawing",
+        entityId: item.canonicalEntityId, workId: item.workId, envelope: packageValue
+      }, { shared: true, strictSnapshot: false });
+      const anotherKind = item.entityType === "drawing" ? "part" : "drawing";
+      if (packageValue.targets.some(target => target.workspace.kind === anotherKind)) {
+        const checks = SHARED_REVIEW_ENTRY_PERMISSIONS.filter(permission => permission.resourceGroup === anotherKind);
+        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, checks);
+        if (decisions.length !== checks.length || decisions.some((decision, index) =>
+          decision.principalId !== verified.session.principalId || decision.permissionCode !== checks[index].permissionCode)) {
+          throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+        }
+        if (decisions.some(decision => !decision.allowed)) {
+          visibleTargets = packageValue.targets.filter(target => target.workspace.kind !== anotherKind);
+          visibleMatrix = { ...packageValue.matrix,
+            drawings: anotherKind === "drawing" ? [] : packageValue.matrix.drawings,
+            parts: anotherKind === "part" ? [] : packageValue.matrix.parts,
+            cells: [] };
+        }
+      }
+    }
     const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
-    const targetSummaries = packageValue.targets.map((target) => ({
+    const targetSummaries = visibleTargets.map((target) => ({
       targetKey: target.targetKey,
       ...splitReviewPackageTargetKey(target.targetKey),
       number: target.workspace.identity.code,
@@ -141,7 +169,7 @@ async function readAssignedReview(client: AsyncDatabaseClient, requestId: string
         reasonCode: reviewBasisState === "stale" ? "DRAWING_PRODUCTION_BASE_STALE" : null },
       primaryTargetKey: packageValue.primaryTargetKey,
       root: packageValue.root,
-      matrix: packageValue.matrix,
+      matrix: visibleMatrix,
       packageHash: packageValue.packageHash,
       submittedAt: packageValue.submittedAt,
       lifecycle: packageValue.decisionBasis.version === 2 ? packageValue.decisionBasis.lifecycle : null,

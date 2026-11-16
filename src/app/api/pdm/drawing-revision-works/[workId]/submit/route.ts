@@ -10,9 +10,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ wor
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts", method: "POST",
     permissionCode: "numbering.candidate.review.submit", resourceGroup: "drawing", readOnly: false
-  }, async (tx, verified) => {
+  }, async (tx, verified, capability) => {
     const { workId } = await params;
     return dev087Success(await new DrawingRevisionWorkService(tx)
-      .submitPrincipal(workId, verified, dev087CommandContext(request)));
+      .submitPrincipal(workId, verified, dev087CommandContext(request), capability));
   });
 }

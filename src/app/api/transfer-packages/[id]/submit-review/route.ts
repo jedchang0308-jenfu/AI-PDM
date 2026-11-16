@@ -1,6 +1,8 @@
-import { numberStateFlowJson, requireNumberStateCommandAccessAsync, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
+import { numberStateFlowJson, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import { submitTransferPackageReview } from "@/lib/transfer-package-phase1d";
 import { requiredTransferVersion, transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
+
+import { withTransferReviewCommand } from "@/lib/platform-command-context";
 
 export const runtime = "nodejs";
 
@@ -10,17 +12,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
   const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
   if (invalid) return invalid;
-  const access = await requireNumberStateCommandAccessAsync(request, "transfer.package.review.submit", body);
-  if (access.response || !access.metadata) return access.response;
   const { id } = await params;
   try {
-    const result = await submitTransferPackageReview({
-      metadata: access.metadata,
-      packageId: id,
-      expectedRowVersion: requiredTransferVersion(body.expectedRowVersion ?? body.expected_row_version),
-      reason: String(body.reason ?? "技術移轉整包審核").trim().slice(0, 1000)
-    });
-    return numberStateFlowJson(result);
+    return await withTransferReviewCommand(request, { action: "transfer.package.review.submit", body },
+      async (_client, metadata) => numberStateFlowJson(await submitTransferPackageReview({
+        metadata,
+        packageId: id,
+        expectedRowVersion: requiredTransferVersion(body.expectedRowVersion ?? body.expected_row_version),
+        reason: String(body.reason ?? "技術移轉整包審核").trim().slice(0, 1000)
+      })));
   } catch (error) {
     return transferPhase1dErrorResponse(error, "submit_review");
   }

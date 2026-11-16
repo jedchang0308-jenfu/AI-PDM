@@ -1,7 +1,7 @@
 import { DrawingRevisionWorkService } from "@/lib/drawing-revision-work";
 import { PartChangeWorkService } from "@/lib/part-change-work";
 import { dev087CommandContext, dev087Json, dev087RouteError, dev087Success } from "@/lib/pdm-dev087-route";
-import { validateDev087ReviewDecision } from "@/lib/pdm-work-review";
+import { canAccessWorkReviewAssignment, validateDev087ReviewDecision } from "@/lib/pdm-work-review";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
@@ -31,10 +31,13 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
     const context = dev087CommandContext(request);
     return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(token, request), async (tx, verified) => {
       const companyId = verified.profile.companyId;
-      const item = await new PdmWorkReviewAsyncRepository(tx).get(tx, { companyId, requestId });
-      const resourceGroup = item?.requestKind === "part_change" ? "part" as const
-        : item?.requestKind === "drawing_revision" || item?.requestKind === "drawing_rd_void"
-          ? "drawing" as const : undefined;
+      const reviews = new PdmWorkReviewAsyncRepository(tx);
+      const item = await reviews.get(tx, { companyId, requestId });
+      const terminal = item ? null
+        : await reviews.getTerminalReceipt(tx, { companyId, requestId }, { includeRequestKind: true });
+      const kind = item?.requestKind ?? terminal?.requestKind;
+      const resourceGroup = kind === "part_change" ? "part" as const
+        : kind === "drawing_revision" || kind === "drawing_rd_void" ? "drawing" as const : undefined;
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified,
         [{ permissionKind: "action", permissionCode: "approval.request.decide",
           ...(resourceGroup ? { resourceGroup } : {}) }]);
@@ -59,7 +62,7 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
         return Response.json({ code: "principal_review_kind_not_migrated" },
           { status: 503, headers: { "cache-control": "no-store" } });
       }
-      if (item.reviewerUserId !== verified.profile.pdmUserId) {
+      if (!canAccessWorkReviewAssignment(item, verified.profile.pdmUserId)) {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核項目不存在", 404);
       }
       const result = item.requestKind === "drawing_revision" ||

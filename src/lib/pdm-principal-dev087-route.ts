@@ -2,7 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest,
   type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { principalRequestFailure, principalRequestInput } from "@/lib/jenfu-principal-http";
-import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot, type PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
@@ -14,6 +14,11 @@ type PrincipalRouteInput = {
   resourceGroup?: "drawing" | "part" | "model" | "transfer";
   readOnly: boolean;
 };
+
+/** Reuse the route decision only for the same actor, transaction and exact capability. */
+export type ReadPrincipalRouteCapability = (client: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest, permissionCode: string,
+  resourceGroup: PrincipalRouteInput["resourceGroup"]) => PrincipalWorkspaceDecision;
 
 class PrincipalRouteWriteRejected extends Error {
   constructor(readonly response: Response) { super("principal_route_write_rejected"); }
@@ -32,7 +37,7 @@ export function principalDev087RoutePolicyAvailable(request: Request,
 /** Keep route policy, principal admission, permission and the resource decision in one snapshot. */
 export async function withPrincipalDev087Route(request: Request, token: string,
   input: PrincipalRouteInput,
-  execute: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) => Promise<Response>) {
+  execute: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest, capability: ReadPrincipalRouteCapability) => Promise<Response>) {
   try {
     if (!principalDev087RoutePolicyAvailable(request, input)) {
       return Response.json({ code: "principal_route_policy_unavailable" },
@@ -53,7 +58,13 @@ export async function withPrincipalDev087Route(request: Request, token: string,
         if (!decision.allowed) {
           return jenfuEntitlementFailureResponse(decision.decisionCode);
         }
-        const response = await execute(tx, verified);
+        const capability: ReadPrincipalRouteCapability = (client, actor, code, group) => {
+          if (client !== tx || actor !== verified || code !== input.permissionCode || group !== input.resourceGroup) {
+            throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+          }
+          return decision;
+        };
+        const response = await execute(tx, verified, capability);
         if (!input.readOnly && !response.ok) throw new PrincipalRouteWriteRejected(response);
         return response;
       }, { readOnly: input.readOnly,

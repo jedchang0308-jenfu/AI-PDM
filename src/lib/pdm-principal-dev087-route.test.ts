@@ -44,7 +44,12 @@ describe("principal DEV-087 route boundary", () => {
       expect.any(Function), { readOnly: false, isolationLevel: "serializable" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
       [{ permissionKind: "action", permissionCode: "numbering.workspace.update" }]);
-    expect(execute).toHaveBeenCalledWith(tx, verified);
+    expect(execute).toHaveBeenCalledWith(tx, verified, expect.any(Function));
+    const readCapability = execute.mock.calls[0][2];
+    expect(readCapability(tx, verified, input.permissionCode, undefined)).toMatchObject({ allowed: true });
+    expect(() => readCapability({ ...tx }, verified, input.permissionCode, undefined)).toThrow();
+    expect(() => readCapability(tx, verified, input.permissionCode, "part")).toThrow();
+    expect(mocks.evaluate).toHaveBeenCalledOnce();
   });
 
   it("passes a fixed server route target group without changing the declared legacy policy", async () => {

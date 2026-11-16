@@ -120,7 +120,7 @@ describe("principal review target and comparison", () => {
     expect(mocks.reviewResources).toHaveBeenCalledWith(tx,verified,{
       companyId:"company-one",requestKind:"drawing_revision",entityType:"drawing",
       entityId:"drawing-one",workId:"work-one",envelope:expect.any(Object)
-    },{strictSnapshot:false});
+    },{strictSnapshot:false,shared:false});
     expect(mocks.readCurrent).toHaveBeenCalledWith(tx, {
       companyId: "company-one", entityType: "drawing", entityId: "drawing-one",
       workId: "work-one"
@@ -146,6 +146,21 @@ describe("principal review target and comparison", () => {
       expect(mocks.readCurrent).not.toHaveBeenCalled();
       expect(mocks.compare).not.toHaveBeenCalled();
     });
+
+  it("authorizes an unassigned review before reading its current target", async () => {
+    mocks.getReview.mockResolvedValueOnce({ id: "review-one", requestKind: "drawing_revision",
+      requestStatus: "pending", reviewerUserId: null, companyId: "company-one",
+      canonicalEntityId: "drawing-one", workId: "work-one", rowVersion: 4,
+      snapshotPayload: {}, snapshotHash: "package-hash", submission: { userId: "owner" } });
+    mocks.reviewResources.mockRejectedValueOnce(
+      new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403));
+    const result = await targetGET(request(), params);
+    expect(result.status).toBe(403);
+    expect(mocks.reviewResources).toHaveBeenCalledWith(tx, verified,
+      expect.objectContaining({ companyId: "company-one", entityId: "drawing-one" }),
+      { strictSnapshot: false, shared: true });
+    expect(mocks.readCurrent).not.toHaveBeenCalled();
+  });
 
   it("hides another reviewer's target and rejects a legacy package", async () => {
     mocks.getReview.mockResolvedValueOnce({ requestKind: "drawing_revision",

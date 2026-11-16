@@ -1,3 +1,4 @@
+import type { ReadPrincipalRouteCapability } from "@/lib/pdm-principal-dev087-route";
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
@@ -12,12 +13,12 @@ import { assertRequiredDrawingFiles } from "@/lib/pdm-file-ownership";
 import { dev087RequestHash, replayDev087TerminalReceipt, runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError, parseCanonicalRowKey } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
-import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
+import { beginDev087Approval, canAccessWorkReviewAssignment, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, sharedWorkReviewWritesEnabled, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { DrawingRevisionWorkAsyncRepository, parseCanonicalRevision, type RevisionTuple } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository, type PdmWorkReviewRequestRecord } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 import { resolvePrincipalReviewResourceGroupsInSnapshot,
-  requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
+  requirePrincipalReviewResourceCapabilitiesInSnapshot, sharedWorkReviewAssignment } from "@/lib/pdm-principal-review-resource";
 import { hydrateDrawingChangeImpactForWork, validateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
 import { createFileStorageService } from "@/lib/file-storage";
 import { deriveDrawingRevisionBasis, type DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
@@ -71,13 +72,14 @@ function validateDrawingPayload(value: unknown) {
 }
 
 async function returnDrawingRdVoidReview(tx: AsyncDatabaseClient,
-  review: PdmWorkReviewRequestRecord, reviews: PdmWorkReviewAsyncRepository) {
+  review: PdmWorkReviewRequestRecord, reviews: PdmWorkReviewAsyncRepository, actorId?: string) {
   await reviews.appendTrace(tx, review);
   await tx.execute(`UPDATE canonical_workbench_states SET handling = 'none',
     row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
     WHERE company_id = :companyId AND branch_id = :branchId
       AND handling = 'review_owner'`, review);
-  await reviews.recordTerminalReceipt(tx, review);
+  await reviews.recordTerminalReceipt(tx, review,
+    actorId ? { actorId, decision: "return_for_correction" } : undefined);
   await tx.execute(`DELETE FROM pdm_work_review_requests
     WHERE id = :id AND company_id = :companyId`, review);
   return { acknowledged: true as const };
@@ -85,7 +87,7 @@ async function returnDrawingRdVoidReview(tx: AsyncDatabaseClient,
 
 async function approveDrawingRdVoidReview(tx: AsyncDatabaseClient,
   review: PdmWorkReviewRequestRecord, reviews: PdmWorkReviewAsyncRepository,
-  expectedBasisHash: string) {
+  expectedBasisHash: string, actorId?: string) {
   const current = await tx.queryOne<{
     drawing_id: string; branch_id: string; revision_id: string; revision: string;
     branch_status: string; latest_approved_revision_id: string | null;
@@ -126,7 +128,8 @@ async function approveDrawingRdVoidReview(tx: AsyncDatabaseClient,
       row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
     WHERE company_id = :companyId AND entity_type = 'drawing'
       AND canonical_entity_id = :canonicalEntityId AND open_branch_count > 0`, review);
-  await reviews.recordTerminalReceipt(tx, review);
+  await reviews.recordTerminalReceipt(tx, review,
+    actorId ? { actorId, decision: "approve" } : undefined);
   await tx.execute(`DELETE FROM pdm_work_review_requests
     WHERE id = :id AND company_id = :companyId`, review);
   return { acknowledged: true as const };
@@ -137,13 +140,15 @@ export class DrawingRevisionWorkService {
   private verify(actor: DrawingRevisionActor, token: string) { return verifyCanonicalWorkbenchCommandContract(this.client, { companyId: actor.companyId, actorId: actor.id, token }); }
 
   private async requirePrincipalCapability(verified: VerifiedPrincipalRequest,
-    permissionCode: string) {
+    permissionCode: string, capability?: ReadPrincipalRouteCapability) {
     if (this.client.kind !== "postgres" || this.client.transactionScope !== "postgres" ||
         verified.session.contractVersion !== "jenfu.ai-pdm-session.v2") {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
-    const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "drawing" }]);
+    const decision = capability
+      ? capability(this.client, verified, permissionCode, "drawing")
+      : (await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
+        verified, [{ permissionKind: "action", permissionCode, resourceGroup: "drawing" }]))[0];
     if (!decision?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -472,9 +477,9 @@ export class DrawingRevisionWorkService {
   }
 
   async submitPrincipal(workId: string, verified: VerifiedPrincipalRequest,
-    context: CommandContext) {
+    context: CommandContext, capability?: ReadPrincipalRouteCapability) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.candidate.review.submit");
+      "numbering.candidate.review.submit", capability);
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId, token: context.contractToken });
     return runPrincipalDev087Command(this.client, verified, {
@@ -558,18 +563,23 @@ export class DrawingRevisionWorkService {
       const packagePayload = principalOnly || reviewPackageV2WriteEnabled()
         ? await buildReviewPackage(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, decisionBasis: { hash: legacySnapshotHash, ...decisionBasis } })
         : { payload: snapshotPayload, revisionId: locked.revision_id, claimId: locked.target_claim_id };
-      const reviewerUserId = principalOnly
-        ? await selectPrincipalReviewerInSnapshot(tx, {
-          companyId, ownerUserId: locked.owner_user_id, resourceGroup: "drawing",
-          resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
-            companyId, requestKind: "drawing_revision", entityType: "drawing",
-            entityId: locked.drawing_id, workId,
-            envelope: packagePayload as ReviewPackageEnvelope
-          }),
-          ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {})
-        })
-        : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
-      const request = await reviews.create(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, reviewerUserId, snapshotPayload: packagePayload, snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : legacySnapshotHash });
+      const assignment = principalOnly && sharedWorkReviewWritesEnabled()
+        ? await sharedWorkReviewAssignment(tx, {
+          companyId, requestKind: "drawing_revision", entityType: "drawing",
+          entityId: locked.drawing_id, workId, envelope: packagePayload as ReviewPackageEnvelope
+        }, principalOwnerId!)
+        : { reviewerUserId: principalOnly
+          ? await selectPrincipalReviewerInSnapshot(tx, {
+            companyId, ownerUserId: locked.owner_user_id, resourceGroup: "drawing",
+            resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+              companyId, requestKind: "drawing_revision", entityType: "drawing",
+              entityId: locked.drawing_id, workId,
+              envelope: packagePayload as ReviewPackageEnvelope
+            }),
+            ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {})
+          })
+          : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id }) };
+      const request = await reviews.create(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, ...assignment, snapshotPayload: packagePayload, snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : legacySnapshotHash });
       await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'in_review', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`, { companyId, revisionId: locked.revision_id });
       await tx.execute(`UPDATE canonical_workbench_states SET handling = 'review_owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND work_id = :workId AND handling = 'owner'`, { companyId, workId }); return { requestId: request.id, reviewCycleId: request.reviewCycleId, rowVersion: request.rowVersion };
   }
@@ -614,9 +624,9 @@ export class DrawingRevisionWorkService {
   }
 
   async requestVoidPrincipal(branchId: string, rowKey: string,
-    verified: VerifiedPrincipalRequest, context: CommandContext) {
+    verified: VerifiedPrincipalRequest, context: CommandContext, capability?: ReadPrincipalRouteCapability) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.draft.obsolete");
+      "numbering.draft.obsolete", capability);
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId,
         token: context.contractToken });
@@ -648,21 +658,26 @@ export class DrawingRevisionWorkService {
         decisionBasis: { hash: basisHash, payload: snapshot,
           revisionId: locked.revision_id, claimId: null }
       });
-      const reviewerUserId = await selectPrincipalReviewerInSnapshot(tx, {
-        companyId: profile.companyId, ownerUserId: profile.profileId,
-        resourceGroup: "drawing",
-        resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+      const assignment = sharedWorkReviewWritesEnabled()
+        ? await sharedWorkReviewAssignment(tx, {
           companyId: profile.companyId, requestKind: "drawing_rd_void",
-          entityType: "drawing", entityId: locked.drawing_id, workId: null,
-          envelope: reviewPackage
-        })
-      });
+          entityType: "drawing", entityId: locked.drawing_id, workId: null, envelope: reviewPackage
+        }, profile.profileId)
+        : { reviewerUserId: await selectPrincipalReviewerInSnapshot(tx, {
+          companyId: profile.companyId, ownerUserId: profile.profileId,
+          resourceGroup: "drawing",
+          resourceGroups: await resolvePrincipalReviewResourceGroupsInSnapshot(tx, {
+            companyId: profile.companyId, requestKind: "drawing_rd_void",
+            entityType: "drawing", entityId: locked.drawing_id, workId: null,
+            envelope: reviewPackage
+          })
+        }) };
       let review;
       try {
         review = await reviews.create(tx, {
           companyId: profile.companyId, requestKind: "drawing_rd_void",
           entityType: "drawing", canonicalEntityId: locked.drawing_id,
-          branchId, reviewerUserId, snapshotPayload: reviewPackage,
+          branchId, ...assignment, snapshotPayload: reviewPackage,
           snapshotHash: reviewPackage.packageHash
         });
       } catch (error) {
@@ -737,7 +752,7 @@ export class DrawingRevisionWorkService {
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const locked = await reviews.get(tx, { companyId: profile.companyId, requestId }, true);
       if (!locked || !["drawing_revision", "drawing_rd_void"].includes(locked.requestKind) ||
-          locked.reviewerUserId !== profile.profileId || locked.requestStatus !== "pending" ||
+          !canAccessWorkReviewAssignment(locked, profile.profileId) || locked.requestStatus !== "pending" ||
           locked.rowVersion !== context.expectedRowVersion ||
           (locked.requestKind === "drawing_revision" && !locked.workId) ||
           (locked.requestKind === "drawing_rd_void" &&
@@ -763,24 +778,24 @@ export class DrawingRevisionWorkService {
         companyId: profile.companyId, requestKind: locked.requestKind,
         entityType: "drawing", entityId: locked.canonicalEntityId,
         workId: locked.workId, envelope: verifiedPackage
-      }, { strictSnapshot: decision !== "return_for_correction" });
+      }, { strictSnapshot: decision !== "return_for_correction", shared: locked.reviewerUserId === null });
       if (locked.requestKind === "drawing_rd_void") {
         if (decision === "return_for_correction") {
-          return returnDrawingRdVoidReview(tx, locked, reviews);
+          return returnDrawingRdVoidReview(tx, locked, reviews, profile.profileId);
         }
         assertReviewPackageRecognitionReady(verifiedPackage);
         await beginDev087Approval(tx, locked);
         const faultHandling = dev087FaultHandling();
-        if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
+        if (faultHandling) return recordDev087Fault(tx, locked, faultHandling, profile.profileId);
         return approveDrawingRdVoidReview(tx, locked, reviews,
-          verifiedPackage.decisionBasis.hash);
+          verifiedPackage.decisionBasis.hash, profile.profileId);
       }
       const repository = new DrawingRevisionWorkAsyncRepository(tx);
       const work = await repository.readWork(tx, profile.companyId, locked.workId!, true);
       if (decision === "return_for_correction") {
         if (work) await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'correction_required', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`,
           { companyId: profile.companyId, revisionId: work.revision_id });
-        return returnDev087WorkForCorrection(tx, locked);
+        return returnDev087WorkForCorrection(tx, locked, profile.profileId);
       }
       assertReviewPackageRecognitionReady(verifiedPackage);
       if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
@@ -842,11 +857,11 @@ export class DrawingRevisionWorkService {
         { companyId: profile.companyId, entityType: "drawing", entityId: work.drawing_id });
       await beginDev087Approval(tx, locked);
       const faultHandling = dev087FaultHandling();
-      if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
+      if (faultHandling) return recordDev087Fault(tx, locked, faultHandling, profile.profileId);
       await repository.formalize(tx, { companyId: profile.companyId, work,
         expectedWorkRowVersion: frozenWorkRowVersion,
         ...(lifecycleBasis ? { lifecycleBasis } : {}) });
-      await reviews.recordTerminalReceipt(tx, locked);
+      await reviews.recordTerminalReceipt(tx, locked, { actorId: profile.profileId, decision });
       await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked);
       return { acknowledged: true as const };
     });

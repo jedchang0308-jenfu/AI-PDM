@@ -45,7 +45,10 @@ vi.mock("@/lib/repositories/pdm-principal-reviewer-selector", () => ({
 }));
 vi.mock("@/lib/pdm-principal-review-resource", () => ({
   resolvePrincipalReviewResourceGroupsInSnapshot: mocks.resolveReviewResources,
-  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.checkReviewResources
+  requirePrincipalReviewResourceCapabilitiesInSnapshot: mocks.checkReviewResources,
+  sharedWorkReviewAssignment: async (_tx: AsyncDatabaseClient, _input: unknown, submittedBy: string) => ({
+    reviewerUserId: null, submittedBy, requiresModelReview: false, requiresPublish: false
+  })
 }));
 vi.mock("@/lib/pdm-work-review", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-work-review")>(),
@@ -120,7 +123,20 @@ describe("principal part-review decision", () => {
       expect.objectContaining({ command: "review.decision", effectKey: "review:review-one" }),
       expect.any(Function));
     expect(mocks.returnForCorrection).toHaveBeenCalledWith(tx,
-      expect.objectContaining({ reviewerUserId: "profile-one" }));
+      expect.objectContaining({ reviewerUserId: "profile-one" }), "profile-one");
+  });
+
+  it("lets the submitter return a shared case when the case permissions allow it", async () => {
+    mocks.getReview.mockResolvedValueOnce({
+      id: "review-one", requestKind: "part_change", reviewerUserId: null,
+      submission: { userId: "profile-one", submittedAt: "2026-11-16T01:00:00Z" },
+      requestStatus: "pending", rowVersion: 3, workId: "work-one", snapshotPayload: {}
+    });
+    await expect(new PartChangeWorkService(tx)
+      .decidePrincipal("review-one", "return_for_correction", verified, context))
+      .resolves.toEqual({ acknowledged: true });
+    expect(mocks.returnForCorrection).toHaveBeenCalledWith(tx,
+      expect.objectContaining({ reviewerUserId: null }), "profile-one");
   });
 
   it("denies a revoked capability or changed reviewer before any business mutation", async () => {
@@ -148,6 +164,20 @@ describe("principal part-review decision", () => {
 });
 
 describe("principal part-review submission", () => {
+  it("makes a shared request without reading candidates when enabled", async () => {
+    vi.stubEnv("PDM_SHARED_WORK_REVIEW_WRITE_ENABLED", "1");
+    try {
+      await new PartChangeWorkService(tx).submitPrincipal("work-one", verified, context);
+      expect(mocks.selectPrincipalReviewer).not.toHaveBeenCalled();
+      expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
+      expect(mocks.createReview).toHaveBeenCalledWith(tx, expect.objectContaining({
+        reviewerUserId: null, submittedBy: "profile-one", snapshotHash: "a".repeat(64)
+      }));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("selects a principal reviewer and writes only an immutable v2 package", async () => {
     const result = await new PartChangeWorkService(tx)
       .submitPrincipal("work-one", verified, context);

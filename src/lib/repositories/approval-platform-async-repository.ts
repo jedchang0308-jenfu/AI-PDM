@@ -242,7 +242,7 @@ type PdmWorkReviewInboxRow = {
   request_kind: PdmWorkReviewRequestKind;
   entity_type: "drawing" | "part";
   canonical_entity_id: string;
-  reviewer_user_id: string;
+  reviewer_user_id: string | null;
   requested_at: string;
   requested_by: string | null;
   requested_by_name: string | null;
@@ -269,6 +269,15 @@ type ApprovalPlatformInboxFilter = {
   allowedActionCodes?: string[];
   query?: string;
   cursor?: ApprovalPlatformInboxCursor | null;
+};
+
+export type SharedReviewInboxAccess = {
+  drawing: boolean;
+  part: boolean;
+  transfer: boolean;
+  model: boolean;
+  publishDrawing: boolean;
+  publishPart: boolean;
 };
 
 export type ApprovalPlatformInboxCursor = {
@@ -807,19 +816,121 @@ export class AsyncApprovalPlatformRepository {
       input, limit);
   }
 
-  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string; principalId: string }):
+  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & {
+    companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean
+  }):
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const [reviews, transferReviews] = await Promise.all([
-      this.listPdmWorkReviewInbox({ ...input, limit: 500, supportedRequestKinds:
+      this.listPdmWorkReviewInbox({ ...input, cursor: null, limit: undefined, supportedRequestKinds:
         ["drawing_revision", "drawing_rd_void", "part_change"] }),
       this.listPrincipalTransferReviewInbox(input)
     ]);
     return paginateInboxItems([...reviews, ...transferReviews], input, limit);
   }
 
+  async listPrincipalSubmittedReviews(input: ApprovalPlatformInboxFilter & {
+    companyId: string; actorId: string; readable: Pick<SharedReviewInboxAccess, "drawing" | "part" | "transfer">
+  }): Promise<ApprovalPlatformInboxPage> {
+    const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
+    const direction = input.cursor?.direction ?? "after";
+    const before = direction === "before";
+    const search = approvalSearchPredicate(input.query, ["id", "target_code", "title", "action_title"]);
+    const rowKey = `('approval:' || source || ':' || id)`;
+    type SubmittedRow = { id: string; source: "pdm_work_review" | "platform";
+      action_code: string; action_title: string; domain_code: string; target_code: string;
+      title: string; requested_at: string; status: ApprovalPlatformStatus };
+    const result = await this.client.queryOne<{
+      rows: SubmittedRow[]; total: number; pending: number; needs_info: number; apply_failed: number
+    }>(`
+      WITH native_requests AS (
+        SELECT id, entity_type, canonical_entity_id, request_kind, created_at AS requested_at,
+               CASE WHEN request_status = 'apply_failed' THEN 'apply_failed' ELSE 'pending' END AS status
+        FROM pdm_work_review_requests WHERE company_id = :companyId AND submitted_by = :actorId
+        UNION ALL
+        SELECT request_id, CASE WHEN request_kind = 'part_change' THEN 'part' ELSE 'drawing' END,
+               canonical_entity_id, request_kind, submitted_at,
+               CASE WHEN apply_failed THEN 'apply_failed'
+                    WHEN decision = 'approve' THEN 'approved' ELSE 'needs_info' END
+        FROM pdm_work_review_terminal_receipts WHERE company_id = :companyId AND submitted_by = :actorId
+      ), submitted AS (
+        SELECT n.id, 'pdm_work_review' AS source, 'numbering' AS domain_code,
+               CASE n.request_kind
+                 WHEN 'drawing_revision' THEN 'numbering.pdm_drawing_revision_review'
+                 WHEN 'drawing_rd_void' THEN 'numbering.pdm_drawing_rd_void_review'
+                 ELSE 'numbering.pdm_part_change_review' END AS action_code,
+               CASE n.request_kind WHEN 'drawing_revision' THEN '圖面研發版審核'
+                 WHEN 'drawing_rd_void' THEN '圖面研發版作廢審核' ELSE '料號變更審核' END AS action_title,
+               COALESCE(d.drawing_number, p.part_number, n.canonical_entity_id) AS target_code,
+               COALESCE(d.purpose_description, p.part_name, n.canonical_entity_id) AS title,
+               n.requested_at, n.status
+        FROM native_requests n
+        LEFT JOIN drawings d ON n.entity_type = 'drawing' AND d.id = n.canonical_entity_id AND d.company_id = :companyId
+        LEFT JOIN part_numbers p ON n.entity_type = 'part' AND p.id = n.canonical_entity_id AND p.company_id = :companyId
+        WHERE n.request_kind IN ('drawing_revision','drawing_rd_void','part_change')
+          AND ((n.entity_type = 'drawing' AND :viewDrawing AND d.id IS NOT NULL)
+               OR (n.entity_type = 'part' AND :viewPart AND p.id IS NOT NULL))
+        UNION ALL
+        SELECT request.id, 'platform', 'transfer', 'transfer.package_review', '技轉包審核',
+               package.id, request.title, request.requested_at,
+               CASE WHEN request.apply_status = 'failed' THEN 'apply_failed' ELSE request.request_status END
+        FROM approval_platform_requests request
+        JOIN transfer_packages package ON package.id = request.payload_json->>'transferPackageId'
+          AND package.company_id = request.company_id
+        WHERE :viewTransfer AND request.company_id = :companyId AND request.requested_by = :actorId
+          AND request.action_code = 'transfer.package_review'
+      ), matched AS (
+        SELECT * FROM submitted
+        WHERE (:domain = '' OR domain_code = :domain) AND (:action = '' OR action_code = :action)
+          AND (:status = 'all' OR status = :status
+            OR (:status = 'active' AND status IN ('pending', 'needs_info', 'apply_failed')))
+          ${search.sql}
+      ), page AS (
+        SELECT *, ${rowKey} AS row_key FROM matched
+        ${input.cursor ? `WHERE (requested_at ${before ? ">" : "<"} CAST(:at AS timestamptz)
+          OR (requested_at = CAST(:at AS timestamptz) AND ${rowKey} ${before ? "<" : ">"} :rowKey))` : ""}
+        ORDER BY requested_at ${before ? "ASC" : "DESC"}, row_key ${before ? "DESC" : "ASC"}
+        LIMIT :pageLimit
+      )
+      SELECT (SELECT COALESCE(jsonb_agg(to_jsonb(page) || jsonb_build_object('requested_at', requested_at::text)
+                     ORDER BY requested_at ${before ? "ASC" : "DESC"}, row_key ${before ? "DESC" : "ASC"}), '[]'::jsonb)
+              FROM page) AS rows,
+        COUNT(*)::int AS total,
+        (COUNT(*) FILTER (WHERE status = 'pending'))::int AS pending,
+        (COUNT(*) FILTER (WHERE status = 'needs_info'))::int AS needs_info,
+        (COUNT(*) FILTER (WHERE status = 'apply_failed'))::int AS apply_failed
+      FROM matched
+    `, { companyId: input.companyId, actorId: input.actorId, viewDrawing: input.readable.drawing,
+      viewPart: input.readable.part, viewTransfer: input.readable.transfer,
+      domain: input.domainCode ?? "", action: input.actionCode ?? "", status: input.status ?? "all",
+      pageLimit: limit + 1, ...search.params,
+      ...(input.cursor ? { at: input.cursor.sortValue, rowKey: input.cursor.rowKey } : {}) });
+    if (!result) return paginateInboxItems([], input, limit);
+    const more = result.rows.length > limit;
+    const pageRows = result.rows.slice(0, limit);
+    if (before) pageRows.reverse();
+    const items: ApprovalPlatformInboxItem[] = pageRows.map(row => ({
+      rowKey: approvalPlatformInboxRowKey(row.source, row.id), id: row.id, source: row.source,
+      companyId: input.companyId, actionCode: row.action_code, actionTitle: row.action_title,
+      domainCode: row.domain_code, title: row.title, status: row.status, reason: "",
+      requestedBy: input.actorId, requestedByName: null, requestedAt: row.requested_at,
+      packageId: null, packageCode: null, packageStatus: null, targetSummary: row.target_code,
+      impactSummary: null, legacy: null, historyOnly: true
+    }));
+    const first = items[0], last = items.at(-1);
+    return {
+      items,
+      nextCursor: last && (before ? Boolean(input.cursor) : more)
+        ? { sortValue: last.requestedAt, rowKey: last.rowKey, direction: "after" } : null,
+      previousCursor: first && (before ? more : Boolean(input.cursor))
+        ? { sortValue: first.requestedAt, rowKey: first.rowKey, direction: "before" } : null,
+      summary: { total: result.total, pending: result.pending,
+        needsInfo: result.needs_info, applyFailed: result.apply_failed }
+    };
+  }
+
   private async listPrincipalTransferReviewInbox(input: ApprovalPlatformInboxFilter &
-    { companyId: string; actorId: string; principalId: string }): Promise<ApprovalPlatformInboxItem[]> {
+    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean }): Promise<ApprovalPlatformInboxItem[]> {
     if (this.client.kind !== "postgres" || !input.principalId || !input.actorId) return [];
     if (input.domainCode && input.domainCode !== "transfer") return [];
     if (input.actionCode && input.actionCode !== "transfer.package_review") return [];
@@ -843,15 +954,17 @@ export class AsyncApprovalPlatformRepository {
       WHERE request.company_id = :companyId
         AND request.action_code = 'transfer.package_review'
         AND request.request_status = 'pending'
-        AND request.payload_json->'reviewer'->>'version' = '1'
-        AND request.payload_json->'reviewer'->>'principalId' = :principalId
-        AND request.payload_json->'reviewer'->>'profileId' = :actorId
+        AND (
+          (:includeAssigned AND request.payload_json->'reviewer'->>'version' = '1'
+           AND request.payload_json->'reviewer'->>'principalId' = :principalId
+           AND request.payload_json->'reviewer'->>'profileId' = :actorId)
+          ${input.sharedAccess?.transfer ? `OR (request.payload_json->>'reviewMode' = 'shared'
+            AND request.payload_json->'reviewer' IS NULL)` : ""}
+        )
         ${search.sql}
       ORDER BY request.requested_at DESC, request.id DESC
-      LIMIT 501
     `, { companyId: input.companyId, principalId: input.principalId,
-      actorId: input.actorId, ...search.params });
-    if (rows.length > 500) throw new Error("PRINCIPAL_TRANSFER_INBOX_LIMIT_EXCEEDED");
+      actorId: input.actorId, includeAssigned: input.includeAssigned !== false, ...search.params });
     return rows.map((row) => ({
       rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id, source: "platform" as const, companyId: row.company_id,
@@ -1160,7 +1273,9 @@ export class AsyncApprovalPlatformRepository {
     query?: string;
     cursor?: ApprovalPlatformInboxCursor | null;
     supportedRequestKinds?: readonly PdmWorkReviewRequestKind[];
-    limit: number;
+    sharedAccess?: SharedReviewInboxAccess;
+    includeAssigned?: boolean;
+    limit?: number;
   }): Promise<ApprovalPlatformInboxItem[]> {
     if (!input.actorId) return [];
     if (input.domainCode?.trim() && input.domainCode.trim() !== "numbering") return [];
@@ -1197,6 +1312,9 @@ export class AsyncApprovalPlatformRepository {
         : `AND (review.created_at < :pdmCursorSortValue OR (review.created_at = :pdmCursorSortValue AND (:pdmRowKeyPrefix || review.id) > :pdmCursorRowKey))`
       : "";
     const order = cursor?.direction === "before" ? "ASC, review.id DESC" : "DESC, review.id ASC";
+    const shared = this.client.kind === "postgres" ? input.sharedAccess : undefined;
+    const requesterId = `COALESCE(${shared ? "review.submitted_by, " : ""}drawing_work.owner_user_id,
+      part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by)`;
     const rows = await this.client.query<PdmWorkReviewInboxRow>(
       `
       SELECT
@@ -1207,7 +1325,7 @@ export class AsyncApprovalPlatformRepository {
         review.canonical_entity_id,
         review.reviewer_user_id,
         CAST(review.created_at AS TEXT) AS requested_at,
-        COALESCE(drawing_work.owner_user_id, part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by) AS requested_by,
+        ${requesterId} AS requested_by,
         requester.display_name AS requested_by_name,
         COALESCE(drawing.drawing_number, part.part_number) AS target_code,
         COALESCE(drawing.purpose_description, part.part_name) AS target_name,
@@ -1245,23 +1363,35 @@ export class AsyncApprovalPlatformRepository {
         )
        AND revision.company_id = review.company_id
       LEFT JOIN users requester
-        ON requester.id = COALESCE(drawing_work.owner_user_id, part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by)
+        ON requester.id = ${requesterId}
       WHERE review.company_id = :companyId
-        AND review.reviewer_user_id = :actorId
+        AND (${shared ? `(:includeAssigned AND review.reviewer_user_id = :actorId) OR (
+          review.reviewer_user_id IS NULL AND review.submitted_by IS NOT NULL
+          AND (NOT review.requires_model_review OR :sharedModel)
+          AND ((review.entity_type = 'drawing' AND :sharedDrawing
+                AND (NOT review.requires_publish OR :sharedPublishDrawing))
+               OR (review.entity_type = 'part' AND :sharedPart
+                AND (NOT review.requires_publish OR :sharedPublishPart)))
+        )` : "review.reviewer_user_id = :actorId"})
         AND review.request_status = 'pending'
         AND review.request_kind IN (${requestKinds.map((_, index) => `:pdmRequestKind${index}`).join(", ")})
         AND review.entity_type IN ('drawing', 'part')
         ${search.sql}
         ${cursorSql}
       ORDER BY review.created_at ${order}
-      LIMIT :limit
+      ${input.limit ? "LIMIT :limit" : ""}
     `,
       {
         companyId: input.companyId,
         actorId: input.actorId,
-        limit: input.limit,
+        ...(input.limit ? { limit: input.limit } : {}),
         ...kindParams,
         ...search.params,
+        ...(shared ? {
+          includeAssigned: input.includeAssigned !== false,
+          sharedDrawing: shared.drawing, sharedPart: shared.part, sharedModel: shared.model,
+          sharedPublishDrawing: shared.publishDrawing, sharedPublishPart: shared.publishPart
+        } : {}),
         ...(cursor ? { pdmCursorSortValue: cursor.sortValue, pdmCursorRowKey: cursor.rowKey, pdmRowKeyPrefix: "approval:pdm_work_review:" } : {})
       }
     );
@@ -1281,7 +1411,7 @@ export class AsyncApprovalPlatformRepository {
         domainCode: "numbering",
         title: `${action.actionTitle} - ${targetSummary}`,
         status: "pending",
-        reason: "等待審核負責人處理",
+        reason: row.reviewer_user_id === null ? "等待審核" : "等待審核負責人處理",
         requestedBy: row.requested_by,
         requestedByName: row.requested_by_name,
         requestedAt: row.requested_at,

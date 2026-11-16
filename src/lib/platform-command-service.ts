@@ -44,6 +44,7 @@ type CommandInput<TPayload, TResult> = {
   serializable?: boolean;
   principalRequest?: PrincipalRequestInput;
   principalAuthorization?: PdmCommandMetadata["principalAuthorization"];
+  inVerifiedSnapshot?: PdmCommandMetadata["inVerifiedSnapshot"];
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 };
 
@@ -257,6 +258,13 @@ async function executeWithinClient<TPayload, TResult>(
       validatedAttachmentCategory = attachmentAuthorization?.documentCategory;
       const permissions: PrincipalWorkspacePermission[] = [route.permissionCode, ...additional].map((permissionCode) =>
         ({ permissionKind: "action" as const, permissionCode }));
+      if (input.command.commandName === "pdm.transfer.submit_package_review" ||
+          input.command.commandName === "pdm.transfer.decide_package_review") {
+        permissions[0] = { ...permissions[0], resourceGroup: "transfer" };
+        if (verified.permissions && input.command.commandName === "pdm.transfer.decide_package_review") {
+          permissions.push({ permissionKind: "action", permissionCode: "transfer.package.view", resourceGroup: "transfer" });
+        }
+      }
       if (dynamicAttachmentPolicy && attachmentAuthorization) {
         const parentGroups = attachmentAuthorization.groups.filter(group => group !== "model");
         permissions[0] = { ...permissions[0], resourceGroups: parentGroups };
@@ -327,16 +335,15 @@ async function executeWithinClient<TPayload, TResult>(
       if (verifiedActor?.sessionSchemaVersion === 2 && !verified) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
       }
-      if (client.kind === "postgres") {
-        // The verified request and this command share a transaction. Reuse the
-        // account repository's fail-closed activation check; the command must
-        // not consult the per-profile cutover reader a second time.
+      if (client.kind === "postgres" && !verified?.permissions) {
+        // The session snapshot already joins and verifies the active account.
+        // Keep the account check for the compatibility admission path.
         const account = await new JenfuPrincipalAccountRepository(client).requireActive(platformPrincipalId);
         if (account.pdmUserId !== verifiedActor!.localPrincipalId ||
           account.companyId !== verifiedActor!.companyId) {
           throw new Error("PLATFORM_ACTOR_PRINCIPAL_MISMATCH");
         }
-      } else {
+      } else if (client.kind === "sqlite") {
         // SQLite is an isolated historical fixture. It cannot establish a
         // production security subject or publish a principal mapping.
         const principalMapping = await mappingRepository!.findCurrentPrincipal(input.command.actor.pdmUserId);
@@ -365,6 +372,7 @@ async function executeWithinClient<TPayload, TResult>(
       ...input.command,
       actor: {
         ...input.command.actor,
+        ...(input.inVerifiedSnapshot && primaryDecision?.roleCode ? { roles: [primaryDecision.roleCode] } : {}),
         principalId: platformPrincipalId,
         platformOrganizationId: verifiedActor?.sessionSchemaVersion === 2
           ? null : organizationMapping?.platformOrganizationId ?? input.command.actor.platformOrganizationId
@@ -412,6 +420,10 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(
   if (principalActor) {
     if (!input.principalRequest || !input.principalAuthorization) {
       throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
+    }
+    if (input.inVerifiedSnapshot) {
+      return input.inVerifiedSnapshot(input.principalRequest, (client, verified) =>
+        executeWithinClient(input, client, verified));
     }
     return withVerifiedJenfuPrincipalRequest(
       { ...input.principalRequest, database: input.client },
