@@ -360,3 +360,13 @@ npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12
 埠必須與 profile origin 相符，可用 1020 或 12020；既有非本模式或非本工作樹程序不會被替換。安裝僅接受兩個固定 source，source hash 與本機 receipt 原子提交；未知結果先 fresh readback，不重放 DDL。登入頁顯示「以測試超級管理員登入」，不要求帳密或轉向 SSO。
 
 驗證入口為 `npm run test:local-test-admin`。本機已有依賴的針對性驗證、鎖定依賴 CI、純 PDM PostgreSQL component、真人 UI 與持續地端安裝分開記錄；啟用證據以實際登入及本機隔離目標 readback 為準。本途徑不能作正式 SSO／角色授權通過證據，也不授予正式發布或正式資料寫入。
+
+<a id="daily-local-test-binding"></a>
+
+## 1020 日常地端測試接入（2026-11-16）
+
+沿 `JENFU/DEV-021#daily-local-test-binding`，由本次 Platform Codex session 主控四系統整合。AI-PDM 負責辨識原 1020 有效資料來源，及啟動後實際採用的 PostgreSQL、`PDM_DATA_DIR` 與 `PDM_REPOSITORY_DIR`。
+
+- 以 `scripts/start-localhost-3000.ps1` 的有效 env 和 sandbox profile 為檢查點。一般啟動有以該埠下的 data／repository 覆寫環境值的路徑，也存在現有 TestAdmin 入口。日常整合必須明式進入 sandbox 模式，直接驗證並使用一次綁定的 PostgreSQL、data 和 repository；子程序不得改用舊預設目錄或獨立 TestAdmin profile。各模式使用其已驗 target。
+- data 與 repository 沿主控固定測試根目錄的 PDM 子目錄綁定。切換先核對實際路徑、保留既有可用測試資料與附件，確認可回復後再改指向。DEV-128 行使既有來源／遮罩契約；本切片沿用已核對且許可的地端副本，範圍為地端測試。
+- 先用隔離候選完成正常 SSO／拒絕場景，使用標記的測試附件上傳、重開讀回同一檔案，核對 DB metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。結果與候選版本回填既有任務或 PR。2026-11-16 已在固定 1020 從 Portal 正常登入，以合成料號建立 PDF；經 FMS 共用入口重開後透過正式應用 API 讀回同一附件中繼資料及 SHA-256，在 `jf-fms-sandbox/profile/repository` 找到唯一相符檔案。訪客 API 維持 `401`。

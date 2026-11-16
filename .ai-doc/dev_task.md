@@ -51,6 +51,8 @@
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
 
+- 2026-11-16 1020 日常整合、既有檔案讀回與固定路徑的 owner 交接見[日常地端測試與固定路徑](specs/DEV-126-app-scoped-frontend-permission-projection.md#daily-local-test-binding)。
+
 - 2026-11-06 使用者追加 [PDM 獨立本機測試超級管理員](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-test-super-admin)：PR #573 已合併並完成地端 1020 登入／登出／重登入與全部 5 頁、51 操作權限投影驗證；required CI 通過。地端固定入口 `npm run dev:local` 自動啟動或重用專用 PostgreSQL 18，再啟動 1020 TestAdmin runtime；實際入口健康 readback 通過，細節見 §14。使用者另要求複製目前正式資料；本機現有合約 §29.2 禁止 raw rows 落本機／non-production，故未執行未遮罩匯出；既有遮罩 importer 的輸入不是目前正式來源快照，需依核准資料邊界取得可用副本後再接入 PostgreSQL。
 
 - 2026-11-02 Principal v2 quick-login corrective slice 已完成並合併：PR [#563](https://github.com/jedchang0308-jenfu/AI-PDM/pull/563)，merge commit `caf827a5798610fc8ee549bb00acccdf4a76711f`。`/api/auth/local-quick-login` 已移除可選 role／claims 的 legacy session 發行，固定改走 loopback `active` scenario、Platform PKCE handoff、Principal／Employee／grant／company／scope／profile／epoch 驗證及 native v2 session registration/readback；舊 role picker 與未授權自訂 claims 不再是可用入口。合併後 main CI `41376437991` SUCCESS：Production Slice QC 與 DEV-012 Isolated PostgreSQL Cutover 均通過。此為局部 corrective delivery，不改寫既有首敗或未執行證據，也不代表 DEV-126 整體 release acceptance；其餘寫入 allow／deny、lifecycle／drift／recover、固定埠交接、真實非正式整鏈及 managed Principal 撤權仍依下方分母維持未完成／DEFERRED。
