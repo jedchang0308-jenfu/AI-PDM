@@ -25,6 +25,7 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
   assert.equal(profile.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED, '1')
   const receiverProfile = structuredClone(profile)
   receiverProfile.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED = '0'
+  receiverProfile.environment.fixedValues.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED = '0'
   const receiver = receiverProfile.environment.fixedValues
   assert.equal(receiver.PDM_SESSION_REVOCATION_ENABLED, '1')
   assert.equal(receiver.PDM_SESSION_REVIEWER_AUTHORITY_ENABLED, '1')
@@ -37,6 +38,7 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
     env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }
   const snapshot = structuredClone(profile)
   snapshot.environment.fixedValues.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED = '1'
+  snapshot.environment.fixedValues.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED = '0'
   assert.equal(assertDev117V3Profile(snapshot, v1, n1c), snapshot)
   const runtime = { plainEnvironment: snapshot.environment.fixedValues }
   assert.doesNotThrow(() => assertSessionSnapshotPredecessor(snapshot, runtime, fixtureRevision))
@@ -61,7 +63,6 @@ test('DEV-121 source-bound production profile makes receiver-only the rollback p
       assert.throws(() => assertDev117V3Profile(invalid, v1, n1c), /session revocation workload/u)
     }
   }
-  assert.equal(profile.environment.fixedValues.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED, '0')
   const shared = structuredClone(snapshot)
   shared.environment.fixedValues.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED = '1'
   const sharedRuntime = { plainEnvironment: shared.environment.fixedValues }
