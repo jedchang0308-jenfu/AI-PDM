@@ -47,6 +47,8 @@ http://localhost:1020
 
 `dev:local` 是受控本機啟動入口，預設使用 1020，並檢查 login 與 auth API 的 HTTP 健康狀態。需要在同一 session 使用 12020 時：
 
+日常四系統測試由 Platform 主控。從 `C:\VIBE CODING\Jenfu-Platform` 執行 `npm.cmd run dev:local -- --no-browser`，會使用已固定的 AI-PDM 工作樹、`http://localhost:1020`、PostgreSQL `127.0.0.1:64647/jenfu_local_jf_fms_daily`，以及 `C:\VIBE CODING\.local\jf-fms-sandbox\profile\data` 和 `profile\repository`。日常登入從 Platform `http://localhost:1000/login` 進入，AI-PDM 的 Platform 系統鍵為 `pdm`。獨立啟動 AI-PDM 時，需使用本節的專案入口和明確指定的隔離埠。
+
 再次執行入口或 `-CheckOnly` 會重用已驗證的同一伺服器。入口以啟動 PID 與建立時間辨識程序；共用依賴目錄時會追溯本工作樹的 npm 祖先程序。
 
 ```powershell
