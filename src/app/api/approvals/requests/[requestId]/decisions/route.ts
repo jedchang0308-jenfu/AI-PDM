@@ -10,7 +10,8 @@ import {
   requestedNumberingCompanyCodeFromRequest,
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
-import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
+import { withTransferReviewCommand } from "@/lib/platform-command-context";
+import { AsyncApprovalPlatformRepository } from "@/lib/repositories/approval-platform-async-repository";
 import { decideTransferPackageReview } from "@/lib/transfer-package-phase1d";
 import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
 import {
@@ -41,21 +42,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
     const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
     if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, {
-      action: "transfer.package.review.decide", permissionCode: "approval.request.decide",
-      discriminator: "approval_decision:transfer_package", body: body as Record<string, unknown>
-    });
-    if (access.response || !access.metadata || !access.actor) return access.response;
     try {
-      await decideTransferPackageReview({
-        metadata: access.metadata,
-        requestId: decodedRequestId,
-        decision,
-        comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
-      });
-      const updated = await getApprovalPlatformRequestDetailForCompanyAsync(
-        decodedRequestId, access.actor.organizationId);
-      return NextResponse.json({ request: updated });
+      return await withTransferReviewCommand(request, { action: "transfer.package.review.decide", body },
+        async (client, metadata) => {
+          await decideTransferPackageReview({
+            metadata,
+            requestId: decodedRequestId,
+            decision,
+            comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
+          });
+          const updated = await new AsyncApprovalPlatformRepository(client).getRequestDetail(
+            decodedRequestId, metadata.actor.organizationId);
+          return NextResponse.json({ request: updated });
+        });
     } catch (error) {
       return transferPhase1dErrorResponse(error, "decision");
     }

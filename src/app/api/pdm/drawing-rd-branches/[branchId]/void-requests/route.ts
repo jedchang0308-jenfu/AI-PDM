@@ -10,13 +10,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ bra
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route.ts",
     method: "POST", permissionCode: "numbering.draft.obsolete", resourceGroup: "drawing", readOnly: false
-  }, async (tx, verified) => {
+  }, async (tx, verified, capability) => {
     const { branchId } = await params;
     const body = await dev087Json(request);
     if (Object.keys(body).length !== 1 || typeof body.rowKey !== "string") {
       return Response.json({ code: "invalid_void_request" }, { status: 422 });
     }
     return dev087Success(await new DrawingRevisionWorkService(tx)
-      .requestVoidPrincipal(branchId, body.rowKey, verified, dev087CommandContext(request)));
+      .requestVoidPrincipal(branchId, body.rowKey, verified, dev087CommandContext(request), capability));
   });
 }

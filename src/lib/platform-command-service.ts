@@ -44,6 +44,7 @@ type CommandInput<TPayload, TResult> = {
   serializable?: boolean;
   principalRequest?: PrincipalRequestInput;
   principalAuthorization?: PdmCommandMetadata["principalAuthorization"];
+  inVerifiedSnapshot?: PdmCommandMetadata["inVerifiedSnapshot"];
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 };
 
@@ -257,6 +258,10 @@ async function executeWithinClient<TPayload, TResult>(
       validatedAttachmentCategory = attachmentAuthorization?.documentCategory;
       const permissions: PrincipalWorkspacePermission[] = [route.permissionCode, ...additional].map((permissionCode) =>
         ({ permissionKind: "action" as const, permissionCode }));
+      if (input.command.commandName === "pdm.transfer.submit_package_review" ||
+          input.command.commandName === "pdm.transfer.decide_package_review") {
+        permissions[0] = { ...permissions[0], resourceGroup: "transfer" };
+      }
       if (dynamicAttachmentPolicy && attachmentAuthorization) {
         const parentGroups = attachmentAuthorization.groups.filter(group => group !== "model");
         permissions[0] = { ...permissions[0], resourceGroups: parentGroups };
@@ -365,6 +370,7 @@ async function executeWithinClient<TPayload, TResult>(
       ...input.command,
       actor: {
         ...input.command.actor,
+        ...(input.inVerifiedSnapshot && primaryDecision?.roleCode ? { roles: [primaryDecision.roleCode] } : {}),
         principalId: platformPrincipalId,
         platformOrganizationId: verifiedActor?.sessionSchemaVersion === 2
           ? null : organizationMapping?.platformOrganizationId ?? input.command.actor.platformOrganizationId
@@ -412,6 +418,10 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(
   if (principalActor) {
     if (!input.principalRequest || !input.principalAuthorization) {
       throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
+    }
+    if (input.inVerifiedSnapshot) {
+      return input.inVerifiedSnapshot(input.principalRequest, (client, verified) =>
+        executeWithinClient(input, client, verified));
     }
     return withVerifiedJenfuPrincipalRequest(
       { ...input.principalRequest, database: input.client },

@@ -45,6 +45,11 @@ export function assertSessionSnapshotPredecessor(profile, runtimeConfig, revisio
   if (snapshotFlags.length !== 1 || snapshotFlags[0].valueSource || !['0', '1'].includes(snapshotFlags[0].value)) {
     fail('SESSION_SNAPSHOT_REQUIRES_RECEIVER_BASELINE')
   }
+  if (runtimeConfig.plainEnvironment.PDM_SHARED_WORK_REVIEW_WRITE_ENABLED === '1') {
+    const sharedReviewFlags = app?.env?.filter(row => row.name === 'PDM_SHARED_WORK_REVIEW_WRITE_ENABLED') ?? []
+    if (snapshotFlags[0].value !== '1' || sharedReviewFlags.length !== 1 || sharedReviewFlags[0].valueSource ||
+        !['0', '1'].includes(sharedReviewFlags[0].value)) fail('SHARED_REVIEW_REQUIRES_COMPATIBLE_BASELINE')
+  }
   if (Object.entries(expected).some(([name, value]) => {
     const entries = app?.env?.filter(row => row.name === name) ?? []
     return typeof value !== 'string' || entries.length !== 1 || entries[0].value !== value || entries[0].valueSource

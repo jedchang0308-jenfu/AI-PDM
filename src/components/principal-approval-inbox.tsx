@@ -7,7 +7,7 @@ import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
-import type { ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse,
+import type { ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse, ApprovalWorkbenchFilters,
   ApprovalWorkbenchRow } from "@/lib/approval-workbench-contract";
 import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
 import { isPdmOwnerApprovalAction } from "@/lib/pdm-approval-owner-route";
@@ -31,8 +31,9 @@ type ActionFilter = (typeof actionFilters)[number]["value"];
 type InboxResponse = Partial<ApprovalWorkbenchListResponse> & {
   items?: ApprovalWorkbenchRow[];
 };
+type InboxFilters = ApprovalWorkbenchFilters & { total: number };
 const initialQuery: ApprovalWorkbenchQuery = {
-  status: "active", domain: "numbering", action: "all", query: "", limit: 100
+  status: "active", domain: "all", action: "all", query: "", limit: 100
 };
 const rowKey = (item: ApprovalWorkbenchRow) => item.rowKey;
 const skipDetailFetch = () => true;
@@ -46,7 +47,7 @@ export function PrincipalApprovalInbox() {
   const [legacyRedirectMessage, setLegacyRedirectMessage] = useState<string | null>(null);
   const onUnauthorized = useCallback(() => setState("unauthorized"), []);
   const controller = usePdmWorkbenchController<ApprovalWorkbenchRow, ApprovalWorkbenchRow,
-    ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse["filters"]>({
+    ApprovalWorkbenchQuery, InboxFilters>({
       initialQuery,
       initialLocation: readLocation,
       readLocation,
@@ -64,7 +65,7 @@ export function PrincipalApprovalInbox() {
       onUnauthorized
     });
   const {
-    initialized, rows, loading, error: controllerError, query, setQuery,
+    initialized, rows, filters, loading, error: controllerError, query, setQuery,
     selectedKey, setSelectedKey, nextCursor, previousCursor, pageIndex,
     loadRows, goNext, goPrevious, closeDetail
   } = controller;
@@ -184,7 +185,7 @@ export function PrincipalApprovalInbox() {
       <section className="panel approval-inbox-panel" aria-label="審核清單">
         <div className="panel-header">
           <h2>{query.view === "submitted" ? "我的送審" : "審核清單"}</h2>
-          <span className="approval-count">{loading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${rows.length} 筆`}</span>
+          <span className="approval-count">{loading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${filters?.total ?? rows.length} 筆`}</span>
         </div>
         <PdmWorkbenchList rows={rows} getRowKey={rowKey} selectedKey={selectedKey}
           ariaLabel="審核工作清單" className="approval-inbox-list"
@@ -271,7 +272,7 @@ function buildListUrl(query: ApprovalWorkbenchQuery, cursor: string | null) {
   return `/api/approvals/inbox?${params.toString()}`;
 }
 
-function normalizeResponse(value: unknown): ApprovalWorkbenchListResponse {
+function normalizeResponse(value: unknown): ApprovalWorkbenchListResponse & { filters: InboxFilters } {
   const body = value as InboxResponse;
   return {
     rows: body.rows ?? body.items ?? [],
@@ -279,7 +280,8 @@ function normalizeResponse(value: unknown): ApprovalWorkbenchListResponse {
     previousCursor: body.previousCursor ?? null,
     pageIndex: body.pageIndex ?? 0,
     generatedAt: body.generatedAt ?? new Date().toISOString(),
-    filters: body.filters ?? { status: "active", domain: "numbering", action: "all", query: "" },
+    filters: { ...(body.filters ?? { status: "active", domain: "all", action: "all", query: "" }),
+      total: body.summary?.total ?? body.rows?.length ?? body.items?.length ?? 0 },
     summary: body.summary ?? { total: 0, pending: 0, needsInfo: 0, applyFailed: 0 }
   };
 }

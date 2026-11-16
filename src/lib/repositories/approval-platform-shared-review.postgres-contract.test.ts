@@ -35,10 +35,10 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
         SET ROLE jenfu_ai_pdm_migrator;
         SET search_path = ai_pdm_core, pg_catalog;
         CREATE TABLE companies (id text PRIMARY KEY);
-        CREATE TABLE users (id text PRIMARY KEY);
+        CREATE TABLE users (id text PRIMARY KEY, display_name text);
         CREATE TABLE drawing_rd_branches (id text PRIMARY KEY);
         INSERT INTO companies VALUES ('company-one'), ('company-two');
-        INSERT INTO users VALUES ('submitter'), ('assigned-reviewer');
+        INSERT INTO users VALUES ('submitter','Submitter'), ('assigned-reviewer','Reviewer');
         INSERT INTO drawing_rd_branches VALUES ('branch-one');
         ${baseline.slice(first, last)}
         INSERT INTO pdm_work_review_requests
@@ -50,14 +50,22 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
         CREATE TABLE part_numbers (id text PRIMARY KEY, company_id text, part_number text, part_name text);
         CREATE TABLE approval_platform_requests (
           id text PRIMARY KEY, company_id text, action_code text, title text, requested_by text,
-          requested_at timestamptz, request_status text, apply_status text, payload_json jsonb
+          requested_at timestamptz, request_status text, apply_status text, payload_json jsonb, reason text
         );
-        CREATE TABLE transfer_packages (id text PRIMARY KEY, company_id text);
-        INSERT INTO drawings VALUES ('drawing-one','company-one','D-001','Drawing'),
+        CREATE TABLE transfer_packages (id text PRIMARY KEY, company_id text, review_request_id text,
+          package_status text, review_snapshot_hash text);
+        CREATE TABLE drawing_revision_works (id text, company_id text, owner_user_id text);
+        CREATE TABLE part_change_works (id text, company_id text, owner_user_id text);
+        CREATE TABLE drawing_revisions (id text, company_id text, revision text);
+        CREATE TABLE canonical_workbench_states (id text, company_id text, entity_type text, canonical_entity_id text,
+          work_id text, branch_id text, revision_id text, updated_at timestamptz);
+        ALTER TABLE drawings ADD COLUMN owner_id text, ADD COLUMN created_by text;
+        ALTER TABLE part_numbers ADD COLUMN created_by text;
+        INSERT INTO drawings (id,company_id,drawing_number,purpose_description) VALUES ('drawing-one','company-one','D-001','Drawing'),
           ('drawing-other','company-two','D-OTHER','Unrelated');
-        INSERT INTO part_numbers VALUES ('part-one','company-one','P-001','Part');
-        INSERT INTO transfer_packages VALUES ('package-one','company-one');
-        INSERT INTO approval_platform_requests VALUES ('transfer-one','company-one','transfer.package_review',
+        INSERT INTO part_numbers (id,company_id,part_number,part_name) VALUES ('part-one','company-one','P-001','Part');
+        INSERT INTO transfer_packages (id,company_id) VALUES ('package-one','company-one');
+        INSERT INTO approval_platform_requests (id,company_id,action_code,title,requested_by,requested_at,request_status,apply_status,payload_json) VALUES ('transfer-one','company-one','transfer.package_review',
           'Transfer','submitter',CURRENT_TIMESTAMP,'approved','applied','{"transferPackageId":"package-one"}');
       `);
       await raw.query(readFileSync("db/postgres/107_dev121_shared_work_review.sql", "utf8"));
@@ -102,6 +110,32 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
       await expect(inbox.listPrincipalSubmittedReviews({ ...scope, query: "P-001",
         readable: { drawing: true, part: false, transfer: true } }))
         .resolves.toMatchObject({ items: [], summary: { total: 0 } });
+
+      await raw.query(`
+        INSERT INTO ai_pdm_core.approval_platform_requests
+        SELECT 'transfer-' || n, 'company-one', 'transfer.package_review', 'Transfer ' || n,
+               'submitter', CURRENT_TIMESTAMP + n * interval '1 second', 'pending', 'not_ready',
+               jsonb_build_object('transferPackageId', 'package-' || n, 'snapshotHash', 'matched', 'reviewMode', 'shared'),
+               'Pending'
+        FROM generate_series(2,503) AS n;
+        INSERT INTO ai_pdm_core.transfer_packages
+        SELECT 'package-' || n, 'company-one', 'transfer-' || n, 'InReview', 'matched'
+        FROM generate_series(2,503) AS n;
+      `);
+      const reviewFilter = { companyId: scope.companyId, actorId: "assigned-reviewer", principalId: "reviewer-principal",
+        sharedAccess: { drawing: true, part: false, transfer: true, model: false, publishDrawing: false, publishPart: false },
+        limit: 2, status: "pending" as const };
+      const pending = await inbox.listPrincipalWorkReviewInbox(reviewFilter);
+      expect(pending.summary).toMatchObject({ total: 506, pending: 506 });
+      expect(pending.items.map(item => item.id)).toEqual(["transfer-503", "transfer-502"]);
+      const nextPending = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, cursor: pending.nextCursor });
+      expect(nextPending.summary).toEqual(pending.summary);
+      expect(nextPending.items.map(item => item.id)).toEqual(["transfer-501", "transfer-500"]);
+      const priorPending = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, cursor: nextPending.previousCursor });
+      expect(priorPending.items).toEqual(pending.items);
+      const transferDenied = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter,
+        sharedAccess: { ...reviewFilter.sharedAccess, transfer: false } });
+      expect(transferDenied.summary.pending).toBe(4);
     } finally {
       await database.close();
       await raw.end();

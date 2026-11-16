@@ -9,7 +9,12 @@ import {
   type PdmCommandMetadata,
   type PlatformActorContext
 } from "@/lib/platform-command";
-import type { PdmCompanyContext } from "@/lib/company-context";
+import { resolvePrincipalCompanyContextInSnapshot, type PdmCompanyContext } from "@/lib/company-context";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
+import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
 import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
@@ -52,6 +57,56 @@ function attachmentIngressGroups(routePath: string, method: string, permissionCo
   if (method === "POST" && routePath === "src/app/api/parts/[partNumber]/attachments/route.ts") return ["part"] as const;
   if (method === "POST" && routePath === "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts") return ["drawing"] as const;
   return undefined;
+}
+
+/** Transfer review admission and authorization share the command's write transaction. */
+export async function withTransferReviewCommand(
+  request: Request,
+  input: { action: "transfer.package.review.submit" | "transfer.package.review.decide";
+    body: Record<string, unknown> },
+  execute: (client: AsyncDatabaseClient, metadata: PdmCommandMetadata) => Promise<Response>
+): Promise<Response> {
+  const decision = input.action === "transfer.package.review.decide";
+  const permissionCode = decision ? "approval.request.decide" : input.action;
+  const discriminator = decision ? "approval_decision:transfer_package" : undefined;
+  const route = resolveJenfuRoutePolicyFromRequest(request, permissionCode, discriminator);
+  const routePath = decision ? "src/app/api/approvals/requests/[requestId]/decisions/route.ts"
+    : "src/app/api/transfer-packages/[id]/submit-review/route.ts";
+  if (route?.path !== routePath || route.scopeResolver !== "workspace" ||
+      route.authorizationMode !== "permission" || request.method !== "POST" ||
+      getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
+      getJenfuEntitlementMode() !== "enforce") {
+    throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+  }
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) throw new JenfuPrincipalRequestError("auth_session_invalid");
+  const principalRequest = await principalRequestInput(token, request);
+  return withVerifiedJenfuPrincipalRequest(principalRequest, async (client, verified) => {
+    const company = await resolvePrincipalCompanyContextInSnapshot(client, verified,
+      requestedNumberingCompanyCodeFromRequest(request, input.body));
+    if (company.response) return company.response;
+    const authorizationActor = createJenfuVerifiedAuthorizationActor({
+      identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
+      principalId: verified.session.principalId, employeeId: verified.session.employeeId,
+      localPrincipalId: verified.profile.pdmUserId, companyId: company.company.companyId, sessionSchemaVersion: 2
+    });
+    if (!authorizationActor) throw new JenfuPrincipalRequestError("auth_session_invalid");
+    const requestId = safeHeaderId(request, "x-request-id") || crypto.randomUUID();
+    return execute(client, {
+      actor: createPlatformActorContext({
+        pdmUserId: verified.profile.pdmUserId, organizationId: company.company.companyId,
+        authorizationActor, scopes: [input.action], requestId,
+        correlationId: safeHeaderId(request, "x-correlation-id") || requestId
+      }),
+      idempotencyKey: requestedIdempotencyKey(request, input.body, requestId),
+      principalRequest,
+      principalAuthorization: { request, routePath: route.path, method: request.method, permissionCode, discriminator },
+      inVerifiedSnapshot: (input, run) => {
+        if (input !== principalRequest) throw new JenfuPrincipalRequestError("auth_session_invalid");
+        return run(client, verified);
+      }
+    });
+  }, { readOnly: false, isolationLevel: "serializable" });
 }
 
 export async function requireNumberingPlatformCommandAsync(

@@ -822,7 +822,7 @@ export class AsyncApprovalPlatformRepository {
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const [reviews, transferReviews] = await Promise.all([
-      this.listPdmWorkReviewInbox({ ...input, limit: 500, supportedRequestKinds:
+      this.listPdmWorkReviewInbox({ ...input, cursor: null, limit: undefined, supportedRequestKinds:
         ["drawing_revision", "drawing_rd_void", "part_change"] }),
       this.listPrincipalTransferReviewInbox(input)
     ]);
@@ -963,10 +963,8 @@ export class AsyncApprovalPlatformRepository {
         )
         ${search.sql}
       ORDER BY request.requested_at DESC, request.id DESC
-      LIMIT 501
     `, { companyId: input.companyId, principalId: input.principalId,
       actorId: input.actorId, ...search.params });
-    if (rows.length > 500) throw new Error("PRINCIPAL_TRANSFER_INBOX_LIMIT_EXCEEDED");
     return rows.map((row) => ({
       rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id, source: "platform" as const, companyId: row.company_id,
@@ -1276,7 +1274,7 @@ export class AsyncApprovalPlatformRepository {
     cursor?: ApprovalPlatformInboxCursor | null;
     supportedRequestKinds?: readonly PdmWorkReviewRequestKind[];
     sharedAccess?: SharedReviewInboxAccess;
-    limit: number;
+    limit?: number;
   }): Promise<ApprovalPlatformInboxItem[]> {
     if (!input.actorId) return [];
     if (input.domainCode?.trim() && input.domainCode.trim() !== "numbering") return [];
@@ -1380,12 +1378,12 @@ export class AsyncApprovalPlatformRepository {
         ${search.sql}
         ${cursorSql}
       ORDER BY review.created_at ${order}
-      LIMIT :limit
+      ${input.limit ? "LIMIT :limit" : ""}
     `,
       {
         companyId: input.companyId,
         actorId: input.actorId,
-        limit: input.limit,
+        ...(input.limit ? { limit: input.limit } : {}),
         ...kindParams,
         ...search.params,
         ...(shared ? {

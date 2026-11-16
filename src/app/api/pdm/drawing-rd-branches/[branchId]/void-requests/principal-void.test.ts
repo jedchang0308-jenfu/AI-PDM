@@ -18,6 +18,7 @@ import { POST } from "@/app/api/pdm/drawing-rd-branches/[branchId]/void-requests
 const verified = { session: { principalId: "principal-one", assuranceLevel: "aal1" },
   profile: { pdmUserId: "profile-one", companyId: "company-one" } };
 const tx = { kind: "postgres", transactionScope: "postgres" };
+const capability = vi.fn();
 function request(body: unknown) {
   const header = Buffer.from(JSON.stringify({ type: "JENFU-AI-PDM-PRINCIPAL", version: 2 }))
     .toString("base64url");
@@ -33,7 +34,7 @@ const params = { params: Promise.resolve({ branchId: "branch-one" }) };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.principalRoute.mockImplementation(async (_request, _token, _policy, execute) =>
-    execute(tx, verified));
+    execute(tx, verified, capability));
   mocks.requestVoid.mockResolvedValue({ requestId: "request-one",
     reviewCycleId: "cycle-one", rowVersion: 1 });
 });
@@ -51,7 +52,7 @@ describe("Principal RD-void request route", () => {
       }), expect.any(Function));
     expect(mocks.requestVoid).toHaveBeenCalledWith("branch-one",
       "cw_11111111-1111-4111-8111-111111111111", verified,
-      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "void-one" }));
+      expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "void-one" }), capability);
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 

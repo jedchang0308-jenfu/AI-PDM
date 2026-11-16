@@ -9,6 +9,8 @@ import {
 } from "@/lib/drawing-revision-lifecycle";
 import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
+import { isPrincipalTransferReviewRequestId } from "@/lib/transfer-review-request-id";
+
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
@@ -16,6 +18,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
   if (auth.response) return auth.response;
 
   const { requestId } = await params;
+  // Principal transfer details are served through the scoped workbench inbox.
+  if (isPrincipalTransferReviewRequestId(safeDecode(requestId))) {
+    return NextResponse.json({ code: "APPROVAL_REQUEST_NOT_FOUND" },
+      { status: 404, headers: { "cache-control": "no-store" } });
+  }
   const enforced = isProductionSliceEnforced();
   if (enforced && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {
     return NextResponse.json(productionSliceDeniedPayload("approvals.request.detail"), { status: 403 });

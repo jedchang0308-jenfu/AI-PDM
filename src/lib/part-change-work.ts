@@ -1,3 +1,4 @@
+import type { ReadPrincipalRouteCapability } from "@/lib/pdm-principal-dev087-route";
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
@@ -33,12 +34,15 @@ export class PartChangeWorkService {
   constructor(private readonly client: AsyncDatabaseClient = getAsyncDatabaseClient()) {}
 
   private async requirePrincipalCapability(verified: VerifiedPrincipalRequest,
-    permissionCode: string, client: AsyncDatabaseClient = this.client) {
+    permissionCode: string, client: AsyncDatabaseClient = this.client,
+    routeCapability?: ReadPrincipalRouteCapability) {
     if (client.kind !== "postgres" || client.transactionScope !== "postgres") {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
-    const [capability] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "part" }]);
+    const capability = routeCapability
+      ? routeCapability(client, verified, permissionCode, "part")
+      : (await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
+        verified, [{ permissionKind: "action", permissionCode, resourceGroup: "part" }]))[0];
     if (!capability?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -178,9 +182,10 @@ export class PartChangeWorkService {
   }
 
   /** The HTTP caller must have verified the v2 session in this serializable write snapshot. */
-  async submitPrincipal(workId: string, verified: VerifiedPrincipalRequest, context: CommandContext) {
+  async submitPrincipal(workId: string, verified: VerifiedPrincipalRequest, context: CommandContext,
+    capability?: ReadPrincipalRouteCapability) {
     const { companyId, actorId } = await this.requirePrincipalCapability(verified,
-      "numbering.candidate.review.submit");
+      "numbering.candidate.review.submit", this.client, capability);
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId, actorId, token: context.contractToken });
     return runPrincipalDev087Command(this.client, verified, {

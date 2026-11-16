@@ -103,12 +103,18 @@ const navSections: NavSection[] = [
   }
 ];
 
+function canTrackSubmittedReviews(permissions: NumberingPermissionResponse | null) {
+  return permissions?.pages["numbering.drawings.view"] === true ||
+    permissions?.pages["numbering.search"] === true || permissions?.actions["transfer.package.view"] === true;
+}
+
 function isVisibleItem(
   item: NavItem,
   permissions: NumberingPermissionResponse | null,
   productionSlice: ProductionSliceClientStatus | null
 ) {
   if (productionSlice?.configured) return true;
+  if (item.href === "/approvals" && canTrackSubmittedReviews(permissions)) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
   return !requiredPermission || permitsNumberingNavigation(permissions, requiredPermission);
 }
@@ -314,7 +320,10 @@ export function SidebarNav() {
                   const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
                   const hasBadge = typeof badgeCount === "number" && badgeCount > 0;
                   const unopened = !isOpenInProductionSlice(item, productionSlice);
-                  const targetHref = unopened ? `/production-slice-blocked?from=${encodeURIComponent(item.href)}` : item.href;
+                  const trackOnly = item.href === "/approvals" && canTrackSubmittedReviews(permissions) &&
+                    permissions?.actions["approval.inbox.view"] !== true;
+                  const targetHref = unopened ? `/production-slice-blocked?from=${encodeURIComponent(item.href)}`
+                    : trackOnly ? "/approvals?view=submitted" : item.href;
                   const itemTitle = unopened
                     ? `${label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
                     : signedInEntry

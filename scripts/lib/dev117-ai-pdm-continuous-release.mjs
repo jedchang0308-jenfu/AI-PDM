@@ -94,9 +94,12 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   // that shape; sources using the receiver contract must carry the full set.
   const hasSessionRevocation = Object.keys(sessionRevocationBindings).some(name =>
     Object.hasOwn(fixed, name) || profile.environment.requiredPlainEnvironmentNames.includes(name))
+  const sharedReviewWrites = 'PDM_SHARED_WORK_REVIEW_WRITE_ENABLED'
+  const hasSharedReviewMigration = profile.migrations.entries.some(entry => entry.path === 'db/postgres/107_dev121_shared_work_review.sql')
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain,
     ...(hasSessionRevocation ? Object.keys(sessionRevocationBindings) : []),
-    ...(hasPermissionDiagnostic ? permissionDiagnosticNames : [])]
+    ...(hasPermissionDiagnostic ? permissionDiagnosticNames : []),
+    ...(hasSharedReviewMigration ? [sharedReviewWrites] : [])]
   const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames]
   if (profile.environment.optionalExtensions != null) fail('RUNTIME_EXTENSION_RETIRED', 'Runtime extensions are not supported')
   const expectedSecretIds = { ...v1.environment.allowedSecretReferences }
@@ -105,6 +108,10 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (hasSessionRevocation && Object.entries(sessionRevocationBindings).some(([name, expected]) =>
     name === 'PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED' ? !['0', '1'].includes(fixed[name]) : fixed[name] !== expected)) {
     fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM session revocation workload or phase mismatch')
+  }
+  if (hasSharedReviewMigration && (!['0', '1'].includes(fixed[sharedReviewWrites]) ||
+    (fixed[sharedReviewWrites] === '1' && fixed.PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED !== '1'))) {
+    fail('ENVIRONMENT_VALUE_DRIFT', 'Shared review writes require the local permission snapshot')
   }
   if (hasPermissionDiagnostic) {
     const expiry = fixed.PDM_SHORT_LIVED_PERMISSION_DIAGNOSTICS_UNTIL

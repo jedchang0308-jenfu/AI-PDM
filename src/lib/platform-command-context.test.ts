@@ -1,15 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requirePrincipal: vi.fn(),
   resolvePolicy: vi.fn(),
   token: vi.fn(),
-  principalInput: vi.fn()
+  principalInput: vi.fn(),
+  admit: vi.fn()
 }));
 
 vi.mock("@/lib/numbering-permission-guard", () => ({ requirePrincipalNumberingPermissionAsync: mocks.requirePrincipal }));
 vi.mock("@/lib/numbering-company-context", () => ({
-  requestedNumberingCompanyCodeFromRequest: () => null
+  requestedNumberingCompanyCodeFromRequest: () => ({ state: "absent" })
 }));
 vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicyFromRequest: mocks.resolvePolicy }));
 vi.mock("@/lib/jenfu-principal-http", () => ({
@@ -18,7 +19,12 @@ vi.mock("@/lib/jenfu-principal-http", () => ({
 }));
 vi.mock("@/lib/production-smoke-runtime", () => ({ assertProductionSmokeRuntimeIsolation: vi.fn() }));
 
-import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
+vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
+  ...await original<typeof import("@/lib/jenfu-principal-request-guard")>(),
+  withVerifiedJenfuPrincipalRequest: mocks.admit
+}));
+
+import { requireNumberingPlatformCommandAsync, withTransferReviewCommand } from "@/lib/platform-command-context";
 
 const verified = {
   identityIssuer: "https://issuer.test", identitySubject: "subject-one",
@@ -97,7 +103,7 @@ describe("DEV-121 command ingress", () => {
     });
     expect(result.response).toBeNull();
     expect(mocks.requirePrincipal).toHaveBeenCalledWith(request, "action", "numbering.attachments.manage",
-      null, { resourceGroups: ["part"] });
+      { state: "absent" }, { resourceGroups: ["part"] });
   });
 
   it("scopes part upload ingress only for dynamic policies; category-specific model authorization stays in the command snapshot", async () => {
@@ -115,6 +121,59 @@ describe("DEV-121 command ingress", () => {
     });
     expect(result.response).toBeNull();
     expect(mocks.requirePrincipal).toHaveBeenCalledWith(request, "action", "numbering.attachments.manage",
-      null, { resourceGroups: ["part"], resourceGroupsDynamicOnly: true });
+      { state: "absent" }, { resourceGroups: ["part"], resourceGroupsDynamicOnly: true });
+  });
+});
+
+
+describe("transfer review write admission", () => {
+  const tx = { query: vi.fn() };
+  const session = { principalId: "principal-one", identityIssuer: "https://issuer.test",
+    identitySubject: "subject-one", employeeId: "employee-one" };
+  const admitted = { profile: { pdmUserId: "profile-one", companyId: "company-jenfu" }, session };
+  const principalInput = { token: "verified-session-token" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("PDM_AUTH_MODE", "firebase_bff");
+    vi.stubEnv("PDM_JENFU_PLATFORM_AUTH_MODE", "on");
+    vi.stubEnv("PDM_JENFU_ENTITLEMENT_MODE", "enforce");
+    mocks.resolvePolicy.mockReturnValue({
+      path: "src/app/api/transfer-packages/[id]/submit-review/route.ts",
+      method: "POST", authorizationMode: "permission", scopeResolver: "workspace"
+    });
+    mocks.token.mockReturnValue(principalInput.token);
+    mocks.principalInput.mockReturnValue(principalInput);
+    tx.query.mockResolvedValue([{ id: "company-jenfu", company_code: "JENFU",
+      company_kind: "business", display_name: "Test company" }]);
+    mocks.admit.mockImplementation(async (_input, evaluate) => evaluate(tx, admitted));
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("passes the admitted session to the command without opening a second snapshot", async () => {
+    const request = new Request("https://ai-pdm.test/api/transfer-packages/package-one/submit-review", {
+      method: "POST", headers: { "idempotency-key": "submit-one" }
+    });
+    const response = await withTransferReviewCommand(request, { action: "transfer.package.review.submit", body: {} },
+      async (client, metadata) => {
+        expect(client).toBe(tx);
+        expect(metadata.actor).toMatchObject({ pdmUserId: "profile-one", organizationId: "company-jenfu" });
+        expect(metadata.principalRequest).toBe(principalInput);
+        expect(metadata.idempotencyKey).toBe("submit-one");
+        expect(() => metadata.inVerifiedSnapshot!({ ...metadata.principalRequest! }, async () => null))
+          .toThrow("auth_session_invalid");
+        return metadata.inVerifiedSnapshot!(metadata.principalRequest!, async (commandClient, verified) => {
+          expect(commandClient).toBe(tx);
+          expect(verified).toBe(admitted);
+          return Response.json({ ok: true });
+        });
+      });
+
+    expect(response.status).toBe(200);
+    expect(mocks.admit).toHaveBeenCalledOnce();
+    expect(mocks.admit).toHaveBeenCalledWith(principalInput, expect.any(Function),
+      { readOnly: false, isolationLevel: "serializable" });
+    expect(mocks.requirePrincipal).not.toHaveBeenCalled();
   });
 });

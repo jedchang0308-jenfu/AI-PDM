@@ -1,3 +1,4 @@
+import type { ReadPrincipalRouteCapability } from "@/lib/pdm-principal-dev087-route";
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
@@ -139,13 +140,15 @@ export class DrawingRevisionWorkService {
   private verify(actor: DrawingRevisionActor, token: string) { return verifyCanonicalWorkbenchCommandContract(this.client, { companyId: actor.companyId, actorId: actor.id, token }); }
 
   private async requirePrincipalCapability(verified: VerifiedPrincipalRequest,
-    permissionCode: string) {
+    permissionCode: string, capability?: ReadPrincipalRouteCapability) {
     if (this.client.kind !== "postgres" || this.client.transactionScope !== "postgres" ||
         verified.session.contractVersion !== "jenfu.ai-pdm-session.v2") {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
-    const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "drawing" }]);
+    const decision = capability
+      ? capability(this.client, verified, permissionCode, "drawing")
+      : (await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
+        verified, [{ permissionKind: "action", permissionCode, resourceGroup: "drawing" }]))[0];
     if (!decision?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -474,9 +477,9 @@ export class DrawingRevisionWorkService {
   }
 
   async submitPrincipal(workId: string, verified: VerifiedPrincipalRequest,
-    context: CommandContext) {
+    context: CommandContext, capability?: ReadPrincipalRouteCapability) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.candidate.review.submit");
+      "numbering.candidate.review.submit", capability);
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId, token: context.contractToken });
     return runPrincipalDev087Command(this.client, verified, {
@@ -621,9 +624,9 @@ export class DrawingRevisionWorkService {
   }
 
   async requestVoidPrincipal(branchId: string, rowKey: string,
-    verified: VerifiedPrincipalRequest, context: CommandContext) {
+    verified: VerifiedPrincipalRequest, context: CommandContext, capability?: ReadPrincipalRouteCapability) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.draft.obsolete");
+      "numbering.draft.obsolete", capability);
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId,
         token: context.contractToken });

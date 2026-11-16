@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
-import type { PrincipalRequestInput } from "@/lib/jenfu-principal-request-guard";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PrincipalRequestInput, VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 export type PlatformAuthProvider = "current_pdm_session" | "local_password" | "google_oauth" | "future_shared_iam";
@@ -34,6 +35,8 @@ export type PdmCommandMetadata = {
   idempotencyKey: string;
   /** Kept in process for command-time verification; never copied into the persisted command. */
   principalRequest?: PrincipalRequestInput;
+  inVerifiedSnapshot?: <T>(input: PrincipalRequestInput,
+    execute: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) => Promise<T>) => Promise<T>;
   principalAuthorization?: {
     request: Request;
     routePath: string;

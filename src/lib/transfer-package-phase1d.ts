@@ -765,6 +765,7 @@ export async function submitTransferPackageReview(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    inVerifiedSnapshot: input.metadata.inVerifiedSnapshot,
     execute: async (client, principalDecision) => {
       const companyId = input.metadata.actor.organizationId;
       const row = await client.queryOne<{ package_status: string; row_version: number; review_request_id: string | null; owner_id: string }>(
@@ -1038,6 +1039,7 @@ export async function decideTransferPackageReview(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
+    inVerifiedSnapshot: input.metadata.inVerifiedSnapshot,
     execute: async (client, principalDecision) => {
       const request = await client.queryOne<{ id: string; request_status: string; payload_json: unknown }>(
         `SELECT id, request_status, payload_json FROM approval_platform_requests
