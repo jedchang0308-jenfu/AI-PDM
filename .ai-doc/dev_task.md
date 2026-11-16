@@ -29,13 +29,16 @@
 
 ### DEV-121：單一角色與能力矩陣及共用待審
 
-- 2026-11-16 已確認方案。獨立工作樹已實作，續做本機及整合驗收。[開發契約與驗收條件](specs/DEV-121-target-authorization-boundary.md#role-matrix-shared-review)
+- 2026-11-16 完成開發、隔離驗收及分階段正式發布。12:45 台灣時間確認 `ai-pdm-prod-435bcfa0d3a0` 承接 100% 正式流量，`PDM_SHARED_WORK_REVIEW_WRITE_ENABLED=1`，無暫時候選標籤。[開發契約與驗收條件](specs/DEV-121-target-authorization-boundary.md#role-matrix-shared-review)
 - 本機 A0001-M01 原始案例，送審因相容選人路徑查詢隔離庫中不存在的 OrgMaster 檢視表而回 500。工作仍在，審核單 0 筆。
 - 引導決策 1A、2B 已確認。新案由審核工作台與待審數呈現，送審人用同一工作台的「我的送審」跨四類追蹤本人案件。
 - 獨立工作樹已接上四類共用送審、既有審核工作台與「我的送審」；新案寫入以 `PDM_SHARED_WORK_REVIEW_WRITE_ENABLED=1` 啟用。Migration 107 已接 owner 封存校驗。初次實作自查為 121 項聚焦測試、3 項 migration 封存契約與獨立 PostgreSQL 的舊案相容／本人追蹤／跨公司隔離／分頁通過。
-- 三類原生送審重用同一筆交易的能力判定，技轉送審與決策在原子寫入中共用一次會話讀取。僅有送審權及資料可讀者從側欄直達「我的送審」。正式候選固定關閉新案共用寫入，啟用需要已就緒的相容回復版。
+- 三類原生送審重用同一筆交易的能力判定，技轉送審與決策在原子寫入中共用一次會話讀取。僅有送審權及資料可讀者從側欄直達「我的送審」。第一階段相容版關閉新案共用寫入，第二階段以已就緒的相容版作回復目標。
 - 以本機遮罩資料的獨立副本重跑 A0001-M01，確認舊資料庫 trigger 原先仍要求指定審核人。Migration 108 新增同公司送審者檢查並保護送審資料，保留已提交的 Migration 107。修正後圖號版次可完成送審、明細、本人退回、同請求重送及「我的送審」結果讀回。研發版作廢、料號及技轉也通過正常 API 的送審和決策，且登出後舊會話回 401。另以聚焦回歸證明技轉重用會話查詢已驗證的帳戶，省去命令內的第二次查詢。
-- 續驗實際 SSO 與資料庫實測計數、雙人並行決策、跨系統撤權及回復。核准前核對附件與技轉相關入口及待審數適用同一資格。舊案完成後按剩餘呼叫端與回復需求決定投影退役。
+- 隔離 PostgreSQL 驗證四類正常入口、本人追蹤、待審數、跨範圍拒絕、重送、雙人並行決策及撤權後舊會話失效。代表性權限投影、工作台、明細及決策每次只讀一次本地會話，OrgMaster／Platform 權限查詢均為 0。關閉共用寫入時，既有共用案仍可處理。[實作與隔離驗收證據](https://github.com/jedchang0308-jenfu/AI-PDM/pull/621)
+- 第一階段 `AIPDM-DEV121-SHARED-20261116-C1` 以合併來源 `81dc3def6a87ceb0792d0d759877593b678baf69` 新增 107／108，核對既有 47 筆，正式 ledger 49 筆，DB boundary 通過。相容版 `ai-pdm-prod-e2edad898d7b` 曾承接 100% 正式流量並完成候選與正式驗證。[合併後必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43800286165) [第一階段正式發布](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43801128759)
+- 第二階段 `AIPDM-DEV121-SHARED-20261116-E1` 以合併來源 `ce8268e396ef23dd560a120dc77807276ff30b0d` 啟用共用寫入，核對既有 49 筆、無新增遷移。候選與正式入口都通過 Portal SSO、PDM 工作階段、料號工作台、登出後原會話拒絕，以及撤權入口未登入拒絕。正式待審及「我的送審」API 的未登入請求均回 401。回復目標為第一階段相容版。[啟用 PR](https://github.com/jedchang0308-jenfu/AI-PDM/pull/622) [合併後必要 CI](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43803454097) [第二階段正式發布](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/43803834379)
+- 正式發布以既有測試身分驗證，四類送審與決策寫入在隔離環境驗證。舊案仍沿原指派結案，待舊案結束且相容回復需求解除，再依呼叫端證據退役資格投影。
 
 <a id="dev-128-masked-local-production-snapshot"></a>
 
