@@ -45,7 +45,7 @@ check("DEV101-CONTRACT-007", "target and comparison endpoints are present and re
   principalReviewTarget.includes("evaluatePrincipalWorkspacePermissionsInSnapshot") &&
   principalReviewTarget.includes('permissionCode: "approval.request.decide"') &&
   principalReviewTarget.includes("if (!decision?.allowed)") &&
-  principalReviewTarget.includes("item.reviewerUserId !== verified.profile.pdmUserId") &&
+  principalReviewTarget.includes("canAccessWorkReviewAssignment(item, verified.profile.pdmUserId)") &&
   principalReviewTarget.includes("verified.profile.companyId") &&
   principalReviewTarget.includes("parseReviewPackageSnapshot") &&
   principalReviewTarget.includes("verifyReviewPackageIntegrity") &&
