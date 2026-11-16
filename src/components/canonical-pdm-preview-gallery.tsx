@@ -137,10 +137,11 @@ export function CanonicalEntityPreviewGallery({
           <CanonicalPreviewThumbnail preview={preview} density="gallery" />
         </span>
         <span className="canonical-preview-card-body">
-          <span className="canonical-preview-card-heading"><strong>{row.code}</strong><span className="canonical-preview-kind">{preview.sourceType === "custom_image" ? "圖片" : "3D"}</span></span>
+          <span className="canonical-preview-card-heading"><strong>{row.code}</strong><span className={`canonical-layer is-${row.layer}`}>{row.layerLabel}</span></span>
           <span className="canonical-preview-card-name">{row.name || "—"}</span>
-          <span className="canonical-preview-card-source">{preview.sourceLabel}{preview.sourceDrawingNumber && preview.sourceDrawingNumber !== row.code ? ` · ${preview.sourceDrawingNumber}${preview.sourceRevision ? ` · ${preview.sourceRevision}` : ""}` : ""}</span>
-          <span className="canonical-preview-card-meta"><span className={`canonical-layer is-${row.layer}`}>{row.layerLabel}</span><span className={`canonical-handling is-${row.handling}`}>{row.handlingLabel}</span></span>
+          {preview.sourceDrawingNumber && preview.sourceDrawingNumber !== row.code && (
+            <span className="canonical-preview-card-source">{preview.sourceDrawingNumber}{preview.sourceRevision ? ` · ${preview.sourceRevision}` : ""}</span>
+          )}
         </span>
       </button>;
     })}

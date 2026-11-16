@@ -20,6 +20,15 @@
 - 其他上游來源仍納入驗收盤點。`/api/admin/accounts?view=principal-candidate` 讀的是待開通目標的 typed identity。帳戶外部登入方式的生命週期是管理目標資料。Windows service 裝置驗證、工作執行與秘密啟用會驗證裝置、發起者或留存同意，須沿各自入口檢查，不能用當前瀏覽者的 PDM 會話代替。驗收需保留既有工作台瀏覽器證據，補未登入候選可指派、登入後成功核准、撤權拒絕及四種送審入口的零上游查詢。
 - [本專案開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)
 
+<a id="role-matrix-shared-review"></a>
+
+### DEV-121：單一角色與能力矩陣及共用待審
+
+- 2026-11-16 已確認方案，待實作及驗收。[開發契約與驗收條件](specs/DEV-121-target-authorization-boundary.md#role-matrix-shared-review)
+- 本機 A0001-M01 原始案例，送審因相容選人路徑查詢隔離庫中不存在的 OrgMaster 檢視表而回 500。工作仍在，審核單 0 筆。
+- 引導決策 1A、2B 已確認。新案由審核工作台與待審數呈現，送審人用同一工作台的「我的送審」跨四類追蹤本人案件。
+- 接手順序為先收斂四類審核的資格讀取／決策與資料相容，再切換新案共用待審。舊案完成後按剩餘呼叫端與回復需求決定投影退役。發布前依契約驗證原始案例、四類流程、查詢計數、範圍、並行、撤權與回復。
+
 <a id="dev-128-masked-local-production-snapshot"></a>
 
 ## DEV-128：遮罩正式資料供 AI-PDM 1020 地端測試
@@ -30,6 +39,8 @@
 <a id="dev-126-frontend-permission-projection"></a>
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
+
+- 2026-11-16 1020 日常整合、既有檔案讀回與固定路徑的 owner 交接見[日常地端測試與固定路徑](specs/DEV-126-app-scoped-frontend-permission-projection.md#daily-local-test-binding)。
 
 - 2026-11-06 使用者追加 [PDM 獨立本機測試超級管理員](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-test-super-admin)：PR #573 已合併並完成地端 1020 登入／登出／重登入與全部 5 頁、51 操作權限投影驗證；required CI 通過。地端固定入口 `npm run dev:local` 自動啟動或重用專用 PostgreSQL 18，再啟動 1020 TestAdmin runtime；實際入口健康 readback 通過，細節見 §14。使用者另要求複製目前正式資料；本機現有合約 §29.2 禁止 raw rows 落本機／non-production，故未執行未遮罩匯出；既有遮罩 importer 的輸入不是目前正式來源快照，需依核准資料邊界取得可用副本後再接入 PostgreSQL。
 
