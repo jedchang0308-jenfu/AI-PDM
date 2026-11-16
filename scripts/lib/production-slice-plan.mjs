@@ -142,6 +142,7 @@ const APPLICATION = [
   /^src\//u,
   /^public\//u,
   /^next\.config\./u,
+  /^next-env\.d\.ts$/u,
   /^tsconfig(?:\..+)?\.json$/u,
   /^(?:Dockerfile|\.dockerignore|package(?:-lock)?\.json)$/u,
 ]
