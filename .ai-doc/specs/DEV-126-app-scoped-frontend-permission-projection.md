@@ -368,5 +368,5 @@ npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12
 沿 `JENFU/DEV-021#daily-local-test-binding`，由本次 Platform Codex session 主控四系統整合。AI-PDM 負責辨識原 1020 有效資料來源，及啟動後實際採用的 PostgreSQL、`PDM_DATA_DIR` 與 `PDM_REPOSITORY_DIR`。
 
 - 以 `scripts/start-localhost-3000.ps1` 的有效 env 和 sandbox profile 為檢查點。一般啟動有以該埠下的 data／repository 覆寫環境值的路徑，也存在現有 TestAdmin 入口。日常整合必須明式進入 sandbox 模式，直接驗證並使用一次綁定的 PostgreSQL、data 和 repository；子程序不得改用舊預設目錄或獨立 TestAdmin profile。各模式使用其已驗 target。
-- data 與 repository 沿主控固定測試根目錄的 PDM 子目錄綁定。切換先核對實際路徑、保留既有可用測試資料與附件，確認可回復後再改指向。DEV-128 行使既有來源／遮罩契約；本切片沿用已核對且許可的地端副本，範圍為地端測試。
-- 先用隔離候選完成正常 SSO／拒絕場景，使用標記的測試附件上傳、重開讀回同一檔案，核對 DB metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。結果與候選版本回填既有任務或 PR。2026-11-16 已在固定 1020 從 Portal 正常登入，以合成料號建立 PDF；經 FMS 共用入口重開後透過正式應用 API 讀回同一附件中繼資料及 SHA-256，在 `jf-fms-sandbox/profile/repository` 找到唯一相符檔案。訪客 API 維持 `401`。
+- 日常資料根目錄固定為 `C:\VIBE CODING\.local\jenfu-shared-daily`。AI-PDM 的 PostgreSQL schema／runtime role 維持 owner 邊界，檔案固定在 `profile\data` 與 `profile\repository`。Platform 的一次綁定是日常路徑權威，各專案不再保存平行指標。DEV-128 仍行使既有來源／遮罩契約；本切片只使用許可的地端測試資料。
+- 切換與後續重啟驗證使用標記的測試附件，從正常 SSO 上傳並重開讀回同一檔案，核對 `jenfu_local_shared_daily` 的 metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。2026-11-16 在舊日常綁定取得的附件讀回結果保留為歷史證據；共用名稱切換後的實際版本與讀回結果由 `JENFU/DEV-021#daily-local-test-binding` 統一記錄。訪客 API 維持 `401`。
