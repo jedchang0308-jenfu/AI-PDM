@@ -255,7 +255,10 @@ function parseProfile(value: unknown): LocalRuntimeProfile {
 function assertEnvironmentMatches(profile: LocalRuntimeProfile, environment: Record<string, string | undefined>) {
   const config = readLocalSandboxConfig(environment, "ai-pdm");
   if (config.origin === config.platformOrigin) fail("LOCAL_SANDBOX_PROFILE_TARGET_MISMATCH");
-  if (profile.sandboxId !== config.sandboxId || profile.origin !== config.origin ||
+  const dailyAlternateOrigin = usesDailyAlternateOrigin(config.origin, config.sandboxId, environment) &&
+    profile.origin === "http://localhost:1020" && profile.platformOrigin === "http://localhost:1000" &&
+    new URL(config.databaseUrl).port === "51870" && new URL(config.databaseUrl).pathname === "/jenfu_local_shared_daily";
+  if (profile.sandboxId !== config.sandboxId || (profile.origin !== config.origin && !dailyAlternateOrigin) ||
     profile.platformOrigin !== config.platformOrigin || profile.bindHost !== config.bindHost ||
     profile.databaseUrl !== config.databaseUrl || profile.runtimeRole !== config.runtimeRole ||
     !samePath(profile.sandboxRoot, absoluteDirectory(environment.JENFU_LOCAL_SANDBOX_ROOT)) ||
@@ -452,9 +455,16 @@ function parseCookies(header: string | null) {
   return values;
 }
 
-export function localPrincipalSessionCookieName(sandboxId: string) {
+function usesDailyAlternateOrigin(origin: string | undefined, sandboxId: string | undefined,
+  environment: Record<string, string | undefined> = process.env) {
+  return environment.PDM_LOCAL_DAILY_PARALLEL === "1" && sandboxId === "shared-daily" &&
+    origin === "http://localhost:1021";
+}
+
+export function localPrincipalSessionCookieName(sandboxId: string, origin = process.env.JENFU_LOCAL_SANDBOX_ORIGIN) {
   if (!SANDBOX_ID.test(sandboxId)) fail("LOCAL_SANDBOX_PROFILE_INVALID");
-  return LOCAL_COOKIE_PREFIX + sandboxId.replaceAll("-", "_");
+  return LOCAL_COOKIE_PREFIX + sandboxId.replaceAll("-", "_") +
+    (usesDailyAlternateOrigin(origin, sandboxId) ? "_1021" : "");
 }
 
 export function readLocalPrincipalSessionCookie(request: Request, sandboxId: string) {
@@ -470,12 +480,12 @@ export function createLocalPrincipalSessionCookie(token: string, sandboxId: stri
   const maxAge = Math.max(0, Math.min(8 * 60 * 60, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000)));
   if (maxAge < 1 || token.length > 8192 || !token.split(".").every(Boolean)) fail("LOCAL_SANDBOX_NATIVE_SESSION_INVALID");
   const secure = new URL(origin).protocol === "https:" ? "; Secure" : "";
-  return `${localPrincipalSessionCookieName(sandboxId)}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  return `${localPrincipalSessionCookieName(sandboxId, origin)}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
 export function clearLocalPrincipalSessionCookie(sandboxId: string, origin: string) {
   const secure = new URL(origin).protocol === "https:" ? "; Secure" : "";
-  return `${localPrincipalSessionCookieName(sandboxId)}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+  return `${localPrincipalSessionCookieName(sandboxId, origin)}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
 export function createLocalSandboxLoginState(platformKey: string, origin: string) {
@@ -577,19 +587,23 @@ export async function getLocalSandboxPrincipalRuntime(environment: Record<string
         assurancePolicyHash: profile.assurancePolicyHash! } : {}) }) });
 }
 
+function localStateCookieName(origin: string | undefined) {
+  return usesDailyAlternateOrigin(origin, process.env.JENFU_LOCAL_SANDBOX_ID) ? `${STATE_COOKIE}_1021` : STATE_COOKIE;
+}
+
 export function createLocalStateCookie(value: string, origin: string, expiresAtSeconds: number) {
   const secure = new URL(origin).protocol === "https:" ? "; Secure" : "";
   const maxAge = Math.max(1, Math.min(STATE_TTL_SECONDS, expiresAtSeconds - Math.floor(Date.now() / 1000)));
-  return `${STATE_COOKIE}=${encodeURIComponent(value)}; Path=/api/auth/local-sandbox; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  return `${localStateCookieName(origin)}=${encodeURIComponent(value)}; Path=/api/auth/local-sandbox; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
 export function clearLocalStateCookie(origin: string) {
   const secure = new URL(origin).protocol === "https:" ? "; Secure" : "";
-  return `${STATE_COOKIE}=; Path=/api/auth/local-sandbox; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+  return `${localStateCookieName(origin)}=; Path=/api/auth/local-sandbox; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
 export function localStateCookieValue(request: Request) {
-  const values = parseCookies(request.headers.get("cookie")).get(STATE_COOKIE);
+  const values = parseCookies(request.headers.get("cookie")).get(localStateCookieName(process.env.JENFU_LOCAL_SANDBOX_ORIGIN));
   if (!values || values.length !== 1) return null;
   try { return decodeURIComponent(values[0]); } catch { return null; }
 }
