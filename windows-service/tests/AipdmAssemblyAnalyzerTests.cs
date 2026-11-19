@@ -96,6 +96,13 @@ internal static class AipdmAssemblyAnalyzerTests
             Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"D:\different\dir\part.SLDPRT", entries, origins, out conflict) == null && conflict, "different original paths cannot collapse onto one package entry");
             var unmatched = Entry("other", "elsewhere/part.SLDPRT", bytes);
             Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"C:\source\part.SLDPRT", new AipdmAssemblyAnalyzer.Entry[] {child,unmatched}, new Dictionary<string,string>(), out conflict) == null && conflict, "duplicate basenames under unrelated directories are an explicit ambiguity");
+            var folderMain = Entry("folder-main", "upload/main.SLDASM", bytes);
+            var folderPart = Entry("folder-part", "upload/part.SLDPRT", bytes);
+            var folderOrigins = new Dictionary<string,string>();
+            var folderEntries = new AipdmAssemblyAnalyzer.Entry[] {folderMain,folderPart,unmatched};
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(folderMain, @"C:\source\part.SLDPRT", folderEntries, folderOrigins, out conflict) == folderPart && !conflict, "folder wrapper relocates an exact assembly sibling");
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(folderMain, @"D:\other\part.SLDPRT", folderEntries, folderOrigins, out conflict) == null && conflict, "folder sibling relocation retains saved origin conflicts");
+            Check(AipdmAssemblyAnalyzer.ResolveReference(folderMain, @"C:\source\part.SLDPRT", folderEntries) == null, "external geometry resolver does not inherit containment relocation");
             child.absolutePath = Path.Combine(directory, "dir", "part.SLDPRT"); var directOrigins = new Dictionary<string,string>();
             Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, child.absolutePath, entries, directOrigins, out conflict) == child, "exact package absolute containment source establishes its identity");
             Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"D:\different\dir\part.SLDPRT", entries, directOrigins, out conflict) == null && conflict, "exact path and a distinct saved alias cannot collapse into one entry");

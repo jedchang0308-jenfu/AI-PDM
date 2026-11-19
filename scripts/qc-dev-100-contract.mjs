@@ -50,10 +50,16 @@ try {
     assert.match(ui, /已暫停所有操作/u);
     assert.match(ui, /返回圖號清單/u);
   });
-  check("same-batch primary warning exposes exact filename order", () => {
-    assert.match(ui, /names\.join\(" → "\)/u);
-    assert.match(ui, /最後保留/u);
-    assert.match(ui, /data-dev100-replacement-warning/u);
+  check("unified upload requires an explicit ambiguous primary instead of silent last-wins", () => {
+    const control = source("src/components/drawing-workspace-upload.tsx");
+    const archive = source("src/lib/drawing-upload-archive.ts");
+    assert.match(ui, /<DrawingWorkspaceUpload/u);
+    assert.match(control, /plan\.drawingChoices\.length && !drawing/u);
+    assert.match(control, /plan\.partChoices\.length && !part/u);
+    assert.match(control, /選擇 2D 主檔/u);
+    assert.match(control, /選擇 3D 主檔/u);
+    assert.match(archive, /重複/u);
+    assert.doesNotMatch(ui, /上傳所選檔案/u);
   });
   check("single existing Drawing workspace remains the only DEV-100 entry", () => {
     assert.match(ui, /data-workspace-kind=\{reviewRequestId \? "reviewer" : "drawing-revision-work"\}/u);

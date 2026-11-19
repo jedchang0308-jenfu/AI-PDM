@@ -1,7 +1,7 @@
 import { invalidatePdmPermissions, pdmPermissionFetch } from "./pdm-permission-client";
 
 export type AssemblyUpload = {packageId:string;fileName:string;status:string;nextOffset:number;chunkBytes:number};
-type Options = { signal?:AbortSignal; onProgress?:(bytes:number)=>void; fetcher?:typeof fetch };
+type Options = { signal?:AbortSignal; onProgress?:(bytes:number)=>void; fetcher?:typeof fetch; idempotencyKey?:string };
 export class AssemblyHttpError extends Error {
   constructor(message:string, readonly status:number) { super(message); }
 }
@@ -26,7 +26,7 @@ export async function uploadAssemblyPackage(base:string,file:File,activePackageI
     if (response.status===403) invalidatePdmPermissions("forbidden");
     return response;
   });
-  const key = crypto.randomUUID();
+  const key = options.idempotencyKey ?? crypto.randomUUID();
   const start = {method:"POST",headers:{"content-type":"application/json","idempotency-key":key},
     body:JSON.stringify({fileName:file.name,byteSize:file.size,activePackageId})};
   let session:AssemblyUpload;

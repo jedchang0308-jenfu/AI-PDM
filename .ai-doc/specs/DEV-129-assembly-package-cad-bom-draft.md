@@ -7,21 +7,37 @@
 | 引導決策 | 已確認內容 |
 | --- | --- |
 | **1A** | 首版交付可核對的 BOM 草稿。正式 BOM 審核、發布及採購、製造、領料串接留待另案。 |
-| **2C** | 工程師只上傳一份 SolidWorks Pack and Go ZIP。AI-PDM 自動從 CAD 讀取組態、階層與數量並建立草稿。正常流程只需要 ZIP，主組立或 BOM 表均無須另傳。 |
+| **2C** | 工程師一次選多檔、整個資料夾或 Pack and Go ZIP。AI-PDM 自動整理為組立包，從 CAD 讀取組態、階層與數量並建立草稿，主組立或 BOM 表均無須另傳。 |
 | **3A** | 直接把包內辨識或選定的 `.SLDASM` 綁為圖號版次唯一的 3D 主檔。圖號送審仍有既有 2D 主檔要求。 |
 | **4A** | 有組立包的圖號版次只需通過背景必要參照檢查，便可依既有規則送審。逐版開啟與重建可用於問題排查及實機驗收。 |
 
-**正常交接只有兩個動作：工程師上傳一次 ZIP，接手的人按一次「下載組立包」。** 主件辨識、必要參照檢查與 BOM 草稿產生都在背景執行。工程師只處理系統無法判定的項目。組立包及草稿共用同一個來源，每個版本都能取回當時保存的檔案。
+**正常交接只有兩個動作：工程師選取一次檔案，接手的人按一次「下載組立包」。** 主件辨識、必要參照檢查與 BOM 草稿產生都在背景執行。工程師只處理系統無法判定的項目。組立包及草稿共用同一個來源，每個版本都能取回當時保存的檔案。
 
 現行圖號版次工作已有受控檔案入口，Windows 服務已有裝置授權和原生解析執行路徑，這兩處是本案接點。BOM 資料與入口依現行重建決策設計。DEV-041 的技轉 Pack and Go 規格可供 ZIP 檢查參考，其技轉、分類與基準線依原案範圍管理。 [版次工作檔案入口](../../src/app/api/pdm/drawing-revision-works/%5BworkId%5D/files/route.ts) · [Windows 解析服務](DEV-125-windows-solidworks-service-and-openswx-retirement.md) · [BOM 重建決策](../decisions/ADR-PDM-BOM-RETIREMENT-001-hard-delete-and-rebuild-boundary.md) · [DEV-041 技轉規格](SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md)
 
 ## 2. 使用流程
 
-1. **上傳一次。** 在圖號版次工作頁選「上傳組立包」，提供一份保留檔名及目錄結構的 Pack and Go ZIP。若需交付其他組態，一併打包該組態需要的子組立、抑制件與外部參照。完成安全收件並排程後，工程師可繼續編輯圖號工作。 [SolidWorks Pack and Go 選項](https://help.solidworks.com/2023/english/SolidWorks/sldworks/r_pack_go_db.htm?cid=f622b689a9b84ecc996ebe4512227489)
+1. **上傳一次。** 圖號版次工作頁只有一個檔案入口：拖入多檔或資料夾，點主按鈕選多檔，或由旁邊選單選整個資料夾；ZIP 也走同一入口。選完自動上傳，含 `.SLDASM` 時在背景整理為保留相對路徑的 ZIP，沿用組立解析與 BOM。若需交付其他組態，提供該組態需要的子組立、抑制件與外部參照。完成安全收件並排程後，工程師可繼續編輯圖號工作。 [SolidWorks Pack and Go 選項](https://help.solidworks.com/2023/english/SolidWorks/sldworks/r_pack_go_db.htm?cid=f622b689a9b84ecc996ebe4512227489)
 2. **背景完成。** 能唯一辨識主組立時直接綁定包內 `.SLDASM`，採用其儲存時的啟用組態並顯示組態名稱。主件或組態有歧義時，只請工程師選擇該項，沿用原 ZIP 接續。系統檢查必要參照並建立 BOM 草稿，唯一且無衝突的料號直接帶入，畫面優先列出缺檔、同名衝突、待建檔、待編號和用量不明。已有結果可直接查閱或更正，正常結果無須逐項確認。 [SolidWorks 組態用量](https://help.solidworks.com/2026/English/SolidWorks/sldworks/t_displaying_config_quantities_boms.htm) · [OpenBOM 的 SolidWorks 建表流程](https://help.openbom.com/installing-and-working-with-the-solidworks-plug-ins/)
 3. **一鍵下載。** 接手者從圖號版次頁按「下載組立包」，直接取得該版次的原始 ZIP，頁面顯示主組立的相對路徑。掃描尚未完成或查到缺件時，同頁標示原因，已安全收件的 ZIP 仍可下載。子件進版後，從歷史版次下載仍得到當時的 ZIP。 [SOLIDWORKS PDM 參照版次說明](https://help.solidworks.com/2026/english/EnterprisePDM/fileexplorer/r_EPDM_Add_in_Task_Pane.htm?id=0.11.0.4)
 
-### 圖號送審
+### 2026-11-19 統一入口補充（本機 1021 試用）
+
+- 移除工作頁獨立的「上傳組立包」與「上傳所選檔案」。空白版次顯示一個拖放區；已有檔案時顯示「加入檔案」，右側選單可選資料夾。選完即開始，只有無法唯一決定的主檔才要求選擇，選擇後自動接續。
+- 多檔／資料夾在瀏覽器以 fflate 0.8.3 整理成 ZIP，保留相對目錄與所有輔助件。單獨 ZIP 維持原始 bytes；與其他檔案一起選取時合併為新包。伺服器沿用原本收件、權限、不可變來源、主組立辨識與 BOM 排程，不新增資料庫結構。
+- 未選 ZIP 的補檔先讀本版組立包再合併，原檔保留；同一路徑更新、單檔同名只在唯一位置更新，多目錄同名不猜測。明確提供新 ZIP 則視為替換整包。補檔後建立新的分析來源，歷史包不改寫。
+- 包內 `.SLDDRW`／PDF 只有符合本圖號、根號或唯一主組立檔名才自動綁定；單獨選取的主圖面也可綁定。子件圖留在組立包，不因「只有一張」誤設成主組立圖面。多個主檔候選必須選擇，不採最後一檔無聲覆蓋。
+- 完整資料夾的外層目錄原樣保留；原生解析器對組立的儲存絕對參照，允許配對到該組立所在目錄的精確同名子件，仍檢查不同儲存來源衝突。不將此規則用於外部幾何參照，也不從其他目錄任選同名檔案。
+- 延續 256 MiB ZIP／2 GiB 展開總量／10,000 檔限制；拒絕危險 Windows 路徑、重複路徑、連結與加密 ZIP。重打包前核對來源 CRC 和大小，產出仍由伺服器完整檢查。失敗顯示在原入口，重試沿用原指令身分，只重送未完成項目。
+- 上傳前保存當前欄位；傳輸期間防止同頁重入，完成後原位讀回工作。不將「關閉失敗提示」當成取消工作或刪除整包。BOM 排除用途不移除下載檔案，仍沿用既有 UI。
+
+以下送審與歷史契約中的「ZIP」指系統保存的組立包，來源可以是多檔、資料夾或使用者提供的 ZIP。
+
+本次 RD 自查：針對性單元／UI 測試 105 passed，原生解析器 61 cases passed，型別、受影響檔案 ESLint、DEV-079／100 契約及隔離建置通過；affected-slice runner 的 FULL 來源測試通過。A0054 多檔、資料夾、完整編輯頁多檔及 ZIP 均以無視窗 Edge、任務隔離 PostgreSQL、實際 Windows worker／Document Manager 跑過，必要參照 passed、4 個實例的數量已讀回、下載 SHA256 一致，並驗證歷史包凍結。補 2D、缺 2D 拒絕、未掃描新包拒絕及實際送審交易的隔離回歸通過。這些是 RD 自查與 fixture 身分，不宣稱本次人工驗收或正式環境驗收。
+
+第一輪資料夾測試保留為失敗證據（外層目錄使參照未知），補上相鄰檔案配對後重測通過；第一輪完整頁測試的下載名稱預期誤用輸入 ZIP 名，修正為工作圖號後通過。證據位於試用工作樹 `output/qa/unified-upload`；實際 shared daily 1021／1020 畫面及 636 寬度檢查位於 `output/playwright/unified-upload-live`，該次檢查未修改共用業務資料。1021 保留本分支與本機解析器供試用，1020 保持 main；未推送、合併或正式部署。npm 安全查核尚未完成：隔離區 DNS 失敗，主機重試被自動核准審查拒絕，等待使用者允許送出依賴名稱與版本至 npm registry。
+
+### 圖號送審規則
 
 | 狀況 | 系統處理 |
 | --- | --- |
