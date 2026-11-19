@@ -455,6 +455,7 @@ export async function resolveActiveSolidWorksDocumentManagerKey() {
 
 /** Report metadata availability without reading the configured key or provider. */
 export async function isActiveSolidWorksDocumentManagerKeyConfigured(): Promise<boolean> {
+  if (workerEnvironmentFallbackAllowed() && workerEnvironmentSecret()) return true;
   const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
   const active = (await repository.listReferencesByKind("solidworks_document_manager"))
     .find((reference) => reference.lifecycleStatus === "active");

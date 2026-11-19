@@ -2,6 +2,7 @@
 
 - 登入期間重用權限與工作階段撤銷：[任務入口](dev_task.md#pdm-session-revocation) · [開發契約](specs/DEV-121-target-authorization-boundary.md#pdm-session-revocation)。
 - 單一角色與能力矩陣及共用待審：[任務入口](dev_task.md#role-matrix-shared-review) · [開發契約](specs/DEV-121-target-authorization-boundary.md#role-matrix-shared-review)
+- 組立包上傳與自動 BOM 草稿（DEV-129） [任務入口](dev_task.md#dev-129-assembly-package-cad-bom-draft) · [開發契約](specs/DEV-129-assembly-package-cad-bom-draft.md)
 
 
 ## DEV-126 地端 SSO 與前端權限投影（Local Principal Sandbox 實作中）

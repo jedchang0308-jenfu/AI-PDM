@@ -127,6 +127,22 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
     expect(mocks.readDpapi).not.toHaveBeenCalled();
   });
 
+  it("allows worker readiness only when the existing environment fallback is explicitly enabled", async () => {
+    vi.stubEnv("PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY", "synthetic-local-license");
+    vi.stubEnv("PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK", "true");
+    vi.stubEnv("PDM_BREAK_GLASS_CHANGE_ID", "DEV-129-local-test");
+    try {
+      expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(true);
+      vi.stubEnv("PDM_BREAK_GLASS_CHANGE_ID", "");
+      expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(false);
+      vi.stubEnv("PDM_BREAK_GLASS_CHANGE_ID", "DEV-129-local-test");
+      vi.stubEnv("PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY", "");
+      expect(await isActiveSolidWorksDocumentManagerKeyConfigured()).toBe(false);
+    } finally { vi.unstubAllEnvs(); }
+    expect(mocks.readProvider).not.toHaveBeenCalled();
+    expect(mocks.readDpapi).not.toHaveBeenCalled();
+  });
+
   it("reports false when no active key reference exists", async () => {
     mocks.repository.listReferencesByKind.mockResolvedValue([{ ...reference, lifecycleStatus: "draft" }]);
 

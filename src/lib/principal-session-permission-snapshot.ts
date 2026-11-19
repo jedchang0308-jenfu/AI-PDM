@@ -6,6 +6,7 @@ import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-
 import { JenfuEntitlementRepository, JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { rolePolicyPermissionDecision, type PolicyResourceGroup } from "@/lib/role-policy-permission-mapping";
 import { readPrincipalChineseEmployeeName } from "@/lib/principal-employee-display-name-repository";
+import { isSharedDailySystemTestAdministrator, requireSharedDailySystemTestAdminOperations } from "@/lib/shared-daily-system-test-admin";
 import registry from "../../config/access-control/role-policy-editor-registry.v3.json" with { type: "json" };
 
 const groups: readonly PolicyResourceGroup[] = ["drawing", "part", "model", "transfer"];
@@ -74,11 +75,29 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
       }
     }
   }
+  const sharedDailySystemTestAdmin = await isSharedDailySystemTestAdministrator(client, actor);
+  if (sharedDailySystemTestAdmin) {
+    const role = catalog.roles.find(candidate => candidate.stableRoleId === "role-system-admin");
+    if (!role) throw new Error("SHARED_DAILY_SYSTEM_TEST_ADMIN_CATALOG_INVALID");
+    const operations = requireSharedDailySystemTestAdminOperations(role);
+    let scope = scopes.findIndex(([kind, key]) => kind === "global" && key === null);
+    if (scope < 0) scope = scopes.push(["global", null]) - 1;
+    for (const { kind, code } of operations) {
+      const operation = `${kind}:${code}`;
+      for (const mask of contexts.keys()) {
+        const key = mask === 0 ? operation : `${operation}:${mask}`;
+        const list = permissions[key] ??= [];
+        if (!list.some(candidate => candidate[0] === scope)) {
+          list.unshift([scope, true, role.roleCode, "shared-daily-system-test-admin"]);
+        }
+      }
+    }
+  }
   const nextExpiry = Math.min(
     nextBoundary === null ? Infinity : Date.parse(nextBoundary),
     ...assignments.map(assignment => assignment.validUntil === null ? Infinity : Date.parse(assignment.validUntil))
   );
-  const manager = preparedAssignments.some(({ assignment }) =>
+  const manager = sharedDailySystemTestAdmin || preparedAssignments.some(({ assignment }) =>
     assignment.grantKind === "direct" && assignment.delegationId === null &&
     assignment.subjectKind === "principal" && assignment.targetPrincipalId === actor.principalId &&
     assignment.scopeKind === "global" && assignment.scopeKey === null &&

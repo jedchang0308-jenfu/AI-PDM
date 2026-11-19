@@ -126,6 +126,7 @@ Assert-NativeSuccess "document-manager-probe-compile"
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `
   (Join-Path $root 'scripts\solidworks-document-manager-metadata-exporter.cs')
 Assert-NativeSuccess "metadata-exporter-compile"
+& (Join-Path $root 'scripts\build-dev129-assembly-analyzer.ps1') -OutputDirectory (Join-Path $stage 'extractors')
 & $csc /nologo /platform:x64 "/out:$(Join-Path $stage 'extractors\SolidWorksDocumentManagerPreviewExporter.exe')" `
   /reference:Microsoft.CSharp.dll `
   (Join-Path $root 'windows-service\tools\SolidWorksDocumentManagerRuntime.cs') `

@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { canonicalDigest, mapNativeProperties } from "./metadata-mapper.mjs";
+import { stageAssembly } from "./assembly-analysis.mjs";
 
 const installDir = path.resolve(import.meta.dirname, "..");
 const extractors = path.join(installDir, "extractors");
@@ -92,22 +93,27 @@ function terminate(child) {
   killer.once("error", () => child.kill());
 }
 
-async function runJson(executable, args, credential, timeoutMs = 120_000) {
+async function runJson(executable, args, credential, timeoutMs = 120_000, maxOutput = 4_000_000) {
   return await new Promise((resolve, reject) => {
     const env = { ...process.env };
     delete env.PDM_WORKLOAD_AUTH_CREDENTIALS;
     delete env.PDM_WORKLOAD_CREDENTIAL;
     if (credential) env.PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY = credential;
     const child = spawn(executable, args, { windowsHide: true, shell: false, stdio: ["ignore", "pipe", "pipe"], env });
-    let stdout = "", stderr = "", timedOut = false;
+    const output = [];
+    let outputBytes = 0, stderr = "", timedOut = false;
     const timer = setTimeout(() => { timedOut = true; terminate(child); }, timeoutMs);
-    child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(0, 4_000_000); });
+    child.stdout.on("data", (chunk) => {
+      outputBytes += chunk.length;
+      if (outputBytes <= maxOutput) output.push(chunk);
+    });
     child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(0, 8_000); });
     child.once("error", (error) => { clearTimeout(timer); reject(error); });
     child.once("close", (code) => {
       clearTimeout(timer);
       if (timedOut) return reject(new Error("NATIVE_PROCESS_TIMEOUT"));
-      let parsed; try { parsed = JSON.parse(stdout.trim() || "{}"); } catch { return reject(new Error("NATIVE_RESULT_INVALID")); }
+      if (outputBytes > maxOutput) return reject(new Error("NATIVE_RESULT_TOO_LARGE"));
+      let parsed; try { parsed = JSON.parse(Buffer.concat(output).toString("utf8").trim() || "{}"); } catch { return reject(new Error("NATIVE_RESULT_INVALID")); }
       resolve({ code: Number(code ?? 1), body: parsed, stderr });
     });
   });
@@ -136,10 +142,11 @@ async function documentManagerCredential(credentials, workerId, job, isStopping,
   const query = new URLSearchParams({ kind: job.kind, jobId: job.id,
     ...(job.sourceId ? { sourceId: job.sourceId } : {}) });
   const preview = job.kind === "preview";
+  const header = job.kind === "assembly_analysis" ? "x-pdm-assembly-lease" : preview ? "x-pdm-preview-lease" : "x-pdm-recognition-lease";
   while (!isStopping()) {
     try {
       const body = await api(credentials, workerId, `/api/preview-workers/solidworks-document-manager-key?${query}`, {
-        headers: { [preview ? "x-pdm-preview-lease" : "x-pdm-recognition-lease"]:
+        headers: { [header]:
           leaseHeader(preview ? 2 : 1, job.leaseBasis) }
       });
       if (!body?.key) throw new Error("DOCUMENT_MANAGER_LICENSE_KEY_MISSING");
@@ -184,9 +191,9 @@ async function readbackCompletion(credentials, workerId, kind, jobId, expectatio
     (!expectation.status || readback.status === expectation.status);
 }
 
-async function completeWithReadback(credentials, workerId, kind, jobId, endpoint, body, expectation) {
+async function completeWithReadback(credentials, workerId, kind, jobId, endpoint, body, expectation, headers) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    try { return await api(credentials, workerId, endpoint, { method: "POST", body, timeoutMs: 30_000 }); }
+    try { return await api(credentials, workerId, endpoint, { method: "POST", body, headers, timeoutMs: 30_000 }); }
     catch (error) {
       if (await readbackCompletion(credentials, workerId, kind, jobId, expectation).catch(() => false)) return { readback: true };
       if (error?.status && error.status < 500) throw error;
@@ -315,6 +322,41 @@ async function processProbe(credentials, workerId, job) {
   return true;
 }
 
+async function processAssembly(credentials, workerId, job, isStopping, probe, sleep) {
+  if (!job) return false;
+  const base = `/api/assembly-analysis-jobs/${encodeURIComponent(job.jobId)}`;
+  const headers = {"x-pdm-assembly-lease":leaseHeader(1,job.leaseBasis)};
+  const pulse = () => api(credentials,workerId,`${base}/heartbeat`,{method:"POST",headers});
+  const controller = new AbortController();
+  const heartbeat = setInterval(() => void pulse().catch(error => {
+    if ([401,403,409,426].includes(error.status)) controller.abort();
+  }),5000);
+  let directory;
+  try {
+    await pulse();
+    const stopped = () => isStopping() || controller.signal.aborted;
+    const credential = await documentManagerCredential(credentials,workerId,
+      {kind:"assembly_analysis",id:job.jobId,leaseBasis:job.leaseBasis},stopped,probe,sleep);
+    directory = await fs.mkdtemp(path.join(jobsRoot,"assembly-"));
+    const signal = AbortSignal.any([controller.signal,AbortSignal.timeout(240000)]);
+    const response = await fetch(`${credentials.baseUrl}${base}/content`,{signal,redirect:"error",
+      headers:{authorization:`Bearer ${credentials.token}`,"x-pdm-worker-id":workerId,...headers}});
+    if (!response.ok || !response.body) throw new Error(`ASSEMBLY_CONTENT_HTTP_${response.status}`);
+    const requestPath = await stageAssembly(job,response.body,directory,signal);
+    if (stopped()) throw new Error("ASSEMBLY_LEASE_LOST");
+    const native = await runJson(path.join(extractors,"AipdmAssemblyAnalyzer.exe"),[requestPath],credential.value,180000,8*1024*1024);
+    if (native.body?.version !== 1 || !native.body.status) throw new Error("ASSEMBLY_NATIVE_RESULT_INVALID");
+    if (stopped()) throw new Error("ASSEMBLY_LEASE_LOST");
+    await completeWithReadback(credentials,workerId,"assembly_analysis",job.jobId,`${base}/complete`,native.body,
+      {digest:jsonDigest(native.body),status:native.body.status},headers);
+    return true;
+  } finally {
+    controller.abort();
+    clearInterval(heartbeat);
+    if (directory) await fs.rm(directory,{recursive:true,force:true});
+  }
+}
+
 export async function runWindowsWorker({ credentials, workerId, isStopping, log, now = () => performance.now(), sleep = delay }) {
   await cleanupStaleJobs();
   const claim = (endpoint, body) => api(credentials, workerId, endpoint, { method: "POST", body });
@@ -326,16 +368,23 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log,
   const recognition = createClaimPoll(() => claim("/api/recognition-jobs/claim", {
     workerId, maxAttempts: 2, allowNativeSources: true
   }), now);
+  const supportsAssembly = await fs.access(path.join(extractors,"AipdmAssemblyAnalyzer.exe")).then(()=>true,()=>false);
+  const assembly = createClaimPoll(async () => (await claim("/api/assembly-analysis-jobs/claim",{
+    workerId,protocolVersion:1,parserVersion:"solidworks-document-manager.assembly.v2"
+  }))?.job,now);
   const work = {
     preview: async () => processPreview(credentials, workerId, await preview.take(), isStopping, probe, sleep),
-    recognition: async () => processRecognition(credentials, workerId, await recognition.take(), isStopping, probe, sleep)
+    recognition: async () => processRecognition(credentials, workerId, await recognition.take(), isStopping, probe, sleep),
+    assembly: async () => processAssembly(credentials,workerId,await assembly.take(),isStopping,probe,sleep)
   };
-  let next = "preview";
+  const kinds = supportsAssembly ? ["preview","recognition","assembly"] : ["preview","recognition"];
+  const nextDue = () => Math.min(preview.dueAt, recognition.dueAt, supportsAssembly ? assembly.dueAt : Infinity);
+  let first = 0;
   while (!isStopping()) {
     try {
       if (await processProbe(credentials, workerId, await probe.take())) continue;
       if (isStopping()) break;
-      if (Math.min(preview.dueAt, recognition.dueAt) <= now()) {
+      if (nextDue() <= now()) {
         const readiness = await api(credentials, workerId, "/api/preview-workers/solidworks-document-manager-key?readiness=1");
         if (readiness?.available !== true) {
           await sendCapabilityHeartbeats(credentials, workerId, null, "document_manager_credential_waiting");
@@ -343,14 +392,12 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log,
           continue;
         }
         if (isStopping()) break;
-        const alternate = next === "preview" ? "recognition" : "preview";
-        if (await work[next]()) {
-          next = alternate;
-          continue;
+        for (let offset=0; offset<kinds.length && !isStopping(); offset++) {
+          const index = (first+offset)%kinds.length;
+          if (await work[kinds[index]]()) { first = (index+1)%kinds.length; break; }
         }
-        if (!isStopping() && await work[alternate]()) continue;
       }
-      const wait = Math.min(probe.dueAt, preview.dueAt, recognition.dueAt) - now();
+      const wait = Math.min(probe.dueAt, nextDue()) - now();
       // Check the stop flag during long backoffs within WinSW's stop timeout.
       if (!isStopping() && wait > 0) await sleep(Math.min(wait, 5_000));
     } catch (error) {

@@ -162,6 +162,8 @@ flowchart LR
 - Candidate first revision與formal revision共用同一 readiness service，不得各自保留不同門檻。
 - 每次進版必須有本次 `cad_3d_upload_receipt`；只選歷史 asset、未重新提供 upload bytes者不滿足門檻。
 
+已定案的組立包擴充由 DEV-129 實作後生效。該流程由本次上傳 ZIP 內選定的 `.SLDASM` 形成 3D 主檔及本次上傳證明，圖號送審同時核對該包的必要參照檢查結果與現行必備角色。 [DEV-129 組立包與自動 BOM 草稿](DEV-129-assembly-package-cad-bom-draft.md#圖號送審)
+
 ## 6. 3D Upload、Hash Reuse 與容量契約
 
 ### 6.1 Intake Sequence

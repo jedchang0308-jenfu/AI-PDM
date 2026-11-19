@@ -1,5 +1,6 @@
 import type { ReadPrincipalRouteCapability } from "@/lib/pdm-principal-dev087-route";
 import crypto from "node:crypto";
+import { assemblySubmitAvailability, currentAssemblySubmission, freezeAssemblyReview, approveAssemblyReview } from "@/lib/drawing-assembly-review";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
@@ -230,7 +231,9 @@ export class DrawingRevisionWorkService {
     if (changeImpactProjection.changeImpactRequired && changeImpactProjection.changeImpact) raw.changeImpact = changeImpactProjection.changeImpact;
     else delete raw.changeImpact;
     const { drawingId: _drawingId, revisionId: _revisionId, predecessorRevisionId: _predecessorRevisionId, ...payload } = raw;
-    return { data: { entityType: "drawing" as const, entityId: work.drawing_id, workId: work.id, revisionId: work.revision_id, revision: work.target_label, rowVersion: Number(work.row_version), payload, identity: drawing, files, changeImpactRequired: changeImpactProjection.changeImpactRequired, relatedParts: changeImpactProjection.relatedParts, affectedParts: changeImpactProjection.affectedParts, readonly: !permittedInteraction.canMutateContent, interaction: permittedInteraction }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.profileId }), correlationId: crypto.randomUUID() } };
+    const assemblyPackage=await assemblySubmitAvailability(this.client,work);
+    permittedInteraction.canSubmit=permittedInteraction.canSubmit&&assemblyPackage.canSubmit;
+    return { data: { entityType: "drawing" as const, entityId: work.drawing_id, workId: work.id, revisionId: work.revision_id, revision: work.target_label, rowVersion: Number(work.row_version), payload, identity: drawing, files, assemblyPackage, changeImpactRequired: changeImpactProjection.changeImpactRequired, relatedParts: changeImpactProjection.relatedParts, affectedParts: changeImpactProjection.affectedParts, readonly: !permittedInteraction.canMutateContent, interaction: permittedInteraction }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.profileId }), correlationId: crypto.randomUUID() } };
   }
 
   async targets(drawingId: string, sourceRowKey: string, actor: DrawingRevisionActor) {
@@ -543,6 +546,7 @@ export class DrawingRevisionWorkService {
         }
         throw error;
       }
+      await currentAssemblySubmission(tx,locked);
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const lifecycleBasis = principalOnly
         ? await repository.readMasterLifecycleBasis(tx, {
@@ -580,6 +584,7 @@ export class DrawingRevisionWorkService {
           })
           : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id }) };
       const request = await reviews.create(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, ...assignment, snapshotPayload: packagePayload, snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : legacySnapshotHash });
+      await freezeAssemblyReview(tx,locked,request.id);
       await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'in_review', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`, { companyId, revisionId: locked.revision_id });
       await tx.execute(`UPDATE canonical_workbench_states SET handling = 'review_owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND work_id = :workId AND handling = 'owner'`, { companyId, workId }); return { requestId: request.id, reviewCycleId: request.reviewCycleId, rowVersion: request.rowVersion };
   }
@@ -734,7 +739,7 @@ export class DrawingRevisionWorkService {
         return recordDev087Fault(tx, locked, faultHandling);
       }
       if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409); const work = approvalWork ?? await repository.readWork(tx, actor.companyId, locked.workId, true); const rawPayload = work ? (typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) : null; const snapshots = work ? [{ payload: sanitizeDrawingRevisionWorkPayload(rawPayload), revisionId: work.revision_id, claimId: work.target_claim_id }, { payload: rawPayload, revisionId: work.revision_id, claimId: work.target_claim_id }] : []; const expectedHash = verifiedPackage?.decisionBasis.hash ?? locked.snapshotHash; if (!work || !snapshots.some((snapshot) => dev087RequestHash(snapshot) === expectedHash)) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
-      await repository.formalize(tx, { companyId: actor.companyId, work }); await reviews.recordTerminalReceipt(tx, locked); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };
+      await approveAssemblyReview(tx,work,locked);await repository.formalize(tx, { companyId: actor.companyId, work }); await reviews.recordTerminalReceipt(tx, locked); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };
     });
   }
 
@@ -858,6 +863,7 @@ export class DrawingRevisionWorkService {
       await beginDev087Approval(tx, locked);
       const faultHandling = dev087FaultHandling();
       if (faultHandling) return recordDev087Fault(tx, locked, faultHandling, profile.profileId);
+      await approveAssemblyReview(tx,work,locked);
       await repository.formalize(tx, { companyId: profile.companyId, work,
         expectedWorkRowVersion: frozenWorkRowVersion,
         ...(lifecycleBasis ? { lifecycleBasis } : {}) });

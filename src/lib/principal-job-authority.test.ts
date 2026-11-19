@@ -5,8 +5,13 @@ import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-gua
 const mocks = vi.hoisted(() => ({
   typed: {} as Record<string, unknown>, account: {} as Record<string, unknown>,
   state: {} as Record<string, unknown>, dynamic: true, allow: true,
-  evaluate: vi.fn(), publishedGrants: vi.fn()
+  evaluate: vi.fn(), publishedGrants: vi.fn(), localAdmin: vi.fn(), catalog: vi.fn()
 }));
+vi.mock("@/lib/shared-daily-system-test-admin", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/shared-daily-system-test-admin")>(),
+  isSharedDailySystemTestAdministrator: mocks.localAdmin
+}));
+vi.mock("@/lib/jenfu-principal-role-catalog", () => ({ requirePublishedPrincipalCatalog: mocks.catalog }));
 
 vi.mock("@/lib/jenfu-auth-epoch-repository", () => ({
   JenfuAuthEpochRepository: class {
@@ -67,6 +72,7 @@ function verifiedRequest(): VerifiedPrincipalRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.localAdmin.mockResolvedValue(false);
   mocks.typed = {
     principalId: "principal-1", employeeId: "employee-1", accountType: "human_personal",
     identityIssuer: "https://issuer.example", identitySubject: "subject-1"
@@ -157,6 +163,30 @@ describe("durable Principal job authority", () => {
       linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download"
     })).rejects.toMatchObject({ code: "PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", status: 503 });
     expect(mocks.evaluate).not.toHaveBeenCalled();
+  });
+
+  it("lets the explicitly bound shared-daily administrator resume against the static published catalog", async () => {
+    const { default: catalog } = await import("../../config/access-control/jenfu-role-catalog.v7.json");
+    mocks.catalog.mockResolvedValue(catalog);
+    mocks.localAdmin.mockResolvedValue(true);
+    mocks.dynamic = false;
+    const resource = { linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download" } as const;
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).resolves.toBeUndefined();
+    expect(mocks.publishedGrants).toHaveBeenCalledOnce();
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    mocks.state = { authEpoch: 5, revokedBefore: null };
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).rejects.toMatchObject({
+      code: "PRINCIPAL_JOB_INITIATOR_REVOKED", status: 403
+    });
+  });
+
+  it("fails closed when the shared-daily marker or protected catalog cannot be validated", async () => {
+    mocks.localAdmin.mockRejectedValueOnce(new Error("SHARED_DAILY_SYSTEM_TEST_ADMIN_PROFILE_INVALID"));
+    const resource = { linkedEntityType: "drawing_revision", capabilityRole: "cad_3d", action: "view_and_download" } as const;
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).rejects.toMatchObject({status:503});
+    mocks.localAdmin.mockResolvedValue(true);
+    mocks.catalog.mockResolvedValue({roles:[]});
+    await expect(requireCurrentPrincipalJobAuthority(snapshot, initiator, resource)).rejects.toMatchObject({status:503});
   });
 
   it.each([

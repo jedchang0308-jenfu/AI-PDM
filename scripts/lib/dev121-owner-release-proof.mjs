@@ -374,7 +374,7 @@ function assertContentBundle(bundle, sourceRevision) {
   const core = { ...bundle }; delete core.manifestSha256
   if (!exactKeys(bundle, keys) || bundle.schemaVersion !== 'jenfu.dev012.migration-bundle.v1' || bundle.ownerApplicationId !== 'ai-pdm' || bundle.sourceRevision !== sourceRevision ||
       bundle.projectId !== PROJECT_ID || bundle.region !== 'asia-east1' || bundle.database !== 'jenfu_prod' || bundle.ledger !== 'ai_pdm_core.schema_migrations' || bundle.baselineCount !== 15 ||
-      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
+      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
   const paths = new Set(), versions = new Set()
   for (const [index, entry] of bundle.entries.entries()) {
     if (!exactKeys(entry, ['order', 'version', 'name', 'path', 'sourceSha256', 'appliedSha256', 'sqlBase64']) || entry.order !== index + 1 ||
@@ -479,12 +479,18 @@ function assertContentBundle(bundle, sourceRevision) {
         entry.sourceSha256 !== '4d9e28a9b2f7c396481c7e40f6d3eafcc16581e578e959b9d4781a0428f2e5b9' ||
         entry.appliedSha256 !== 'e2bac9a27a1a012ce3fa028a3c1ef1f3b78eea9b57b3b909af2c4256d40cefe2') fail('ARCHIVE_BUNDLE_INVALID')
   }
-  if (bundle.entries.length === 49) {
+  if (bundle.entries.length >= 49) {
     const entry = bundle.entries[48]
     if (entry.path !== 'db/postgres/108_dev121_shared_work_review_guards.sql' || entry.version !== 'ai-pdm-108' ||
         entry.name !== 'dev121_shared_work_review_guards' ||
         entry.sourceSha256 !== 'e95fb98d58de872226e328b431b879b3e2b8e8cf70e304a1457d88d94ad011fb' ||
         entry.appliedSha256 !== 'b7c9153f3e007cf5e03f8715f97e57d7b10fe6e7717a8e5cf164c94999f1a63c') fail('ARCHIVE_BUNDLE_INVALID')
+  }
+  if(bundle.entries.length===50) {
+    const entry=bundle.entries[49]
+    if(entry.path!=='db/postgres/109_dev129_assembly_packages.sql' || entry.version!=='ai-pdm-109' || entry.name!=='dev129_assembly_packages' ||
+       entry.sourceSha256!=='eb785318dc49e76579d75079e1e10d80997b8bf0f9828393438cc7d51f2c0800' ||
+       entry.appliedSha256!=='7f02f75081c263ed639e95661de32fa042d72c9b7dd1a670cc0dc6c606da3c75') fail('ARCHIVE_BUNDLE_INVALID')
   }
   assertUnlinkedProfileCleanupBundleBinding(bundle)
   return paths

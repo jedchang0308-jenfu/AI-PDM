@@ -3,6 +3,7 @@
 import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DrawingAssemblyPackagePanel } from "./drawing-assembly-package-panel";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, LoaderCircle, ScanSearch, Send, UploadCloud, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard, type DrawingDetailPreviewKind } from "@/components/drawing-detail-preview";
@@ -145,6 +146,26 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pdfSelection, setPdfSelection] = useState<{ contextKey: string; bindingId: string } | null>(null);
   const [uploadEntries, setUploadEntries] = useState<UploadEntry[]>([]);
+  const [assemblyBlocked, setAssemblyBlocked] = useState(false);
+  async function updateAssemblyBinding(blocked: boolean, binding: string | null) {
+    setAssemblyBlocked(blocked);
+    if (!binding || !endpoint || !data || data.files?.some(file => file.id === binding)) return;
+    const original = data;
+    try {
+      const response = await fetch(endpoint, {cache:"no-store"});
+      if (!response.ok) throw new Error();
+      const latest = await response.json() as ResponseShape;
+      if (latest.data.workId !== original.workId || latest.data.rowVersion < original.rowVersion) return;
+      if (JSON.stringify(latest.data.payload) !== JSON.stringify(original.payload)) {
+        setError("圖號欄位已由另一筆操作修改，請核對後重新整理。");
+        setReloadAvailable(true);
+        return;
+      }
+      setData(current => current?.workId === original.workId && current.rowVersion === original.rowVersion
+        ? {...current, rowVersion:latest.data.rowVersion, files:latest.data.files, interaction:latest.data.interaction}
+        : current);
+    } catch {setReloadAvailable(true);}
+  }
   const loadSequenceRef = useRef(0);
   const loadControllerRef = useRef<AbortController | null>(null);
   const safeReturn = returnTo || "/numbering/drawings";
@@ -518,7 +539,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const fffReady = !changeImpactRequired || fffStatesComplete
     && (!reasonRequired || Boolean(text(changeImpact.reasonCategory)))
     && (!confirmedImpact || Boolean(text(replacement?.sourcePartNumberId)) && Boolean(text(replacement?.reservedPartNumber)));
-  const submitReady = filesReady && fffReady;
+  const submitReady = filesReady && fffReady && !assemblyBlocked;
   const returnLabel = reviewRequestId ? "返回審核清單" : "返回圖號清單";
   if (terminalTransition) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在完成操作...</div>;
   if (loading) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入圖號工作區...</div>;
@@ -540,6 +561,10 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content">
         <section className="dev079-unified-task-section dev079-workspace-editor dev079-workspace-file-editor" aria-labelledby="dev079-files-heading">
           <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>版次與檔案</span><small className="dev079-workspace-revision">版次 {revisionLabel}</small></h2>
+          {reviewRequestId ? <DrawingAssemblyPackagePanel key={reviewRequestId} frozen base={`/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}/assembly-package`}/>
+            : data.workId && !snapshotMode ? <DrawingAssemblyPackagePanel key={data.workId} editable={canMutateContent}
+              base={`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}/assembly-packages`}
+              onChange={(blocked,binding)=>void updateAssemblyBinding(blocked,binding)}/> : null}
           {canMutateContent ? <div className="dev079-workspace-file-upload">
             <div className="dev079-workspace-upload-row">
               <FileDropzone

@@ -174,6 +174,10 @@ const publicStatusRoutes = new Map([
   ["GET /api/numbering/state-flow/status", "numberStateFlowV1ClientStatus"]
 ]);
 const windowsServiceRoutes = new Map([
+  ["POST /api/assembly-analysis-jobs/claim", {category:"windows_service_device",markers:["assemblyJobRequest(request, \"claim\""]}],
+  ["GET /api/assembly-analysis-jobs/[jobId]/content", {category:"windows_service_device",markers:["assemblyJobRequest(request, \"content\""]}],
+  ["POST /api/assembly-analysis-jobs/[jobId]/heartbeat", {category:"windows_service_device",markers:["assemblyJobRequest(request, \"heartbeat\""]}],
+  ["POST /api/assembly-analysis-jobs/[jobId]/complete", {category:"windows_service_device",markers:["assemblyJobRequest(request, \"complete\""]}],
   ["POST /api/windows-service/enroll", {
     category: "windows_service_enrollment",
     markers: ["WindowsServiceDeviceRepository", ".enroll({", "sourceKey", "WINDOWS_SERVICE_PROTOCOL_VERSION"]
@@ -421,6 +425,10 @@ function main() {
       const windowsServiceRoute = windowsServiceRoutes.get(key);
       if (windowsServiceRoute) {
         containsAll(graph, windowsServiceRoute.markers, key);
+        if(relativeFile.startsWith("src/app/api/assembly-analysis-jobs/")) {
+          containsAll(readFileSync(join(appRoot,"src/lib/assembly-job-http.ts"),"utf8"),["authenticateWindowsServiceDevice(request)","readAssemblyLease(request)","8 * 1024 * 1024"],key);
+          containsAll(readFileSync(join(appRoot,"src/lib/assembly-analysis-jobs.ts"),"utf8"),["requireAssemblyPackageJobAuthority", "lease_owner_id", "lease_token", "selection_version", "archive_sha256"],key);
+        }
         if (centralPermissionGuard.test(graph) || sessionGuard.test(graph) || workerCapabilityGuard.test(graph)) {
           throw new Error(`${key}: Windows service route crossed into a human-session or legacy-worker guard`);
         }
