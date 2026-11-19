@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { readPdmPersonDisplayNames } from "@/lib/principal-employee-display-name-repository";
 
 export const runtime = "nodejs";
 
@@ -8,7 +10,12 @@ export async function GET(request: Request) {
   const access = await requireNumberStateReadAccessAsync(request, "handoff.published.view");
   if (access.response) return access.response;
 
-  const entries = (await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId })).map((submission) => ({
+  const companyId = access.company.companyId;
+  const submissions = await listManufacturingHandoffEntriesAsync({ companyId });
+  const names = submissions.length ? await readPdmPersonDisplayNames(getAsyncDatabaseClient(), companyId,
+    submissions.flatMap(submission => [submission.submitted_by, ...submission.approvals.map(approval => approval.reviewer_id)]))
+    : new Map<string, string>();
+  const entries = submissions.map((submission) => ({
     id: submission.id,
     drawing_number: submission.drawing_number,
     revision: submission.revision,
@@ -19,7 +26,7 @@ export async function GET(request: Request) {
     document_type: submission.document_type,
     change_description: submission.change_description,
     released_at: submission.released_at,
-    submitted_by_name: submission.submitted_by_name,
+    submitted_by_name: names.get(submission.submitted_by) ?? "未知提交者",
     package: submission.release_package
       ? {
           filename: submission.release_package.package_filename,
@@ -36,7 +43,7 @@ export async function GET(request: Request) {
       size: file.file_size
     })),
     approvals: submission.approvals.map((approval) => ({
-      reviewer_name: approval.reviewer_name,
+      reviewer_name: names.get(approval.reviewer_id) ?? "未知審核者",
       decision: approval.decision,
       decided_at: approval.decided_at
     }))

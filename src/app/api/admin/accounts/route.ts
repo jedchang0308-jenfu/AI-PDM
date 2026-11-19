@@ -11,6 +11,7 @@ import { JenfuPrincipalProvisionError, provisionPrincipalAccount } from "@/lib/j
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
+import { readPdmPersonDisplayNames } from "@/lib/principal-employee-display-name-repository";
 
 export const runtime = "nodejs";
 
@@ -87,7 +88,11 @@ export async function GET(request: Request) {
               status: url.searchParams.get("status") ?? undefined,
               limit: Number(url.searchParams.get("limit") ?? 100)
             });
-          return NextResponse.json({ accounts, subjectMode: "principal" },
+          const names = await readPdmPersonDisplayNames(snapshot, verified.profile.companyId,
+            accounts.map(account => account.id));
+          return NextResponse.json({ accounts: accounts.map(account => ({
+            ...account, personDisplayName: names.get(account.id) ?? null
+          })), subjectMode: "principal" },
             { headers: { "cache-control": "no-store" } });
         });
     } catch (error) {

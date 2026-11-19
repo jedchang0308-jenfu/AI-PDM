@@ -59,7 +59,7 @@ const verified = {
   profile: { pdmUserId: "profile-1", companyId: "company-1" },
   session: { principalId: "principal-1", assuranceLevel: "aal1" }
 };
-const snapshot = { queryOne: mocks.resource };
+const snapshot = { kind: "postgres", queryOne: mocks.resource, query: vi.fn().mockResolvedValue([]) };
 const request = () => new Request("https://ai-pdm.test/api/submissions/submission-1");
 const context = { params: Promise.resolve({ id: "submission-1" }) };
 const decision = (roleCode = "rd", allowed = true) => ({

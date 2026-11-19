@@ -65,7 +65,7 @@ export function PrincipalTransferReviewWorkspace({ requestId }: { requestId: str
     {item ? <section className="panel" aria-label="技轉包審核內容">
       <h2>{item.title}</h2>
       <p>{item.targetSummary}</p>
-      <p>送審者：{item.requestedByName ?? item.requestedBy ?? "未知"}</p>
+      <p>送審者：{item.requestedByName ?? "未知申請者"}</p>
       <p>送審時間：{item.requestedAt}</p>
       {item.reason ? <p>原因：{item.reason}</p> : null}
       {item.packageId ? <Link href={`/transfer-packages/${encodeURIComponent(item.packageId)}?section=scope`}

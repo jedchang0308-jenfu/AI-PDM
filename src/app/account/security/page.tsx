@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, MonitorSmartphone, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
 import { LoadingIndicator } from "@/components/loading-indicator";
+import { pdmPersonDisplayName } from "@/lib/principal-employee-display-name";
 
 type AccountSession = {
   id: string;
@@ -24,6 +25,7 @@ type CurrentUser = {
   id: string;
   display_name?: string;
   displayName?: string;
+  employee_name?: string | null;
   email?: string | null;
 };
 
@@ -117,6 +119,11 @@ export default function AccountSecurityPage() {
     setMessage({ type: "success", text: body.message ?? "若帳號符合復原條件，系統會寄出復原郵件。" });
   }
 
+  const accountName = pdmPersonDisplayName({
+    employee_name: user?.employee_name, email: user?.email,
+    display_name: user?.display_name ?? user?.displayName
+  }) ?? "已登入使用者";
+
   return (
     <div className="account-security-page">
       <header className="page-header">
@@ -135,8 +142,8 @@ export default function AccountSecurityPage() {
       <section className="panel account-security-summary">
         <div>
           <span>目前帳號</span>
-          <strong>{user?.display_name ?? user?.displayName ?? "已登入使用者"}</strong>
-          <small>{user?.email ?? "未紀錄電子郵件"}</small>
+          <strong>{accountName}</strong>
+          {accountName !== user?.email?.trim() ? <small>{user?.email ?? "未紀錄電子郵件"}</small> : null}
         </div>
         <div>
           <span>有效工作階段</span>

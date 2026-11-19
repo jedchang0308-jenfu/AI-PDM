@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       if (companyResult.response) throw new JenfuPrincipalRequestError("auth_session_invalid");
       const companyAccess = { ...companyResult.company, is_default: true };
       const testAdmin = isVerifiedLocalTestAdmin(verified, snapshot);
-      const employeeName = testAdmin ? "本機測試超級管理員" : verified.permissions
+      const employeeName = testAdmin ? null : verified.permissions
         ? verified.permissions.employeeName
         : await readPrincipalChineseEmployeeName(snapshot, verified.session.principalId, verified.session.employeeId);
       // The historical profile role is never returned as a principal capability.
