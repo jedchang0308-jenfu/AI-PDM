@@ -7,6 +7,9 @@ import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-p
 import { evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { isDynamicRolePolicyInSnapshot, canonicalCapabilityGroups } from "@/lib/principal-resource-capability";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
+import { isSharedDailySystemTestAdministrator, requireSharedDailySystemTestAdminOperations } from "@/lib/shared-daily-system-test-admin";
+import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
+import permissionRegistry from "../../config/access-control/role-policy-editor-registry.v3.json";
 
 /** Durable initiator data only; it cannot recreate or extend the original session. */
 export type PrincipalJobInitiator = Readonly<{
@@ -148,6 +151,26 @@ export async function requireCurrentPrincipalJobAuthority(
       identityIssuer: typed.identityIssuer,
       identitySubject: typed.identitySubject
     });
+    // The same explicitly enabled local test administrator used by interactive
+    // requests also needs current authority when its background worker resumes.
+    // Keep admission, lifecycle and grant validation above; never trust a saved
+    // session permission snapshot or extend this exception to another actor.
+    if (await isSharedDailySystemTestAdministrator(snapshot, initiator)) {
+      const catalog = await requirePublishedPrincipalCatalog(snapshot);
+      const role = catalog.roles.find(candidate => candidate.stableRoleId === "role-system-admin");
+      if (!role) throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", 503);
+      const operations = requireSharedDailySystemTestAdminOperations(role);
+      const actions = action === "view_and_download" ? ["view", "download"] as const : [action];
+      if (groups.some(group => actions.some(requiredAction => {
+        const code = `pdm.${group}.${requiredAction}`;
+        const bindings = permissionRegistry.businessActions.find(operation => operation.code === code)?.legacyOperationBindings;
+        return !bindings?.length || bindings.some(binding => !operations.some(operation =>
+          operation.kind === binding.kind && operation.code === binding.code));
+      }))) {
+        throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_RESOURCE_VIEW_DENIED", 403);
+      }
+      return;
+    }
     const dynamicPolicy = await isDynamicRolePolicyInSnapshot(snapshot);
     if (action === "view_and_download" && !dynamicPolicy) {
       throw new PrincipalJobAuthorityError("PRINCIPAL_JOB_AUTHORITY_UNAVAILABLE", 503);

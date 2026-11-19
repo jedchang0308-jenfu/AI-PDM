@@ -224,3 +224,10 @@ RD 可直接決定元件命名、查詢批次及快取方式。若原生能力�
 - 沿用 main 工作區既有 shared daily 雙埠 cookie 與測試管理員支援，僅將相關實作帶到 candidate，保留 main 其他未提交修改。Document Manager 採既有明確啟用的 environment fallback，變更識別 `DEV-129-local-1021-trial`；金鑰由已授權讀取模組載入記憶體，不進 source、log 或文件。修正 readiness 與既有 credential resolver 對此設定的判定不一致，相關測試 47 passed。
 - 已驗證 controller 分工作樹、路徑限制及原生命週期測試，候選登入支援 5 passed。無視窗 Edge 通過兩埠同時 SSO（各 `/api/auth/me` 200）、A0054 編輯入口、正常 device enrollment 與 worker 組立 claim HTTP 200。`A0054-M01` 既有工作 `e70cbc91-63f3-47cb-a0d1-56cc84c04618` 保留未上傳，讓使用者親自走上傳、BOM、下載。
 - 試用入口：`http://localhost:1021/numbering/drawings?query=A0054`；先經 `http://localhost:1000/login` 使用測試超級管理員，再進明細按「編輯」。本次接線驗證不宣稱人工流程已驗收；未合併、未部署。
+
+#### 同日上傳後的本機背景授權修正
+
+- 使用者實際上傳 A0054.zip 後停在等待解析。工作重新驗權要求 dynamic role-policy publication，但 shared daily 使用既有 static catalog，造成 claim HTTP 503；原先空佇列 HTTP 200 並未覆蓋實際有工作的路徑。
+- 背景驗權沿用已明確啟用的 shared daily 測試管理員例外：先驗現行 Principal、帳號生命週期、auth epoch 與有效 grant，再驗本機環境／marker／資料指紋及 system-admin 的 66 個操作，依既有 registry 的 legacy bindings 確認查看／下載權限。其他帳號與正式環境維持原有行為。
+- 修正過程一次權限對應不完整使尚未執行的工作轉 blocked；修正後用 task-owned `.tmp/dev129-resume-upload.mjs` 核對 51870、當代 fixture 指紋、精確 package/work/principal、原 ZIP SHA256、attempts=0 且無結果，僅將這筆工作接回 queued。沒有重傳、改寫 ZIP 或 BOM。
+- 原有 Windows worker 完成解析，組態「預設」、參照檢查 passed、自動綁定 A0054.SLDASM，BOM 草稿 4 列／4 列待處理（3 列未提供編號、1 列 CAD 料號 TBD 未配對）。測試 22 passed，typecheck 通過。人工試用仍待使用者確認；未合併、未部署。
