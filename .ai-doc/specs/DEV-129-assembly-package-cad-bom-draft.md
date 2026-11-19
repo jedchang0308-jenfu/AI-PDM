@@ -158,6 +158,8 @@ RD 可從 §7.7 的傳輸及原生工作開始。傳輸有初始可實作的容�
 
 沿用 `windows-service/tests/worker.test.mjs`、`scripts/qc-canonical-drawing-work-upload-browser.mjs`、`src/lib/drawing-revision-work.principal.test.ts` 及歷史與審核 Principal 的現有測試入口。RD 依變更用 `npm run plan:production-slice` 選受影響範圍；涵蓋 app、worker、migration 時分別執行其聚焦驗證及適用的 `npm run typecheck:app`、`npm run build:isolated`、`npm run check:db-boundary`。測試 ZIP、解析暫存及資料庫保持任務隔離。隔離 provider 結果與 SolidWorks 實機開啟證據各自留存。正式啟用沿現行發布流程另行授權。
 
+本機容量自查以 U-Joint 真實 CAD 加測試填充檔得到 263,201,659 bytes 的 ZIP。在隔離 local provider 依 8 MiB 分段寫入、讀回 offset、下載並逐檔驗證 worker 解壓後內容，共耗時約 4.3 秒，驗證程序峰值 RSS 約 165 MiB。這是本機儲存與串流量測；瀏覽器網路、GCS 與原生 CAD 計算時間另計。
+
 ### 7.8 頁面如何引導例外處理
 
 工作頁從目前套件分別讀取收件、3D 主檔、必要參照及 BOM 草稿四項結果。以下用同一張表決定主要提示、可用操作及送審條件。下載沿 §7.3 檢查權限，送審沿 §7.6 檢查既有條件。
