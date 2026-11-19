@@ -35,11 +35,12 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
         SET ROLE jenfu_ai_pdm_migrator;
         SET search_path = ai_pdm_core, pg_catalog;
         CREATE TABLE companies (id text PRIMARY KEY);
-        CREATE TABLE users (id text PRIMARY KEY, display_name text, company_id text);
+        CREATE TABLE users (id text PRIMARY KEY, display_name text, company_id text, email text);
         CREATE TABLE drawing_rd_branches (id text PRIMARY KEY);
         INSERT INTO companies VALUES ('company-one'), ('company-two');
         INSERT INTO users VALUES ('submitter','Submitter','company-one'), ('assigned-reviewer','Reviewer','company-one'),
           ('another-submitter','Another','company-one'), ('company-two-submitter','Other company','company-two');
+        UPDATE users SET email='submitter@example.test' WHERE id='submitter';
         INSERT INTO drawing_rd_branches VALUES ('branch-one');
         ${baseline.slice(first, last)}
         INSERT INTO pdm_work_review_requests
@@ -103,12 +104,34 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
       const inbox = new AsyncApprovalPlatformRepository(database);
       const scope = { companyId: "company-one", actorId: "submitter",
         readable: { drawing: true, part: true, transfer: true }, status: "all" as const, limit: 2 };
+      const fallback = await database.transaction(tx => new AsyncApprovalPlatformRepository(tx)
+        .listPrincipalSubmittedReviews({ ...scope, query: "submitter@example.test" }));
+      expect(fallback.summary.total).toBe(4);
+      expect(fallback.items.map(item => item.requestedByName)).toEqual(["submitter@example.test", "submitter@example.test"]);
+      await raw.query(`
+        CREATE TABLE ai_pdm_core.principal_accounts (
+          pdm_user_id text PRIMARY KEY, company_id text, principal_id text, employee_id text
+        );
+        INSERT INTO ai_pdm_core.principal_accounts VALUES
+          ('submitter','company-one','principal-submitter','employee-submitter'),
+          ('another-submitter','company-one','principal-another','employee-another');
+        CREATE SCHEMA orgmaster_contract;
+        CREATE VIEW orgmaster_contract.v_principal_display_profiles_v1 AS
+          SELECT * FROM (VALUES
+            ('principal-submitter','employee-submitter','林測試'),
+            ('principal-another','different-employee','不應顯示')
+          ) AS display(principal_id,employee_id,employee_name);
+      `);
       const page = await inbox.listPrincipalSubmittedReviews(scope);
       expect(page.summary).toMatchObject({ total: 4, pending: 2 });
       expect(page.nextCursor).not.toBeNull();
       const next = await inbox.listPrincipalSubmittedReviews({ ...scope, cursor: page.nextCursor });
       expect([...page.items, ...next.items].map(item => item.id).sort())
         .toEqual([drawing.id, voided.id, part.id, "transfer-one"].sort());
+      expect([...page.items, ...next.items].map(item => item.requestedByName))
+        .toEqual(["林測試", "林測試", "林測試", "林測試"]);
+      await expect(inbox.listPrincipalSubmittedReviews({ ...scope, query: "林測試" }))
+        .resolves.toMatchObject({ summary: { total: 4 } });
       expect([...page.items, ...next.items].find(item => item.id === part.id)?.status).toBe("approved");
       const previous = await inbox.listPrincipalSubmittedReviews({ ...scope, cursor: next.previousCursor });
       expect(previous.items).toEqual(page.items);
@@ -133,6 +156,9 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
       const pending = await inbox.listPrincipalWorkReviewInbox(reviewFilter);
       expect(pending.summary).toMatchObject({ total: 506, pending: 506 });
       expect(pending.items.map(item => item.id)).toEqual(["transfer-503", "transfer-502"]);
+      expect(pending.items.map(item => item.requestedByName)).toEqual(["林測試", "林測試"]);
+      await expect(inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, query: "林測試" }))
+        .resolves.toMatchObject({ summary: { total: 504 } });
       const nextPending = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, cursor: pending.nextCursor });
       expect(nextPending.summary).toEqual(pending.summary);
       expect(nextPending.items.map(item => item.id)).toEqual(["transfer-501", "transfer-500"]);

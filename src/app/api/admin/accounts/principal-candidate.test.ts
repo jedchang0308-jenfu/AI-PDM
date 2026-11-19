@@ -107,9 +107,11 @@ describe("principal-only account creation route", () => {
 });
 
 describe("principal account list", () => {
+  const query = vi.fn(async (sql: string) => sql.includes("FROM users")
+    ? [{ id: "pdm-one", email: "staff@example.test", display_name: "App alias" }] : []);
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate({}, {
+    mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate({ kind: "postgres", query }, {
       session: { principalId: "actor-principal" }, profile: { companyId: "company-jenfu" }
     }));
     mocks.evaluate.mockResolvedValue([{ allowed: true }]);
@@ -121,7 +123,7 @@ describe("principal account list", () => {
     const response = await GET(request("?status=active&query=pdm"));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ subjectMode: "principal",
-      accounts: [{ id: "pdm-one", principalId: "target-principal" }] });
+      accounts: [{ id: "pdm-one", principalId: "target-principal", personDisplayName: "staff@example.test" }] });
     expect(mocks.evaluate).toHaveBeenCalledWith(expect.anything(), expect.anything(),
       [{ permissionKind: "action", permissionCode: "accounts.lifecycle.manage" }]);
     expect(mocks.listAccounts).toHaveBeenCalledWith("company-jenfu",
@@ -133,6 +135,7 @@ describe("principal account list", () => {
     mocks.evaluate.mockResolvedValue([{ allowed: false }]);
     expect((await GET(request(""))).status).toBe(403);
     expect(mocks.listAccounts).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
     expect((await GET(request("?role=Admin"))).status).toBe(400);
   });
 });

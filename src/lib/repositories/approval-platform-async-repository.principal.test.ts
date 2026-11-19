@@ -4,6 +4,41 @@ import { AsyncApprovalPlatformRepository } from
   "@/lib/repositories/approval-platform-async-repository";
 
 describe("Principal approval inbox source boundary", () => {
+  it("projects submitter display names for my submitted reviews", async () => {
+    const query = vi.fn(async (sql: string) => sql.includes("FROM users")
+      ? [{ id: "profile-one", email: "test@example.test", display_name: "App alias" }]
+      : [{ id: "profile-one", employee_name: "張測試" }]);
+    const queryOne = vi.fn(async (sql: string, params: { submitterName: string }) => {
+      expect(sql).toContain("CAST(:submitterName AS text) AS requested_by_name");
+      expect(params.submitterName).toBe("張測試");
+      return {
+        rows: [
+          {
+            id: "review-one", source: "pdm_work_review", action_code: "numbering.pdm_part_change_review",
+            action_title: "料號變更審核", domain_code: "numbering", target_code: "P-001", title: "Part",
+            requested_by: "profile-one", requested_by_name: params.submitterName,
+            requested_at: "2026-09-28T01:00:00Z", status: "pending"
+          },
+          {
+            id: "transfer-one", source: "platform", action_code: "transfer.package_review",
+            action_title: "技轉包審核", domain_code: "transfer", target_code: "TP-001", title: "Transfer",
+            requested_by: "profile-one", requested_by_name: params.submitterName,
+            requested_at: "2026-09-27T01:00:00Z", status: "approved"
+          }
+        ], total: 2, pending: 1, needs_info: 0, apply_failed: 0
+      };
+    });
+    const client = { kind: "postgres", query, queryOne } as unknown as AsyncDatabaseClient;
+    const page = await new AsyncApprovalPlatformRepository(client).listPrincipalSubmittedReviews({
+      companyId: "company-jenfu", actorId: "profile-one", readable: { drawing: true, part: true, transfer: true },
+      status: "all", limit: 10
+    });
+    expect(page.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "review-one", requestedBy: "profile-one", requestedByName: "張測試" }),
+      expect.objectContaining({ id: "transfer-one", requestedBy: "profile-one", requestedByName: "張測試" })
+    ]));
+  });
+
   it("does not read a native approval detail from another company", async () => {
     const queryOne = vi.fn(async () => ({ id: "APR-TRF-one", company_id: "company-other" }));
     const query = vi.fn();
@@ -33,7 +68,7 @@ describe("Principal approval inbox source boundary", () => {
       source: "pdm_work_review", id: "review-one", companyId: "company-jenfu"
     });
     expect(page.summary).toMatchObject({ total: 1, pending: 1 });
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(3);
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain("FROM pdm_work_review_requests review");
     expect(sql).toContain("review.reviewer_user_id = :actorId");
