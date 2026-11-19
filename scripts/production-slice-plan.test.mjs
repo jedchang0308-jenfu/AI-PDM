@@ -100,6 +100,28 @@ test('documentation-only changes keep product gates closed', () => {
   assert.deepEqual(plan.evidenceRequirements, ['documentation-contract'])
 })
 
+test('shared daily entry keeps local, auth, app and planner checks without unrelated infrastructure', () => {
+  assert.deepEqual(classifyProductionPath('scripts/start-local-daily.mjs'), ['local-runtime'])
+  const plan = createProductionSlicePlan([
+    'scripts/start-local-daily.mjs',
+    'scripts/start-localhost-3000.ps1',
+    'scripts/qc-local-dev-entrypoint.mjs',
+    'src/lib/local-sandbox-principal-runtime.ts',
+    'src/lib/local-sandbox-parallel-cookies.test.ts',
+    'package.json',
+    'scripts/lib/production-slice-plan.mjs',
+    'scripts/production-slice-plan.test.mjs',
+  ])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  for (const gate of ['localRuntime', 'authorization', 'application', 'isolatedBuild', 'releaseCore', 'dependencyAudit']) {
+    assert.equal(plan.gates[gate], true, gate)
+  }
+  for (const gate of ['full', 'database', 'infrastructure', 'preview', 'worker']) {
+    assert.equal(plan.gates[gate], false, gate)
+  }
+  assert.equal(createProductionSlicePlan(['scripts/start-local-daily-helper.mjs']).classification, 'FULL')
+})
+
 test('RD catalog and migration route their explicit responsibilities without worker history', () => {
   const plan = createProductionSlicePlan([
     'config/access-control/jenfu-role-catalog.v7.json',
