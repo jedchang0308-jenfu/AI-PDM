@@ -4,6 +4,10 @@ import { evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot } from "@/lib/j
 import { parsePrincipalJobInitiator } from "@/lib/principal-job-authority";
 import type { AssemblyPackageRow } from "@/lib/drawing-assembly-package";
 import type { AssemblyAnalysisResult as NativeAssemblyAnalysisResult } from "@/lib/assembly-analysis-result";
+import { isSharedDailySystemTestAdministrator, requireSharedDailySystemTestAdminOperations } from "@/lib/shared-daily-system-test-admin";
+import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
+import type { AssemblyArchiveManifest } from "@/lib/assembly-archive";
+import permissionRegistry from "../../config/access-control/role-policy-editor-registry.v3.json";
 export type AssemblyBomRow = {
   rowKey: string; parentKey: string | null; entryKey: string | null; configuration: string;
   occurrencePath?: string; occurrenceKey?:string; cadPartNumber?: string | null; drawingNumber?: string | null;
@@ -87,12 +91,26 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
       identitySubject: initiator.identitySubject, localPrincipalId: initiator.pdmUserId, companyId: initiator.companyId, sessionSchemaVersion: 2
     }, [{ permissionKind: "action", permissionCode: "pdm.part.view" }]);
     canReadParts = decision?.allowed === true;
+    if (!canReadParts && await isSharedDailySystemTestAdministrator(client, initiator)) {
+      const role = (await requirePublishedPrincipalCatalog(client)).roles.find(role => role.stableRoleId === "role-system-admin");
+      if (!role) throw new Error("SHARED_DAILY_SYSTEM_TEST_ADMIN_CATALOG_INVALID");
+      const operations = requireSharedDailySystemTestAdminOperations(role);
+      const bindings = permissionRegistry.businessActions.find(action => action.code === "pdm.part.view")!.legacyOperationBindings;
+      canReadParts = bindings.length > 0 && bindings.every(binding => operations.some(operation =>
+        operation.kind === binding.kind && operation.code === binding.code));
+    }
   }
-  // Exact matches only. Filename never establishes a material identity.
+  // CAD identifiers have priority; otherwise match the exact manifest filename
+  // against existing numbers/roots. Never use fuzzy or prefix matching.
+  let manifest: AssemblyArchiveManifest | null = null;
+  try { manifest = typeof pkg.manifest_json === "string" ? JSON.parse(pkg.manifest_json) : pkg.manifest_json; } catch { /* No filename evidence. */ }
+  const filenames = new Map((manifest?.entries ?? []).filter(entry => !entry.directory).map(entry =>
+    [entry.entryKey, entry.relativePath.split(/[\\/]/u).at(-1)!.replace(/\.(?:sldprt|sldasm)$/iu, "")]));
   const numbers = [...new Set(raw.configurations.flatMap(config => config.bom.rows.flatMap(row => [row.cadPartNumber, row.drawingNumber]).filter((value): value is string => typeof value === "string" && value.length > 0)))];
   type Candidate = { id: string; part_number: string; drawing_number: string | null };
   const partsByNumber = new Map<string, Map<string, Candidate>>();
   const partsByDrawing = new Map<string, Map<string, Candidate>>();
+  const partsByFilename = new Map<string, Map<string, Candidate>>();
   function index(indexBy: Map<string, Map<string, Candidate>>, key: string | null, part: Candidate) {
     if (!key) return;
     let parts = indexBy.get(key);
@@ -113,6 +131,25 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
       index(partsByDrawing, candidate.drawing_number, candidate);
     }
   }
+  const filenameNumbers = [...new Set(raw.configurations.flatMap(config => config.bom.rows
+    .filter(row => !row.cadPartNumber && !row.drawingNumber && row.entryKey && !row.virtual)
+    .map(row => filenames.get(row.entryKey!)).filter((name): name is string => Boolean(name))))];
+  for (let start = 0; canReadParts && start < filenameNumbers.length; start += 500) {
+    const batch = filenameNumbers.slice(start, start + 500);
+    const placeholders = batch.map((_, i) => `:n${i}`).join(",");
+    const candidates = await client.query<Candidate & { root_code: string | null }>(`SELECT DISTINCT p.id,p.part_number,d.drawing_number,r.root_code
+      FROM part_numbers p LEFT JOIN part_roots r ON r.id=p.part_root_id AND r.company_id=p.company_id
+      LEFT JOIN drawing_part_links relation ON relation.part_number_id=p.id
+      LEFT JOIN drawing_numbers d ON d.id=relation.drawing_number_id AND d.company_id=p.company_id
+      WHERE p.company_id=:companyId AND p.record_status NOT IN ('Obsolete','Merged','Cancelled')
+        AND (p.part_number IN (${placeholders}) OR d.drawing_number IN (${placeholders}) OR r.root_code IN (${placeholders}))`,
+      { companyId: pkg.company_id, ...Object.fromEntries(batch.map((value, i) => [`n${i}`, value])) });
+    for (const candidate of candidates) {
+      for (const key of [candidate.part_number, candidate.drawing_number, candidate.root_code]) {
+        if (key && batch.includes(key)) index(partsByFilename, key, candidate);
+      }
+    }
+  }
   const source = { ...pkg, main_entry_key: raw.mainEntryKey ?? pkg.main_entry_key };
   return { ...raw, configurations: raw.configurations.map(config => {
     const keyMap = new Map(config.bom.rows.map(row => [row.occurrenceKey, assemblyBomRowKey(source, config.name, row)]));
@@ -121,7 +158,8 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
       try { quantity = normalizeAssemblyQuantity(row.quantity); } catch { quantity = null; }
       const byPart = partsByNumber.get(row.cadPartNumber ?? "");
       const byDrawing = partsByDrawing.get(row.drawingNumber ?? "");
-      const matches = row.cadPartNumber && row.drawingNumber
+      const filename = !row.cadPartNumber && !row.drawingNumber && row.entryKey && !row.virtual ? filenames.get(row.entryKey) : null;
+      const matches = filename ? Array.from(partsByFilename.get(filename)?.values() ?? []) : row.cadPartNumber && row.drawingNumber
         ? Array.from(byPart?.values() ?? []).filter(candidate => byDrawing?.has(candidate.id))
         : Array.from((row.cadPartNumber ? byPart : byDrawing)?.values() ?? []);
       const conflicting = (row.cadPartNumber && row.drawingNumber && (byPart?.size || byDrawing?.size) && matches.length !== 1) || matches.length > 1;
@@ -130,7 +168,8 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
       const disposition = excluded ? "excluded" : quantity === null ? "quantity_unknown" : conflicting ? "conflict" : match ? "matched" : !canReadParts && (row.cadPartNumber || row.drawingNumber) ? "needs_mapping" : row.cadPartNumber || row.drawingNumber ? "needs_record" : "needs_purpose";
       return { ...row, rowKey: keyMap.get(row.occurrenceKey)!, parentKey: row.parentKey ? keyMap.get(row.parentKey) ?? row.parentKey : null,
         quantity, partId: excluded ? null : match?.id ?? null, partNumber: excluded ? null : match?.part_number ?? null,
-        disposition, sourceEvidence: { packageId: pkg.id, archiveSha256: pkg.archive_sha256, mainEntryKey: source.main_entry_key, configuration: config.name, occurrencePath: row.occurrenceKey } };
+        disposition, sourceEvidence: { packageId: pkg.id, archiveSha256: pkg.archive_sha256, mainEntryKey: source.main_entry_key, configuration: config.name, occurrencePath: row.occurrenceKey,
+          ...(match && filename ? { matchBasis: "exact_manifest_filename", matchedFilename: filename } : {}) } };
     });
     return { ...config, bom: { ...config.bom, rows:aggregateAssemblyBomRows(rows,[pkg.archive_sha256,source.main_entry_key,config.name]) } };
   }) };
