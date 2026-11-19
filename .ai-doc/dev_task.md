@@ -51,7 +51,7 @@
 
 ## DEV-126：AI-PDM 單一前端權限來源與無感換頁
 
-- 2026-11-16 1020 日常整合、既有檔案讀回與固定路徑的 owner 交接見[日常地端測試與固定路徑](specs/DEV-126-app-scoped-frontend-permission-projection.md#daily-local-test-binding)。
+- 1020 日常整合由 Platform 主控，固定使用共用資料庫 `jenfu_local_shared_daily` 及 `C:\VIBE CODING\.local\jenfu-shared-daily` 下的 PDM 測試檔案。入口、重啟讀回與路徑契約見[日常地端測試與固定路徑](specs/DEV-126-app-scoped-frontend-permission-projection.md#daily-local-test-binding)。
 
 - 2026-11-06 使用者追加 [PDM 獨立本機測試超級管理員](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-test-super-admin)：PR #573 已合併並完成地端 1020 登入／登出／重登入與全部 5 頁、51 操作權限投影驗證；required CI 通過。地端固定入口 `npm run dev:local` 自動啟動或重用專用 PostgreSQL 18，再啟動 1020 TestAdmin runtime；實際入口健康 readback 通過，細節見 §14。使用者另要求複製目前正式資料；本機現有合約 §29.2 禁止 raw rows 落本機／non-production，故未執行未遮罩匯出；既有遮罩 importer 的輸入不是目前正式來源快照，需依核准資料邊界取得可用副本後再接入 PostgreSQL。
 

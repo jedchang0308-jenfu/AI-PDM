@@ -252,7 +252,9 @@ App 已 finalized 後 catalog 失敗不改寫 RELEASED terminal、不自動回�
 
 較早sealed production-bridge source自查的分母為：disposable PG 10組、bridge 37例、executor 34例、runner 11例 PASS。封閉 bridge、metadata／image／source／99% traffic 拒絕、immutable operation 拒絕任意 actor／SQL、unknown 只 status 及舊 v1 rollback fence 均有 source coverage。這些是 RD 合成／隔離自查，不是正式 DB、Google登入或 browser 驗收。
 
-Header只用verified exact Principal+Employee讀OrgMaster `v_principal_display_profiles_v1.employee_name`，按Han＋空格／middle-dot、最多120字規則顯示；投影不可用或非合法中文一律「員工」，不猜email／員編／Google暱稱或本app舊姓名。不變更SSO wire、身份、business approver或user寫回。普通登入在optional view失敗時以SAVEPOINT保留交易可用。本機 canonical jsdom 缺失使DOM4本機`NOT_RUN`；`e813d6137`／run `42075224808` 的 remote required CI 曾通過DOM4與isolated build，僅作該 exact SHA 證據；不得將其寫成最新 HEAD 的完整build或真實Google/UI acceptance。
+Header原以 verified exact Principal+Employee 從 OrgMaster `v_principal_display_profiles_v1.employee_name` 讀取正式姓名，按 Han＋空格／middle-dot、最多120字規則顯示；無可用姓名時顯示「員工」。當時本機 canonical jsdom 缺失使 DOM4 本機 `NOT_RUN`；`e813d6137`／run `42075224808` 的 remote required CI 通過 DOM4 與 isolated build，僅適用該 SHA。
+
+2026-11-18 人員顯示規則：側欄、帳號安全、我的送審／待審、技轉審核、內部送審明細、製造交接及 Principal 帳號清單統一依正式員工姓名、PDM 帳號電子郵件、PDM 顯示名稱的順序取首個可用值。正式姓名沿用相同 OrgMaster 契約及姓名格式，按 Principal+Employee 確認。業務畫面先確認原資料存取範圍，再按公司與案件所指的人員查詢。三者皆缺時使用畫面原有的通用稱呼。公開分享、整合／匯出與管理稽核識別碼維持原投影。可選姓名查詢失敗時以 SAVEPOINT 保留本次讀取，且不影響 SSO、授權或寫回。
 
 Local CLI `dev127-upgrade-role-policy.mjs`僅提供 read-only plan/status（BEGIN READ ONLY）；commit 在 URL parsing／Client construction／connect 前無條件拒絕，沒有 SET ROLE 或 upgrade writer。現有 loopback／`dev127_*` 只限制唯讀範圍，不證明 disposable 所有權。真正primary-local不屬disposable，也不可弱化CLI guard；closed local bridge source已合併（§8.6），bounded source review與main required CI已通過，實際primary完整串接仍待，不能記為 local catalog upgrade 或本地升權完成。persistent owner upgrade source 的唯一入口為上述 sealed finalize Job bridge，不另加 DB credential／Secret。既有 Principal-only maintenance 沿原 exact recovery proof，不執行 feature catalog upgrade／不製造 app-compatible artifact 證據。
 

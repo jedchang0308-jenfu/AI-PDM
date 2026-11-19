@@ -7,6 +7,7 @@ import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { authorizePrincipalSubmissionReadInSnapshot } from "@/lib/principal-submission-access";
 import { AsyncSubmissionListRepository } from "@/lib/repositories/submission-list-async-repository";
 import { AsyncSubmissionStatusRepository } from "@/lib/repositories/submission-status-async-repository";
+import { readPdmPersonDisplayNames } from "@/lib/principal-employee-display-name-repository";
 
 export const runtime = "nodejs";
 
@@ -36,8 +37,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({ code: "principal_dependency_unavailable" },
           { status: 503, headers: { "cache-control": "no-store" } });
       }
+      const names = await readPdmPersonDisplayNames(snapshot, resource.company_id, [submission.submitted_by]);
       return NextResponse.json({ submission: {
         ...submission,
+        submitted_by_name: names.get(submission.submitted_by) ?? "未知提交者",
         release_actionability: await new AsyncSubmissionStatusRepository(snapshot)
           .getSubmissionReleaseActionability({ id })
       }, historicalReadOnly: true }, { headers: { "cache-control": "private, no-store" } });

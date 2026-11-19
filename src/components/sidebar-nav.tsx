@@ -54,6 +54,7 @@ type ProductionSliceClientStatus = {
 type SidebarUser = {
   display_name: string;
   employee_name?: string | null;
+  email?: string | null;
   default_company?: {
     companyCode?: string;
     companyKind?: string;

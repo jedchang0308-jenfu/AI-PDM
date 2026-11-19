@@ -181,7 +181,7 @@ function SubmissionDetailView({ submission }: { submission: SubmissionDetail }) 
           />
           <Info label="材質" value={submission.material || "未填"} />
           <Info label="表面處理" value={submission.surface_finish || "未填"} />
-          <Info label="建立者" value={submission.submitted_by_name || submission.submitted_by} />
+          <Info label="建立者" value={submission.submitted_by_name || "未知提交者"} />
           <Info label="建立時間" value={new Date(submission.created_at).toLocaleString()} />
         </div>
 

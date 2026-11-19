@@ -355,7 +355,11 @@ npm run local:test-admin:install
 npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12020
 ```
 
-使用者指定的固定地端環境為 `localhost:1020`。完成既有環境的一次性初始化後，`npm run dev:local` 是標準啟動入口：由專案根目錄向上定位受控的 `.local/AI_PDM/test-admin-1020` profile，確認綁定的 PostgreSQL 18 資料目錄與 loopback listener，資料庫停止時以同一個隔離 cluster 自動啟動，再以固定 profile 啟動 1020 TestAdmin。重開終端或 Windows 後仍使用同一資料庫、sandbox 與登入方式。`npm run dev:local:check` 只讀檢查兩個程序；`npm run dev:local:restart` 重啟已驗明屬於該工作樹的 1020 網頁程序，保留資料庫。不可刪除或移動 `.local/AI_PDM/test-admin-1020` 與固定工作樹。
+日常標準入口 `npm run dev:local` 已由 `scripts/start-local-daily.mjs` 交給相鄰 Platform 的固定背景控制器，使用其一次綁定的 `51870/jenfu_local_shared_daily`、資料與檔案庫路徑；獨立 PDM 與整組日常環境可並行，依啟動順序使用 1020／1021。用 `--status` 檢查、`--stop` 停止目前入口；Platform 的 `--stop-all` 完整關閉四系統、獨立 PDM 及共用 PostgreSQL，保留測試資料。固定路徑與生命週期沿 Platform DEV-021。
+
+既有選測器將精確的 `scripts/start-local-daily.mjs` 納入 `local-runtime`，由日常入口 QC 驗證其委派關係；未知相似腳本仍選 `FULL`。Cookie／Principal runtime 變更維持 authorization 與 application 檢查，package 與 planner 變更仍選各自責任，不因地端入口改動重跑未受影響的 infrastructure／DEV-101 審核包驗證。
+
+原 `.local/AI_PDM/test-admin-1020` 遮罩快照另由 `npm run dev:local:retained-test-admin` 明確選用；下列固定 TestAdmin、`dev:local:check`、`dev:local:restart` 與資料保留規則只適用此保留模式。此模式仍核對已綁定的 PostgreSQL 18 資料目錄與 loopback listener，重啟沿用同一快照，不能當成共用日常資料來源。
 
 埠必須與 profile origin 相符，可用 1020 或 12020；既有非本模式或非本工作樹程序不會被替換。安裝僅接受兩個固定 source，source hash 與本機 receipt 原子提交；未知結果先 fresh readback，不重放 DDL。登入頁顯示「以測試超級管理員登入」，不要求帳密或轉向 SSO。
 
@@ -368,5 +372,5 @@ npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12
 沿 `JENFU/DEV-021#daily-local-test-binding`，由本次 Platform Codex session 主控四系統整合。AI-PDM 負責辨識原 1020 有效資料來源，及啟動後實際採用的 PostgreSQL、`PDM_DATA_DIR` 與 `PDM_REPOSITORY_DIR`。
 
 - 以 `scripts/start-localhost-3000.ps1` 的有效 env 和 sandbox profile 為檢查點。一般啟動有以該埠下的 data／repository 覆寫環境值的路徑，也存在現有 TestAdmin 入口。日常整合必須明式進入 sandbox 模式，直接驗證並使用一次綁定的 PostgreSQL、data 和 repository；子程序不得改用舊預設目錄或獨立 TestAdmin profile。各模式使用其已驗 target。
-- data 與 repository 沿主控固定測試根目錄的 PDM 子目錄綁定。切換先核對實際路徑、保留既有可用測試資料與附件，確認可回復後再改指向。DEV-128 行使既有來源／遮罩契約；本切片沿用已核對且許可的地端副本，範圍為地端測試。
-- 先用隔離候選完成正常 SSO／拒絕場景，使用標記的測試附件上傳、重開讀回同一檔案，核對 DB metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。結果與候選版本回填既有任務或 PR。2026-11-16 已在固定 1020 從 Portal 正常登入，以合成料號建立 PDF；經 FMS 共用入口重開後透過正式應用 API 讀回同一附件中繼資料及 SHA-256，在 `jf-fms-sandbox/profile/repository` 找到唯一相符檔案。訪客 API 維持 `401`。
+- 日常資料根目錄固定為 `C:\VIBE CODING\.local\jenfu-shared-daily`。AI-PDM 的 PostgreSQL schema／runtime role 維持 owner 邊界，檔案固定在 `profile\data` 與 `profile\repository`。Platform 的一次綁定是日常路徑權威，各專案不再保存平行指標。DEV-128 仍行使既有來源／遮罩契約；本切片只使用許可的地端測試資料。
+- 切換與後續重啟驗證使用標記的測試附件，從正常 SSO 上傳並重開讀回同一檔案，核對 `jenfu_local_shared_daily` 的 metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。2026-11-16 在舊日常綁定取得的附件讀回結果保留為歷史證據；共用名稱切換後的實際版本與讀回結果由 `JENFU/DEV-021#daily-local-test-binding` 統一記錄。訪客 API 維持 `401`。

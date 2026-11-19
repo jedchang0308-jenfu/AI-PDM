@@ -202,7 +202,7 @@ export function PrincipalApprovalInbox() {
               render: (item) => <span className="approval-inbox-primary"><strong>{item.targetSummary || item.title}</strong>
                 {showAction ? <small>{item.actionTitle}</small> : null}</span> },
             { key: "requester", header: "送審者", dataLabel: "送審者", className: "approval-workbench-col-requester",
-              render: (item) => <span>{item.requestedByName ?? item.requestedBy ?? "未知申請者"}</span> },
+              render: (item) => <span>{item.requestedByName ?? "未知申請者"}</span> },
             { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status",
               render: (item) => <span className="approval-status-cell"><span className="approval-status-chip warning">
                 {projectApprovalDecisionFeedback(item).label}</span></span> },

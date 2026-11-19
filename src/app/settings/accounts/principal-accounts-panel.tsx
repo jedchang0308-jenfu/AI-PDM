@@ -10,6 +10,7 @@ type Account = {
   employeeId: string;
   accountType: "human_personal" | "human_privileged";
   displayName: string;
+  personDisplayName?: string | null;
   email: string | null;
   companyName: string;
   accountStatus: "active" | "suspended" | "expired" | "offboarded";
@@ -305,7 +306,10 @@ export function PrincipalAccountsPanel() {
           <div className="table-wrap"><table className="account-management-table">
             <thead><tr><th>姓名</th><th>principal</th><th>員工</th><th>狀態</th><th>工作區</th><th>操作</th></tr></thead>
             <tbody>{accounts.map((account) => <tr key={account.principalId}>
-              <td><strong>{account.displayName}</strong><small>{account.email ?? account.id}</small></td>
+              <td>
+                <strong>{account.personDisplayName ?? "未知使用者"}</strong>
+                {account.personDisplayName !== account.email ? <small>{account.email ?? account.id}</small> : null}
+              </td>
               <td>{account.principalId}</td><td>{account.employeeId}</td>
               <td>{statusText[account.accountStatus]}</td><td>{account.companyName}</td>
               <td>

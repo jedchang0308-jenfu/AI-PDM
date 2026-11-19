@@ -7,8 +7,15 @@ export function normalizeChineseEmployeeName(value: unknown): string | null {
   return name
 }
 
-export function principalHeaderDisplayName(user: { employee_name?: unknown; display_name?: unknown } | null) {
-  // Legacy display_name may be a Google nickname or an old app profile. Even a
-  // Chinese-looking value is not proof of the current Employee's formal name.
-  return normalizeChineseEmployeeName(user?.employee_name) ?? '員工'
+export function pdmPersonDisplayName(person: {
+  employee_name?: unknown
+  email?: string | null
+  display_name?: string | null
+} | null | undefined): string | null {
+  return normalizeChineseEmployeeName(person?.employee_name) ||
+    person?.email?.trim() || person?.display_name?.trim() || null
+}
+
+export function principalHeaderDisplayName(user: Parameters<typeof pdmPersonDisplayName>[0]) {
+  return pdmPersonDisplayName(user) ?? '員工'
 }

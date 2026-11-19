@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { readPdmPersonDisplayNames } from "@/lib/principal-employee-display-name-repository";
 import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
 
 export type ApprovalPlatformStatus =
@@ -822,11 +823,16 @@ export class AsyncApprovalPlatformRepository {
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const [reviews, transferReviews] = await Promise.all([
-      this.listPdmWorkReviewInbox({ ...input, cursor: null, limit: undefined, supportedRequestKinds:
+      this.listPdmWorkReviewInbox({ ...input, query: undefined, cursor: null, limit: undefined, supportedRequestKinds:
         ["drawing_revision", "drawing_rd_void", "part_change"] }),
-      this.listPrincipalTransferReviewInbox(input)
+      this.listPrincipalTransferReviewInbox({ ...input, query: undefined })
     ]);
-    return paginateInboxItems([...reviews, ...transferReviews], input, limit);
+    const items = [...reviews, ...transferReviews];
+    const names = await readPdmPersonDisplayNames(this.client, input.companyId, items.map(item => item.requestedBy));
+    for (const item of items) {
+      if (item.requestedBy) item.requestedByName = names.get(item.requestedBy) ?? null;
+    }
+    return paginateInboxItems(items, input, limit);
   }
 
   async listPrincipalSubmittedReviews(input: ApprovalPlatformInboxFilter & {
@@ -835,21 +841,25 @@ export class AsyncApprovalPlatformRepository {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const direction = input.cursor?.direction ?? "after";
     const before = direction === "before";
-    const search = approvalSearchPredicate(input.query, ["id", "target_code", "title", "action_title"]);
+    const names = await readPdmPersonDisplayNames(this.client, input.companyId, [input.actorId]);
+    const submitterName = names.get(input.actorId) ?? null;
+    const search = approvalSearchPredicate(input.query, ["id", "target_code", "title", "action_title", "requested_by_name"]);
     const rowKey = `('approval:' || source || ':' || id)`;
     type SubmittedRow = { id: string; source: "pdm_work_review" | "platform";
       action_code: string; action_title: string; domain_code: string; target_code: string;
-      title: string; requested_at: string; status: ApprovalPlatformStatus };
+      title: string; requested_by: string; requested_by_name: string | null;
+      requested_at: string; status: ApprovalPlatformStatus };
     const result = await this.client.queryOne<{
       rows: SubmittedRow[]; total: number; pending: number; needs_info: number; apply_failed: number
     }>(`
       WITH native_requests AS (
         SELECT id, entity_type, canonical_entity_id, request_kind, created_at AS requested_at,
+               submitted_by,
                CASE WHEN request_status = 'apply_failed' THEN 'apply_failed' ELSE 'pending' END AS status
         FROM pdm_work_review_requests WHERE company_id = :companyId AND submitted_by = :actorId
         UNION ALL
         SELECT request_id, CASE WHEN request_kind = 'part_change' THEN 'part' ELSE 'drawing' END,
-               canonical_entity_id, request_kind, submitted_at,
+               canonical_entity_id, request_kind, submitted_at, submitted_by,
                CASE WHEN apply_failed THEN 'apply_failed'
                     WHEN decision = 'approve' THEN 'approved' ELSE 'needs_info' END
         FROM pdm_work_review_terminal_receipts WHERE company_id = :companyId AND submitted_by = :actorId
@@ -863,6 +873,7 @@ export class AsyncApprovalPlatformRepository {
                  WHEN 'drawing_rd_void' THEN '圖面研發版作廢審核' ELSE '料號變更審核' END AS action_title,
                COALESCE(d.drawing_number, p.part_number, n.canonical_entity_id) AS target_code,
                COALESCE(d.purpose_description, p.part_name, n.canonical_entity_id) AS title,
+               n.submitted_by AS requested_by, CAST(:submitterName AS text) AS requested_by_name,
                n.requested_at, n.status
         FROM native_requests n
         LEFT JOIN drawings d ON n.entity_type = 'drawing' AND d.id = n.canonical_entity_id AND d.company_id = :companyId
@@ -872,7 +883,8 @@ export class AsyncApprovalPlatformRepository {
                OR (n.entity_type = 'part' AND :viewPart AND p.id IS NOT NULL))
         UNION ALL
         SELECT request.id, 'platform', 'transfer', 'transfer.package_review', '技轉包審核',
-               package.id, request.title, request.requested_at,
+               package.id, request.title, request.requested_by, CAST(:submitterName AS text),
+               request.requested_at,
                CASE WHEN request.apply_status = 'failed' THEN 'apply_failed' ELSE request.request_status END
         FROM approval_platform_requests request
         JOIN transfer_packages package ON package.id = request.payload_json->>'transferPackageId'
@@ -900,7 +912,7 @@ export class AsyncApprovalPlatformRepository {
         (COUNT(*) FILTER (WHERE status = 'needs_info'))::int AS needs_info,
         (COUNT(*) FILTER (WHERE status = 'apply_failed'))::int AS apply_failed
       FROM matched
-    `, { companyId: input.companyId, actorId: input.actorId, viewDrawing: input.readable.drawing,
+    `, { companyId: input.companyId, actorId: input.actorId, submitterName, viewDrawing: input.readable.drawing,
       viewPart: input.readable.part, viewTransfer: input.readable.transfer,
       domain: input.domainCode ?? "", action: input.actionCode ?? "", status: input.status ?? "all",
       pageLimit: limit + 1, ...search.params,
@@ -913,7 +925,8 @@ export class AsyncApprovalPlatformRepository {
       rowKey: approvalPlatformInboxRowKey(row.source, row.id), id: row.id, source: row.source,
       companyId: input.companyId, actionCode: row.action_code, actionTitle: row.action_title,
       domainCode: row.domain_code, title: row.title, status: row.status, reason: "",
-      requestedBy: input.actorId, requestedByName: null, requestedAt: row.requested_at,
+      requestedBy: row.requested_by ?? input.actorId, requestedByName: row.requested_by_name,
+      requestedAt: row.requested_at,
       packageId: null, packageCode: null, packageStatus: null, targetSummary: row.target_code,
       impactSummary: null, legacy: null, historyOnly: true
     }));
