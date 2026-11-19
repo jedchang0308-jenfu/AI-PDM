@@ -91,6 +91,8 @@ export async function assemblyPackageSummary(client: AsyncDatabaseClient, pkg: A
   const manifest = assemblyJson<AssemblyArchiveManifest | null>(pkg.manifest_json, null);
   const result = assemblyJson<AssemblyAnalysisResult | null>(analysis?.result_json, null);
   const overrides = assemblyJson<Record<string, Record<string, Partial<AssemblyBomRow>>>>(analysis?.overrides_json, {});
+  const assemblyKeys = new Set(manifest?.assemblyEntryKeys);
+  const entriesByKey = new Map(manifest?.entries.map(entry => [entry.entryKey, entry.relativePath]));
   return { packageId: pkg.id, fileName: pkg.file_name, byteSize: Number(pkg.byte_size), nextOffset: Number(pkg.next_offset),
     status: pkg.status === "accepted" ? analysis?.status ?? "queued" : pkg.status,
     archiveSha256: pkg.archive_sha256, selectionVersion: Number(pkg.selection_version), mainEntryKey: pkg.main_entry_key,
@@ -100,9 +102,10 @@ export async function assemblyPackageSummary(client: AsyncDatabaseClient, pkg: A
       const edits = Object.hasOwn(overrides, config.name) ? overrides[config.name] : {};
       const rows = config.bom.rows;
       const exceptionCount = rows.filter(row => !["matched", "excluded"].includes(edits[row.rowKey]?.disposition ?? row.disposition)).length;
-      return { ...config, bom: { rowCount: rows.length, exceptionCount } };
+      const issues = config.references.issues.map(issue => ({ ...issue, parentPath: entriesByKey.get(issue.parentKey) }));
+      return { ...config, references: { ...config.references, issues }, bom: { rowCount: rows.length, exceptionCount } };
     }) } : null,
-    mainCandidates: manifest?.entries.filter(entry => manifest.assemblyEntryKeys.includes(entry.entryKey)).map(entry => ({ entryKey: entry.entryKey, relativePath: entry.relativePath })) ?? [],
+    mainCandidates: manifest?.entries.filter(entry => assemblyKeys.has(entry.entryKey)).map(entry => ({ entryKey: entry.entryKey, relativePath: entry.relativePath })) ?? [],
     downloadAvailable: pkg.status === "accepted", active: Boolean(pkg.active_at && !pkg.superseded_at), ...ASSEMBLY_PACKAGE_LIMITS };
 }
 
@@ -320,7 +323,7 @@ export async function bindAssemblyPackageMain(input:{client:AsyncDatabaseClient;
   const {client,companyId,packageId}=input;
   const pkg=await readAssemblyPackage(client,companyId,packageId);
   if(!pkg || Number(pkg.selection_version)!==input.selectionVersion || pkg.main_entry_key!==input.mainEntryKey) assemblyError("組立包來源已改變");
-  await client.transaction(tx=>requireAssemblyPackageJobAuthority(tx,pkg),{readOnly:true,isolationLevel:"repeatable_read"});
+  await client.transaction(tx=>requireAssemblyPackageJobAuthority(tx,pkg),{isolationLevel:"repeatable_read"});
   const manifest=assemblyJson<AssemblyArchiveManifest>(pkg.manifest_json,null!);
   const entry=manifest?.entries.find(value=>value.entryKey===input.mainEntryKey);
   if(!entry || !/\.sldasm$/iu.test(entry.relativePath)) assemblyError("主組立來源無效",422);

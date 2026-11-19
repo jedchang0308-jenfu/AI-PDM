@@ -24,6 +24,7 @@ namespace SolidWorks.Interop.swdocumentmgr
     internal interface ISwDMApplication4 { object GetExternalReferenceOptionObject2(); }
     internal interface ISwDMSearchOption { void ClearAllSearchPaths(); void AddSearchPath(string path); int SearchFilters { get; set; } }
     internal interface ISwDMExternalReferenceOption2 { string Configuration { get; set; } object SearchOption { get; set; } object ExternalReferences { get; } object ReferencedConfigurations { get; } }
+    internal interface ISwDMExternalReferenceOption { bool NeedSuppress { get; set; } }
     internal sealed class FakeNativeApplication : ISwDMApplication, ISwDMApplication4
     {
         public object GetSearchOptionObject() { return new FakeSearch(); }
@@ -36,23 +37,32 @@ namespace SolidWorks.Interop.swdocumentmgr
         public void ClearAllSearchPaths() { Paths.Clear(); }
         public void AddSearchPath(string path) { Paths.Add(path); }
     }
-    internal sealed class FakeReferences : ISwDMExternalReferenceOption2
+    internal sealed class FakeReferences : ISwDMExternalReferenceOption2, ISwDMExternalReferenceOption
     {
+        internal string[] Sources = new string[0], Configurations = new string[0];
         public string Configuration { get; set; }
+        public bool NeedSuppress { get; set; }
         public object SearchOption { get; set; }
-        public object ExternalReferences { get { return new string[0]; } }
-        public object ReferencedConfigurations { get { return new string[0]; } }
+        public object ExternalReferences { get { return Sources; } }
+        public object ReferencedConfigurations { get { return Configurations; } }
     }
     internal sealed class FakeNativeDocument : ISwDMDocument, ISwDMDocument3, ISwDMDocument27
     {
         internal readonly FakeNativeConfiguration Config = new FakeNativeConfiguration();
         internal int CloseCount;
+        internal string[] Features = new string[0];
         public object ConfigurationManager { get { return new FakeManager(Config); } }
         public void CloseDoc() { CloseCount++; }
         public int GetVersion() { return 18000; }
         public object GetCustomPropertyNames() { return new string[0]; }
         public string GetCustomProperty(string name, out FakeError type) { type = FakeError.None; return ""; }
-        public int GetExternalFeatureReferences3(object option) { return 0; }
+        public int GetExternalFeatureReferences3(object option) {
+            var selected = (FakeReferences)option; var search = (FakeSearch)selected.SearchOption;
+            if ((search.SearchFilters & 32) == 0) throw new InvalidOperationException("FEATURE_REFERENCE_COVERAGE_REQUIRED");
+            selected.Sources = Features; selected.Configurations = new string[Features.Length];
+            for (int i = 0; i < Features.Length; i++) selected.Configurations[i] = "Default";
+            return Features.Length;
+        }
         public void GetAllCustomPropertyNamesAndValues(out object names, out object types, out object linked, out object values) { names = types = linked = values = new object[0]; }
     }
     internal sealed class FakeManager : ISwDMConfigurationMgr2

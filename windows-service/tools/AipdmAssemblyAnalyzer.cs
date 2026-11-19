@@ -15,7 +15,7 @@ using System.Web.Script.Serialization;
  * the manifest is rejected and is never opened or used as replacement bytes. */
 internal static class AipdmAssemblyAnalyzer
 {
-    private const string ParserVersion = "solidworks-document-manager.assembly.v1";
+    private const string ParserVersion = "solidworks-document-manager.assembly.v2";
     private static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 8 * 1024 * 1024, RecursionLimit = 128 };
     internal sealed class Request { public string root { get; set; } public Entry[] entries { get; set; } public string mainEntryKey { get; set; } public string[] deliveryConfigurations { get; set; } }
     internal sealed class Entry { public string entryKey { get; set; } public string relativePath { get; set; } public string sha256 { get; set; } public long byteSize { get; set; } internal string absolutePath; }
@@ -25,6 +25,8 @@ internal static class AipdmAssemblyAnalyzer
         internal readonly List<object> Issues = new List<object>();
         internal readonly HashSet<string> Stack = new HashSet<string>(StringComparer.Ordinal);
         internal readonly HashSet<string> ReferenceVisited = new HashSet<string>(StringComparer.Ordinal);
+        internal readonly HashSet<string> ReferenceActiveFiles = new HashSet<string>(StringComparer.Ordinal);
+        internal Dictionary<string, string> ComponentOrigins = new Dictionary<string, string>(StringComparer.Ordinal);
         internal int Count;
         internal bool Blocked;
         internal bool Unknown;
@@ -113,6 +115,39 @@ internal static class AipdmAssemblyAnalyzer
         if (Path.IsPathRooted(reference ?? "") || value.IndexOf(':') >= 0) { int slash = value.LastIndexOf('/'); value = slash < 0 ? "reference" : value.Substring(slash + 1); }
         try { return SafeRelativePath(value); } catch { return "reference"; }
     }
+    /** Assembly containment uses the ZIP's explicit safe Windows paths as a
+     * relocation map. Never use this map for feature/external geometry coverage.
+     * Distinct saved absolute origins cannot collapse into one package entry. */
+    internal static Entry ResolveComponentReference(Entry parent, string reference, Entry[] entries, Dictionary<string, string> origins, out bool conflict)
+    {
+        conflict = false;
+        Entry selected = ResolveReference(parent, reference, entries);
+        if (selected != null && !Path.IsPathRooted(reference)) return selected;
+        if (String.IsNullOrWhiteSpace(reference) || !Path.IsPathRooted(reference)) return null;
+        string normalized = reference.Replace('\\', '/').Normalize(NormalizationForm.FormC).ToUpperInvariant();
+        if (normalized.Split('/').Length > 128) return null;
+        foreach (string segment in normalized.Split('/')) if (segment == "." || segment == "..") return null;
+        int longest = -1;
+        if (selected == null) foreach (Entry entry in entries)
+        {
+            string relative = entry.relativePath.Normalize(NormalizationForm.FormC).ToUpperInvariant();
+            if (!normalized.EndsWith("/" + relative, StringComparison.Ordinal)) continue;
+            int score = relative.Split('/').Length;
+            if (score > longest) { selected = entry; longest = score; conflict = false; }
+            else if (score == longest) { selected = null; conflict = true; }
+        }
+        if (selected == null)
+        {
+            int basenameMatches = 0; string basename = SafeReferenceLabel(reference);
+            foreach (Entry entry in entries) if (String.Equals(Path.GetFileName(entry.relativePath), basename, StringComparison.OrdinalIgnoreCase)) basenameMatches++;
+            if (basenameMatches > 1) conflict = true;
+            return null;
+        }
+        string previous;
+        if (origins.TryGetValue(selected.entryKey, out previous) && previous != normalized) { conflict = true; return null; }
+        origins[selected.entryKey] = normalized;
+        return selected;
+    }
     internal static Dictionary<string, object> Analyze(Request request)
     {
         VerifyManifest(request);
@@ -138,9 +173,10 @@ internal static class AipdmAssemblyAnalyzer
             if (selected.Count == 0) { string active = ""; try { active = runtime.GetActiveConfigurationName(manager); } catch { } if (!names.Contains(active)) return Result("needs_input", main.entryKey, candidates, names, new object[0], "assembly_active_configuration_unknown"); selected.Add(active); }
             runtime.CloseDocument(document); SolidWorksDocumentManagerRuntime.Release(manager); manager = null; SolidWorksDocumentManagerRuntime.Release(document); document = null;
             var configurations = new List<object>(); bool blocked = false, unknown = false;
+            var componentOrigins = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (string name in selected)
             {
-                Scan scan = new Scan(); Walk(runtime, app, request, main, name, main.entryKey, main.entryKey, true, false, 0, scan);
+                Scan scan = new Scan(); scan.ComponentOrigins = componentOrigins; Walk(runtime, app, request, main, name, main.entryKey, main.entryKey, true, false, 0, scan);
                 configurations.Add(new Dictionary<string, object> { { "name", name }, { "references", new Dictionary<string, object> { { "status", scan.Blocked ? "blocked" : scan.Unknown ? "unknown" : "passed" }, { "issues", scan.Issues } } }, { "bom", new Dictionary<string, object> { { "rows", scan.Rows } } } });
                 blocked |= scan.Blocked; unknown |= scan.Unknown;
             }
@@ -181,6 +217,7 @@ internal static class AipdmAssemblyAnalyzer
     private static Entry FindMain(SolidWorksDocumentManagerRuntime runtime, object app, Request request, List<string> candidates)
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var origins = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (string key in candidates) graph[key] = new HashSet<string>(StringComparer.Ordinal);
         foreach (Entry entry in request.entries)
         {
@@ -189,14 +226,14 @@ internal static class AipdmAssemblyAnalyzer
             try
             {
                 document = Open(runtime, app, entry); int count = 0;
-                if (!CollectAssemblyEdges(runtime, document, entry, request.entries, graph[entry.entryKey], 0, ref count)) return null;
+                if (!CollectAssemblyEdges(runtime, document, entry, request.entries, graph[entry.entryKey], origins, 0, ref count)) return null;
             }
             catch { return null; }
             finally { if (document != null) { try { runtime.CloseDocument(document); } catch { } } SolidWorksDocumentManagerRuntime.Release(document); }
         }
         string root = UniqueAssemblyRoot(graph); foreach (Entry entry in request.entries) if (entry.entryKey == root) return entry; return null;
     }
-    private static bool CollectAssemblyEdges(SolidWorksDocumentManagerRuntime runtime, object document, Entry owner, Entry[] entries, HashSet<string> edges, int depth, ref int count)
+    private static bool CollectAssemblyEdges(SolidWorksDocumentManagerRuntime runtime, object document, Entry owner, Entry[] entries, HashSet<string> edges, Dictionary<string, string> origins, int depth, ref int count)
     {
         if (depth > 64 || count > 50000) return false;
         object manager = null;
@@ -223,13 +260,13 @@ internal static class AipdmAssemblyAnalyzer
                                 if (Convert.ToInt32(runtime.AssemblyProperty("ISwDMComponent2", component, "DocumentType")) == 2)
                                 {
                                     embedded = runtime.OpenVirtualAssemblyDocument(component, out error);
-                                    if (embedded == null || error != 0 || !CollectAssemblyEdges(runtime, embedded, owner, entries, edges, depth + 1, ref count)) return false;
+                                    if (embedded == null || error != 0 || !CollectAssemblyEdges(runtime, embedded, owner, entries, edges, origins, depth + 1, ref count)) return false;
                                 }
                             }
                             else
                             {
                                 string reference = Convert.ToString(runtime.AssemblyProperty("ISwDMComponent6", component, "PathName"));
-                                if (String.Equals(Path.GetExtension(reference), ".sldasm", StringComparison.OrdinalIgnoreCase)) { Entry child = ResolveReference(owner, reference, entries); if (child == null) return false; edges.Add(child.entryKey); }
+                                if (String.Equals(Path.GetExtension(reference), ".sldasm", StringComparison.OrdinalIgnoreCase)) { bool conflict; Entry child = ResolveComponentReference(owner, reference, entries, origins, out conflict); if (child == null) return false; edges.Add(child.entryKey); }
                             }
                         }
                         finally { if (embedded != null) { try { runtime.CloseDocument(embedded); } catch { } SolidWorksDocumentManagerRuntime.Release(embedded); } SolidWorksDocumentManagerRuntime.Release(component); }
@@ -246,6 +283,8 @@ internal static class AipdmAssemblyAnalyzer
         if (!scan.ReferenceVisited.Add((embeddedIdentity ?? parent.entryKey) + "\n" + name)) return;
         if (depth > 64 || scan.ReferenceVisited.Count > 10000) { scan.Issue("assembly_reference_graph_limit", parent, name, false); return; }
         object option = null, search = null;
+        string activeFileKey = embeddedIdentity ?? parent.entryKey;
+        scan.ReferenceActiveFiles.Add(activeFileKey);
         try
         {
             int version = Convert.ToInt32(runtime.AssemblyInvoke("ISwDMDocument", document, "GetVersion"));
@@ -256,12 +295,18 @@ internal static class AipdmAssemblyAnalyzer
             runtime.AssemblyInvoke("ISwDMSearchOption", search, "AddSearchPath", Path.GetFullPath(request.root));
             string parentDirectory = Path.GetDirectoryName(parent.absolutePath);
             if (!String.Equals(parentDirectory, Path.GetFullPath(request.root), StringComparison.OrdinalIgnoreCase)) runtime.AssemblyInvoke("ISwDMSearchOption", search, "AddSearchPath", parentDirectory);
-            // Enumerate component, derived/in-context and part-to-base-assembly refs.
+            // Component containment (filter 16) is checked separately through
+            // GetComponents + native IsSuppressed. Geometry still independently
+            // covers derived/mirrored/in-context (32) and assembly-in-part (128).
             // Do not enable root-assembly or recursive directory searches.
-            runtime.AssemblySetProperty("ISwDMSearchOption", search, "SearchFilters", 2 | 8 | 16 | 32 | 128);
+            runtime.AssemblySetProperty("ISwDMSearchOption", search, "SearchFilters", 2 | 8 | 32 | 128);
             option = runtime.AssemblyInvoke("ISwDMApplication4", app, "GetExternalReferenceOptionObject2");
             runtime.AssemblySetProperty("ISwDMExternalReferenceOption2", option, "Configuration", name);
             runtime.AssemblySetProperty("ISwDMExternalReferenceOption2", option, "SearchOption", search);
+            // Option2 also exposes the original native option interface. This
+            // controls suppressed feature references; component suppression is
+            // still read from the exact selected configuration below.
+            runtime.AssemblySetProperty("ISwDMExternalReferenceOption", option, "NeedSuppress", false);
             int count = Convert.ToInt32(runtime.AssemblyInvoke("ISwDMDocument27", document, "GetExternalFeatureReferences3", option));
             var references = Strings(runtime.AssemblyProperty("ISwDMExternalReferenceOption2", option, "ExternalReferences"));
             var configurations = Strings(runtime.AssemblyProperty("ISwDMExternalReferenceOption2", option, "ReferencedConfigurations"));
@@ -270,6 +315,7 @@ internal static class AipdmAssemblyAnalyzer
             // files. Their own references are checked when the native tree walks
             // the IsVirtual-guarded embedded document below.
             var virtualPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var componentSuppression = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             object manager = null, config = null;
             try
             {
@@ -278,27 +324,39 @@ internal static class AipdmAssemblyAnalyzer
                 if (config != null && configError == 0 && (embeddedIdentity != null ? embeddedAssembly : String.Equals(Path.GetExtension(parent.relativePath), ".sldasm", StringComparison.OrdinalIgnoreCase)))
                 {
                     Array components = runtime.AssemblyInvoke("ISwDMConfiguration2", config, "GetComponents") as Array;
-                    if (components != null) foreach (object component in components) { try { if (Convert.ToBoolean(runtime.AssemblyProperty("ISwDMComponent3", component, "IsVirtual"))) virtualPaths.Add(Convert.ToString(runtime.AssemblyProperty("ISwDMComponent6", component, "PathName"))); } finally { SolidWorksDocumentManagerRuntime.Release(component); } }
+                    if (components != null) foreach (object component in components) {
+                        try {
+                            string componentPath = Convert.ToString(runtime.AssemblyProperty("ISwDMComponent6", component, "PathName"));
+                            if (Convert.ToBoolean(runtime.AssemblyProperty("ISwDMComponent3", component, "IsVirtual"))) virtualPaths.Add(componentPath);
+                            string identity = NativeReferenceKey(componentPath);
+                            bool suppressed = Convert.ToBoolean(runtime.AssemblyInvoke("ISwDMComponent", component, "IsSuppressed"));
+                            bool previous; componentSuppression[identity] = suppressed && (!componentSuppression.TryGetValue(identity, out previous) || previous);
+                        } finally { SolidWorksDocumentManagerRuntime.Release(component); }
+                    }
                 }
             }
             finally { SolidWorksDocumentManagerRuntime.Release(config); SolidWorksDocumentManagerRuntime.Release(manager); }
             for (int i = 0; i < references.Count; i++)
             {
                 if (virtualPaths.Contains(references[i])) continue;
+                // Vendor guidance associates returned references with native
+                // Component.PathName + IsSuppressed. Use the full native path,
+                // never a basename, and retain a path if any occurrence needs it.
+                bool suppressedComponent;
+                if (componentSuppression.TryGetValue(NativeReferenceKey(references[i]), out suppressedComponent) && suppressedComponent) continue;
                 Entry target = ResolveReference(parent, references[i], request.entries);
                 if (target == null) { scan.Issue("assembly_external_reference_outside_package", parent, references[i], true); continue; }
                 string configuration = configurations[i];
                 if (String.IsNullOrWhiteSpace(configuration)) { scan.Issue("assembly_external_reference_configuration_unknown", parent, target.relativePath, false); continue; }
                 string identity = target.entryKey + "\n" + configuration; if (scan.ReferenceVisited.Contains(identity)) continue;
-                bool activeFile = false; foreach (string visited in scan.ReferenceVisited) if (visited.StartsWith(target.entryKey + "\n", StringComparison.Ordinal)) activeFile = true;
-                if (activeFile) { scan.Issue("assembly_external_reference_configuration_cycle", parent, target.relativePath, false); continue; }
+                if (scan.ReferenceActiveFiles.Contains(target.entryKey)) { scan.Issue("assembly_external_reference_configuration_cycle", parent, target.relativePath, false); continue; }
                 object referenced = null;
                 try { referenced = Open(runtime, app, target); CheckExternalReferences(runtime, app, request, referenced, target, configuration, scan, depth + 1); }
                 finally { if (referenced != null) { try { runtime.CloseDocument(referenced); } catch { } } SolidWorksDocumentManagerRuntime.Release(referenced); }
             }
         }
         catch { scan.Issue("assembly_external_reference_reader_unavailable", parent, name, false); }
-        finally { SolidWorksDocumentManagerRuntime.Release(option); SolidWorksDocumentManagerRuntime.Release(search); }
+        finally { scan.ReferenceActiveFiles.Remove(activeFileKey); SolidWorksDocumentManagerRuntime.Release(option); SolidWorksDocumentManagerRuntime.Release(search); }
     }
     internal static void ReadQuantity(Dictionary<string, string> properties, out string quantity, out string unit, out string source)
     {
@@ -332,6 +390,7 @@ internal static class AipdmAssemblyAnalyzer
             foreach (object component in components)
             {
                 object virtualDocument = null;
+                string componentStage = "metadata";
                 try
                 {
                     if (++scan.Count > 50000) { scan.Issue("assembly_graph_limit", parent, configurationName, false); return; }
@@ -345,7 +404,13 @@ internal static class AipdmAssemblyAnalyzer
                     int id = Convert.ToInt32(runtime.AssemblyInvoke("ISwDMComponent9", component, "GetID"));
                     string occurrenceKey = occurrence + "/" + id.ToString(CultureInfo.InvariantCulture);
                     if (!occurrenceIds.Add(occurrenceKey)) { scan.Issue("assembly_component_identity_ambiguous", parent, SafeReferenceLabel(name), false); continue; }
-                    Entry child = virtualComponent ? parent : ResolveReference(parent, reference, request.entries);
+                    bool aliasConflict = false;
+                    Entry child = virtualComponent ? parent : ResolveComponentReference(parent, reference, request.entries, scan.ComponentOrigins, out aliasConflict);
+                    if (aliasConflict)
+                    {
+                        int matchingNames = 0; foreach (Entry candidate in request.entries) if (String.Equals(Path.GetFileName(candidate.relativePath), SafeReferenceLabel(reference), StringComparison.OrdinalIgnoreCase)) matchingNames++;
+                        scan.Issue(matchingNames > 1 ? "assembly_component_reference_ambiguous" : "assembly_component_source_alias_conflict", parent, reference, true);
+                    }
                     bool childIsAssembly = virtualComponent ? Convert.ToInt32(runtime.AssemblyProperty("ISwDMComponent2", component, "DocumentType")) == 2 : child != null && String.Equals(Path.GetExtension(child.relativePath), ".sldasm", StringComparison.OrdinalIgnoreCase);
                     bool excluded = ancestorExcluded || suppressed || exclusion == 1;
                     int display = 1; Dictionary<string, string> properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -354,17 +419,22 @@ internal static class AipdmAssemblyAnalyzer
                         object childDocument = null, childManager = null, childConfig = null;
                         try
                         {
-                            int childError;
+                            componentStage = "open"; int childError;
                             if (virtualComponent) { childDocument = runtime.OpenVirtualAssemblyDocument(component, out childError); virtualDocument = childDocument; if (childDocument == null || childError != 0) throw new InvalidDataException("assembly_virtual_document_open_failed"); }
                             else childDocument = Open(runtime, app, child);
-                            childManager = runtime.GetConfigurationManager(childDocument);
+                            componentStage = "configuration"; childManager = runtime.GetConfigurationManager(childDocument);
                             childConfig = runtime.GetConfigurationByName(childManager, childConfiguration, out childError);
                             if (childConfig == null || childError != 0) scan.Issue("assembly_child_configuration_missing", parent, reference, true);
-                            else { if (childIsAssembly) display = Convert.ToInt32(runtime.AssemblyProperty("ISwDMConfiguration15", childConfig, "ShowChildComponentsInBOM2")); ReadProperties(runtime, childDocument, childConfig, properties); }
+                            else { componentStage = "display"; if (childIsAssembly) display = Convert.ToInt32(runtime.AssemblyProperty("ISwDMConfiguration15", childConfig, "ShowChildComponentsInBOM2")); componentStage = "properties"; ReadProperties(runtime, childDocument, childConfig, properties); }
                         }
                         finally { SolidWorksDocumentManagerRuntime.Release(childConfig); SolidWorksDocumentManagerRuntime.Release(childManager); if (!virtualComponent && childDocument != null) { try { runtime.CloseDocument(childDocument); } catch { } SolidWorksDocumentManagerRuntime.Release(childDocument); } }
                     }
-                    if (!suppressed && child == null) scan.Issue(virtualComponent ? "assembly_virtual_component_reader_unverified" : Path.IsPathRooted(reference ?? "") ? "assembly_reference_mapping_unknown" : "assembly_reference_missing", parent, reference, !virtualComponent && !Path.IsPathRooted(reference ?? ""));
+                    if (!suppressed && child == null && !aliasConflict)
+                    {
+                        bool namedCandidate = false; string basename = SafeReferenceLabel(reference);
+                        foreach (Entry candidate in request.entries) if (String.Equals(Path.GetFileName(candidate.relativePath), basename, StringComparison.OrdinalIgnoreCase)) namedCandidate = true;
+                        scan.Issue(namedCandidate ? "assembly_reference_mapping_unknown" : "assembly_reference_missing", parent, reference, !namedCandidate);
+                    }
                     if (exclusion < 0 || display < 0 || display > 2) scan.Issue("assembly_bom_behavior_unknown", parent, reference, false);
                     string partNumber = Property(properties, new string[] { "PartNumber", "Part Number", "料號" });
                     string drawingNumber = Property(properties, new string[] { "DrawingNumber", "Drawing Number", "圖號" });
@@ -372,6 +442,7 @@ internal static class AipdmAssemblyAnalyzer
                     if (child != null && properties.ContainsKey("__properties_read")) ReadQuantity(properties, out quantity, out unit, out quantitySource);
                     if (emitRows && display != 2) scan.Rows.Add(new Dictionary<string, object> {
                         { "parentKey", bomParent }, { "entryKey", child == null ? null : child.entryKey }, { "occurrenceKey", occurrenceKey }, { "configuration", childConfiguration },
+                        { "componentName", SafeReferenceLabel(name) },
                         { "cadPartNumber", partNumber }, { "drawingNumber", drawingNumber }, { "quantity", quantity }, { "unit", unit },
                         { "disposition", excluded ? "excluded" : quantity == null ? "quantity_unknown" : partNumber == null ? "needs_number" : "needs_record" }, { "quantitySource", quantitySource }, { "baseOccurrenceQuantity", "1" },
                         { "suppressed", suppressed }, { "hidden", hidden }, { "virtual", virtualComponent }, { "virtualEntryKey", virtualComponent ? occurrenceKey : null }, { "virtualOwnerEntryKey", virtualComponent ? parent.entryKey : null },
@@ -379,7 +450,7 @@ internal static class AipdmAssemblyAnalyzer
                     });
                     if (!suppressed && child != null && !String.IsNullOrWhiteSpace(childConfiguration)) Walk(runtime, app, request, child, childConfiguration, occurrenceKey, display == 2 ? bomParent : occurrenceKey, emitRows && display != 0, excluded, depth + 1, scan, virtualDocument, childIsAssembly, virtualComponent ? occurrenceKey : null);
                 }
-                catch { scan.Issue("assembly_component_reader_failed", parent, "component", false); }
+                catch (Exception componentError) { scan.Issue("assembly_component_reader_failed_" + componentStage + "_" + NativeErrorCode(componentError), parent, "component", false); }
                 finally { if (virtualDocument != null) { try { runtime.CloseDocument(virtualDocument); } catch { } SolidWorksDocumentManagerRuntime.Release(virtualDocument); } SolidWorksDocumentManagerRuntime.Release(component); }
             }
         }
@@ -392,6 +463,8 @@ internal static class AipdmAssemblyAnalyzer
         }
     }
     private static List<string> Strings(object value) { var result = new List<string>(); Array values = value as Array; if (values != null) foreach (object item in values) result.Add(Convert.ToString(item)); return result; }
+    private static string NativeReferenceKey(string value) { return (value ?? "").Replace('\\', '/').Normalize(NormalizationForm.FormC).ToUpperInvariant(); }
+    private static string NativeErrorCode(Exception error) { while (error.InnerException != null) error = error.InnerException; return error.GetType().Name + "_" + error.HResult.ToString("X8", CultureInfo.InvariantCulture); }
     private static string Property(Dictionary<string, string> values, string[] names) { foreach (string name in names) { string value; if (values.TryGetValue(name, out value) && !String.IsNullOrWhiteSpace(value)) return value; } return null; }
     private static void ReadProperties(SolidWorksDocumentManagerRuntime runtime, object document, object configuration, Dictionary<string, string> output)
     {

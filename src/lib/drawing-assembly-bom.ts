@@ -10,7 +10,7 @@ export type AssemblyBomRow = {
   quantity: string | null; unit: string | null; disposition: string; partId?: string | null;
   partNumber?: string | null; evidence?: unknown; [key: string]: unknown;
 };
-export type AssemblyConfigurationResult = { name: string; references: { status: "passed" | "blocked" | "unknown"; issues: unknown[] }; bom: { rows: AssemblyBomRow[]; [key: string]: unknown } };
+export type AssemblyConfigurationResult = { name: string; references: NativeAssemblyAnalysisResult["configurations"][number]["references"]; bom: { rows: AssemblyBomRow[]; [key: string]: unknown } };
 export type AssemblyAnalysisResult = Omit<NativeAssemblyAnalysisResult,"configurations"> & {configurations:AssemblyConfigurationResult[]};
 
 /** Positive decimal strings are kept exact, never converted through floating point. */

@@ -11,7 +11,7 @@ type PackageSummary = {
   selectionVersion:number; deliveryConfigurations:string[]; mainRelativePath?:string;
   mainCandidates?:{entryKey:string;relativePath:string}[]; bomConfigurations?:{name:string;rowCount:number}[];
   result?:{mainCandidates:string[]; configurationNames:string[]; diagnostic?:string; configurations:{
-    name:string;references:{status:string;issues:{code:string;parentKey:string;reference:string}[]};bom?:{exceptionCount:number}
+    name:string;references:{status:string;issues:{code:string;parentKey:string;parentPath?:string;reference:string}[]};bom?:{exceptionCount:number}
   }[]}|null;
 };
 type Collection = {data:PackageSummary|null;previousActive?:PackageSummary|null;limits?:{maxArchiveBytes:number}};
@@ -24,6 +24,14 @@ const diagnostics:Record<string,string>={
   assembly_document_manager_license_invalid:"解析裝置的 Document Manager 授權無法開啟此原生檔。",
   assembly_native_capability_unverified:"部分參照尚待確認，請查看下方明細。",
   assembly_reference_mapping_unknown:"包內參照無法唯一配對",
+  assembly_component_reference_ambiguous:"包內有多個同名候選檔",
+  assembly_component_source_alias_conflict:"不同來源對到同一個包內檔案，請核對檔名與目錄",
+  assembly_component_identity_ambiguous:"無法區分同一父件下的元件實例",
+  assembly_document_source_mismatch:"實際讀到的檔案和包內來源不一致",
+  assembly_document_open_failed:"無法開啟包內的 CAD 檔案",
+  assembly_bom_behavior_unknown:"無法確認此元件的 BOM 展開或排除設定",
+  assembly_external_reference_result_incomplete:"未能讀完整外部參照",
+  assembly_external_reference_reader_unavailable:"解析裝置無法讀取此檔的外部參照",
   assembly_reference_missing:"缺少必要子檔",
   assembly_external_reference_outside_package:"必要參照位於組立包外",
   assembly_virtual_component_reader_unverified:"內嵌虛擬件的參照尚未確認",
@@ -83,7 +91,13 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
   const exceptions=pkg?.result?.configurations?.reduce((count,config)=>count+(config.bom?.exceptionCount??0),0)??0;
   const choices=pkg?.result?.configurationNames ?? [];
   const issues=pkg?.result?.configurations?.flatMap(config=>config.references.issues.map(issue=>({...issue,configuration:config.name})))??[];
-  const uniqueIssues=Array.from(new Map(issues.map(issue=>[JSON.stringify([issue.configuration,issue.parentKey,issue.code,issue.reference]),issue])).values());
+  const issueGroups=new Map<string,typeof issues>();
+  for (const issue of issues) {
+    const key=JSON.stringify([issue.configuration,issue.reference]);
+    const group=issueGroups.get(key);
+    if (group) group.push(issue);
+    else issueGroups.set(key,[issue]);
+  }
   async function run(fn:()=>Promise<unknown>) {
     if (busy) return;
     setBusy(true);setError("");
@@ -129,7 +143,13 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
       {choices.length>0 && editable ? <details open={pkg.status==="needs_input" || undefined}><summary>交付組態{pkg.deliveryConfigurations.length>0 && " · "+pkg.deliveryConfigurations.join("、")}</summary>
         {choices.map(name=><label key={name}><input type="checkbox" disabled={busy || (pkg.deliveryConfigurations.length===1 && pkg.deliveryConfigurations[0]===name)}
           checked={pkg.deliveryConfigurations.includes(name)} onChange={e=>select({deliveryConfigurations:e.target.checked?[...pkg.deliveryConfigurations,name]:pkg.deliveryConfigurations.filter(n=>n!==name)})}/>{name}</label>)}</details>:null}
-      {uniqueIssues.length>0 && <ul>{uniqueIssues.map(issue=><li key={JSON.stringify(issue)}>{issue.configuration} · {pkg.mainCandidates?.find(entry=>entry.entryKey===issue.parentKey)?.relativePath??issue.parentKey} → {issue.reference}（{diagnostics[issue.code]??issue.code}）</li>)}</ul>}
+      {issueGroups.size>0 && <ul>{Array.from(issueGroups,([key,group])=>{
+        const issue=group.find(item=>item.code==="assembly_component_reference_ambiguous" || item.code==="assembly_reference_missing")??group[0];
+        const parent=issue.parentPath??issue.parentKey;
+        const label=`${issue.configuration} · ${parent} → ${issue.reference}（${diagnostics[issue.code]??issue.code}）`;
+        const details=Array.from(new Set(group.map(item=>`${item.parentPath??item.parentKey} · ${diagnostics[item.code]??item.code}`)));
+        return <li key={key}>{details.length===1?label:<details><summary>{label}</summary><ul>{details.map(line=><li key={line}>{line}</li>)}</ul></details>}</li>;
+      })}</ul>}
       {bomOpen && configs.length>0 && <AssemblyBomDraft key={pkg.packageId+":"+pkg.selectionVersion} url={url(pkg)+"/bom"} configurations={configs} editable={editable} mainEntryKey={pkg.mainEntryKey} mainLabel={mainPath} onSaved={()=>setDraftRevision(value=>value+1)}/>}
     </div>}
   </section>;

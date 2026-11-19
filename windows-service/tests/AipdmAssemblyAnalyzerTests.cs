@@ -57,6 +57,11 @@ internal static class AipdmAssemblyAnalyzerTests
         child.Suppressed = false;
         var repeated = new FakeNativeComponent { Id = 8, Type = 2 }; repeated.Document.Config.Components = new object[] { new FakeNativeComponent { Id = 9 } }; parent.Config.Components = new object[] { child, repeated }; rows = run();
         Check(rows.Count == 4 && (string)((Dictionary<string, object>)rows[1])["parentKey"] != (string)((Dictionary<string, object>)rows[3])["parentKey"], "repeated subassembly occurrences retain separate parents");
+        nested.Document.Features = new string[] { @"C:\outside\BaseOnly.SLDPRT" };
+        object featureScan = Activator.CreateInstance(scanType, true);
+        walk.Invoke(null, new object[] { runtime, new FakeNativeApplication(), request, main, "Default", main.entryKey, main.entryKey, true, false, 0, featureScan, parent, true, main.entryKey + ":managed-root" });
+        Check((bool)scanType.GetField("Blocked", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(featureScan), "missing nested virtual geometry reference cannot pass containment-only checks");
+        Check(((List<object>)scanType.GetField("Rows", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(featureScan)).Count == 4, "feature-reference failure retains independent BOM rows");
         child.Virtual = false;
         try { int error; runtime.OpenVirtualAssemblyDocument(child, out error); throw new Exception("FAILED: external component accessor allowed"); }
         catch (InvalidOperationException error) { Check(error.Message == "ASSEMBLY_EMBEDDED_SOURCE_REQUIRED", "external components cannot enter embedded accessor"); }
@@ -85,6 +90,15 @@ internal static class AipdmAssemblyAnalyzerTests
             Check(AipdmAssemblyAnalyzer.ResolveReference(main, @"C:\original\dir\part.SLDPRT", entries) == null, "saved absolute path cannot select a same-named file");
             Check(AipdmAssemblyAnalyzer.ResolveReference(main, "part.SLDPRT", entries) == null, "basename cannot guess nested package path");
             Check(AipdmAssemblyAnalyzer.ResolveReference(child, "../main.SLDASM", entries) == null, "reference traversal refuses before file I/O");
+            var origins = new Dictionary<string, string>(StringComparer.Ordinal); bool conflict;
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"C:\original\dir\part.SLDPRT", entries, origins, out conflict) == child && !conflict, "containment relocation maps a unique complete package path suffix");
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"C:\original\dir\part.SLDPRT", entries, origins, out conflict) == child && !conflict, "repeated native instances retain one saved source identity");
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"D:\different\dir\part.SLDPRT", entries, origins, out conflict) == null && conflict, "different original paths cannot collapse onto one package entry");
+            var unmatched = Entry("other", "elsewhere/part.SLDPRT", bytes);
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"C:\source\part.SLDPRT", new AipdmAssemblyAnalyzer.Entry[] {child,unmatched}, new Dictionary<string,string>(), out conflict) == null && conflict, "duplicate basenames under unrelated directories are an explicit ambiguity");
+            child.absolutePath = Path.Combine(directory, "dir", "part.SLDPRT"); var directOrigins = new Dictionary<string,string>();
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, child.absolutePath, entries, directOrigins, out conflict) == child, "exact package absolute containment source establishes its identity");
+            Check(AipdmAssemblyAnalyzer.ResolveComponentReference(main, @"D:\different\dir\part.SLDPRT", entries, directOrigins, out conflict) == null && conflict, "exact path and a distinct saved alias cannot collapse into one entry");
             Check(AipdmAssemblyAnalyzer.ResolveReference(main, main.absolutePath, entries) == main, "native actual package absolute path binds exact manifest source");
             Check(AipdmAssemblyAnalyzer.SafeReferenceLabel(@"C:\Users\private\secret\part.SLDPRT") == "part.SLDPRT", "absolute original reference is not returned");
             Check(AipdmAssemblyAnalyzer.SafeReferenceLabel(@"\\server\share\part.SLDPRT") == "part.SLDPRT", "UNC reference is not returned");

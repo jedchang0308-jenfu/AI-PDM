@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { assemblyRequest, AssemblyHttpError } from "@/lib/assembly-package-upload-client";
 
-type Row={rowKey:string;parentKey:string|null;entryKey:string|null;configuration:string;occurrenceKey?:string;reference?:string;
+type Row={rowKey:string;parentKey:string|null;entryKey:string|null;configuration:string;occurrenceKey?:string;reference?:string;componentName?:string;occurrences?:unknown[];
   cadPartNumber?:string;drawingNumber?:string;quantity:string|null;unit:string|null;partNumber?:string;disposition:string};
 type Draft={rows:Row[];draftVersion:number;configuration:string};
 const statuses:Record<string,string>={matched:"已配對",excluded:"排除",needs_record:"待建檔",needs_number:"待編號",
   quantity_unknown:"用量待確認",conflict:"配對衝突",needs_purpose:"用途待確認",needs_mapping:"待配對",material:"實際用料"};
-function rowLabel(row:Row) { return row.partNumber || row.cadPartNumber || row.drawingNumber || row.reference || row.occurrenceKey || row.entryKey || "內嵌件"; }
+function rowLabel(row:Row) {
+  const instanceName = row.occurrences?.length ? null : row.componentName;
+  return row.partNumber || row.cadPartNumber || row.drawingNumber || instanceName || row.reference || row.occurrenceKey || row.entryKey || "內嵌件";
+}
 type Save=(rowKey:string,patch:Record<string,string|null>)=>Promise<void>;
 type Part={entityId:string;displayCode:string;displayName:string};
 
@@ -89,7 +92,7 @@ export function AssemblyBomDraft({url,configurations,editable,mainEntryKey,mainL
     {error && <p role="alert">{error}</p>}
     {draft && <><p>{draft.rows.length} 列 · {exceptions} 列待處理</p><ul className="canonical-record-list">
       {draft.rows.map(row=><li key={row.rowKey}><strong>{rowLabel(row)}</strong> <span>{row.quantity??"用量待確認"} {row.unit} · {statuses[row.disposition]??row.disposition}</span>
-        <small>{row.parentKey && `父件 ${parents.get(row.parentKey)??row.parentKey} · `}組態 {row.configuration}</small>
+        <small>{row.reference && rowLabel(row)!==row.reference && `${row.reference} · `}{row.parentKey && `父件 ${parents.get(row.parentKey)??row.parentKey} · `}組態 {row.configuration}</small>
         {editable && <button className="ghost-button" type="button" onClick={()=>setEditing(editing===row.rowKey?null:row.rowKey)}>更正</button>}
         {editing===row.rowKey && <EditRow row={row} save={save}/>}</li>)}</ul></>}
   </div>;

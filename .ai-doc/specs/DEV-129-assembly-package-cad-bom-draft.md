@@ -94,6 +94,8 @@ RD 可從 §7.7 的傳輸及原生工作開始。傳輸有初始可實作的容�
 | 接手者從同一面板按一次下載 | 下載 bytes 與來源一致。以新的空白 SOLIDWORKS 2025 SP3 程序從下載副本開啟、重建，錯誤與警告均為 0。每個啟用的外部元件都核對實際從解壓目錄載入。實際縮排 BOM 表列出 `A0030 × 1`、`A0033 × 2`、`DEV-129組立圖測試用零件 × 1`；最後一項採子件組態「彎折」。三項按檔案及組態加總均與 PDM 草稿一致。草稿仍保留待識別實例供工程師確認。 |
 | 幾何檔缺失與自訂用量 | 從同包移除 A0033 時，兩個受影響實例的用量留空，其他兩個零件仍可讀取。另一個獨立 CAD 副本用真實自訂屬性把 A0033 設為每件 2.5 m。Document Manager 讀出兩個 2.5 m，SOLIDWORKS 原生 BOM 用量格顯示 5。 |
 | 原廠 U-Joint 的原生 Pack and Go | SOLIDWORKS 產出含 2 個組立、8 個零件的 ZIP。Document Manager 自動辨識頂層 UJoint，取得 8 個直屬實例及 crank 子組立的 3 個實例，並分開 SHORT 與 LONG 銷件組態。 |
+| 內嵌虛擬件、排除與三種子組立展開 | 在 U-Joint 的隔離副本內建立虛擬件，再由 SOLIDWORKS Pack and Go 產包，SHA-256 為 `2161d3f5e4f0f14d66d1ac460eac0b896b5ae32d9478de9b0a2c344cee1ec2a5`。三個組態均讀到 SHORT 銷 12 件、LONG 銷 1 件、內嵌件 1 件。隱藏的 Yoke_female 仍計入，bracket 列為排除。原生縮排 BOM 的 Default、Hide、Promote 分別顯示 8、6、8 列，子組立的三個下層零件分別呈現於父件下、隱去、提升至主層。 |
+| 非交付組態、同名與幾何參照 | 移除已排除 BOM 但仍需載入的 bracket，必要參照受阻。移除只在另一交付組態啟用的 Yoke_male，Default 仍通過，另選 Hide 時只阻擋 Hide。A0054 的兩個同名候選 A0033 不能唯一解析時，保留其他零件用量。另在 A0030 建立實際插入零件特徵，完整包通過；移除 BaseOnly 後正確定位 `A0030.SLDPRT → BaseOnly.SLDPRT`，保留組立元件草稿。 |
 
 上述端到端測試走實際檔案面板、HTTP 收件與下載、隔離 PostgreSQL、Windows 工作迴圈及原生解析器。測試身分、裝置准入以及記憶體中的工作金鑰提供者使用隔離測試介面。桌面 CAD 只用於獨立驗收，日常操作仍由 Document Manager 在背景完成。 [瀏覽器入口](../../scripts/qc-dev129-assembly-browser.mjs) · [Worker 驗證入口](../../scripts/qc-dev129-assembly-live-worker.mjs) · [原生桌面對照](../../scripts/dev129-solidworks-sample-oracle.cs)
 

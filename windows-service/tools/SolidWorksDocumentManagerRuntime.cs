@@ -232,7 +232,14 @@ internal sealed class SolidWorksDocumentManagerRuntime
 
     internal string ReadAssemblyPropertyValue(string interfaceName, object target, string name)
     {
-        Invoke(interfaceName, target, "GetCustomPropertyNames", new object[0]);
+        object rawNames = Invoke(interfaceName, target, "GetCustomPropertyNames", new object[0]);
+        bool exists = false;
+        Array names = rawNames as Array;
+        if (names != null) foreach (object item in names) if (String.Equals(Convert.ToString(item), name, StringComparison.OrdinalIgnoreCase)) exists = true;
+        // The real COM reader returns E_FAIL for an absent property. Successful
+        // native enumeration is the absence proof; never turn an arbitrary COM
+        // exception into an empty/default quantity setting.
+        if (!exists) return "";
         MethodInfo method = RequireMethod(interfaceName, target, "GetCustomProperty", 2);
         object[] args = { name, Enum.ToObject(method.GetParameters()[1].ParameterType.GetElementType(), 0) };
         return Convert.ToString(method.Invoke(target, args)) ?? "";
