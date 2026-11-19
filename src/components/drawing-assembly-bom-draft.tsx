@@ -6,7 +6,7 @@ import { assemblyRequest, AssemblyHttpError } from "@/lib/assembly-package-uploa
 type Row={rowKey:string;parentKey:string|null;entryKey:string|null;configuration:string;occurrenceKey?:string;reference?:string;componentName?:string;occurrences?:unknown[];
   cadPartNumber?:string;drawingNumber?:string;quantity:string|null;unit:string|null;partNumber?:string;disposition:string};
 type Draft={rows:Row[];draftVersion:number;configuration:string};
-const statuses:Record<string,string>={matched:"已配對",excluded:"排除",needs_record:"待建檔",needs_number:"待編號",
+const statuses:Record<string,string>={matched:"實際用料（已配對）",excluded:"輔助繪圖（排除 BOM，保留檔案）",needs_record:"實際用料（待建檔）",needs_number:"實際用料（待編號）",
   quantity_unknown:"用量待確認",conflict:"配對衝突",needs_purpose:"用途待確認",needs_mapping:"待配對",material:"實際用料"};
 function rowLabel(row:Row) {
   const instanceName = row.occurrences?.length ? null : row.componentName;
@@ -14,6 +14,24 @@ function rowLabel(row:Row) {
 }
 type Save=(rowKey:string,patch:Record<string,string|null>)=>Promise<void>;
 type Part={entityId:string;displayCode:string;displayName:string};
+
+function BomPurpose({row,save}:{row:Row;save:Save}) {
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  async function choose(disposition:string) {
+    setSaving(true);setError("");
+    try {await save(row.rowKey,{disposition});}
+    catch(reason){setError(reason instanceof Error?reason.message:"用途儲存失敗，請重新選擇");}
+    finally{setSaving(false);}
+  }
+  const material=row.partNumber?"matched":"material";
+  const options=[material,"needs_number","excluded"];
+  return <><label>BOM 用途 <select aria-label={`${rowLabel(row)} 的 BOM 用途`} value={row.disposition} disabled={saving}
+    onChange={event=>void choose(event.target.value)}>
+    {!options.includes(row.disposition) && <option value={row.disposition}>{statuses[row.disposition]??row.disposition}</option>}
+    {options.map(value=><option key={value} value={value}>{statuses[value]}</option>)}
+  </select></label>{saving && <span role="status">儲存中…</span>}{error && <p role="alert">{error}</p>}</>;
+}
 
 function EditRow({row,save}:{row:Row;save:Save}) {
   const [quantity,setQuantity]=useState(row.quantity??"");
@@ -45,9 +63,6 @@ function EditRow({row,save}:{row:Row;save:Save}) {
       onBlur={()=>{if (quantity!==(row.quantity??"")) void persist({quantity:quantity||null});}} /></label>
     <label>單位<input value={unit} onChange={e=>setUnit(e.target.value)}
       onBlur={()=>{if (unit!==(row.unit??"")) void persist({unit:unit||null});}} /></label>
-    <label>用途<select value={row.disposition} onChange={e=>void persist({disposition:e.target.value})}>
-      <option value={row.disposition}>{statuses[row.disposition]??row.disposition}</option>
-      {["excluded","needs_number","material"].filter(v=>v!==row.disposition).map(v=><option value={v} key={v}>{statuses[v]}</option>)}</select></label>
     <label>查找料號<input value={query} onChange={e=>{setQuery(e.target.value);setMatches([]);}}/></label>
     {matches.map(part=><button type="button" key={part.entityId} onClick={()=>void persist({partId:part.entityId,disposition:"matched"})}>
       {part.displayCode} {part.displayName}</button>)}
@@ -91,8 +106,9 @@ export function AssemblyBomDraft({url,configurations,editable,mainEntryKey,mainL
       {configurations.map(n=><option key={n}>{n}</option>)}</select></label>
     {error && <p role="alert">{error}</p>}
     {draft && <><p>{draft.rows.length} 列 · {exceptions} 列待處理</p><ul className="canonical-record-list">
-      {draft.rows.map(row=><li key={row.rowKey}><strong>{rowLabel(row)}</strong> <span>{row.quantity??"用量待確認"} {row.unit} · {statuses[row.disposition]??row.disposition}</span>
+      {draft.rows.map(row=><li key={row.rowKey}><strong>{rowLabel(row)}</strong> <span>{row.quantity??"用量待確認"} {row.unit}{!editable && ` · ${statuses[row.disposition]??row.disposition}`}</span>
         <small>{row.reference && rowLabel(row)!==row.reference && `${row.reference} · `}{row.parentKey && `父件 ${parents.get(row.parentKey)??row.parentKey} · `}組態 {row.configuration}</small>
+        {editable && <BomPurpose row={row} save={save}/>}
         {editable && <button className="ghost-button" type="button" onClick={()=>setEditing(editing===row.rowKey?null:row.rowKey)}>更正</button>}
         {editing===row.rowKey && <EditRow row={row} save={save}/>}</li>)}</ul></>}
   </div>;
