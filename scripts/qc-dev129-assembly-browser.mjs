@@ -12,12 +12,13 @@ const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 
 // The test caller dispatches the real work routes in its isolated PostgreSQL fixture.
 // Only this loopback origin and this one file panel are exposed to the browser.
-export async function verifyAssemblyPackageBrowser(dispatch, archivePath) {
+export async function verifyAssemblyPackageBrowser(dispatch, archivePath, {workId="work",fileName="UJoint-browser.zip",receivedArchivePath=null,afterUpload=null}={}) {
   const root = process.cwd();
   const tempBase = path.join(root, ".tmp");
   await fs.mkdir(tempBase, {recursive:true});
   const dir = await fs.mkdtemp(path.join(tempBase,"dev129-browser-"));
-  const base = "/api/pdm/drawing-revision-works/work/assembly-packages";
+  assert.match(workId,/^[a-zA-Z0-9-]+$/u);
+  const base = `/api/pdm/drawing-revision-works/${workId}/assembly-packages`;
   const calls = [];
   let browser, server;
   try {
@@ -65,22 +66,28 @@ export async function verifyAssemblyPackageBrowser(dispatch, archivePath) {
     const upload=page.getByRole("button",{name:/^(上傳組立包|補正組立包)$/});
     try {
       const [picker]=await Promise.all([page.waitForEvent("filechooser",{timeout:12000}),upload.click({timeout:12000})]);
-      await picker.setFiles({name:"UJoint-browser.zip",mimeType:"application/zip",buffer:bytes});
+      await picker.setFiles({name:fileName,mimeType:"application/zip",buffer:bytes});
     } catch(error) {
       throw new Error(JSON.stringify({message:error.message,pageErrors,calls,pageText:(await page.locator("body").innerText()).slice(0,800)}));
     }
-    await page.getByRole("status").filter({hasText:"UJoint-browser.zip · 等待 Windows 解析"}).waitFor();
+    await page.getByRole("status").filter({hasText:`${fileName} · 等待 Windows 解析`}).waitFor();
     const downloading=page.waitForEvent("download");
     await page.getByRole("link",{name:"下載組立包"}).click();
     const download=await downloading;
-    assert.equal(download.suggestedFilename(),"UJoint-browser.zip");
+    assert.equal(download.suggestedFilename(),fileName);
     const downloaded=await fs.readFile(await download.path());
     assert.equal(digest(bytes),digest(downloaded));
+    if(receivedArchivePath) {
+      await fs.mkdir(path.dirname(receivedArchivePath),{recursive:true});
+      try {await fs.writeFile(receivedArchivePath,downloaded,{flag:"wx"});}
+      catch(error){if(error.code!=="EEXIST")throw error;assert.equal(digest(await fs.readFile(receivedArchivePath)),digest(downloaded),"received archive path already contains another source");}
+    }
     assert.equal(calls.filter(([method,pathname])=>method==="POST" && pathname===base).length,1);
     assert.equal(calls.filter(([method,pathname])=>method==="GET" && pathname.endsWith("/download")).length,1);
+    const background=afterUpload?await afterUpload({page,base}):null;
     assert.deepEqual(pageErrors,[]);
     return {uploadedBytes:bytes.length,downloadSha256:digest(downloaded),browser:await browser.version(),
-      uploadSelections:1,downloadClicks:1,scope:"real file panel and work routes, isolated PostgreSQL, fixture Principal"};
+      uploadSelections:1,downloadClicks:1,scope:"real file panel and work routes, isolated PostgreSQL, fixture Principal",background};
   } finally {
     await browser?.close();
     if(server?.listening) await new Promise(resolve=>server.close(resolve));

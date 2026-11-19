@@ -253,6 +253,8 @@ test("DEV-125B runs probe, preview and recognition in one installed scheduler wi
   assert.match(worker, /outputBytes > maxOutput/u);
   assert.match(worker, /taskkill\.exe[\s\S]+\/t[\s\S]+\/f/u);
   assert.match(worker, /maxSourceBytes = 268_435_456/u);
+  assert.match(worker, /parserVersion:"solidworks-document-manager\.assembly\.v2"/u);
+  assert.doesNotMatch(worker, /parserVersion:"solidworks-document-manager\.assembly\.v1"/u);
   assert.match(worker, /completeWithReadback[\s\S]+readbackCompletion/u);
   assert.match(worker, /worker_completion|resultDigest|canonicalDigest/u);
   assert.match(build, /windows-service[\\/]service[\\/]\*\.mjs/u);

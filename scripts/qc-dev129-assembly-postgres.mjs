@@ -25,8 +25,11 @@ try {
   run("initdb.exe",["-D",cluster,"--auth-local=trust","--auth-host=trust","--username=postgres","--encoding=UTF8","--no-locale"]);
   run("pg_ctl.exe",["-D",cluster,"-l",path.join(task,"postgres.log"),"-o",`-p ${port} -h 127.0.0.1`,"-w","start"],"ignore");started=true;
   await new Promise((resolve,reject)=>{
-    const child=spawn(process.execPath,[path.join(root,"node_modules/vitest/vitest.mjs"),"run","src/lib/drawing-assembly-package.postgres.test.ts","--no-cache","--pool=threads","--maxWorkers=1"],{cwd:root,stdio:"inherit",windowsHide:true,env:{...process.env,DEV129_TEST_PG:`postgresql://postgres@127.0.0.1:${port}/postgres`,PDM_DATA_DIR:path.join(task,"data"),PDM_REPOSITORY_DIR:path.join(task,"repository"),PDM_STORAGE_PROVIDER:"local_repository"}});
-    const timer=setTimeout(()=>{child.kill();reject(new Error("DEV129_POSTGRES_TIMEOUT"));},180000);child.once("error",error=>{clearTimeout(timer);reject(error);});child.once("exit",code=>{clearTimeout(timer);code===0?resolve():reject(new Error(`DEV129_POSTGRES_FAILED:${code}`));});
+    const live=Boolean(process.env.DEV129_LIVE_ARCHIVE);
+    const selected=process.env.DEV129_SUBMIT_ONLY==="1"?["--testNamePattern","canonical UI submit transaction"]:process.env.DEV129_LIVE_ONLY==="1"?["--testNamePattern","live CAD package"]:process.env.DEV129_BROWSER_ONLY==="1"?["--testNamePattern","uploads and downloads the supplied ZIP"]:[];
+    const args=[path.join(root,"node_modules/vitest/vitest.mjs"),"run","src/lib/drawing-assembly-package.postgres.test.ts","--no-cache","--pool=threads","--maxWorkers=1",...selected];
+    const child=spawn(process.execPath,args,{cwd:root,stdio:"inherit",windowsHide:true,env:{...process.env,DEV129_TEST_PG:`postgresql://postgres@127.0.0.1:${port}/postgres`,PDM_DATA_DIR:path.join(task,"data"),PDM_REPOSITORY_DIR:path.join(task,"repository"),PDM_STORAGE_PROVIDER:"local_repository"}});
+    const timer=setTimeout(()=>{child.kill();reject(new Error("DEV129_POSTGRES_TIMEOUT"));},live?360000:180000);child.once("error",error=>{clearTimeout(timer);reject(error);});child.once("exit",code=>{clearTimeout(timer);code===0?resolve():reject(new Error(`DEV129_POSTGRES_FAILED:${code}`));});
   });
 } finally {
   if(started)run("pg_ctl.exe",["-D",cluster,"-m","fast","-w","stop"],"ignore");

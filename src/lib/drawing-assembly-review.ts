@@ -14,6 +14,7 @@ import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { requirePrincipalReviewResourceCapabilitiesInSnapshot } from "@/lib/pdm-principal-review-resource";
 import { readCanonicalDrawingHistoryRevision } from "@/lib/pdm-canonical-drawing-history";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
+import { isSupportedAssemblyParserVersion } from "@/lib/assembly-parser-version";
 
 export type AssemblyReviewSnapshot = { version:1;packageId:string;workId:string;revisionId:string;fileName:string;byteSize:number;
   archiveSha256:string;storageObject:AssemblyStoredObject;mainEntryKey:string;mainRelativePath:string;selectionVersion:number;
@@ -36,7 +37,7 @@ export async function currentAssemblySubmission(client:AsyncDatabaseClient,work:
   const manifest=assemblyJson<AssemblyArchiveManifest|null>(pkg.manifest_json,null);
   const object=assemblyJson<AssemblyStoredObject|null>(pkg.storage_object_json,null);
   const main=manifest?.entries.find(entry=>entry.entryKey===pkg.main_entry_key);
-  if(!configs.length || !result || !main || !object || result.mainEntryKey!==pkg.main_entry_key || !analysis?.result_digest || analysis.status==="queued" || analysis.status==="running" || configs.some(name=>result.configurations.find(value=>value.name===name)?.references.status!=="passed")) return reject();
+  if(!configs.length || !result || !isSupportedAssemblyParserVersion(result.parserVersion) || !main || !object || result.mainEntryKey!==pkg.main_entry_key || !analysis?.result_digest || analysis.status==="queued" || analysis.status==="running" || configs.some(name=>result.configurations.find(value=>value.name===name)?.references.status!=="passed")) return reject();
   if(manifest?.sha256!==pkg.archive_sha256 || manifest.byteSize!==Number(pkg.byte_size) || object.byteSize!==Number(pkg.byte_size)) return reject();
   const primary=await client.queryOne<{content_hash:string;source_file_asset_id:string}>(`SELECT asset.content_hash,file.source_file_asset_id FROM drawing_revision_work_files binding JOIN drawing_revision_files file ON file.id=binding.file_binding_id JOIN file_assets asset ON asset.id=file.source_file_asset_id WHERE binding.work_id=:workId AND file.id=:bindingId AND file.company_id=:companyId AND file.drawing_revision_id=:revisionId AND file.role='cad_3d' AND file.is_primary=1 AND file.removed_at IS NULL AND asset.deleted_at IS NULL`,{workId:work.id,companyId:work.company_id,revisionId:work.revision_id,bindingId:pkg.primary_binding_id});
   if(!primary || primary.source_file_asset_id!==pkg.primary_asset_id || primary.content_hash!==main.sha256) return reject();

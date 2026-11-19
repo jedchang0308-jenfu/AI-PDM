@@ -10,6 +10,7 @@ import { projectAssemblyAnalysisResult } from "./drawing-assembly-bom";
 import { validateAssemblyAnalysisResult, assemblyResultDigest } from "./assembly-analysis-result";
 import { DrawingRevisionWorkAsyncRepository } from "./repositories/drawing-revision-work-async-repository";
 import { mergeAssemblyRawCache, readAssemblyRawCache } from "./drawing-assembly-cache";
+import { isSupportedAssemblyParserVersion } from "./assembly-parser-version";
 
 type Actor = Pick<VerifiedWindowsServiceDevice, "id" | "companyId" | "ownerPrincipalId">;
 type Job = {
@@ -54,9 +55,10 @@ async function checked(tx: AsyncDatabaseClient, actor: Actor, id: string, lease:
   return pkg;
 }
 export function verifyAssemblyLease(actor: Actor, id: string, lease: AssemblyLease) {
-  return getAsyncDatabaseClient().transaction(tx => checked(tx, actor, id, lease), {readOnly: true, isolationLevel:"repeatable_read"});
+  return getAsyncDatabaseClient().transaction(tx => checked(tx, actor, id, lease), {isolationLevel:"repeatable_read"});
 }
 export async function claimAssemblyAnalysis(actor: Actor, parserVersion: string) {
+  if(!isSupportedAssemblyParserVersion(parserVersion))reject("ASSEMBLY_PARSER_VERSION_UNSUPPORTED",426);
   return getAsyncDatabaseClient().transaction(async tx => {
     const candidates = await tx.query<{id:string;package_id:string;work_id:string}>(`SELECT a.id,a.package_id,p.work_id
       FROM drawing_assembly_analysis a JOIN drawing_assembly_packages p ON p.company_id=a.company_id AND p.id=a.package_id
@@ -85,9 +87,9 @@ export async function claimAssemblyAnalysis(actor: Actor, parserVersion: string)
       }
       const token = randomUUID();
       const row = await tx.queryOne<{lease_version:number}>(`UPDATE drawing_assembly_analysis SET status='running',
-        lease_version=lease_version+1, lease_owner_id=:owner,lease_token=:token,attempts=attempts+1,
+        lease_version=lease_version+1, lease_owner_id=:owner,lease_token=:token,attempts=attempts+1,parser_version=:parserVersion,
         lease_expires_at=CURRENT_TIMESTAMP+interval '90 seconds',updated_at=CURRENT_TIMESTAMP WHERE id=:id RETURNING lease_version`,
-        {id:candidate.id,owner:actor.id,token});
+        {id:candidate.id,owner:actor.id,token,parserVersion});
       const leaseBasis = {token,version:row!.lease_version,packageId:pkg.id,selectionVersion:pkg.selection_version,archiveSha256:pkg.archive_sha256};
       const manifest = manifestOf(pkg);
       const selected = assemblyJson<string[]>(pkg.configurations_json,[]);
@@ -123,6 +125,8 @@ export async function finishAssembly(actor: Actor, id: string, lease: AssemblyLe
     const selected = assemblyJson<string[]>(pkg.configurations_json,[]);
     const manifest = manifestOf(pkg);
     const fresh = validateAssemblyAnalysisResult(raw,manifest,pkg.main_entry_key,[]);
+    const claimed=await tx.queryOne<{parser_version:string}>("SELECT parser_version FROM drawing_assembly_analysis WHERE id=:id",{id});
+    if(claimed?.parser_version!==fresh.parserVersion)reject("ASSEMBLY_PARSER_VERSION_MISMATCH",422);
     const combined = selected.length ? mergeAssemblyRawCache(await readAssemblyRawCache(tx,pkg,fresh.parserVersion),fresh,selected) : fresh;
     const result = validateAssemblyAnalysisResult(combined,manifest,pkg.main_entry_key,selected);
     if (result.mainEntryKey) {

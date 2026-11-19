@@ -3,6 +3,7 @@ import type { AssemblyAnalysisResult } from "@/lib/assembly-analysis-result";
 import { assemblyResultDigest } from "@/lib/assembly-analysis-result";
 import { assemblyJson,readAssemblyAnalysis,type AssemblyPackageRow,type AssemblyAnalysisRow } from "@/lib/drawing-assembly-package";
 import { projectAssemblyAnalysisResult } from "@/lib/drawing-assembly-bom";
+import { isSupportedAssemblyParserVersion } from "@/lib/assembly-parser-version";
 export type AssemblyRawCache = {parserVersion:string|null;mainEntryKey:string|null;configurationNames:string[];configurations:AssemblyAnalysisResult["configurations"]};
 /** Cache identity includes immutable archive, selected main and exact parser version. */
 export async function readAssemblyRawCache(client:AsyncDatabaseClient,pkg:AssemblyPackageRow,parserVersion?:string):Promise<AssemblyRawCache> {
@@ -10,7 +11,7 @@ export async function readAssemblyRawCache(client:AsyncDatabaseClient,pkg:Assemb
   const cache:AssemblyRawCache={parserVersion:parserVersion??null,mainEntryKey:pkg.main_entry_key,configurationNames:[],configurations:[]};
   for(const row of rows) {
     const raw=assemblyJson<AssemblyAnalysisResult|null>(row.raw_result_json,null);
-    if(!raw || raw.version!==1 || raw.mainEntryKey!==pkg.main_entry_key || !raw.parserVersion || !Array.isArray(raw.configurations))continue;
+    if(!raw || raw.version!==1 || raw.mainEntryKey!==pkg.main_entry_key || !isSupportedAssemblyParserVersion(raw.parserVersion) || !Array.isArray(raw.configurations))continue;
     cache.parserVersion??=raw.parserVersion;if(raw.parserVersion!==cache.parserVersion)continue;
     for(const name of raw.configurationNames)if(!cache.configurationNames.includes(name))cache.configurationNames.push(name);
     for(const config of raw.configurations)if(config.references.status==="passed" && !cache.configurations.some(value=>value.name===config.name))cache.configurations.push(config);

@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import type { AssemblyArchiveManifest } from "./assembly-archive";
+import { isSupportedAssemblyParserVersion } from "./assembly-parser-version";
 
 export type AssemblyResultRow = {
   occurrenceKey: string; parentKey: string; entryKey: string | null; configuration: string;
   cadPartNumber?: string | null; drawingNumber?: string | null; quantity: string | null;
   unit: string | null; disposition: string; [field: string]: unknown;
+  componentName?:string;
 };
 type Issue = { code: string; parentKey: string; reference: string };
 export type AssemblyAnalysisResult = {
@@ -35,7 +37,7 @@ export function validateAssemblyAnalysisResult(input: unknown, manifest: Assembl
   selectedMain: string | null, selectedConfigurations: string[]): AssemblyAnalysisResult {
   const raw = record(input);
   if (raw.version !== 1 || !["complete", "needs_input", "blocked"].includes(String(raw.status))) invalid();
-  label(raw.parserVersion, 120);
+  if(!isSupportedAssemblyParserVersion(raw.parserVersion))invalid();
   const assemblies = new Set(manifest.assemblyEntryKeys);
   const entries = new Set(manifest.entries.filter(entry => !entry.directory).map(entry => entry.entryKey));
   const main = raw.mainEntryKey === null ? null : label(raw.mainEntryKey);
@@ -74,6 +76,7 @@ export function validateAssemblyAnalysisResult(input: unknown, manifest: Assembl
       if (typeof row.quantity === "string" && !/[1-9]/u.test(row.quantity)) invalid();
       if (row.unit !== null) label(row.unit, 80);
       for (const key of ["cadPartNumber", "drawingNumber"]) if (row[key] != null) label(row[key], 256);
+      if(row.componentName!=null && /^(?:[a-z]:|[\\/])/iu.test(label(row.componentName,1024)))invalid();
       if (row.reference != null && /^(?:[a-z]:|[\\/])/iu.test(label(row.reference))) invalid();
     }
     const parents = new Map((record(config.bom).rows as AssemblyResultRow[]).map(row => [row.occurrenceKey,row.parentKey]));

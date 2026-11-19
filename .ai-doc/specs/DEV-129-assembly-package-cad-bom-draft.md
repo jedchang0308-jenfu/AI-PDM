@@ -84,7 +84,7 @@ RD 可從 §7.7 的傳輸及原生工作開始。傳輸有初始可實作的容�
 
 驗收記錄需能對應來源指紋、主組立、組態、CAD／解析器版本及受測身分。
 
-2026-11-19 開發自查使用 SOLIDWORKS 2025 安裝附帶的 U-Joint 範例，將 2 個組立與 8 個零件壓成 998,824 bytes 的 ZIP。隔離 PostgreSQL、真實收件與下載路由、測試 Principal 及無視窗 Edge 的版次檔案面板完成一次選檔、一次下載。原始與下載 ZIP 的 SHA-256 均為 `89bf9684b277b25d0e7cc523421f56f5168caa22cfa8254b4e7e3836a60a4171`，worker 解包後的 10 個檔案也逐一比對通過。這涵蓋案例 01、02 的傳輸部分。樣例採一般 ZIP 製作；SolidWorks Pack and Go 產包、原生 BOM 比對及乾淨工作站開啟重建仍待實測。 [瀏覽器驗證](../../scripts/qc-dev129-assembly-browser.mjs) · [原始檔到 worker 的檢查](../../scripts/qc-dev129-assembly-zip.mjs)
+2026-11-19 開發自查使用 SOLIDWORKS 2025 安裝附帶的 U-Joint 範例，將 2 個組立與 8 個零件壓成 998,824 bytes 的 ZIP。隔離 PostgreSQL、真實收件與下載路由、測試 Principal 及無視窗 Edge 的版次檔案面板完成一次選檔、一次下載。原始與下載 ZIP 的 SHA-256 均為 `89bf9684b277b25d0e7cc523421f56f5168caa22cfa8254b4e7e3836a60a4171`，worker 解包後的 10 個檔案也逐一比對通過。這涵蓋案例 01、02 的傳輸部分。這次傳輸測試採一般 ZIP 製作。下表另記錄原生 Pack and Go、BOM 對照與下載副本的 CAD 開啟重建。 [瀏覽器驗證](../../scripts/qc-dev129-assembly-browser.mjs) · [原始檔到 worker 的檢查](../../scripts/qc-dev129-assembly-zip.mjs)
 
 ### 實際組立包與 SOLIDWORKS 對照（2026-11-19）
 
@@ -96,8 +96,11 @@ RD 可從 §7.7 的傳輸及原生工作開始。傳輸有初始可實作的容�
 | 原廠 U-Joint 的原生 Pack and Go | SOLIDWORKS 產出含 2 個組立、8 個零件的 ZIP。Document Manager 自動辨識頂層 UJoint，取得 8 個直屬實例及 crank 子組立的 3 個實例，並分開 SHORT 與 LONG 銷件組態。 |
 | 內嵌虛擬件、排除與三種子組立展開 | 在 U-Joint 的隔離副本內建立虛擬件，再由 SOLIDWORKS Pack and Go 產包，SHA-256 為 `2161d3f5e4f0f14d66d1ac460eac0b896b5ae32d9478de9b0a2c344cee1ec2a5`。三個組態均讀到 SHORT 銷 12 件、LONG 銷 1 件、內嵌件 1 件。隱藏的 Yoke_female 仍計入，bracket 列為排除。原生縮排 BOM 的 Default、Hide、Promote 分別顯示 8、6、8 列，子組立的三個下層零件分別呈現於父件下、隱去、提升至主層。 |
 | 非交付組態、同名與幾何參照 | 移除已排除 BOM 但仍需載入的 bracket，必要參照受阻。移除只在另一交付組態啟用的 Yoke_male，Default 仍通過，另選 Hide 時只阻擋 Hide。A0054 的兩個同名候選 A0033 不能唯一解析時，保留其他零件用量。另在 A0030 建立實際插入零件特徵，完整包通過；移除 BaseOnly 後正確定位 `A0030.SLDPRT → BaseOnly.SLDPRT`，保留組立元件草稿。 |
+| 圖號工作送審與接手 | 隔離 PostgreSQL 搭配實際圖號工作頁及送審交易。缺 2D 主檔時按鈕停用，API 回 422。補上 2D 後替換組立包，解析完成前 API 回 409。新包完成後從頁面送審回 200，同一交易保存 review package v2 與組立快照，指派審核者的測試身分可下載同一 ZIP。2D 樣本用來驗證既有送審條件。 |
 
 上述端到端測試走實際檔案面板、HTTP 收件與下載、隔離 PostgreSQL、Windows 工作迴圈及原生解析器。測試身分、裝置准入以及記憶體中的工作金鑰提供者使用隔離測試介面。桌面 CAD 只用於獨立驗收，日常操作仍由 Document Manager 在背景完成。 [瀏覽器入口](../../scripts/qc-dev129-assembly-browser.mjs) · [Worker 驗證入口](../../scripts/qc-dev129-assembly-live-worker.mjs) · [原生桌面對照](../../scripts/dev129-solidworks-sample-oracle.cs)
+
+RD 要重現同一條實檔流程，可在已安裝 Windows Document Manager 與 PostgreSQL 18 的開發機執行 `node scripts/qc-dev129-assembly-postgres.mjs`。指定 `DEV129_LIVE_ONLY=1`、`DEV129_LIVE_REQUIRE_PASSED=1`，以 `DEV129_LIVE_ARCHIVE` 指向 ZIP，以 `DEV129_LIVE_EXTRACTOR` 指向對應版本的解析器。將 `DEV129_LIVE_DM_KEY_MODULE` 指向既有測試設定的讀取模組，該模組匯出 `readAuthorizedDocumentManagerKey()`。金鑰只在工作程序記憶體使用。若提供 `DEV129_LIVE_EXPECTED_BOM`，runner 同時比對原生桌面讀出的同包指紋、主組態、各子件路徑、引用組態及數量。 [隔離資料庫入口](../../scripts/qc-dev129-assembly-postgres.mjs)
 
 ## 7. RD 實作交接
 

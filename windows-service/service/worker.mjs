@@ -370,7 +370,7 @@ export async function runWindowsWorker({ credentials, workerId, isStopping, log,
   }), now);
   const supportsAssembly = await fs.access(path.join(extractors,"AipdmAssemblyAnalyzer.exe")).then(()=>true,()=>false);
   const assembly = createClaimPoll(async () => (await claim("/api/assembly-analysis-jobs/claim",{
-    workerId,protocolVersion:1,parserVersion:"solidworks-document-manager.assembly.v1"
+    workerId,protocolVersion:1,parserVersion:"solidworks-document-manager.assembly.v2"
   }))?.job,now);
   const work = {
     preview: async () => processPreview(credentials, workerId, await preview.take(), isStopping, probe, sleep),
