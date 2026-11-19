@@ -252,3 +252,10 @@ RD 可直接決定元件命名、查詢批次及快取方式。若原生能力�
 - 保留 cancelled revision `73aac528-dc77-40f0-a445-b37f3ae17231` 及原包的歷史身分，建立同圖號／顯示版次 0.1 的 preparing revision `880866e4-a5d7-498f-a8f7-799bc079090d`，復用原 work ID、清單 row ID，恢復主檔及快照。新活動包 `ccd849fd-96a0-4214-9739-90340bcc9386` 引用相同 immutable ZIP bytes，沿用原始解析與 draft version 4／人工排除；舊包標 superseded。沒有重傳或重跑解析。
 - 交易已 commit，新增 `drawing.local_cancel_recovery` 的 tenant audit，記錄舊／新 revision、package 與原分析來源；只修復本機該筆工作，不變更正式環境。
 - 無視窗 Edge 實測：清單重新出現 A0054-M01，工作頁顯示主檔與 BOM 3 列／0 待處理，TBD 用途維持 excluded；按下載取得 1,392,774 bytes 且 SHA256 與原 ZIP 相同。此為本機復原自查，不代表使用者已驗收。
+
+#### 同日檔名顯示與本機 3D 預覽補正
+
+- BOM 顯示標籤遇 CAD 占位編號 TBD／TBC／N/A／NA／未定／待定，優先顯示來源檔名；已關聯 PDM 料號仍優先。原 CAD 值、配對結果與 excluded override 不改寫。1021 頁面確認顯示 `DEV-129組立圖測試用零件.SLDPRT`。
+- 使用者回報 A0054 主檔已存在但預覽尚未建立。先前本機專用 worker staging 僅包含組立分析器，缺 PreviewExporter；復原工作建立新主檔 asset 時，也未補建預覽 job。一般上傳入口既有 `ensureAutomaticPreviewJobsForSourceAssetsAsync` 呼叫仍在。
+- 依既有 Windows installer 的相同 csc 編譯參數，從本分支原始碼補齊本機 `.tmp/dev129-daily/install/extractors` 的 PreviewExporter 與 CredentialProbe。透過 `.tmp/dev129-prepare-preview.mts` 核對 51870／精確活動組立包／原 ZIP hash／現行 Principal 工作權限，再呼叫既有排程函式，建立 job `d187b8b7-47c8-4e1a-86e5-e0c304186bd8`；沒有重新上傳 ZIP 或變更 BOM。
+- 由真實 Windows worker 執行，job succeeded、error_code/error_summary 均 null。冷編譯期間一筆 heartbeat 40001 暫時衝突，後續 heartbeat 及 complete 成功。首輪 UI 檢查因反覆 reload 中斷非同步載圖且錯誤假設圖片 src 為 API URL 而失敗；修正為等待頁面實際 blob 圖片載入後，無視窗 Edge 確認 A0054.SLDASM 圖片 640×480、naturalWidth>0，並檢視截圖確實顯示組立預覽。證據 `.tmp/dev129-daily/a0054-preview-ready.png`。未合併、未正式部署。

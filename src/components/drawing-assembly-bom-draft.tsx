@@ -10,7 +10,10 @@ const statuses:Record<string,string>={matched:"實際用料（已配對）",excl
   quantity_unknown:"用量待確認",conflict:"配對衝突",needs_purpose:"用途待確認",needs_mapping:"待配對",material:"實際用料"};
 function rowLabel(row:Row) {
   const instanceName = row.occurrences?.length ? null : row.componentName;
-  return row.partNumber || row.cadPartNumber || row.drawingNumber || instanceName || row.reference || row.occurrenceKey || row.entryKey || "內嵌件";
+  const cadNumber = row.cadPartNumber?.trim();
+  const fileName = row.reference?.split(/[\\/]/u).at(-1);
+  const placeholder = cadNumber && /^(?:TBD|TBC|N\/A|NA|未定|待定)$/iu.test(cadNumber);
+  return row.partNumber || (placeholder ? fileName : cadNumber) || row.drawingNumber || instanceName || row.reference || row.occurrenceKey || row.entryKey || "內嵌件";
 }
 type Save=(rowKey:string,patch:Record<string,string|null>)=>Promise<void>;
 type Part={entityId:string;displayCode:string;displayName:string};
