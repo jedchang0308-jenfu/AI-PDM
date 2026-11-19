@@ -259,3 +259,12 @@ RD 可直接決定元件命名、查詢批次及快取方式。若原生能力�
 - 使用者回報 A0054 主檔已存在但預覽尚未建立。先前本機專用 worker staging 僅包含組立分析器，缺 PreviewExporter；復原工作建立新主檔 asset 時，也未補建預覽 job。一般上傳入口既有 `ensureAutomaticPreviewJobsForSourceAssetsAsync` 呼叫仍在。
 - 依既有 Windows installer 的相同 csc 編譯參數，從本分支原始碼補齊本機 `.tmp/dev129-daily/install/extractors` 的 PreviewExporter 與 CredentialProbe。透過 `.tmp/dev129-prepare-preview.mts` 核對 51870／精確活動組立包／原 ZIP hash／現行 Principal 工作權限，再呼叫既有排程函式，建立 job `d187b8b7-47c8-4e1a-86e5-e0c304186bd8`；沒有重新上傳 ZIP 或變更 BOM。
 - 由真實 Windows worker 執行，job succeeded、error_code/error_summary 均 null。冷編譯期間一筆 heartbeat 40001 暫時衝突，後續 heartbeat 及 complete 成功。首輪 UI 檢查因反覆 reload 中斷非同步載圖且錯誤假設圖片 src 為 API URL 而失敗；修正為等待頁面實際 blob 圖片載入後，無視窗 Edge 確認 A0054.SLDASM 圖片 640×480、naturalWidth>0，並檢視截圖確實顯示組立預覽。證據 `.tmp/dev129-daily/a0054-preview-ready.png`。未合併、未正式部署。
+
+#### 審核中的工作台預覽連結修正
+
+- 使用者要求修好進入審核後的 2D／3D 預覽，先本機驗證。A0054 現有 pending review `ff1f741f-51f8-428e-a393-98790a09c2cf`、檔案與 BOM 不進行業務寫入。
+- 根因：工作台版次連結沿用列上的 reviewRequestId，組成 `context=candidate_revision&reviewRequestId=...`；檔案 API 明確只接受 review_package 攜帶該參數，因此在讀檔前回 503 READ_ACCESS_REQUIRED。不是缺少預覽 bytes。
+- 在共用 `pdmFileReadHref` 僅於 review_package 序列化 reviewRequestId，其他上下文保留原 context/contextId/bindingId。涵蓋工作台 2D、3D、代表預覽、檔案下載與料號附件；真正審核包連結仍攜帶原 request ID，API、Principal、指派與快照檢查均沿用。
+- 本機分支 `codex/fix-review-preview-context`，1021 直接載入此分支，1020 隔離 main 工作樹複製這個修正檔供驗證。相關單元／預覽與權限拒絕案例共 74 passed，typecheck 通過；1020 真實登入 API 已讀回 3D image/png 200、2D application/pdf 200。
+- UI 驗證期間本機 callback 回 local_sandbox_unavailable，臨時只記固定代碼診斷，並將本機請求等待從預設 5 秒調整為協定允許的 15 秒完成新登入；驗證後移除臨時診斷與等待調整，不改權限或憑證。另發現 1020 新工作樹未準備 PDF.js 靜態 worker（404），使用既有 `prepare-dev-082-ocr-assets.mjs` 補齊兩個本機工作樹 public/generated 資源。這些失敗保留為本機驗證前提，未記為預覽成功。
+- 最終無視窗 Edge 在 1020 同一 pending-review A0054 工作台詳情：3D 圖片完成渲染 640×480；2D PDF 畫布 `data-pdf-render-state=ready`、1 頁；兩個媒體請求均 200。截圖 `.tmp/dev129-daily/1020-preview-diagnostic.png`。沒有重送或修改審核、BOM、ZIP；僅本機修正，未部署正式環境。
