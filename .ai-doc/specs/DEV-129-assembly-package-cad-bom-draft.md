@@ -244,3 +244,11 @@ RD 可直接決定元件命名、查詢批次及快取方式。若原生能力�
 - 使用者指定 TBD 測試零件為輔助繪圖，排除 BOM 但下載保留。每列直接提供「BOM 用途」選單：實際用料（已有料號時顯示已配對）、實際用料（待編號）、輔助繪圖（排除 BOM，保留檔案）；選擇後沿用草稿版本與既有 PATCH 自動儲存，失敗就地提示。更正按鈕保留料號查找、用量與單位操作，不重複顯示用途控制。
 - 已以無視窗 Edge 在 1021 的真實 UI 將該列設為 excluded；重新載入後讀回相同設定，A0030-P01 × 1、A0033-P01 × 2 保持 matched，顯示 3 列／0 列待處理。排除列仍顯示於草稿供後續調整，其原始用量留存但不計入 BOM 用料。
 - 同一次 UI 按下載組立包：1,392,774 bytes，SHA256 仍為 `62b8f573b4370717f5e75f688f091ea7141302292e11d6b6d851ec913b9f55a8`，與原 ZIP 相同，證明不因 BOM 排除移除子檔。檢視 1280／636 寬度畫面，636 無水平溢出；typecheck 通過。本機試用持續保留，未合併、未正式部署。
+
+#### 同日依使用者要求復原取消的 A0054-M01 工作
+
+- 使用者按「取消本次工作」後要求復原。取消服務移除 work／claim／branch／清單狀態及主檔 binding，將原 0.1 revision 設 cancelled；組立包、原始解析、BOM 草稿與 excluded override 均保留。
+- task-owned `.tmp/dev129-restore-cancel.mjs` 在 51870 的 shared daily fixture 指紋、精確 drawing/work/package/hash 及無新活動工作的前提下，以 serializable transaction 復原。操作前保存 `.tmp/dev129-daily/cancel-recovery-before.json`。過程先後因不可變組立包身分與 audit scope 契約被拒，兩次均完整 rollback；修正方案遵守原觸發器，沒有停用保護或變更 schema。
+- 保留 cancelled revision `73aac528-dc77-40f0-a445-b37f3ae17231` 及原包的歷史身分，建立同圖號／顯示版次 0.1 的 preparing revision `880866e4-a5d7-498f-a8f7-799bc079090d`，復用原 work ID、清單 row ID，恢復主檔及快照。新活動包 `ccd849fd-96a0-4214-9739-90340bcc9386` 引用相同 immutable ZIP bytes，沿用原始解析與 draft version 4／人工排除；舊包標 superseded。沒有重傳或重跑解析。
+- 交易已 commit，新增 `drawing.local_cancel_recovery` 的 tenant audit，記錄舊／新 revision、package 與原分析來源；只修復本機該筆工作，不變更正式環境。
+- 無視窗 Edge 實測：清單重新出現 A0054-M01，工作頁顯示主檔與 BOM 3 列／0 待處理，TBD 用途維持 excluded；按下載取得 1,392,774 bytes 且 SHA256 與原 ZIP 相同。此為本機復原自查，不代表使用者已驗收。
