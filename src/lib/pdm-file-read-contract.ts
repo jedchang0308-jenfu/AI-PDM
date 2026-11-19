@@ -33,6 +33,9 @@ export function pdmFileReadHref(input: PdmFileReadHrefInput) {
     contextId: input.contextId,
     bindingId: input.bindingId
   });
-  if (input.reviewRequestId) params.set("reviewRequestId", input.reviewRequestId);
+  // A row may be under review while still read through the drawing workbench.
+  // Only a review-package link uses assignment/snapshot authorization; mixing
+  // its request ID into a revision link is rejected by the file-read route.
+  if (input.context === "review_package" && input.reviewRequestId) params.set("reviewRequestId", input.reviewRequestId);
   return `/api/pdm/file-assets/${encodeURIComponent(input.fileAssetId)}?${params}`;
 }
