@@ -17,6 +17,7 @@ import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage
 import { reconcileSldasmAssemblyEvidence } from "@/lib/sldasm-assembly-evidence";
 import { principalJobInitiatorFromVerifiedRequest, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
+import { assertAssemblyPrimaryUpload, recordAssemblyPrimaryBinding, type AssemblyPrimaryBinding } from "@/lib/drawing-assembly-primary";
 
 type CommandContext = {
   idempotencyKey: string;
@@ -101,6 +102,10 @@ type DrawingFileUploadInput = {
   displayName?: unknown;
   description?: unknown;
   actor: DrawingFileActor;
+  /** Server-generated exact package basis; never accepted from a browser file request. */
+  packageBinding?: AssemblyPrimaryBinding;
+  packageInitiator?:PrincipalJobInitiator;
+  validatePackageAuthority?: (client:AsyncDatabaseClient)=>Promise<void>;
   request?: Request;
   context: CommandContext;
   /** Dependency-injection seam used only by isolated transaction fault tests. */
@@ -181,7 +186,8 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     );
     if (!existing) {
       await input.checkpoint?.("before_upload_stage");
-      const fileAssetId = input.principalToken
+      const stableSource = input.principalToken || input.packageBinding;
+      const fileAssetId = stableSource
         ? `FA-${crypto.createHash("sha256").update(JSON.stringify(["drawing.file.upload", input.actor.companyId, input.actor.principalId, input.workId, input.context.idempotencyKey])).digest("hex")}`
         : `FA-${crypto.randomUUID()}`;
       const fileBindingId = crypto.randomUUID();
@@ -189,7 +195,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
       // Renames reuse bytes; content-addressing also prevents local fixture overwrites.
       // Changed payloads remain receipt conflicts and any unreferenced blob is reconciled.
       const storageKey = buildStorageKey(["drawing-revision-works", input.actor.companyId, input.workId,
-        input.principalToken ? `${fileAssetId}/${contentHash}/source` : `${fileAssetId}-${fileName}`]);
+        stableSource ? `${fileAssetId}/${contentHash}/source` : `${fileAssetId}-${fileName}`]);
       const stored = await storage.putObject({ key: storageKey, bytes, contentType: mimeType }).catch(error => {
         if (error instanceof Error && error.message === "GCS_IMMUTABLE_OBJECT_CONFLICT") {
           throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "同一上傳命令的檔案內容不同，請重新讀取目前資料。", 409, commandCorrelation);
@@ -222,7 +228,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     };
     let durablePrincipalInitiator: PrincipalJobInitiator | undefined;
     const execute = async (tx: AsyncDatabaseClient, verified?: VerifiedPrincipalRequest) => {
-      const principalInitiator = verified ? principalJobInitiatorFromVerifiedRequest(verified) : undefined;
+      const principalInitiator = verified ? principalJobInitiatorFromVerifiedRequest(verified) : input.packageInitiator;
       if (principalInitiator) durablePrincipalInitiator = principalInitiator;
       const rootScope = await tx.queryOne<{ part_root_id: string }>(
         `SELECT drawing.part_root_id
@@ -242,6 +248,10 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403, commandCorrelation);
       }
       await repository.assertWorkMutationBasis(tx, locked);
+      if(role==="cad_3d") {
+        await input.validatePackageAuthority?.(tx);
+        await assertAssemblyPrimaryUpload(tx,{companyId:input.actor.companyId,workId:input.workId,contentHash,packageBinding:input.packageBinding});
+      }
 
       const exact = await tx.queryOne<{
         id: string;
@@ -271,6 +281,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         }
       );
       if (exact) {
+        await recordAssemblyPrimaryBinding(tx,input.packageBinding,{id:exact.id,sourceFileAssetId:exact.source_file_asset_id});
         if (isNativeSolidWorksPreviewSource(fileExt) && principalInitiator) {
           await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
             companyId: input.actor.companyId,
@@ -399,6 +410,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
          VALUES (:workId, :fileBindingId, :ordinal, :contentHash)`,
         { workId: input.workId, fileBindingId, ordinal, contentHash }
       );
+      await recordAssemblyPrimaryBinding(tx,input.packageBinding,{id:fileBindingId,sourceFileAssetId:fileAssetId});
       if (isNativeSolidWorksPreviewSource(fileExt) && principalInitiator) {
         await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
           companyId: input.actor.companyId,
@@ -439,7 +451,9 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         file: { id: fileBindingId, sourceFileAssetId: fileAssetId, role, displayName }
       };
     };
-    const result = input.principalToken
+    const result = input.packageBinding
+      ? await input.client.transaction(execute,{isolationLevel:"serializable"})
+      : input.principalToken
       ? await withVerifiedJenfuPrincipalRequest(
         { ...(await principalRequestInput(input.principalToken, input.request!)), database: input.client },
         async (tx, verified) => {
@@ -460,7 +474,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
           }, client => execute(client, verified));
         }, { readOnly: false, isolationLevel: "serializable" })
       : await runDev087IdempotentCommand(input.client, commandInput, execute);
-    if (result.reused && cleanupTarget && !input.principalToken) {
+    if (result.reused && cleanupTarget && !input.principalToken && !input.packageBinding) {
       try { await storage.deleteObject(cleanupTarget.key); } catch { /* best-effort orphan cleanup */ }
     }
     cleanupTarget = null;
@@ -477,7 +491,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     return result;
   } catch (error) {
     const target = cleanupTarget as { key: string; provider: string } | null;
-    if (target && input.principalToken) {
+    if (target && (input.principalToken || input.packageBinding)) {
       // This stable key may already belong to a committed/replayed command.
       // Preserve bytes for receipt-based reconciliation; never delete on unknown outcome.
       console.warn("Drawing Principal upload requires receipt reconciliation.", {

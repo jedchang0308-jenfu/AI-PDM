@@ -23,7 +23,7 @@ async function exercise(mode) {
   try {
     const stagedService = path.join(temporary, 'install', 'service');
     await fs.mkdir(stagedService, { recursive: true });
-    for (const name of ['worker.mjs', 'metadata-mapper.mjs']) {
+    for (const name of ['worker.mjs', 'metadata-mapper.mjs', 'assembly-analysis.mjs']) {
       await fs.copyFile(path.resolve('windows-service/service', name), path.join(stagedService, name));
     }
     await fs.copyFile(path.resolve('config/solidworks-metadata-field-aliases.json'),

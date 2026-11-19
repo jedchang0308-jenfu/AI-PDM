@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "085162c130163e4eb730b7ffc176a5800a75086d8370665c147de9dca5af4114",
+  "sourceSha256": "a44b1314a2528d645f8b2fc4441464774cb24dfd1d3d399f0a6311bc036ad14a",
   "denominator": {
-    "uniqueFiles": 154,
-    "uniqueMethods": 176,
-    "policyEntries": 186
+    "uniqueFiles": 167,
+    "uniqueMethods": 192,
+    "policyEntries": 202
   },
   "entries": [
     {
@@ -1868,6 +1868,166 @@
       "authorizationTarget": "numbering.attachments.manage",
       "scopeResolver": "workspace",
       "preservedGuards": "verified Principal/company; exact part; registry-validated category→part/model; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/assembly-package/bom/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.drawings.view",
+      "authorizationTarget": "numbering.drawings.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/assembly-package/download/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.drawings.view",
+      "authorizationTarget": "numbering.drawings.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/assembly-package/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.drawings.view",
+      "authorizationTarget": "numbering.drawings.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/bom/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/bom/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/content/route.ts",
+      "method": "PUT",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/download/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/finalize/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/[id]/upload/route.ts",
+      "method": "DELETE",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/assembly-package/bom/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/assembly-package/download/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/assembly-package/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "DEV-129 verified Principal; same-company owning work/review/history; editable owner basis for mutations; immutable source and lease CAS; drawing/model view AND download before native bytes; current part view for material projection"
     }
   ]
 }

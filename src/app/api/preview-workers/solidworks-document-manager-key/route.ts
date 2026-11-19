@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readAssemblyLease, verifyAssemblyLease } from "@/lib/assembly-analysis-jobs";
 import { isActiveSolidWorksDocumentManagerKeyConfigured, resolveActiveSolidWorksDocumentManagerKey } from "@/lib/settings-secret-lifecycle";
 import { authenticateWorkerService } from "@/lib/worker-service-auth";
 import type { VerifiedWorkloadActor } from "@/lib/worker-service-auth";
@@ -16,6 +17,10 @@ async function ownsCurrentNativeJob(request: Request, actor: VerifiedWorkloadAct
   const jobId = query.get("jobId");
   if (!jobId || !/^[A-Za-z0-9._:-]{1,180}$/u.test(jobId)) return false;
   const client = getAsyncDatabaseClient();
+  if (kind === "assembly_analysis") {
+    await verifyAssemblyLease(actor, jobId, readAssemblyLease(request));
+    return true;
+  }
   if (kind === "preview") {
     const leaseBasis = decodePreviewLeaseHeader(request.headers.get(previewLeaseHeader));
     if (!leaseBasis || leaseBasis.companyId !== actor.companyId) return false;

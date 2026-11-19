@@ -65,6 +65,8 @@ const RELEASE_CONTROL_ONLY = [
 ]
 
 const WORKER = [
+  /^scripts\/build-dev129-assembly-analyzer\.ps1$/u,
+  /^scripts\/dev129-solidworks-sample-oracle\.cs$/u,
   /^windows-service\//u,
   /^worker-downloads\/windows-service\//u,
   /^scripts\/(?:lib\/)?(?:build-dev125-windows-installer|qc-dev125-windows-service|dev125-(?:verify-windows-installer-artifact|windows-installer-artifact|production-slice-windows-service))/u,
@@ -133,6 +135,7 @@ const INFRASTRUCTURE = [
 ]
 
 const APPLICATION = [
+  /^scripts\/qc-dev129-assembly-(?:browser|zip)\.mjs$/u,
   /^vitest\.config\.ts$/u,
   // DEV-126 local runtime inputs change app startup/configuration, not schema,
   // workers or cloud infrastructure. Unknown startup scripts remain FULL.

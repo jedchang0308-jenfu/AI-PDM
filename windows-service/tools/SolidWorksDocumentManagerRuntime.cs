@@ -205,6 +205,52 @@ internal sealed class SolidWorksDocumentManagerRuntime
         Invoke("ISwDMDocument", document, "CloseDoc", new object[0]);
     }
 
+    // Assembly-only, runtime-checked interfaces. These are intentionally not part
+    // of the legacy preview/metadata startup contract, so old jobs remain compatible.
+    internal object AssemblyInvoke(string interfaceName, object target, string methodName, params object[] args)
+    {
+        return Invoke(interfaceName, target, methodName, args);
+    }
+
+    internal object AssemblyProperty(string interfaceName, object target, string propertyName)
+    {
+        return RequireProperty(interfaceName, target, propertyName).GetValue(target, null);
+    }
+
+    internal void AssemblySetProperty(string interfaceName, object target, string propertyName, object value)
+    {
+        RequireProperty(interfaceName, target, propertyName).SetValue(target, value, null);
+    }
+
+    internal int ReadAssemblyXml(object document, string destination)
+    {
+        MethodInfo method = RequireMethod("ISwDMDocument", document, "GetXmlStream", 2);
+        object[] args = { destination, Enum.ToObject(method.GetParameters()[1].ParameterType.GetElementType(), 0) };
+        method.Invoke(document, args);
+        return Convert.ToInt32(args[1]);
+    }
+
+    internal string ReadAssemblyPropertyValue(string interfaceName, object target, string name)
+    {
+        Invoke(interfaceName, target, "GetCustomPropertyNames", new object[0]);
+        MethodInfo method = RequireMethod(interfaceName, target, "GetCustomProperty", 2);
+        object[] args = { name, Enum.ToObject(method.GetParameters()[1].ParameterType.GetElementType(), 0) };
+        return Convert.ToString(method.Invoke(target, args)) ?? "";
+    }
+
+    internal object OpenVirtualAssemblyDocument(object component, out int error)
+    {
+        // This accessor is permitted only for an embedded virtual component.
+        // External components continue through exact manifest-path OpenDocument.
+        if (!Convert.ToBoolean(AssemblyProperty("ISwDMComponent3", component, "IsVirtual")))
+            throw new InvalidOperationException("ASSEMBLY_EMBEDDED_SOURCE_REQUIRED");
+        MethodInfo method = RequireMethod("ISwDMComponent3", component, "GetDocument", 2);
+        object[] args = { true, Enum.ToObject(method.GetParameters()[1].ParameterType.GetElementType(), 0) };
+        object document = method.Invoke(component, args);
+        error = Convert.ToInt32(args[1]);
+        return document;
+    }
+
     internal static void Release(object value)
     {
         if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);

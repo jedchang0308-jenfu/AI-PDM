@@ -110,7 +110,7 @@ const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-one" }
 } as VerifiedPrincipalRequest;
 const client = { kind: "postgres", transactionScope: "postgres",
-  queryOne: vi.fn(async () => ({ code: "DRAWING-ONE" })),
+  queryOne: vi.fn(async (sql:unknown) => String(sql).includes("drawing_assembly_") ? null : ({ code: "DRAWING-ONE" })),
   query: vi.fn(async () => []), execute: vi.fn(async () => undefined)
 } as unknown as AsyncDatabaseClient;
 

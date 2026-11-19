@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
+import { DrawingAssemblyPackagePanel } from "./drawing-assembly-package-panel";
 import { usePdmPermissions } from "@/components/pdm-permission-provider";
 import { LoadingIndicator } from "@/components/loading-indicator";
 import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
@@ -102,6 +103,7 @@ function DrawingHistoryRevision({ drawingId, revisionId, onBack }: { drawingId: 
     return () => controller.abort();
   }, [drawingId, revisionId]);
   return <section className="canonical-history-detail" aria-label="歷史版次明細">
+    {data && <DrawingAssemblyPackagePanel key={revisionId} frozen base={`/api/numbering/drawings/${encodeURIComponent(drawingId)}/history/${encodeURIComponent(revisionId)}/assembly-package`}/>}
     <div className="canonical-drawer-section-heading"><h3>歷史版次明細</h3><button type="button" className="secondary-button" onClick={onBack}>返回版次清單</button></div>
     {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入指定版次…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : data ? <><p className="canonical-history-readonly">唯讀 · {data.data.revision.revision} · {data.data.revision.lifecycleState}</p><ul className="canonical-record-list">{data.data.files.map((file) => <li className="canonical-record" key={file.id}><div><strong>{file.displayName || file.fileName}</strong><small>{file.role} · {file.fileSize} bytes · {file.contentHash || "無雜湊"}</small></div><a className="secondary-button" href={file.downloadHref}>下載</a></li>)}</ul>{!data.data.files.length ? <p className="canonical-empty">此版次沒有可讀檔案。</p> : null}</> : null}
   </section>;

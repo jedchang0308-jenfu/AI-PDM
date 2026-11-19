@@ -65,8 +65,9 @@ export function validateHistoricalBaselineIntent(value, profile, validateIntent)
       '106_dev121_reviewer_authority.sql',
       '107_dev121_shared_work_review.sql',
       '108_dev121_shared_work_review_guards.sql',
+      '109_dev129_assembly_packages.sql',
     ]
-    const currentHasDeferred085 = [35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49].includes(entries?.length)
+    const currentHasDeferred085 = [35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50].includes(entries?.length)
       && entries[34]?.order === 35
       && entries[34]?.path === 'db/postgres/085_dev121_principal_role_catalog_v7.sql'
       && entries.slice(35).every((entry, index) => entry.order === 36 + index && entry.path === `db/postgres/${knownSuffix[index]}`)

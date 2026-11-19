@@ -2009,6 +2009,14 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
+<a id="dev-129-assembly-package-cad-bom-draft"></a>
+
+- ◐ DEV-129 [交付點] [開發中／ZIP 整合已驗，原生 BOM 待驗] 組立包上傳與自動 BOM 草稿
+  - 目標為從同一圖號版次下載完整 SolidWorks 組立包，並從同一份 ZIP 自動產生指定組態的 BOM 草稿。
+  - 2026-11-19 已確認引導決策 1A、2C、3A、4A。正常交接只需上傳一次及下載一次，背景綁定 3D 主檔、檢查必要參照並產生 BOM 草稿，只提示需要處理的例外。
+  - 工程師一次選檔與接手者一次下載已在無視窗 Edge、真實檔案路由及隔離 PostgreSQL 上比對 ZIP 雜湊。原生驗收仍須以已授權裝置讀取實際 CAD，對照啟用組態、階層、用量與必要參照。
+  - [RD 實作交接](specs/DEV-129-assembly-package-cad-bom-draft.md#7-rd-實作交接)含版次頁例外處理與第一組端到端對照資料。產品驗收依[原 10 個案例](specs/DEV-129-assembly-package-cad-bom-draft.md#6-驗收)執行，目前待驗。
+
 - ◐ DEV-122 [開發點] [7 ISSUES／29 GROUPS NOT_ACCEPTED] [P2] AI-PDM 內部自用核心能力
   - 摘要：保留原始 7 issues／29 groups 總分母，以 `identity_roles`、`pdm_lifecycle`、`drawing_preview`、`operations` 四項能力與 11 個優先核心案例管理施工與選測。
   - 來源 ID：使用者 2026-10-03 集中問題，以及 2026-10-19 內部自用精簡決策。

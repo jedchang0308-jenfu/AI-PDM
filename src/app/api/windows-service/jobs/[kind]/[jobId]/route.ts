@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { assemblyJobReceipt } from "@/lib/assembly-analysis-jobs";
+import { windowsServiceDeviceErrorResponse } from "@/lib/windows-service-device-auth";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { authenticateWindowsServiceDevice } from "@/lib/windows-service-device-auth";
 
@@ -15,6 +17,10 @@ export async function GET(request: Request, context: { params: Promise<{ kind: s
   if ("response" in authentication) return authentication.response;
   const { actor } = authentication;
   const { kind, jobId } = await context.params;
+  if (kind === "assembly_analysis") {
+    try { return NextResponse.json(await assemblyJobReceipt(actor, jobId), { headers }); }
+    catch (error) { return windowsServiceDeviceErrorResponse(error); }
+  }
   if (!Object.hasOwn(tables, kind) || !/^[A-Za-z0-9._:-]{1,180}$/u.test(jobId)) {
     return NextResponse.json({ error: "WINDOWS_SERVICE_JOB_NOT_FOUND" }, { status: 404, headers });
   }
