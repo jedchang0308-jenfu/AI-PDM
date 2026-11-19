@@ -27,9 +27,10 @@ const LOCAL_DATA_REFRESH = [
   /^scripts\/(?:lib\/)?dev128-(?:freeze-catalog-shape|import-masked-local-snapshot|local-snapshot-import|masked-local-snapshot|prepare-local-masked-snapshot)(?:\.|-)/u,
 ]
 
-// These files only select and verify the retained loopback-only development
-// profile. They never enter a production image or deployment.
+// These files select and verify the shared daily controller or the retained
+// loopback-only development profile. They never enter a production image.
 const LOCAL_RUNTIME = [
+  /^scripts\/start-local-daily\.mjs$/u,
   /^scripts\/start-local-test-admin\.ps1$/u,
   /^scripts\/qc-local-dev-entrypoint\.mjs$/u,
   /^scripts\/dev-local-process-ownership\.test\.mjs$/u,

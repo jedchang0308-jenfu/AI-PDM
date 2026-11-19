@@ -567,6 +567,8 @@ Owner prepare不再重跑相同 source test groups。`dev012-verify-official-sou
 
 Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons、gates、release phases與依失效機制選出的 evidence requirements；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
 
+2026-11-19 地端入口分類補齊：精確的 `scripts/start-local-daily.mjs` 是 Platform 共用日常控制器的委派入口，與 retained TestAdmin 一樣選 `local-runtime` 並執行固定入口 QC；它不是 infrastructure 或正式部署輸入。Principal／Cookie、package、planner 的共同變更仍累加其 authorization、application、build、dependency 與 release-control 檢查。未知腳本仍 `FULL`，兩個 required checks 與既有保護不變。舊 `DEV101-CONTRACT-007` 對 reviewer 判斷的字串檢查失敗保留在 run `44477845293`，屬未變更的審核包責任，未在本切片改判 PASS 或修改產品流程。
+
 Reviewed source revision、artifact build inputs與release attempt是三個責任。新的release ID、deadline或重試不得注入OCI image version或其他output-affecting build argument；image version使用exact source revision。相同產物的跨attempt重用仍須由executor讀回immutable digest、原始source/provenance、Docker target／builder／lock與當前scan政策，不得僅憑tree相等或改寫舊receipt宣稱重建。
 
 ### 26.4 Pinned in-flight source and bounded read recovery（2026-10-18）
