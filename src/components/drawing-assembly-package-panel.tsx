@@ -7,7 +7,7 @@ import { AssemblyBomDraft } from "./drawing-assembly-bom-draft";
 
 type PackageSummary = {
   packageId:string; fileName:string; byteSize:number; nextOffset:number; status:string; mainEntryKey:string|null;
-  primaryBindingId:string|null; primaryConflict?:boolean; diagnostic?:string; downloadAvailable:boolean; active?:boolean;
+  primaryBindingId:string|null; primaryConflict?:boolean; conflictingPrimaryBindingId?:string|null; diagnostic?:string; downloadAvailable:boolean; active?:boolean;
   selectionVersion:number; deliveryConfigurations:string[]; mainRelativePath?:string;
   mainCandidates?:{entryKey:string;relativePath:string}[]; bomConfigurations?:{name:string;rowCount:number}[];
   result?:{mainCandidates:string[]; configurationNames:string[]; diagnostic?:string; configurations:{
@@ -124,7 +124,7 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
         <select defaultValue="" disabled={busy} onChange={e=>select({mainEntryKey:e.target.value})}><option value="" disabled>選擇主組立</option>
           {pkg.mainCandidates?.filter(item=>!pkg.result?.mainCandidates?.length || pkg.result.mainCandidates.includes(item.entryKey)).map(item=><option key={item.entryKey} value={item.entryKey}>{item.relativePath}</option>)}</select></label>}
       {pkg.primaryConflict && editable && <p role="status">現有 3D 主檔與 {mainPath} 內容不同。 <button type="button" disabled={busy}
-        onClick={()=>select({acceptPrimaryReplacement:true})}>改用包內主檔</button></p>}
+        onClick={()=>select({acceptPrimaryReplacement:true,conflictingPrimaryBindingId:pkg.conflictingPrimaryBindingId})}>改用包內主檔</button></p>}
       {choices.length>0 && editable ? <details open={pkg.status==="needs_input" || undefined}><summary>交付組態{pkg.deliveryConfigurations.length>0 && " · "+pkg.deliveryConfigurations.join("、")}</summary>
         {choices.map(name=><label key={name}><input type="checkbox" disabled={busy || (pkg.deliveryConfigurations.length===1 && pkg.deliveryConfigurations[0]===name)}
           checked={pkg.deliveryConfigurations.includes(name)} onChange={e=>select({deliveryConfigurations:e.target.checked?[...pkg.deliveryConfigurations,name]:pkg.deliveryConfigurations.filter(n=>n!==name)})}/>{name}</label>)}</details>:null}

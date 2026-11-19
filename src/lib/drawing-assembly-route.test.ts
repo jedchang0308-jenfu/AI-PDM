@@ -2,7 +2,7 @@ import {describe,it,expect,vi,beforeEach} from "vitest";
 const mocks=vi.hoisted(()=>({evaluate:vi.fn(),history:vi.fn(),review:vi.fn(),client:{},verified:{}}));
 vi.mock("@/lib/db-async-provider",()=>({getAsyncDatabaseClient:()=>mocks.client}));
 vi.mock("@/lib/jenfu-principal-http",()=>({principalSessionTokenFromRequest:()=>"fixture",principalRequestInput:async()=>({}),principalRequestFailure:()=>new Response(null,{status:401})}));
-vi.mock("@/lib/jenfu-principal-request-guard",()=>({JenfuPrincipalRequestError:class extends Error{},withVerifiedJenfuPrincipalRequest:async(_input:unknown,execute:Function)=>execute(mocks.client,mocks.verified)}));
+vi.mock("@/lib/jenfu-principal-request-guard",()=>({JenfuPrincipalRequestError:class extends Error{},withVerifiedJenfuPrincipalRequest:async(_input:unknown,execute:(client:unknown,verified:unknown)=>Promise<unknown>)=>execute(mocks.client,mocks.verified)}));
 vi.mock("@/lib/jenfu-principal-permission-service",()=>({evaluatePrincipalWorkspacePermissionsInSnapshot:mocks.evaluate}));
 vi.mock("@/lib/drawing-assembly-package",()=>({DrawingAssemblyPackageService:class{},ASSEMBLY_PACKAGE_LIMITS:{chunkBytes:8388608},assemblyError:(message:string,status:number)=>{throw Object.assign(new Error(message),{status});}}));
 vi.mock("@/lib/drawing-assembly-review",()=>({authorizeAssemblyHistory:mocks.history,authorizeAssemblyReview:mocks.review,assemblyFrozenSummary:()=>({data:{packageId:"frozen"}}),assemblyFrozenResponse:async()=>()=>Promise.resolve(new Response())}));

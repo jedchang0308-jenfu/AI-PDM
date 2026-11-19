@@ -234,6 +234,7 @@ export class DrawingAssemblyPackageService {
     },async()=>{
       const pkg=await this.owned(tx,work,id);
       if (pkg.status!=="accepted" || !pkg.active_at || pkg.superseded_at || Number(input.selectionVersion)!==Number(pkg.selection_version)) assemblyError("組立包選擇已更新，請重新讀取");
+      if (input.acceptPrimaryReplacement===true && (!pkg.primary_conflict_binding_id || input.conflictingPrimaryBindingId!==pkg.primary_conflict_binding_id)) assemblyError("3D 主檔已改變，請重新核對");
       const manifest=assemblyJson<AssemblyArchiveManifest>(pkg.manifest_json,null!);
       const main=input.mainEntryKey===undefined ? pkg.main_entry_key : input.mainEntryKey;
       if (main!==null && (typeof main!=="string" || !manifest.assemblyEntryKeys.includes(main))) assemblyError("主組立不在此包內",422);
@@ -249,9 +250,9 @@ export class DrawingAssemblyPackageService {
         await queueAssemblyAnalysis(tx,next);
         await deriveAssemblySelectionFromCache(tx,next,previousAnalysis);
       }
-      return {selectionVersion:Number(pkg.selection_version)+(changed?1:0),mainEntryKey:main,acceptPrimaryReplacement:input.acceptPrimaryReplacement===true};
+      return {selectionVersion:Number(pkg.selection_version)+(changed?1:0),mainEntryKey:main,acceptPrimaryReplacement:input.acceptPrimaryReplacement===true,observedBindingId:pkg.primary_conflict_binding_id};
     }));
-    if (selected.mainEntryKey) await bindAssemblyPackageMain({client:this.client,companyId:(await this.scope(token,request,workId,false,async(_tx,_v,w)=>w.company_id)),packageId:id,selectionVersion:selected.selectionVersion,mainEntryKey:String(selected.mainEntryKey),confirmPrimaryReplacement:selected.acceptPrimaryReplacement});
+    if (selected.mainEntryKey) await bindAssemblyPackageMain({client:this.client,companyId:(await this.scope(token,request,workId,false,async(_tx,_v,w)=>w.company_id)),packageId:id,selectionVersion:selected.selectionVersion,mainEntryKey:String(selected.mainEntryKey),confirmPrimaryReplacement:selected.acceptPrimaryReplacement,observedBindingId:selected.observedBindingId});
     return this.get(token,request,workId,id);
   }
   async bom(token:string,request:Request,workId:string,id:string,configuration:string,input?:Record<string,unknown>) {
@@ -308,7 +309,7 @@ export async function assemblyDownloadResponse(pkg: Pick<AssemblyPackageRow,"sta
 }
 
 /** Call after a validated worker result commits. No object I/O runs under a DB lock. */
-export async function bindAssemblyPackageMain(input:{client:AsyncDatabaseClient;companyId:string;packageId:string;selectionVersion:number;mainEntryKey:string;confirmPrimaryReplacement?:boolean}) {
+export async function bindAssemblyPackageMain(input:{client:AsyncDatabaseClient;companyId:string;packageId:string;selectionVersion:number;mainEntryKey:string;confirmPrimaryReplacement?:boolean;observedBindingId?:string|null}) {
   const {client,companyId,packageId}=input;
   const pkg=await readAssemblyPackage(client,companyId,packageId);
   if(!pkg || Number(pkg.selection_version)!==input.selectionVersion || pkg.main_entry_key!==input.mainEntryKey) assemblyError("組立包來源已改變");
@@ -327,7 +328,8 @@ export async function bindAssemblyPackageMain(input:{client:AsyncDatabaseClient;
     },{isolationLevel:"serializable"});
     return {bound:false,conflict:true};
   }
-  if(current && current.content_hash!==entry.sha256 && input.confirmPrimaryReplacement && pkg.primary_conflict_binding_id!==current.id) assemblyError("3D 主檔已改變，請重新讀取並確認切換");
+  if(current && current.content_hash!==entry.sha256 && input.confirmPrimaryReplacement &&
+    (pkg.primary_conflict_binding_id!==current.id || input.observedBindingId!==undefined && input.observedBindingId!==current.id)) assemblyError("3D 主檔已改變，請重新讀取並確認切換");
   const maxBytes=getStorageUploadPolicy().maxUploadFileMb*1024*1024;
   if(entry.byteSize>maxBytes) assemblyError("包內主組立超過受控主檔上限",413);
   const storage=createAssemblyStorageService();

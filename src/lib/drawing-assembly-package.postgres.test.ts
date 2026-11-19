@@ -133,6 +133,9 @@ describe.skipIf(!process.env.DEV129_TEST_PG)("DEV-129 native PostgreSQL package 
     await service().content("fixture",request(),"work",id,`bytes 0-${bytes.length-1}/${bytes.length}`,bytes);await service().finalize("fixture",request(),"work",id);
     expectSameArchive(Buffer.from(await (await service().download("fixture",request(),"work",firstId)).arrayBuffer()),firstBytes);
     const pkg=(await readAssemblyPackage(state.client,"company",id))!;expect(await bindAssemblyPackageMain({client:state.client,companyId:"company",packageId:id,selectionVersion:1,mainEntryKey:pkg.main_entry_key!})).toEqual({bound:false,conflict:true});
+    await expect(service().select("fixture",request(),"work",id,{
+      selectionVersion:1,acceptPrimaryReplacement:true,conflictingPrimaryBindingId:"stale-main"
+    },"stale-binding")).rejects.toMatchObject({status:409});
     await expect(currentAssemblySubmission(state.client,work)).rejects.toMatchObject({status:409});
     state.revoked=true;await expect(bindAssemblyPackageMain({client:state.client,companyId:"company",packageId:id,selectionVersion:1,mainEntryKey:pkg.main_entry_key!,confirmPrimaryReplacement:true})).rejects.toMatchObject({status:403});state.revoked=false;
     expect(await bindAssemblyPackageMain({client:state.client,companyId:"company",packageId:id,selectionVersion:1,mainEntryKey:pkg.main_entry_key!,confirmPrimaryReplacement:true})).toEqual({bound:true,conflict:false});
