@@ -9,7 +9,7 @@ import { isDynamicRolePolicyInSnapshot, canonicalCapabilityGroups } from "@/lib/
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { isSharedDailySystemTestAdministrator, requireSharedDailySystemTestAdminOperations } from "@/lib/shared-daily-system-test-admin";
 import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
-import permissionRegistry from "../../config/access-control/role-policy-editor-registry.v3.json";
+import permissionRegistry from "../../config/access-control/role-policy-editor-registry.v3.json" with { type: "json" };
 
 /** Durable initiator data only; it cannot recreate or extend the original session. */
 export type PrincipalJobInitiator = Readonly<{
