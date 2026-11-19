@@ -355,7 +355,9 @@ npm run local:test-admin:install
 npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12020
 ```
 
-使用者指定的固定地端環境為 `localhost:1020`。完成既有環境的一次性初始化後，`npm run dev:local` 是標準啟動入口：由專案根目錄向上定位受控的 `.local/AI_PDM/test-admin-1020` profile，確認綁定的 PostgreSQL 18 資料目錄與 loopback listener，資料庫停止時以同一個隔離 cluster 自動啟動，再以固定 profile 啟動 1020 TestAdmin。重開終端或 Windows 後仍使用同一資料庫、sandbox 與登入方式。`npm run dev:local:check` 只讀檢查兩個程序；`npm run dev:local:restart` 重啟已驗明屬於該工作樹的 1020 網頁程序，保留資料庫。不可刪除或移動 `.local/AI_PDM/test-admin-1020` 與固定工作樹。
+日常標準入口 `npm run dev:local` 已由 `scripts/start-local-daily.mjs` 交給相鄰 Platform 的固定背景控制器，使用其一次綁定的 `51870/jenfu_local_shared_daily`、資料與檔案庫路徑；獨立 PDM 與整組日常環境可並行，依啟動順序使用 1020／1021。用 `--status` 檢查、`--stop` 停止目前入口；Platform 的 `--stop-all` 完整關閉四系統、獨立 PDM 及共用 PostgreSQL，保留測試資料。固定路徑與生命週期沿 Platform DEV-021。
+
+原 `.local/AI_PDM/test-admin-1020` 遮罩快照另由 `npm run dev:local:retained-test-admin` 明確選用；下列固定 TestAdmin、`dev:local:check`、`dev:local:restart` 與資料保留規則只適用此保留模式。此模式仍核對已綁定的 PostgreSQL 18 資料目錄與 loopback listener，重啟沿用同一快照，不能當成共用日常資料來源。
 
 埠必須與 profile origin 相符，可用 1020 或 12020；既有非本模式或非本工作樹程序不會被替換。安裝僅接受兩個固定 source，source hash 與本機 receipt 原子提交；未知結果先 fresh readback，不重放 DDL。登入頁顯示「以測試超級管理員登入」，不要求帳密或轉向 SSO。
 
