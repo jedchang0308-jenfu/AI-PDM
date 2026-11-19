@@ -91,15 +91,27 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
   // Exact matches only. Filename never establishes a material identity.
   const numbers = [...new Set(raw.configurations.flatMap(config => config.bom.rows.flatMap(row => [row.cadPartNumber, row.drawingNumber]).filter((value): value is string => typeof value === "string" && value.length > 0)))];
   type Candidate = { id: string; part_number: string; drawing_number: string | null };
-  let candidates: Candidate[] = [];
-  if (canReadParts && numbers.length) {
-    const values = Object.fromEntries(numbers.map((value, i) => [`n${i}`, value]));
-    const placeholders = numbers.map((_, i) => `:n${i}`).join(",");
-    candidates = await client.query<Candidate>(`SELECT DISTINCT p.id,p.part_number,d.drawing_number FROM part_numbers p
+  const partsByNumber = new Map<string, Map<string, Candidate>>();
+  const partsByDrawing = new Map<string, Map<string, Candidate>>();
+  function index(indexBy: Map<string, Map<string, Candidate>>, key: string | null, part: Candidate) {
+    if (!key) return;
+    let parts = indexBy.get(key);
+    if (!parts) { parts = new Map(); indexBy.set(key, parts); }
+    parts.set(part.id, part);
+  }
+  for (let start = 0; canReadParts && start < numbers.length; start += 500) {
+    const batch = numbers.slice(start, start + 500);
+    const values = Object.fromEntries(batch.map((value, i) => [`n${i}`, value]));
+    const placeholders = batch.map((_, i) => `:n${i}`).join(",");
+    const candidates = await client.query<Candidate>(`SELECT DISTINCT p.id,p.part_number,d.drawing_number FROM part_numbers p
       LEFT JOIN drawing_part_links relation ON relation.part_number_id=p.id
       LEFT JOIN drawing_numbers d ON d.id=relation.drawing_number_id AND d.company_id=p.company_id
       WHERE p.company_id=:companyId AND p.record_status NOT IN ('Obsolete','Merged','Cancelled')
         AND (p.part_number IN (${placeholders}) OR d.drawing_number IN (${placeholders}))`, { companyId: pkg.company_id, ...values });
+    for (const candidate of candidates) {
+      index(partsByNumber, candidate.part_number, candidate);
+      index(partsByDrawing, candidate.drawing_number, candidate);
+    }
   }
   const source = { ...pkg, main_entry_key: raw.mainEntryKey ?? pkg.main_entry_key };
   return { ...raw, configurations: raw.configurations.map(config => {
@@ -107,11 +119,12 @@ export async function projectAssemblyAnalysisResult(client: AsyncDatabaseClient,
     const rows:AssemblyBomRow[] = config.bom.rows.map(row => {
       let quantity: string | null;
       try { quantity = normalizeAssemblyQuantity(row.quantity); } catch { quantity = null; }
-      const byPart = row.cadPartNumber ? candidates.filter(candidate => candidate.part_number === row.cadPartNumber) : [];
-      const byDrawing = row.drawingNumber ? candidates.filter(candidate => candidate.drawing_number === row.drawingNumber) : [];
-      const unique = (values: Candidate[]) => [...new Map(values.map(value => [value.id, value])).values()];
-      const matches = unique(row.cadPartNumber && row.drawingNumber ? byPart.filter(candidate => byDrawing.some(other => other.id === candidate.id)) : row.cadPartNumber ? byPart : byDrawing);
-      const conflicting = (row.cadPartNumber && row.drawingNumber && (byPart.length || byDrawing.length) && matches.length !== 1) || matches.length > 1;
+      const byPart = partsByNumber.get(row.cadPartNumber ?? "");
+      const byDrawing = partsByDrawing.get(row.drawingNumber ?? "");
+      const matches = row.cadPartNumber && row.drawingNumber
+        ? Array.from(byPart?.values() ?? []).filter(candidate => byDrawing?.has(candidate.id))
+        : Array.from((row.cadPartNumber ? byPart : byDrawing)?.values() ?? []);
+      const conflicting = (row.cadPartNumber && row.drawingNumber && (byPart?.size || byDrawing?.size) && matches.length !== 1) || matches.length > 1;
       const excluded = row.disposition === "excluded";
       const match = matches.length === 1 && !conflicting ? matches[0] : null;
       const disposition = excluded ? "excluded" : quantity === null ? "quantity_unknown" : conflicting ? "conflict" : match ? "matched" : !canReadParts && (row.cadPartNumber || row.drawingNumber) ? "needs_mapping" : row.cadPartNumber || row.drawingNumber ? "needs_record" : "needs_purpose";

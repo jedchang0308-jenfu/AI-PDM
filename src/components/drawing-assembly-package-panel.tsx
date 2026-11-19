@@ -39,6 +39,7 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
   const [busy,setBusy]=useState(false);
   const [progress,setProgress]=useState<number|null>(null);
   const [bomOpen,setBomOpen]=useState(false);
+  const [draftRevision,setDraftRevision]=useState(0);
   const input=useRef<HTMLInputElement>(null);
   const onChangeRef=useRef(onChange);
   useEffect(()=>{onChangeRef.current=onChange;},[onChange]);
@@ -72,7 +73,7 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
     }
     void poll();
     return ()=>{abort.abort();clearTimeout(timer);};
-  },[refresh,frozen,busy]);
+  },[refresh,frozen,busy,draftRevision]);
   const pkg=collection.data;
   const url=(item:PackageSummary)=>frozen?base:base+"/"+encodeURIComponent(item.packageId);
   const downloadable=pkg?.downloadAvailable?pkg:collection.previousActive;
@@ -129,7 +130,7 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
         {choices.map(name=><label key={name}><input type="checkbox" disabled={busy || (pkg.deliveryConfigurations.length===1 && pkg.deliveryConfigurations[0]===name)}
           checked={pkg.deliveryConfigurations.includes(name)} onChange={e=>select({deliveryConfigurations:e.target.checked?[...pkg.deliveryConfigurations,name]:pkg.deliveryConfigurations.filter(n=>n!==name)})}/>{name}</label>)}</details>:null}
       {uniqueIssues.length>0 && <ul>{uniqueIssues.map(issue=><li key={JSON.stringify(issue)}>{issue.configuration} · {pkg.mainCandidates?.find(entry=>entry.entryKey===issue.parentKey)?.relativePath??issue.parentKey} → {issue.reference}（{diagnostics[issue.code]??issue.code}）</li>)}</ul>}
-      {bomOpen && configs.length>0 && <AssemblyBomDraft key={pkg.packageId+":"+pkg.selectionVersion} url={url(pkg)+"/bom"} configurations={configs} editable={editable}/>}
+      {bomOpen && configs.length>0 && <AssemblyBomDraft key={pkg.packageId+":"+pkg.selectionVersion} url={url(pkg)+"/bom"} configurations={configs} editable={editable} mainEntryKey={pkg.mainEntryKey} mainLabel={mainPath} onSaved={()=>setDraftRevision(value=>value+1)}/>}
     </div>}
   </section>;
 }

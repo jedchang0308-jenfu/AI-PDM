@@ -1,6 +1,6 @@
 # DEV-129 組立包上傳與自動 BOM 草稿
 
-定案日期 2026-11-19。文件狀態為 `RD Implementation Ready / 原生能力待實測`。§7 是實作交接，§6 是原驗收範圍。
+定案日期 2026-11-19。收件、整包下載與背景 BOM 草稿已在獨立工作樹實作。§6 記錄驗收案例及實測範圍，§7 保留 RD 實作契約。
 
 ## 1. 使用者決策與交付目標
 
@@ -85,6 +85,17 @@ RD 可從 §7.7 的傳輸及原生工作開始。傳輸有初始可實作的容�
 驗收記錄需能對應來源指紋、主組立、組態、CAD／解析器版本及受測身分。
 
 2026-11-19 開發自查使用 SOLIDWORKS 2025 安裝附帶的 U-Joint 範例，將 2 個組立與 8 個零件壓成 998,824 bytes 的 ZIP。隔離 PostgreSQL、真實收件與下載路由、測試 Principal 及無視窗 Edge 的版次檔案面板完成一次選檔、一次下載。原始與下載 ZIP 的 SHA-256 均為 `89bf9684b277b25d0e7cc523421f56f5168caa22cfa8254b4e7e3836a60a4171`，worker 解包後的 10 個檔案也逐一比對通過。這涵蓋案例 01、02 的傳輸部分。樣例採一般 ZIP 製作；SolidWorks Pack and Go 產包、原生 BOM 比對及乾淨工作站開啟重建仍待實測。 [瀏覽器驗證](../../scripts/qc-dev129-assembly-browser.mjs) · [原始檔到 worker 的檢查](../../scripts/qc-dev129-assembly-zip.mjs)
+
+### 實際組立包與 SOLIDWORKS 對照（2026-11-19）
+
+| 驗證輸入 | 觀察結果 |
+| --- | --- |
+| 開發用 `A0054.zip`，1,392,774 bytes，SHA-256 `62b8f573b4370717f5e75f688f091ea7141302292e11d6b6d851ec913b9f55a8` | 工程師在實際檔案面板選 ZIP 一次。Windows worker 領取工作，以授權的 Document Manager 讀出主件、組態「預設」和 4 個實例，回寫草稿並綁定 3D 主檔。必要參照通過。隔離資料庫回讀及歷史下載使用同一包。 |
+| 接手者從同一面板按一次下載 | 下載 bytes 與來源一致。以新的空白 SOLIDWORKS 2025 SP3 程序從下載副本開啟、重建，錯誤與警告均為 0。每個啟用的外部元件都核對實際從解壓目錄載入。實際縮排 BOM 表列出 `A0030 × 1`、`A0033 × 2`、`DEV-129組立圖測試用零件 × 1`；最後一項採子件組態「彎折」。三項按檔案及組態加總均與 PDM 草稿一致。草稿仍保留待識別實例供工程師確認。 |
+| 幾何檔缺失與自訂用量 | 從同包移除 A0033 時，兩個受影響實例的用量留空，其他兩個零件仍可讀取。另一個獨立 CAD 副本用真實自訂屬性把 A0033 設為每件 2.5 m。Document Manager 讀出兩個 2.5 m，SOLIDWORKS 原生 BOM 用量格顯示 5。 |
+| 原廠 U-Joint 的原生 Pack and Go | SOLIDWORKS 產出含 2 個組立、8 個零件的 ZIP。Document Manager 自動辨識頂層 UJoint，取得 8 個直屬實例及 crank 子組立的 3 個實例，並分開 SHORT 與 LONG 銷件組態。 |
+
+上述端到端測試走實際檔案面板、HTTP 收件與下載、隔離 PostgreSQL、Windows 工作迴圈及原生解析器。測試身分、裝置准入以及記憶體中的工作金鑰提供者使用隔離測試介面。桌面 CAD 只用於獨立驗收，日常操作仍由 Document Manager 在背景完成。 [瀏覽器入口](../../scripts/qc-dev129-assembly-browser.mjs) · [Worker 驗證入口](../../scripts/qc-dev129-assembly-live-worker.mjs) · [原生桌面對照](../../scripts/dev129-solidworks-sample-oracle.cs)
 
 ## 7. RD 實作交接
 

@@ -89,12 +89,19 @@ export async function requireAssemblyBytesCapabilities(client: AsyncDatabaseClie
 export async function assemblyPackageSummary(client: AsyncDatabaseClient, pkg: AssemblyPackageRow) {
   const analysis = await readAssemblyAnalysis(client, pkg);
   const manifest = assemblyJson<AssemblyArchiveManifest | null>(pkg.manifest_json, null);
-  const result = assemblyJson<Record<string, unknown> | null>(analysis?.result_json, null);
+  const result = assemblyJson<AssemblyAnalysisResult | null>(analysis?.result_json, null);
+  const overrides = assemblyJson<Record<string, Record<string, Partial<AssemblyBomRow>>>>(analysis?.overrides_json, {});
   return { packageId: pkg.id, fileName: pkg.file_name, byteSize: Number(pkg.byte_size), nextOffset: Number(pkg.next_offset),
     status: pkg.status === "accepted" ? analysis?.status ?? "queued" : pkg.status,
     archiveSha256: pkg.archive_sha256, selectionVersion: Number(pkg.selection_version), mainEntryKey: pkg.main_entry_key,
     deliveryConfigurations: assemblyJson<string[]>(pkg.configurations_json, []), primaryConflict: Number(pkg.primary_conflict) === 1,conflictingPrimaryBindingId:pkg.primary_conflict_binding_id,
-    primaryBindingId: pkg.primary_binding_id, diagnostic: pkg.diagnostic, result:result ? {...result,configurations:Array.isArray(result.configurations)?(result.configurations as {bom?:{rows?:{disposition?:string}[]}}[]).map(config=>({...config,bom:{rowCount:config.bom?.rows?.length??0,exceptionCount:config.bom?.rows?.filter(row=>!['matched','excluded'].includes(row.disposition??'')).length??0}})):[]} : null,
+    primaryBindingId: pkg.primary_binding_id, diagnostic: pkg.diagnostic,
+    result: result ? { ...result, configurations: result.configurations.map(config => {
+      const edits = Object.hasOwn(overrides, config.name) ? overrides[config.name] : {};
+      const rows = config.bom.rows;
+      const exceptionCount = rows.filter(row => !["matched", "excluded"].includes(edits[row.rowKey]?.disposition ?? row.disposition)).length;
+      return { ...config, bom: { rowCount: rows.length, exceptionCount } };
+    }) } : null,
     mainCandidates: manifest?.entries.filter(entry => manifest.assemblyEntryKeys.includes(entry.entryKey)).map(entry => ({ entryKey: entry.entryKey, relativePath: entry.relativePath })) ?? [],
     downloadAvailable: pkg.status === "accepted", active: Boolean(pkg.active_at && !pkg.superseded_at), ...ASSEMBLY_PACKAGE_LIMITS };
 }

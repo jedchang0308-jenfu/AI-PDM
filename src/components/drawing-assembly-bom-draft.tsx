@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { assemblyRequest, AssemblyHttpError } from "@/lib/assembly-package-upload-client";
 
-type Row={rowKey:string;parentKey:string|null;entryKey:string|null;configuration:string;occurrenceKey?:string;
+type Row={rowKey:string;parentKey:string|null;entryKey:string|null;configuration:string;occurrenceKey?:string;reference?:string;
   cadPartNumber?:string;drawingNumber?:string;quantity:string|null;unit:string|null;partNumber?:string;disposition:string};
 type Draft={rows:Row[];draftVersion:number;configuration:string};
 const statuses:Record<string,string>={matched:"已配對",excluded:"排除",needs_record:"待建檔",needs_number:"待編號",
   quantity_unknown:"用量待確認",conflict:"配對衝突",needs_purpose:"用途待確認",needs_mapping:"待配對",material:"實際用料"};
-function rowLabel(row:Row) { return row.partNumber || row.cadPartNumber || row.drawingNumber || row.occurrenceKey || row.entryKey || "內嵌件"; }
+function rowLabel(row:Row) { return row.partNumber || row.cadPartNumber || row.drawingNumber || row.reference || row.occurrenceKey || row.entryKey || "內嵌件"; }
 type Save=(rowKey:string,patch:Record<string,string|null>)=>Promise<void>;
 type Part={entityId:string;displayCode:string;displayName:string};
 
@@ -52,7 +52,9 @@ function EditRow({row,save}:{row:Row;save:Save}) {
   </fieldset>;
 }
 
-export function AssemblyBomDraft({url,configurations,editable}:{url:string;configurations:string[];editable:boolean}) {
+export function AssemblyBomDraft({url,configurations,editable,mainEntryKey,mainLabel,onSaved}:{
+  url:string;configurations:string[];editable:boolean;mainEntryKey?:string|null;mainLabel?:string;onSaved?:()=>void;
+}) {
   const [name,setName]=useState(configurations[0]);
   const [draft,setDraft]=useState<Draft|null>(null);
   const [editing,setEditing]=useState<string|null>(null);
@@ -72,6 +74,7 @@ export function AssemblyBomDraft({url,configurations,editable}:{url:string;confi
       const response=await assemblyRequest<{data:Draft}>(url,{method:"PATCH",headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
         body:JSON.stringify({configuration:name,rowKey,draftVersion:draft.draftVersion,...patch})});
       setDraft(response.data);
+      onSaved?.();
     } catch (reason) {
       if (reason instanceof AssemblyHttpError && reason.status===409) await refresh();
       throw reason;
@@ -79,13 +82,14 @@ export function AssemblyBomDraft({url,configurations,editable}:{url:string;confi
   };
   const exceptions=draft?.rows.filter(row=>!["excluded","matched"].includes(row.disposition)).length??0;
   const parents=new Map(draft?.rows.map(row=>[row.rowKey,rowLabel(row)])??[]);
+  if (mainEntryKey && mainLabel) parents.set(mainEntryKey,mainLabel);
   return <div className="dev129-bom">
     <label>草稿組態 <select value={name} onChange={e=>{setName(e.target.value);setEditing(null);setDraft(null);setError("");}}>
       {configurations.map(n=><option key={n}>{n}</option>)}</select></label>
     {error && <p role="alert">{error}</p>}
     {draft && <><p>{draft.rows.length} 列 · {exceptions} 列待處理</p><ul className="canonical-record-list">
       {draft.rows.map(row=><li key={row.rowKey}><strong>{rowLabel(row)}</strong> <span>{row.quantity??"用量待確認"} {row.unit} · {statuses[row.disposition]??row.disposition}</span>
-        {row.parentKey && <small>父件 {parents.get(row.parentKey)??row.parentKey}</small>}
+        <small>{row.parentKey && `父件 ${parents.get(row.parentKey)??row.parentKey} · `}組態 {row.configuration}</small>
         {editable && <button className="ghost-button" type="button" onClick={()=>setEditing(editing===row.rowKey?null:row.rowKey)}>更正</button>}
         {editing===row.rowKey && <EditRow row={row} save={save}/>}</li>)}</ul></>}
   </div>;
