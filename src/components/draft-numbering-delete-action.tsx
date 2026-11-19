@@ -63,7 +63,7 @@ function validPreview(body: unknown, rootCode: string, target: DraftNumberingMem
 }
 
 export function WorkbenchDeleteAction({
-  code, entityType, version, rootCode, workBlockedReason, permanentBlockedReason, onBeforeDelete, onDeleteWork, onPermanentDeleted
+  code, entityType, version, rootCode, workBlockedReason, permanentBlockedReason, disabled = false, onBeforeDelete, onDeleteWork, onPermanentDeleted
 }: {
   code: string;
   entityType: DraftNumberingMemberTarget["kind"];
@@ -71,6 +71,7 @@ export function WorkbenchDeleteAction({
   rootCode: string | null;
   workBlockedReason: string | null;
   permanentBlockedReason: string | null;
+  disabled?: boolean;
   onBeforeDelete: () => boolean;
   onDeleteWork: () => Promise<string | null>;
   onPermanentDeleted: () => void;
@@ -120,7 +121,7 @@ export function WorkbenchDeleteAction({
     : selection === "bundle" ? "確認永久刪除 " + rootCode + " 整組" : "確認刪除";
 
   function openDialog() {
-    if (!dialog.current || dialog.current.open) return;
+    if (disabled || !dialog.current || dialog.current.open) return;
     setSelection(null);
     setEligibility({});
     setError("");
@@ -163,7 +164,7 @@ export function WorkbenchDeleteAction({
   }
 
   return <>
-    <button type="button" className="danger-button" aria-haspopup="dialog" onClick={openDialog}>刪除…</button>
+    <button type="button" className="danger-button" disabled={disabled} aria-haspopup="dialog" onClick={openDialog}>刪除</button>
     <dialog ref={dialog} className="canonical-modal canonical-delete-modal" aria-labelledby={id + "-title"} aria-modal={open || undefined}
       onKeyDown={event => { if (event.key === "Escape") event.stopPropagation(); }}
       onCancel={event => { if (pending.current) event.preventDefault(); }}
@@ -190,6 +191,7 @@ export function WorkbenchDeleteAction({
             </label>
             <div id={id + "-work-scope"}>
               <p>結束此版的修改工作，移除所有未核准的修改，包含先前已儲存的修改及其專屬附件。</p>
+              <p>若這是首次建檔且沒有既有核准版本，捨棄後這筆資料會從工作台消失；保留編號不代表保留草稿。</p>
               {workBlockedReason ? <p className="canonical-delete-lock-reason">{workBlockedReason}</p> : <p><b>保留編號 {code}。</b></p>}
             </div>
           </div>

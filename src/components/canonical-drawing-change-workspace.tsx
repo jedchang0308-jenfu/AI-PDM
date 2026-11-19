@@ -4,6 +4,7 @@ import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DrawingAssemblyPackagePanel } from "./drawing-assembly-package-panel";
+import { WorkbenchDeleteAction } from "./draft-numbering-delete-action";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, LoaderCircle, ScanSearch, Send, UploadCloud, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard, type DrawingDetailPreviewKind } from "@/components/drawing-detail-preview";
@@ -18,6 +19,7 @@ import { isWorkspacePdf, selectWorkspacePreviewSource } from "@/lib/pdm-canonica
 import { normalizeMediaType } from "@/lib/media-type";
 import { isReviewPackageRecognitionProjection } from "@/lib/pdm-review-package-contract";
 import type { DrawingRecognitionReviewProjection } from "@/lib/drawing-recognition-review-projection";
+import { parseNumberingIdentity } from "@/lib/numbering-identity";
 
 type FileRow = {
   id: string;
@@ -55,6 +57,7 @@ export type DrawingWorkspacePayload = {
   files?: FileRow[];
   changeImpactRequired?: boolean;
   relatedParts?: Array<{ id: string; code: string; name: string | null }>;
+  assemblyPackage?: { applicable: boolean; canSubmit: boolean; reason: string | null };
   affectedParts?: Array<{ id: string; code: string; name: string | null }>;
   recognition?: DrawingRecognitionReviewProjection | { sessionId?: string; status?: string; conflictCount?: number; capturedAt?: string } | null;
 };
@@ -133,6 +136,8 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [contractToken, setContractToken] = useState("");
   const [loading, setLoading] = useState(!initialData);
   const [busy, setBusy] = useState(false);
+  const commandPending = useRef(false);
+  const [saveNotice, setSaveNotice] = useState("");
   const [terminalTransition, setTerminalTransition] = useState(false);
   const [error, setError] = useState("");
   const [loadErrorCode, setLoadErrorCode] = useState("");
@@ -237,9 +242,14 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     const timer = window.setTimeout(() => setEvidenceLocationNotice(null), 2_800);
     return () => window.clearTimeout(timer);
   }, [evidenceLocationNotice]);
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timer = window.setTimeout(() => setSaveNotice(""), 2_800);
+    return () => window.clearTimeout(timer);
+  }, [saveNotice]);
 
   const canLeave = useUnsavedChangesGuard(payloadDirty || recognitionDirty || uploadEntries.some((entry) => entry.status !== "success"));
-  function leave() { if (canLeave()) router.push(safeReturn); }
+  function leave() { if (!busy && canLeave()) router.push(safeReturn); }
   function headers(expectedRowVersion = data?.rowVersion ?? 0) {
     return { "content-type": "application/json", "if-match": `"${expectedRowVersion}"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": contractToken };
   }
@@ -257,7 +267,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
         return { ok: false, rowVersion: expectedRowVersion };
       }
       const rowVersion = Number((body as { data?: { rowVersion?: number } } | null)?.data?.rowVersion ?? expectedRowVersion + 1);
-      setData((current) => current ? { ...current, rowVersion } : current);
+      setData((current) => current ? { ...current, rowVersion, payload } : current);
       setPayloadDirty(false);
       return { ok: true, rowVersion };
     } catch {
@@ -266,10 +276,38 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       return { ok: false, rowVersion: expectedRowVersion };
     }
   }
-  async function ownerCommand(kind: "submit" | "cancel") {
+  async function saveDraft() {
+    if (!data?.workId || busy || commandPending.current || !payloadDirty || recognitionDirty
+      || !(data.interaction?.canMutateContent ?? !data.readonly)) return;
+    commandPending.current = true;
+    setBusy(true); setSaveNotice(""); setError("");
+    try {
+      const saved = await persistPayload(data.rowVersion);
+      if (saved.ok) {
+        setSaveNotice("已儲存");
+        // Read back normalization (for example the derived FFF outcome) without
+        // remounting the editor or resetting its scroll/preview state.
+        try {
+          const response = await fetch(`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}`, {
+            cache: "no-store", signal: AbortSignal.timeout(10_000)
+          });
+          const latest = await response.json() as ResponseShape;
+          if (!response.ok || latest.data.workId !== data.workId || latest.data.rowVersion !== saved.rowVersion) throw new Error();
+          setData(latest.data); setPayload(latest.data.payload); setContractToken(latest.meta.contractToken);
+        } catch {
+          setError("工作內容已儲存，但無法確認最新資料；請重新載入後繼續。");
+          setReloadAvailable(true);
+        }
+      }
+    } finally {
+      commandPending.current = false;
+      setBusy(false);
+    }
+  }
+  async function ownerCommand(kind: "submit" | "cancel"): Promise<string | null> {
     const interactionState = data?.interaction;
-    if (!data?.workId || busy || kind === "submit" && interactionState && !interactionState.canSubmit || kind === "cancel" && interactionState && !interactionState.canCancel) return;
-    if (kind === "cancel" && !window.confirm("確定取消這次尚未核准的工作資料？")) return;
+    if (!data?.workId || busy || commandPending.current || kind === "submit" && (recognitionDirty || interactionState && !interactionState.canSubmit) || kind === "cancel" && interactionState && !interactionState.canCancel) return "目前無法執行此操作。";
+    commandPending.current = true;
     const base = `/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}`;
     setBusy(true); setTerminalTransition(true); setError(""); setReloadAvailable(false);
     // Give React one frame to unmount preview and recognition consumers before
@@ -279,18 +317,21 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       let rowVersion = data.rowVersion;
       if (kind === "submit") {
         const saved = await persistPayload(rowVersion);
-        if (!saved.ok) { setTerminalTransition(false); setBusy(false); return; }
+        if (!saved.ok) { setTerminalTransition(false); setBusy(false); commandPending.current = false; return "工作內容尚未儲存，未送審。"; }
         rowVersion = saved.rowVersion;
       }
       const response = await fetch(`${base}/${kind}`, { method: "POST", headers: headers(rowVersion), body: "{}" });
       const body = await response.json().catch(() => null);
-      if (!response.ok) { setTerminalTransition(false); setBusy(false); handleMutationFailure(body, "操作未完成，請重新整理後再試。"); return; }
+      if (!response.ok) { setTerminalTransition(false); setBusy(false); commandPending.current = false; handleMutationFailure(body, "操作未完成，請重新整理後再試。"); return apiMessage(body, "操作未完成，請重新整理後再試。"); }
       // Keep the workspace inert until navigation commits. Re-enabling it for
       // one render after a terminal command can restart recognition or reload a
       // reviewer-only preview whose authorization was just consumed.
       router.push(safeReturn);
+      return null;
     } catch {
+      commandPending.current = false;
       setTerminalTransition(false); setBusy(false); setError("操作未完成，請檢查網路後再試。"); setReloadAvailable(true);
+      return "操作未完成，請檢查網路後再試。";
     }
   }
   function chooseFiles(files: File[]) {
@@ -433,6 +474,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     setVisualKind(kind);
   }
   function updateChangeImpact(patch: Record<string, unknown>) {
+    setSaveNotice("");
     setPayloadDirty(true);
     setPayload((current) => ({
       ...current,
@@ -440,6 +482,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     }));
   }
   function updateFffState(key: "formState" | "fitState" | "functionState", value: ChangeImpactState) {
+    setSaveNotice("");
     setPayloadDirty(true);
     setPayload((current) => {
       const impact = current.changeImpact && typeof current.changeImpact === "object" ? current.changeImpact as Record<string, unknown> : {};
@@ -546,11 +589,12 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   if (!data) return <div className="dev079-workspace-state" data-dev100-load-failed={loadErrorCode || "unknown"}><h1>圖號工作區</h1><p role="alert">{error || "找不到這筆圖號工作。"}</p><div className="dev100-load-failure-actions"><button className="secondary-button" type="button" onClick={leave}><ArrowLeft size={15} aria-hidden="true" />{returnLabel}</button><button className="secondary-button" type="button" onClick={() => void load()}>重新載入資料</button></div></div>;
 
   const canMutateContent = data.interaction?.canMutateContent ?? !data.readonly;
-  const canCancel = data.interaction?.canCancel ?? !reviewRequestId;
-  const canSubmit = data.interaction?.canSubmit ?? (!data.readonly && !reviewRequestId);
+  const canCancel = !snapshotMode && (data.interaction?.canCancel ?? (!data.readonly && !reviewRequestId));
+  const canSubmit = !snapshotMode && (data.interaction?.canSubmit ?? (!data.readonly && !reviewRequestId));
   const canApprove = data.interaction?.canApprove ?? (Boolean(reviewRequestId) && !data.readonly);
   const canReturn = data.interaction?.canReturn ?? Boolean(reviewRequestId);
   const stale = data.interaction?.basisState === "stale";
+  const rootCode = parseNumberingIdentity(data.identity?.code ?? "").rootCode;
 
   return <div className={`dev079-workspace${embedded ? " is-embedded" : ""}`} data-dev="DEV-087" data-workspace-kind={reviewRequestId ? "reviewer" : "drawing-revision-work"}>
     {embedded ? null : <header className="dev079-workspace-header dev079-drawing-workspace-header"><div className="dev079-workspace-heading"><button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button><div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy"><span className="canonical-layer is-rd">研發版 {data.revision ?? text(payload.revision)}</span><h1>{title}</h1>{data.identity?.name ? <span className="dev079-drawing-workspace-name">{data.identity.name}</span> : null}</div></div><div className="dev079-workspace-preview-tabs" role="tablist" aria-label="預覽類型">{previewCards.map((card) => <button key={card.kind} type="button" role="tab" aria-selected={card.kind === visualKind} className={card.kind === visualKind ? "is-active" : ""} onClick={() => selectVisualKind(card.kind)}><span>{card.title}</span><small>{card.fileName || "尚無檔案"}</small></button>)}</div></header>}
@@ -558,7 +602,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     {!canMutateContent ? <div className="dev079-workspace-notice is-readonly" role="status">{stale ? "量產基準已更新，目前工作已凍結；此頁保留原預覽與證據，僅提供可恢復的清理動作。" : "目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。"}</div> : null}
     <div className="dev079-workspace-grid">
       <section className="dev079-workspace-visual" aria-label="圖面主視覺">{visualKind === "two-d" && !selectedEvidence && twoDSelection.requiresChoice ? <label className="dev122-pdf-source-choice"><span>PDF 圖面</span><select aria-label="本版次 PDF 圖面" value={twoDSelection.file?.id ?? ""} onChange={(event) => setPdfSelection({ contextKey: pdfContextKey, bindingId: event.target.value })}><option value="">請選擇</option>{twoDSelection.pdfs.map((file) => <option key={file.id} value={file.id}>{file.display_name || file.file_name || file.id}</option>)}</select></label> : null}<div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>
-      <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content">
+      <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content" inert={busy}>
         <section className="dev079-unified-task-section dev079-workspace-editor dev079-workspace-file-editor" aria-labelledby="dev079-files-heading">
           <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>版次與檔案</span><small className="dev079-workspace-revision">版次 {revisionLabel}</small></h2>
           {reviewRequestId ? <DrawingAssemblyPackagePanel key={reviewRequestId} frozen base={`/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}/assembly-package`}/>
@@ -616,7 +660,24 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             : data.revisionId ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId} sourceAssetIds={sourceAssetIds} disabled={!canMutateContent || busy} onEvidenceSelect={locateRecognitionEvidence} onDirtyChange={setRecognitionDirty} /> : <p className="canonical-empty">這筆工作資料尚無可辨識的版次來源。</p>}
         </section>
       </div>
-      </div>{suppressFooter ? null : <footer className="dev079-workspace-footer" aria-label="圖號工作區操作列"><div className="dev079-workspace-footer-actions">{recognitionDirty ? <span className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請先儲存智慧辨識欄位修改</span> : null}{reviewRequestId ? <>{canReturn ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void decide("return_for_correction")}><XCircle size={15} />退回修改</button> : null}{canApprove ? <button className="primary-button" type="button" disabled={busy} onClick={() => void decide("approve")}><CheckCircle2 size={15} />核准</button> : null}</> : <>{canCancel ? <button className="danger-button" type="button" disabled={busy} onClick={() => void ownerCommand("cancel")}>取消本次工作</button> : null}{canSubmit ? <button className="primary-button" type="button" disabled={busy || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送出審核</button> : null}</>}<button className="secondary-button" type="button" onClick={leave}>返回圖號清單</button></div></footer>}</aside>
+      </div>{suppressFooter ? null : <footer className="dev079-workspace-footer" aria-label="圖號工作區操作列"><div className="dev079-workspace-footer-actions">
+        {recognitionDirty ? <span className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請先儲存智慧辨識欄位修改</span> : null}
+        {saveNotice ? <span role="status">{saveNotice}</span> : null}
+        {reviewRequestId ? <>
+          {canReturn ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void decide("return_for_correction")}><XCircle size={15} />退回修改</button> : null}
+          {canApprove ? <button className="primary-button" type="button" disabled={busy} onClick={() => void decide("approve")}><CheckCircle2 size={15} />核准</button> : null}
+          <button className="secondary-button" type="button" disabled={busy} onClick={leave}>返回審核清單</button>
+        </> : <>
+          {canMutateContent ? <button className="secondary-button" type="button" disabled={busy || !payloadDirty || recognitionDirty} onClick={() => void saveDraft()}>{busy ? "處理中…" : "儲存"}</button> : null}
+          {data.workId && !snapshotMode ? <WorkbenchDeleteAction code={data.identity?.code ?? title} entityType="drawing" version={revisionLabel} rootCode={rootCode} disabled={busy}
+            workBlockedReason={canCancel ? null : "目前沒有可捨棄的編修，或你沒有捨棄權限。"}
+            permanentBlockedReason={!canMutateContent || stale ? "目前為唯讀，無法永久刪除。" : !rootCode ? "找不到圖料根號，無法確認刪除範圍。" : null}
+            onBeforeDelete={() => !busy && !commandPending.current}
+            onDeleteWork={() => ownerCommand("cancel")}
+            onPermanentDeleted={() => router.push(safeReturn)} /> : null}
+          {canSubmit ? <button className="primary-button" type="button" disabled={busy || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送審</button> : null}
+        </>}
+      </div></footer>}</aside>
     </div>
   </div>;
 }

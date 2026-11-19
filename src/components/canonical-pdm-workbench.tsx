@@ -858,6 +858,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
 
   const onAction = useCallback(async (row: CanonicalWorkbenchRowDto, action: CanonicalWorkbenchAction) => {
     if (busy) return;
+    if (action.key === "submit_work") { selectDetail(row.rowKey); return; }
     if (action.key === "request_obsolete") {
       setObsoleteRow(row); setObsoleteReason("");
       await loadObsoleteImpact(row);
@@ -902,7 +903,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (workId && row.entityType === "drawing") router.push(`/numbering/drawings/${encodeURIComponent(row.entityId)}/workspace?workId=${encodeURIComponent(workId)}`);
       if (!workId && row.entityType === "part") setError("修改工作已建立，料號資料尚未變更；請重新整理清單確認目前狀態。");
     }
-  }, [busy, command, loadObsoleteImpact, router, syncFilterLocation]);
+  }, [busy, command, loadObsoleteImpact, router, selectDetail, syncFilterLocation]);
 
   const deleteWork = useCallback(async (row: CanonicalWorkbenchRowDto, href: string) => {
     if (busy) return "目前有其他操作進行中，請稍後再試。";
