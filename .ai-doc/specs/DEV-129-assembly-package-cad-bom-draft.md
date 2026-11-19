@@ -215,3 +215,12 @@ RD 可直接決定元件命名、查詢批次及快取方式。若原生能力�
 | Worker 回報 | 所有結果攜帶 `schemaVersion, parserVersion, packageId, archiveSha256, selectionVersion`，租約沿 §7.5 傳送。選主件回候選 entry keys；選組態回已選主件與候選組態名稱。已解析則回主件、已讀組態及各組態的 `references` 與 `bom`。無法讀取時回具體階段與原因。 |
 | 單一組態 | `references.status` 為 `passed / blocked / unknown`。診斷至少指出組態、父件、所需參照、原因，能唯一定位時附 entryKey。BOM 原始列含父件、實例識別、來源 entry 或內嵌件的所屬組立與內部識別、子件組態、CAD 原編號、排除／展開設定、可確認的用量與單位。缺值保留原因。 |
 | Server 投影 | 先對照有效來源與 manifest，再產生穩定 rowKey、可見的 PDM 配對及例外。裝置回傳的實例與 CAD 值可作依據；PDM 料號關聯及人工欄位由伺服器保存。相同租約重送相同結果可讀回既有回執；相同來源已有不同結果時回衝突，由工作讀回查明。 |
+
+### 7.11 2026-11-19 shared daily 人工試用接線
+
+- 使用者要求：controller 的 1020 保留 main；1021 使用 `codex/dev129-assembly-package`，待 A0054.zip 人工確認後才合併，禁止正式部署。
+- Platform 本機 override：`.dev-local-pdm-standalone.local.json` 指向 `AI_PDM/.worktrees/dev129`。本機 launcher `.tmp/dev129-daily-launch.mjs` 啟動 Web 與專用 worker，均由 controller 程序樹管理。試用期間保留；試用結束時移除 override 並經 controller reload 恢復原始來源，不刪測試資料。
+- 沿用 `jenfu_local_shared_daily`／51870 及其隔離 data/repository；兩埠共用測試資料，不是兩份獨立資料庫。已透過 migration 109 原檔安裝向前相容資料表並記錄 checksum ledger，DB boundary 通過。沒有修改正式 schema／資料。
+- 沿用 main 工作區既有 shared daily 雙埠 cookie 與測試管理員支援，僅將相關實作帶到 candidate，保留 main 其他未提交修改。Document Manager 採既有明確啟用的 environment fallback，變更識別 `DEV-129-local-1021-trial`；金鑰由已授權讀取模組載入記憶體，不進 source、log 或文件。修正 readiness 與既有 credential resolver 對此設定的判定不一致，相關測試 47 passed。
+- 已驗證 controller 分工作樹、路徑限制及原生命週期測試，候選登入支援 5 passed。無視窗 Edge 通過兩埠同時 SSO（各 `/api/auth/me` 200）、A0054 編輯入口、正常 device enrollment 與 worker 組立 claim HTTP 200。`A0054-M01` 既有工作 `e70cbc91-63f3-47cb-a0d1-56cc84c04618` 保留未上傳，讓使用者親自走上傳、BOM、下載。
+- 試用入口：`http://localhost:1021/numbering/drawings?query=A0054`；先經 `http://localhost:1000/login` 使用測試超級管理員，再進明細按「編輯」。本次接線驗證不宣稱人工流程已驗收；未合併、未部署。
