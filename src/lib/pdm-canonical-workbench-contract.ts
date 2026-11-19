@@ -26,7 +26,7 @@ export type HistoricalCanonicalDataLayer = CanonicalDataLayer | "relation_formal
 export type CanonicalLayer = "production" | "rd" | "formal" | "work";
 export type CanonicalHandling = "none" | "owner" | "review_owner" | "system" | "system_admin" | "blocked";
 export type CanonicalDataState = "editing" | "reviewing" | "publishing" | "available";
-export type CanonicalActionKey = "advance" | "restart_from_current_production" | "edit" | "cancel_work" | "review" | "create_change" | "void_rd" | "request_obsolete" | "edit_relation_matrix";
+export type CanonicalActionKey = "advance" | "restart_from_current_production" | "edit" | "submit_work" | "cancel_work" | "review" | "create_change" | "void_rd" | "request_obsolete" | "edit_relation_matrix";
 export type CanonicalWorkbenchAction = { key: CanonicalActionKey; label: string; href?: string };
 
 export type CanonicalWorkbenchRowDto = {

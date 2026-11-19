@@ -11,6 +11,40 @@ Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
 Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
 
+## 2026-11-19 圖號編輯操作列收斂
+
+使用者確認的產品決策：正常操作統整為「編輯、刪除、送審」；進入編輯頁後「編輯」的位置改為「儲存」。儲存後留在原編輯頁，保留右欄捲動位置與目前預覽。刪除點進去才選範圍，保留三種範圍且一律不預選。本節取代下文歷史 Drawing footer 的返回／取消常駐配置；不變更審核人的核准／退回操作。
+
+### 實作契約
+
+- `canonical-drawing-change-workspace.tsx`：編輯頁由左至右為「儲存、刪除、送審」，動作依 server interaction capability 顯示／停用。返回沿用頂部箭頭及既有未儲存離開提醒。送審仍遵守本版次主檔、FFF、組立包及智慧辨識未儲存狀態的現行限制。
+- 「儲存」沿用 Drawing work PATCH、contract token、If-Match 與現有 idempotency 邊界；成功更新工作版本、清除 dirty 並就地短暫顯示「已儲存」，不導航、不 reload、不重掛預覽。背景 GET 讀回 server 正規化的 FFF／欄位，避免把自己的正規化誤判成其他操作的變更。PATCH 失敗保留欄位與 dirty、不送審；PATCH 已成功而 GET 失敗時明示已儲存並要求重讀，不重送 PATCH。未儲存變更為空時停用。儲存期間保留版面、暫停互動，避免表單高度變化使捲動位置跳回。
+- 在編輯頁按「送審」先儲存 pending work payload，成功後以 PATCH 回傳的 rowVersion 執行既有 submit。PATCH 失敗不得呼叫 submit。智慧辨識有自己的提交邊界，其尚未儲存時保留明確提示，不以一般草稿儲存冒充已持久化辨識資料。
+- `draft-numbering-delete-action.tsx` 為明細與編輯頁共用入口；「捨棄此版所有未核准的修改」沿用現有 work cancel，包含已儲存修改及專屬附件，保留編號與既有核准版本。首次建檔且沒有核准版本時，必須在選項中說明資料會從工作台消失，保留編號不等於保留草稿。
+- 另兩個範圍為「永久刪除這筆圖號／料號」及「永久刪除整組圖號與料號」。沿用 draft deletion eligibility／fingerprint／授權與引用限制，選定範圍後顯示具體編號及附件。未選範圍或不符合資格時不得確認。關閉選單不修改資料。
+- `canonical-workbench-drawer.tsx`：Drawing 可編輯資料的操作順序為「編輯、刪除、送審」；其他 lifecycle／review 導覽沿用 server actions。使用者已確認第 3 題：資料齊全直接送審，缺項才進編輯頁。
+- `pdm-canonical-workbench-state.ts` 只在同公司、可控制的 owner work、非 stale 且具既有 submitWork 能力時回傳 `submit_work`。`drawing-work-submit-action.tsx` 點擊後先讀取最新 work／contract／rowVersion，驗證對象後沿用既有 submit POST，不儲存或覆蓋欄位。組立包不齊或 submit 回 422 時導向同一 work 的編輯頁並保留 returnTo；權限拒絕與 409 衝突留在原處。回應遺失／5xx／無有效成功收據時不重送，只提供重新整理狀態。讀取期間關閉／切換明細不得繼續送出舊列。
+- 本節明確取代歷史 DEV-079 Drawing drawer 一律 zero-write 的限制：新增的明細送審及共用刪除入口只呼叫既有 owner command，仍以 server capability、concurrency 與 readiness 為準，不新增審核決策、資料編輯或新的 domain writer。送審期間凍結明細內容與其他底部動作，避免確認後又產生未儲存修改。
+- 不新增 schema、migration、permission 或資料刪除能力；不修改使用者現有 A0054／A0001 工作資料作測試。本輪本機分支為 `codex/drawing-workspace-actions`，1020 維持既有 main，不部署正式環境。
+
+### 可判定驗收
+
+1. 編輯頁可直接儲存；成功後欄位、URL、捲動位置、預覽 DOM 保留，下一次命令採新 rowVersion。
+2. 送審前的儲存成功才送審；409／網路失敗保留輸入，不執行終止命令。連按儲存只送一筆請求。
+3. 打開刪除選單有三個未選範圍；取消不寫入。只有選定 work 範圍並確認才呼叫 cancel；permanent member／bundle 使用各自 preview fingerprint，不混用範圍。
+4. 已核准／引用／權限等 server 拒絕原因仍可見，不能靠 UI 入口繞過。歷史／review context 不新增 owner 儲存或送審操作。
+5. 無視窗本機 UI 對照既有大型預覽＋右欄表單配置，確認操作列未遮擋內容；合成 network fixture 的畫面驗證須與真實 API／資料驗證分開報告。
+
+針對性元件測試入口：`node node_modules/vitest/vitest.mjs run --configLoader runner src/components/canonical-drawing-change-workspace.actions.test.tsx`。驗證現況依本輪實際結果回填，不宣稱正式或獨立 QC 驗收。
+
+### 本輪本機驗證紀錄
+
+- `canonical-drawing-change-workspace.actions.test.tsx` 27 個案例，連同 workbench navigation／Principal workbench read／draft deletion policy／drawing work Principal／revision lifecycle 共 6 個測試檔，91/91 通過。
+- 原有 `node scripts/qc-dev-079-contract.mjs` 通過。變更檔案 ESLint 0 error；`canonical-pdm-workbench.tsx` 未改動的既有 `window.location.assign` 保留 1 warning。
+- 最終 `npm run build:isolated` 通過，含 TypeScript、artifact、隔離資料檢查及 task-owned build copy 清理；完整本機紀錄 `.tmp/drawing-actions-build-final.log`。切片 planner 僅選 documentation／application，沒有 DB、worker、IAM 或 production 變更。
+- 無視窗 Microsoft Edge、實際元件與產品樣式、記憶體內合成 API：桌面 1883×952、窄版 800×900 通過。涵蓋儲存留在原處、捲動位置、失敗保留輸入、三種未預選刪除範圍、明細按鈕順序、直接送審與缺檔進編輯。記錄為 `output/playwright/drawing-actions-20261119/report.json`，畫面同目錄；重播入口 `.tmp/drawing-actions-ui.mjs`。最初發現的捲動跳回已修復後重測。
+- 本輪檢查時 shared daily controller 為 failed，1000／1020／1021 都拒絕連線，因此沒有宣稱這三個服務或真實 A0054 資料的整合驗收；沒有重啟其他服務、修改真實工作資料、合併 main 或部署正式環境。
+
 ## 2026-09-01 DEV-113 - 料號工作台唯讀抽屜與單一維護入口
 
 Baseline Status：`Local RD Implemented / RD Tech Lead Corrections Closed / Human Confirmed / Historical QA-QC 28/28 / Production Release Gated / P1 / Medium`。本節原始113-A～D完成紀錄保留為修正前基線；目前實作與驗證狀態改由下列DEV-113-E amendment治理。

@@ -84,6 +84,7 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
   );
   const mayEditWork = mayControlWork && actor.permissions.updateWork;
   const mayCancelWork = mayControlWork && actor.permissions.cancelWork;
+  const maySubmitDrawing = record.entityType === "drawing" && mayControlWork && actor.permissions.submitWork && record.basisState !== "stale";
   const isReviewer = Boolean(
     record.handling === "review_owner" && record.reviewRequestId && record.reviewerUserId === actor.id && actor.permissions.decideReview
   );
@@ -98,11 +99,12 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
     : record.recordStatus === "Active" || record.recordStatus === "Released";
 
   if (isReviewer) return [action("review", "前往審核", `/approvals/${encodeURIComponent(record.reviewRequestId!)}`), ...(record.entityType === "drawing" && matrixEdit ? [matrixEdit] : [])];
-  if (mayEditWork || mayCancelWork) {
+  if (mayEditWork || mayCancelWork || maySubmitDrawing) {
     if (record.entityType === "drawing") {
       return [
         ...(mayCancelWork ? [action("cancel_work", "取消本次工作", `/api/pdm/drawing-revision-works/${encodeURIComponent(record.workId!)}/cancel`)] : []),
         ...(mayEditWork ? [action("edit", "進行編輯", `/numbering/drawings/${encodeURIComponent(record.canonicalEntityId)}/workspace?workId=${encodeURIComponent(record.workId!)}`)] : []),
+        ...(maySubmitDrawing ? [action("submit_work", "送審", `/api/pdm/drawing-revision-works/${encodeURIComponent(record.workId!)}/submit`)] : []),
         ...(matrixEdit ? [matrixEdit] : [])
       ];
     }
