@@ -138,6 +138,17 @@ internal static class AipdmAssemblyAnalyzer
         }
         if (selected == null)
         {
+            // A folder upload adds an outer directory that is absent from the
+            // saved CAD origin. Relocate containment to an exact sibling of
+            // its owning assembly, never an arbitrary basename elsewhere.
+            string directory = Path.GetDirectoryName(parent.relativePath.Replace('/', Path.DirectorySeparatorChar)) ?? "";
+            string sibling = (directory.Length == 0 ? "" : directory.Replace('\\', '/') + "/") + SafeReferenceLabel(reference);
+            foreach (Entry entry in entries)
+                if (String.Equals(entry.relativePath, sibling, StringComparison.OrdinalIgnoreCase))
+                { if (selected != null) { conflict = true; return null; } selected = entry; }
+        }
+        if (selected == null)
+        {
             int basenameMatches = 0; string basename = SafeReferenceLabel(reference);
             foreach (Entry entry in entries) if (String.Equals(Path.GetFileName(entry.relativePath), basename, StringComparison.OrdinalIgnoreCase)) basenameMatches++;
             if (basenameMatches > 1) conflict = true;

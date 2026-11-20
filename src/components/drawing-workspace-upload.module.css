@@ -1,0 +1,21 @@
+.control { position: relative; width: 100%; }
+.entry { display: flex; align-items: stretch; gap: 0; }
+.drop { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 74px; padding: 14px; border: 1px dashed #94a3b8; border-radius: 10px 0 0 10px; background: #fff; color: var(--text); text-align: left; cursor: pointer; }
+.drop span { display: grid; gap: 4px; }
+.drop small { color: var(--muted); }
+.more { width: 36px; border: 1px dashed #94a3b8; border-left: 0; border-radius: 0 10px 10px 0; background: #fff; cursor: pointer; }
+.compact .drop { flex: 0 1 auto; min-height: 36px; padding: 7px 10px; border-style: solid; }
+.compact .more { border-style: solid; }
+.over .drop, .over .more { border-color: var(--primary); background: #eaf8f6; }
+.menu { position: absolute; z-index: 15; left: 0; top: 100%; margin-top: 4px; padding: 4px; background: #fff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 5px 18px #0f172a20; }
+.menu button { padding: 9px 12px; border: 0; background: transparent; cursor: pointer; white-space: nowrap; }
+.choices { display: grid; gap: 8px; margin-top: 10px; }
+.choices label { display: grid; gap: 4px; }
+.choices select { max-width: 100%; min-width: 0; }
+.progress { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.progress li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 0; }
+.progress li span:first-child { min-width: 0; overflow-wrap: anywhere; flex: 1; }
+.error { color: #b42318; margin: 7px 0; font-size: 13px; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 8px; margin-top: 6px; }
+.control button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.control button:disabled { opacity: .5; cursor: default; }

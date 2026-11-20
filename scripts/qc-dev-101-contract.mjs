@@ -12,6 +12,7 @@ const route = read("src/app/api/pdm/review-requests/[requestId]/route.ts");
 const targetRoute = read("src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts");
 const comparisonRoute = read("src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts");
 const principalReviewTarget = read("src/lib/pdm-principal-review-target.ts");
+const workReview = read("src/lib/pdm-work-review.ts");
 const fileRoute = read("src/app/api/pdm/file-assets/[fileAssetId]/route.ts");
 const reviewShell = read("src/components/canonical-review-package-workspace.tsx");
 const reviewTargetAdapter = read("src/components/canonical-review-target-workspace.tsx");
@@ -45,7 +46,8 @@ check("DEV101-CONTRACT-007", "target and comparison endpoints are present and re
   principalReviewTarget.includes("evaluatePrincipalWorkspacePermissionsInSnapshot") &&
   principalReviewTarget.includes('permissionCode: "approval.request.decide"') &&
   principalReviewTarget.includes("if (!decision?.allowed)") &&
-  principalReviewTarget.includes("item.reviewerUserId !== verified.profile.pdmUserId") &&
+  principalReviewTarget.includes("canAccessWorkReviewAssignment(item, verified.profile.pdmUserId)") &&
+  workReview.includes("request.reviewerUserId === null ? Boolean(request.submission) : request.reviewerUserId === actorId") &&
   principalReviewTarget.includes("verified.profile.companyId") &&
   principalReviewTarget.includes("parseReviewPackageSnapshot") &&
   principalReviewTarget.includes("verifyReviewPackageIntegrity") &&

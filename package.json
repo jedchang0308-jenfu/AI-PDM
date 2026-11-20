@@ -724,6 +724,7 @@
     "@tesseract.js-data/chi_tra": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
     "better-sqlite3": "^12.10.0",
+    "fflate": "0.8.3",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.2.0",
     "gcp-metadata": "^8.1.2",
@@ -754,6 +755,9 @@
   "overrides": {
     "postcss": "^8.5.10",
     "uuid": "11.1.1",
-    "@grpc/grpc-js": "1.14.5"
+    "@grpc/grpc-js": "1.14.5",
+    "google-gax": {
+      "rimraf": "6.1.4"
+    }
   }
 }

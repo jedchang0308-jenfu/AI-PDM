@@ -5,10 +5,11 @@ import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DrawingAssemblyPackagePanel } from "./drawing-assembly-package-panel";
 import { WorkbenchDeleteAction } from "./draft-numbering-delete-action";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, LoaderCircle, ScanSearch, Send, UploadCloud, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, LoaderCircle, ScanSearch, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard, type DrawingDetailPreviewKind } from "@/components/drawing-detail-preview";
-import { FileDropzone } from "@/components/file-dropzone";
+import { DrawingWorkspaceUpload } from "./drawing-workspace-upload";
+import { createDrawingWorkFileUploader } from "@/lib/drawing-work-file-upload-client";
 import {
   DrawingRecognitionWorkspacePanel,
   type DrawingRecognitionEvidence
@@ -63,14 +64,6 @@ export type DrawingWorkspacePayload = {
 };
 type ResponseShape = { data: DrawingWorkspacePayload; meta: { contractToken: string } };
 type ChangeImpactState = "no_impact" | "suspected_impact" | "confirmed_impact";
-type UploadEntry = {
-  id: string;
-  file: File;
-  status: "queued" | "uploading" | "success" | "failed";
-  progress: number;
-  error: string;
-};
-
 function text(value: unknown) { return typeof value === "string" ? value : ""; }
 function apiMessage(body: unknown, fallback: string) {
   const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
@@ -87,22 +80,6 @@ export function fileRoleLabel(file: Pick<FileRow, "role" | "mime_type">) {
   if (file.role === "drawing_2d") return "2D 圖面";
   if (file.role === "pdf" || normalizeMediaType(file.mime_type) === "application/pdf") return "PDF 圖面";
   return "其他檔案";
-}
-
-function selectedPrimaryFileRole(fileName: string) {
-  const normalized = fileName.trim().toLowerCase();
-  if (normalized.endsWith(".slddrw")) return "2D";
-  if (normalized.endsWith(".sldprt") || normalized.endsWith(".sldasm")) return "3D";
-  return null;
-}
-
-function primaryReplacementWarnings(files: File[]) {
-  return (["2D", "3D"] as const).flatMap((role) => {
-    const names = files.filter((file) => selectedPrimaryFileRole(file.name) === role).map((file) => file.name);
-    return names.length > 1
-      ? [`${role} 主檔會依上傳順序替換：${names.join(" → ")}；最後保留 ${names.at(-1)}。`]
-      : [];
-  });
 }
 
 function evidenceRegion(geometry: Record<string, unknown> | null) {
@@ -148,9 +125,9 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [evidenceOriginKind, setEvidenceOriginKind] = useState<DrawingDetailPreviewKind | null>(null);
   const [showEvidenceFocus, setShowEvidenceFocus] = useState(false);
   const [evidenceLocationNotice, setEvidenceLocationNotice] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadPending, setUploadPending] = useState(false);
   const [pdfSelection, setPdfSelection] = useState<{ contextKey: string; bindingId: string } | null>(null);
-  const [uploadEntries, setUploadEntries] = useState<UploadEntry[]>([]);
+  const uploadWorkFile = useMemo(() => createDrawingWorkFileUploader(workId ?? ""), [workId]);
   const [assemblyBlocked, setAssemblyBlocked] = useState(false);
   async function updateAssemblyBinding(blocked: boolean, binding: string | null) {
     setAssemblyBlocked(blocked);
@@ -248,7 +225,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     return () => window.clearTimeout(timer);
   }, [saveNotice]);
 
-  const canLeave = useUnsavedChangesGuard(payloadDirty || recognitionDirty || uploadEntries.some((entry) => entry.status !== "success"));
+  const canLeave = useUnsavedChangesGuard(payloadDirty || recognitionDirty || uploadPending);
   function leave() { if (!busy && canLeave()) router.push(safeReturn); }
   function headers(expectedRowVersion = data?.rowVersion ?? 0) {
     return { "content-type": "application/json", "if-match": `"${expectedRowVersion}"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": contractToken };
@@ -334,85 +311,26 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       return "操作未完成，請檢查網路後再試。";
     }
   }
-  function chooseFiles(files: File[]) {
-    setSelectedFiles(files);
-    setUploadEntries(files.map((file) => ({ id: crypto.randomUUID(), file, status: "queued", progress: 0, error: "" })));
+  async function refreshUploadWorkspace() {
+    if (!endpoint || !data?.workId) throw new Error("找不到上傳工作。");
+    const response = await fetch(endpoint, { cache: "no-store" });
+    const latest = await response.json() as ResponseShape;
+    if (!response.ok || latest.data?.workId !== data.workId) throw new Error("無法確認最新工作資料，請重新載入。");
+    setData(latest.data); setPayload(latest.data.payload); setPayloadDirty(false); setContractToken(latest.meta.contractToken);
   }
-  function clearFiles() {
-    setSelectedFiles([]);
-    setUploadEntries([]);
+  async function beginUnifiedUpload() {
+    if (busy || commandPending.current || !data?.workId || !(data.interaction?.canMutateContent ?? !data.readonly)) throw new Error("目前無法上傳。");
+    commandPending.current = true; setBusy(true); setError(""); setReloadAvailable(false); setSaveNotice("");
+    try {
+      const saved = await persistPayload(data.rowVersion);
+      if (!saved.ok) throw new Error("請先處理尚未儲存的欄位，再重試上傳。");
+      await refreshUploadWorkspace();
+    } catch (reason) { commandPending.current = false; setBusy(false); throw reason; }
   }
-  function patchUploadEntry(id: string, patch: Partial<Omit<UploadEntry, "id" | "file">>) {
-    setUploadEntries((current) => current.map((entry) => entry.id === id ? { ...entry, ...patch } : entry));
-  }
-  function uploadFileWithProgress(entry: UploadEntry, rowVersion: number) {
-    return new Promise<{ ok: boolean; body: unknown; rowVersion: number }>((resolve) => {
-      const form = new FormData();
-      form.set("file", entry.file);
-      form.set("display_name", entry.file.name);
-      form.set("description", "圖面進版受控原始檔");
-      const request = new XMLHttpRequest();
-      request.open("POST", `/api/pdm/drawing-revision-works/${encodeURIComponent(data?.workId ?? "")}/files`);
-      request.setRequestHeader("if-match", `"${rowVersion}"`);
-      request.setRequestHeader("idempotency-key", crypto.randomUUID());
-      request.setRequestHeader("x-pdm-workbench-contract", contractToken);
-      request.upload.onprogress = (event) => {
-        if (!event.lengthComputable) return;
-        patchUploadEntry(entry.id, { progress: Math.max(1, Math.min(99, Math.round(event.loaded / event.total * 100))) });
-      };
-      request.onload = () => {
-        let body: unknown = null;
-        try { body = request.responseText ? JSON.parse(request.responseText) : null; } catch { body = null; }
-        const responseRowVersion = Number((body as { data?: { rowVersion?: number } } | null)?.data?.rowVersion ?? rowVersion);
-        resolve({ ok: request.status >= 200 && request.status < 300, body, rowVersion: responseRowVersion });
-      };
-      request.onerror = () => resolve({ ok: false, body: null, rowVersion });
-      request.onabort = () => resolve({ ok: false, body: null, rowVersion });
-      request.send(form);
-    });
-  }
-  async function uploadEntry(entry: UploadEntry, rowVersion: number) {
-    patchUploadEntry(entry.id, { status: "uploading", progress: 0, error: "" });
-    const result = await uploadFileWithProgress(entry, rowVersion);
-    if (!result.ok) {
-      const message = apiMessage(result.body, `「${entry.file.name}」上傳失敗，請重試。`);
-      patchUploadEntry(entry.id, { status: "failed", error: message });
-      if (apiCode(result.body) === "DRAWING_PRODUCTION_BASE_STALE") transitionToStale();
-      return { ok: false, rowVersion, message, stale: apiCode(result.body) === "DRAWING_PRODUCTION_BASE_STALE" };
-    }
-    patchUploadEntry(entry.id, { status: "success", progress: 100, error: "" });
-    setSelectedFiles((current) => current.filter((file) => file !== entry.file));
-    setData((current) => current ? { ...current, rowVersion: result.rowVersion } : current);
-    return { ok: true, rowVersion: result.rowVersion, message: "", stale: false };
-  }
-  async function uploadFiles() {
-    if (!data?.workId || busy || uploadEntries.every((entry) => entry.status === "success") || data.interaction && !data.interaction.canMutateContent) return;
-    let rowVersion = data.rowVersion;
-    let uploaded = false;
-    const failures: string[] = [];
-    setBusy(true); setError(""); setReloadAvailable(false);
-    const saved = await persistPayload(rowVersion);
-    if (!saved.ok) { setBusy(false); return; }
-    rowVersion = saved.rowVersion;
-    for (const entry of uploadEntries.filter((candidate) => candidate.status === "queued" || candidate.status === "failed")) {
-      const result = await uploadEntry(entry, rowVersion);
-      if (result.ok) { rowVersion = result.rowVersion; uploaded = true; }
-      else failures.push(result.message);
-      if (result.stale) break;
-    }
-    setBusy(false);
-    if (failures.length) setError(failures.join("\n"));
-    if (uploaded) await load();
-  }
-  async function retryUpload(entry: UploadEntry) {
-    if (!data?.workId || busy || entry.status !== "failed" || data.interaction && !data.interaction.canMutateContent) return;
-    setBusy(true); setError(""); setReloadAvailable(false);
-    const saved = await persistPayload(data.rowVersion);
-    if (!saved.ok) { setBusy(false); return; }
-    const result = await uploadEntry(entry, saved.rowVersion);
-    setBusy(false);
-    if (!result.ok) { setError(result.message); return; }
-    await load();
+  async function completeUnifiedUpload() {
+    try { await refreshUploadWorkspace(); }
+    catch { setError("已完成的上傳已保留，但畫面無法更新，請重新載入。"); setReloadAvailable(true); }
+    finally { commandPending.current = false; setBusy(false); }
   }
   async function removeFile(file: FileRow) {
     if (!data?.workId || busy || data.interaction && !data.interaction.canMutateContent) return;
@@ -565,7 +483,6 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     });
   }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus, twoDSelection]);
   const sourceAssetIds = useMemo(() => files.map((file) => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
-  const replacementWarnings = useMemo(() => primaryReplacementWarnings(selectedFiles), [selectedFiles]);
   const title = data?.identity?.code || drawingId || "圖號工作資料";
   const revisionLabel = text(data?.revision ?? payload.revision) || "—";
   const changeImpactRequired = Boolean(data?.changeImpactRequired);
@@ -608,28 +525,12 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           {reviewRequestId ? <DrawingAssemblyPackagePanel key={reviewRequestId} frozen base={`/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}/assembly-package`}/>
             : data.workId && !snapshotMode ? <DrawingAssemblyPackagePanel key={data.workId} editable={canMutateContent}
               base={`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}/assembly-packages`}
+              uploadControl={context => <DrawingWorkspaceUpload base={`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId!)}/assembly-packages`}
+                code={data.identity?.code ?? title} compact={files.length > 0 || Boolean(context.downloadHref)} disabled={busy || !context.ready}
+                activePackageId={context.activePackageId} downloadHref={context.downloadHref} archiveName={context.archiveName}
+                onBegin={beginUnifiedUpload} onComplete={completeUnifiedUpload} onUploadFile={uploadWorkFile}
+                onPendingChange={setUploadPending} onPackageBusy={context.setBusy} />}
               onChange={(blocked,binding)=>void updateAssemblyBinding(blocked,binding)}/> : null}
-          {canMutateContent ? <div className="dev079-workspace-file-upload">
-            <div className="dev079-workspace-upload-row">
-              <FileDropzone
-                accept=".slddrw,.sldprt,.sldasm,.pdf,.dwg,.dxf,.step,.stp,.iges,.igs,.igf,.x_t,.x_b,.sat,.stl,.jt"
-                label="拖放圖面檔案，或按一下選取"
-                description="可一次選取多檔；同類 2D／3D 主檔會以最後上傳的檔案取代。"
-                multiple
-                selectedFiles={selectedFiles}
-                disabled={busy}
-                variant="compact"
-                onFilesSelected={chooseFiles}
-                onClearSelected={clearFiles}
-              />
-              <button className="secondary-button" type="button" disabled={busy || uploadEntries.every((entry) => entry.status === "success")} onClick={() => void uploadFiles()}>
-                {busy ? <LoaderCircle className="spin" size={15} /> : <UploadCloud size={15} />}
-                上傳所選檔案
-              </button>
-            </div>
-            {replacementWarnings.length ? <div className="dev100-file-replacement-warning" role="status" aria-live="polite" data-dev100-replacement-warning>{replacementWarnings.map((warning) => <span key={warning}>{warning}</span>)}</div> : null}
-            {uploadEntries.length ? <ul className="dev079-upload-progress-list" aria-label="檔案上傳進度">{uploadEntries.map((entry) => <li key={entry.id} className={`is-${entry.status}`}><div><strong title={entry.file.name}>{entry.file.name}</strong><span>{entry.status === "queued" ? "等待上傳" : entry.status === "uploading" ? `上傳中 ${entry.progress}%` : entry.status === "success" ? "上傳完成" : entry.error || "上傳失敗"}</span></div><div className="dev079-upload-progress-bar" role="progressbar" aria-label={`${entry.file.name} 上傳進度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.progress}><span style={{ width: `${entry.progress}%` }} /></div>{entry.status === "failed" ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void retryUpload(entry)}>重試</button> : null}</li>)}</ul> : null}
-          </div> : null}
           <p className={`dev079-workspace-file-requirement ${filesReady ? "is-ready" : ""}`} role="status">
             {filesReady ? <CheckCircle2 size={15} /> : <FileText size={15} />}
             {filesReady ? "本版次 2D 與 3D 主檔已齊備。" : `送審前須重新上傳本版次主檔：${hasCurrent2d ? "" : ".SLDDRW"}${!hasCurrent2d && !hasCurrent3d ? " ＋ " : ""}${hasCurrent3d ? "" : ".SLDPRT／.SLDASM"}`}
@@ -675,7 +576,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             onBeforeDelete={() => !busy && !commandPending.current}
             onDeleteWork={() => ownerCommand("cancel")}
             onPermanentDeleted={() => router.push(safeReturn)} /> : null}
-          {canSubmit ? <button className="primary-button" type="button" disabled={busy || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送審</button> : null}
+          {canSubmit ? <button className="primary-button" type="button" disabled={busy || uploadPending || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送審</button> : null}
         </>}
       </div></footer>}</aside>
     </div>

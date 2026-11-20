@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Download, Upload } from "lucide-react";
 import { AssemblyHttpError, assemblyRequest, uploadAssemblyPackage } from "@/lib/assembly-package-upload-client";
 import { AssemblyBomDraft } from "./drawing-assembly-bom-draft";
@@ -38,9 +39,10 @@ const diagnostics:Record<string,string>={
   assembly_child_configuration_missing:"缺少子件引用的組態",
   assembly_external_reference_configuration_unknown:"無法確認外部參照使用的組態"
 };
-type Props={base:string; frozen?:boolean; editable?:boolean; onChange?:(blocked:boolean,binding:string|null)=>void};
+type Props={base:string; frozen?:boolean; editable?:boolean; onChange?:(blocked:boolean,binding:string|null)=>void;
+  uploadControl?:(context:{activePackageId:string|null;downloadHref:string|null;archiveName?:string;ready:boolean;setBusy:(value:boolean)=>void})=>ReactNode};
 
-export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,onChange}:Props) {
+export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,onChange,uploadControl}:Props) {
   const [collection,setCollection]=useState<Collection>({data:null});
   const [error,setError]=useState("");
   const [loaded,setLoaded]=useState(false);
@@ -112,8 +114,9 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
   }
   if (frozen && !pkg && !error) return null;
   return <section className="dev129-package" aria-label="組立包">
+    {editable && uploadControl?.({activePackageId:pkg?.active?pkg.packageId:null,downloadHref:downloadable?url(downloadable)+"/download":null,archiveName:downloadable?.fileName,ready:loaded,setBusy})}
     <div className="dev129-package-actions">
-      {editable && <><input type="file" accept=".zip" hidden ref={input} onChange={event=>{
+      {editable && !uploadControl && <><input type="file" accept=".zip" hidden ref={input} onChange={event=>{
         const file=event.target.files?.[0];event.target.value="";
         if (!file) return;
         if (collection.limits && file.size>collection.limits.maxArchiveBytes) {

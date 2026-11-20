@@ -245,6 +245,8 @@ describe.skipIf(!process.env.DEV129_TEST_PG)("DEV-129 native PostgreSQL package 
         const suffix=pathname.slice(base.length).split("/").filter(Boolean),id=suffix[0]??"";
         const file=suffix.length===0?"route":suffix.length===1?"[id]/route":`[id]/${suffix[1]}/route`;
         routePath=`src/app/api/pdm/drawing-revision-works/[workId]/assembly-packages/${file}.ts`;params={workId:"live-work",id};
+      } else if(pathname==="/api/pdm/drawing-revision-works/live-work") {
+        routePath="src/app/api/pdm/drawing-revision-works/[workId]/route.ts";params={workId:"live-work"};
       } else if(pathname.startsWith("/api/assembly-analysis-jobs/")) {
         const suffix=pathname.slice("/api/assembly-analysis-jobs/".length).split("/");
         routePath=suffix[0]==="claim"?"src/app/api/assembly-analysis-jobs/claim/route.ts":`src/app/api/assembly-analysis-jobs/[jobId]/${suffix[1]}/route.ts`;params={jobId:suffix[0]};
@@ -260,6 +262,8 @@ describe.skipIf(!process.env.DEV129_TEST_PG)("DEV-129 native PostgreSQL package 
     const actor={id:"test-device:instance",companyId:"company",ownerPrincipalId:"principal"};
     let native: {result:{status:string;configurations:{name:string;references:{status:string;issues:unknown[]};bom:{rows:unknown[]}}[]};nativeExecutableSha256:string;layer:string}|null=null;
     const browserReceipt=await verifyAssemblyPackageBrowser(dispatch,archivePath,{workId:"live-work",fileName:path.basename(archivePath),
+      inputDirectory:process.env.DEV129_UPLOAD_DIRECTORY??null,inputFiles:process.env.DEV129_UPLOAD_FILES?JSON.parse(process.env.DEV129_UPLOAD_FILES):null,
+      canonical:process.env.DEV129_UPLOAD_CANONICAL==="1",
       receivedArchivePath:path.resolve(process.env.DEV129_LIVE_RECEIVED_ARCHIVE??".tmp/dev129-desktop-oracle/received.zip"),
       afterUpload:async({page}:{page:import("playwright").Page})=>{
         native=await verifyAssemblyLiveWorker({archivePath,extractorPath,dispatch,readDocumentManagerKey:readKeyModule.readAuthorizedDocumentManagerKey,
@@ -380,7 +384,7 @@ describe.skipIf(!process.env.DEV129_TEST_PG)("DEV-129 native PostgreSQL package 
       const twoDBytes=await extractAssemblyArchiveEntry(await createAssemblyStorageService().openObject(object),manifest,twoD.entryKey,10*1024*1024);
       const receipt=await verifyAssemblySubmitBrowser({dispatch,workId:"submit-work",outputDirectory:evidence,
         exercise:async({page,origin,calls}:{page:import("playwright").Page;origin:string;calls:{method:string;path:string;status:number}[]})=>{
-          const submit=page.getByRole("button",{name:"送出審核",exact:true});await submit.waitFor({timeout:15000});expect(await submit.isDisabled()).toBe(true);
+          const submit=page.getByRole("button",{name:"送審",exact:true});await submit.waitFor({timeout:15000});expect(await submit.isDisabled()).toBe(true);
           const initialData=await (await page.request.get(origin+base)).json();
           const commandHeaders={"if-match":`"${initialData.data.rowVersion}"`,"idempotency-key":crypto.randomUUID(),"x-pdm-workbench-contract":initialData.meta.contractToken,"content-type":"application/json"};
           const denied=await page.request.post(origin+base+"/submit",{headers:commandHeaders,data:"{}"});expect(denied.status()).toBe(422);expect((await denied.json()).error.code).toBe("DRAWING_2D_REQUIRED");
@@ -389,9 +393,11 @@ describe.skipIf(!process.env.DEV129_TEST_PG)("DEV-129 native PostgreSQL package 
           expect((await page.request.post(origin+base+"/assembly-packages",{headers:{"idempotency-key":"denied"},data:{fileName:"denied.zip",byteSize:original.length,activePackageId:first}})).status()).toBe(403);
           state.bytes=false;expect((await page.request.get(origin+base+`/assembly-packages/${first}/download`)).status()).toBe(403);state.bytes=true;state.updateAllowed=true;
           expect((await page.request.get(origin+"/api/pdm/drawing-revision-works/foreign-work/assembly-packages/"+first)).status()).toBe(404);
-          await page.locator('input[type="file"][accept^=".slddrw"]').setInputFiles({name:twoD.relativePath,mimeType:"application/octet-stream",buffer:twoDBytes});
-          await page.getByRole("button",{name:"上傳所選檔案",exact:true}).click();await page.getByText("本版次 2D 與 3D 主檔已齊備。",{exact:true}).waitFor({timeout:15000});
-          const fresh=await upload("submit-replacement",first);expect(fresh).not.toBe(first);
+          await page.getByLabel("加入本版檔案",{exact:true}).setInputFiles({name:twoD.relativePath,mimeType:"application/octet-stream",buffer:twoDBytes});
+          await page.getByText("本版次 2D 與 3D 主檔已齊備。",{exact:true}).waitFor({timeout:15000});
+          const supplemented=(await service().get("fixture",workRequest(),"submit-work")).data!;
+          expect(supplemented.packageId).not.toBe(first);
+          const fresh=await upload("submit-replacement",supplemented.packageId);expect(fresh).not.toBe(first);
           const before=await (await page.request.get(origin+base)).json();
           const stale=await page.request.post(origin+base+"/submit",{headers:{...commandHeaders,"if-match":`"${before.data.rowVersion}"`,"idempotency-key":crypto.randomUUID()},data:"{}"});expect(stale.status()).toBe(409);
           expect((await state.client.queryOne<{n:string}>("SELECT count(*) AS n FROM pdm_work_review_requests"))?.n).toBe("0");
