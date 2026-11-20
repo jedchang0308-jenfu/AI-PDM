@@ -187,7 +187,7 @@ test('B23 fixed runtime rejects wrong AI target and malformed pre-migration refs
   }
 })
 
-test('production runner is pinned, non-root, and removes the unused vulnerable OS zlib', () => {
+test('production runner is pinned, non-root, and removes unused vulnerable OS libraries', () => {
   const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')
   const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca'
   const sanitizerImage = 'alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce'
@@ -195,6 +195,9 @@ test('production runner is pinned, non-root, and removes the unused vulnerable O
   assert.ok(dockerfile.includes(`ARG RUNTIME_SANITIZER_IMAGE=${sanitizerImage}`))
   assert.match(dockerfile, /FROM \$\{RUNTIME_NODE_IMAGE\} AS runtime-base/u)
   assert.match(dockerfile, /FROM \$\{RUNTIME_SANITIZER_IMAGE\} AS runtime-sanitizer/u)
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libssl\.so\.3/u)
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libcrypto\.so\.3/u)
+  assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/libssl3t64\.md5sums/u)
   assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libz\.so\.1\.3\.1/u)
   assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/zlib1g\.md5sums/u)
   assert.match(dockerfile, /COPY --from=runtime-sanitizer \/rootfs \//u)

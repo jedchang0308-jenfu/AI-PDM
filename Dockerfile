@@ -58,29 +58,21 @@ CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 
 FROM ${RUNTIME_NODE_IMAGE} AS runtime-base
 
-FROM ${NODE_IMAGE} AS runtime-security-packages
-COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-RUN printf '%s\n' 'deb https://security.debian.org/debian-security trixie-security main' > /tmp/runtime-security.list \
-    && apt-get -o APT::Update::Error-Mode=any -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- update \
-    && cd /tmp \
-    && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 \
-    && printf '%s\n' 'ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074  /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb' | sha256sum -c - \
-    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Package)" = libssl3t64 \
-    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Version)" = 3.5.7-1~deb13u3 \
-    && dpkg-deb -x /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /patch-rootfs \
-    && dpkg-deb -e /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /package-metadata \
-    && mkdir -p /patch-rootfs/var/lib/dpkg/status.d \
-    && { printf '%s\n' 'Status: install ok installed'; cat /package-metadata/control; } > /patch-rootfs/var/lib/dpkg/status.d/libssl3t64 \
-    && cp /package-metadata/md5sums /patch-rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums
-
 FROM ${RUNTIME_SANITIZER_IMAGE} AS runtime-sanitizer
 COPY --from=runtime-base / /rootfs
-COPY --from=runtime-security-packages /patch-rootfs/ /rootfs/
 RUN rm -f \
+      /rootfs/usr/lib/x86_64-linux-gnu/libssl.so.3 \
+      /rootfs/usr/lib/x86_64-linux-gnu/libcrypto.so.3 \
+      /rootfs/var/lib/dpkg/status.d/libssl3t64 \
+      /rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1 \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
       /rootfs/var/lib/dpkg/status.d/zlib1g \
       /rootfs/var/lib/dpkg/status.d/zlib1g.md5sums \
+    && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libssl.so.3 \
+    && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libcrypto.so.3 \
+    && test ! -e /rootfs/var/lib/dpkg/status.d/libssl3t64 \
+    && test ! -e /rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums \
     && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1 \
     && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
     && test ! -e /rootfs/var/lib/dpkg/status.d/zlib1g \
