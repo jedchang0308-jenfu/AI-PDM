@@ -63,32 +63,24 @@ function setupFetch() {
   return { fetcher, defer() { let finish!: (response: Response) => void; pending = new Promise(resolve => { finish = resolve; }); return finish; } };
 }
 
-it("renders a returning list before revalidation completes, shares series, and replaces with fresh data", async () => {
-  const { fetcher, defer } = setupFetch();
-  await render();
+it("returns to a cached list without another GET and loads series only when opened", async () => {
+  const { fetcher } = setupFetch();
+  await render(); await render(false); await render();
   expect(container.textContent).toContain("原先的清單");
-  expect(vi.getTimerCount()).toBe(0);
-  await render(false);
-  const finish = defer();
-  await render();
-  expect(container.textContent).toContain("原先的清單");
-  expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
-  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(1);
+  expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/series-codes")).toHaveLength(0);
+  const trigger = [...container.querySelectorAll("button")].find(button => button.closest(".pdm-workbench-multi-select-filter")?.textContent?.startsWith("系列"))!;
+  await act(async () => trigger.click());
   expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/series-codes")).toHaveLength(1);
-  expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/permissions")).toHaveLength(1);
-  await act(async () => finish(json(list("伺服器新資料"))));
-  expect(container.textContent).toContain("伺服器新資料");
-  expect(container.textContent).not.toContain("原先的清單");
 });
 
-it.each([401, 403, 503])("removes restored rows after HTTP %i without keeping a successful-looking list", async status => {
-  const { defer } = setupFetch();
+it("refreshes a returning list after the 30 second cache expires", async () => {
+  const { fetcher } = setupFetch();
   await render(); await render(false);
-  const finish = defer(); await render();
-  expect(container.textContent).toContain("原先的清單");
-  await act(async () => finish(json({ message: "無法讀取清單" }, status)));
-  expect(container.textContent).not.toContain("原先的清單");
-  expect(container.querySelector('[role="alert"]')).not.toBeNull();
+  await act(async () => vi.advanceTimersByTimeAsync(30_001));
+  await render();
+  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
 });
 
 it("clears visible cached rows at logout and rejects an older pending response", async () => {

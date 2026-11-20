@@ -15,6 +15,8 @@ export type PdmWorkbenchMultiSelectFilterProps<T extends string> = {
   onApply: (value: PdmWorkbenchFilterSelection<T>) => void;
   searchable?: boolean;
   disabled?: boolean;
+  loading?: boolean;
+  onOpen?: () => void;
 };
 
 function selectionSummary<T extends string>(selection: PdmWorkbenchFilterSelection<T>, options: readonly PdmWorkbenchFilterOption<T>[]) {
@@ -24,7 +26,7 @@ function selectionSummary<T extends string>(selection: PdmWorkbenchFilterSelecti
   return labels.length === 1 ? labels[0] : `${labels[0]} +${labels.length - 1}`;
 }
 
-export function PdmWorkbenchMultiSelectFilter<T extends string>({ label, value, options, onApply, searchable = false, disabled = false }: PdmWorkbenchMultiSelectFilterProps<T>) {
+export function PdmWorkbenchMultiSelectFilter<T extends string>({ label, value, options, onApply, searchable = false, disabled = false, loading = false, onOpen }: PdmWorkbenchMultiSelectFilterProps<T>) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const allRef = useRef<HTMLInputElement>(null);
@@ -104,14 +106,15 @@ export function PdmWorkbenchMultiSelectFilter<T extends string>({ label, value, 
         <button type="button" className="icon-button" aria-label="關閉篩選" onClick={closeWithoutApply}><X size={16} /></button>
       </div>
       {searchable ? <label className="pdm-workbench-multi-select-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋選項" aria-label={`${label}選項搜尋`} /></label> : null}
+      {loading ? <p role="status">載入選項中…</p> : null}
       <div className="pdm-workbench-multi-select-options" role="group" aria-label={`${label}選項`}>
         <label className="pdm-workbench-multi-select-option is-all"><input ref={allRef} type="checkbox" checked={allChecked} aria-checked={allIndeterminate ? "mixed" : allChecked} onChange={toggleAll} disabled={options.length === 0} /><span>全部</span></label>
         {visibleOptions.map((option, index) => <label className="pdm-workbench-multi-select-option" key={option.value}><input id={`${optionId}-${index}`} type="checkbox" checked={selectedValues.includes(option.value)} onChange={() => toggleOption(option)} /><span>{option.label}</span></label>)}
         {visibleOptions.length === 0 ? <p className="pdm-workbench-multi-select-empty">沒有符合的選項</p> : null}
       </div>
-      <div className="pdm-workbench-multi-select-actions"><button type="button" className="secondary-button" onClick={closeWithoutApply}>取消</button><button type="button" className="primary-button" onClick={apply}>確定</button></div>
+      <div className="pdm-workbench-multi-select-actions"><button type="button" className="secondary-button" onClick={closeWithoutApply}>取消</button><button type="button" className="primary-button" disabled={loading} onClick={apply}>確定</button></div>
     </div>, document.body
   ) : null;
 
-  return <div className="pdm-workbench-multi-select-filter"><span className="pdm-workbench-multi-select-label">{label}</span><button ref={triggerRef} type="button" className="pdm-workbench-multi-select-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? dialogId : undefined} disabled={disabled} onClick={() => setOpen((current) => !current)}><span>{selectionSummary(value, options)}</span><ChevronDown size={15} /></button>{popover}</div>;
+  return <div className="pdm-workbench-multi-select-filter"><span className="pdm-workbench-multi-select-label">{label}</span><button ref={triggerRef} type="button" className="pdm-workbench-multi-select-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? dialogId : undefined} disabled={disabled} onClick={() => { if (!open) onOpen?.(); setOpen((current) => !current); }}><span>{selectionSummary(value, options)}</span><ChevronDown size={15} /></button>{popover}</div>;
 }

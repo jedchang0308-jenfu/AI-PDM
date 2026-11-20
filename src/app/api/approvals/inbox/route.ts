@@ -169,7 +169,7 @@ async function renderInbox(request: Request, companyId: string, principalId: str
   };
   const page = access.readable
     ? await repository.listPrincipalSubmittedReviews({ ...filter, readable: access.readable })
-    : await repository.listPrincipalWorkReviewInbox({ ...filter, includeAssigned: access.includeAssigned,
+    : await repository.listPrincipalWorkReviewInbox({ ...filter, summaryOnly: url.searchParams.get("view") === "count", includeAssigned: access.includeAssigned,
       ...(access.sharedAccess ? { sharedAccess: access.sharedAccess } : {}) });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);

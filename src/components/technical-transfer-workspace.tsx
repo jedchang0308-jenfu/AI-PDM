@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchCurrentPdmUser } from "@/lib/pdm-current-user-client";
+
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Download, Loader2, PackagePlus, RefreshCw } from "lucide-react";
@@ -63,7 +65,7 @@ export function TechnicalTransferWorkspace({ initialTab }: { initialTab: Tab }) 
     try {
       let effectiveTab = selected;
       if (selected !== "published" && allowPublishedFallback) {
-        const identityResponse = await fetch("/api/auth/me", { cache: "no-store" });
+        const identityResponse = await fetchCurrentPdmUser();
         const identity = await identityResponse.json().catch(() => null) as { user?: { role?: string } } | null;
         if (["Manufacturing", "Procurement"].includes(identity?.user?.role ?? "")) {
           effectiveTab = "published";

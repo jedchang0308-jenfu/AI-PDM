@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchCurrentPdmUser } from "@/lib/pdm-current-user-client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FileText, PackageSearch, RefreshCcw, Search, ShieldAlert } from "lucide-react";
@@ -24,7 +26,7 @@ export function CleanHomeWorkbench() {
   async function load() {
     setState("loading");
     try {
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      const response = await fetchCurrentPdmUser();
       if (response.status === 401) {
         setState("unauthorized");
         return;

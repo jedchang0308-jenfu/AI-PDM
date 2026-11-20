@@ -66,8 +66,9 @@ export type CanonicalWorkbenchListDto = {
     groups: CanonicalWorkbenchGroupDto[];
     nextCursor: string | null;
     previousCursor: string | null;
-    totalGroups: number;
-    totalRows: number;
+    previewEnabled?: boolean;
+    totalGroups?: number;
+    totalRows?: number;
     /** Enabled Drawing/Part preview projection. Keys are exactly the visible cw rows. */
     previewByRowKey?: Record<string, CanonicalPreviewProjection>;
   };
@@ -169,6 +170,8 @@ export type CanonicalWorkbenchDetailDto = {
   data: {
     row: CanonicalWorkbenchRowDto;
     presentation: CanonicalWorkbenchDetailPresentation;
+    sectionsPending?: boolean;
+    sectionsError?: string;
   };
   meta: { contractToken: string; correlationId: string };
 };
