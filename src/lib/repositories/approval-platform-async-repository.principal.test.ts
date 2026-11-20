@@ -4,6 +4,21 @@ import { AsyncApprovalPlatformRepository } from
   "@/lib/repositories/approval-platform-async-repository";
 
 describe("Principal approval inbox source boundary", () => {
+  it("counts authorized pending requests without materializing response rows or names", async () => {
+    const query = vi.fn(() => { throw new Error("Count must not read names"); });
+    const queryOne = vi.fn(async (_sql: string, _params: Record<string, unknown>) => ({ total: 4 }));
+    const client = { kind: "postgres", query, queryOne } as unknown as AsyncDatabaseClient;
+    const page = await new AsyncApprovalPlatformRepository(client).listPrincipalWorkReviewInbox({
+      companyId: "company-one", actorId: "reviewer", principalId: "principal-reviewer", summaryOnly: true });
+    expect(page.items).toEqual([]);
+    expect(page.summary.pending).toBe(4);
+    expect(query).not.toHaveBeenCalled();
+    const [sql] = queryOne.mock.calls[0];
+    expect(sql).toContain("count(*)");
+    expect(sql).not.toContain("row_to_json");
+    expect(sql).toContain("review.reviewer_user_id = :actorId");
+  });
+
   it("projects submitter display names for my submitted reviews", async () => {
     const query = vi.fn(async (sql: string) => sql.includes("FROM users")
       ? [{ id: "profile-one", email: "test@example.test", display_name: "App alias" }]

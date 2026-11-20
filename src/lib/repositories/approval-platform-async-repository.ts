@@ -844,6 +844,16 @@ export class AsyncApprovalPlatformRepository {
     const pdm = this.pdmInboxQuery({ ...sourceInput,
       supportedRequestKinds: ["drawing_revision", "drawing_rd_void", "part_change"] });
     const transfer = this.principalTransferInboxQuery(sourceInput);
+    if (input.summaryOnly && !input.query?.trim()) {
+      const queries = [pdm, transfer].filter(query => query !== null);
+      const counts = queries.map(query => `SELECT count(*) AS total FROM (${query.sql}) authorized`);
+      const result = counts.length ? await this.client.queryOne<{ total: number }>(
+        `SELECT sum(total)::int AS total FROM (${counts.join(" UNION ALL ")}) counts`,
+        { ...pdm?.params, ...transfer?.params }) : null;
+      const total = Number(result?.total ?? 0);
+      return { items: [], nextCursor: null, previousCursor: null,
+        summary: { total, pending: total, needsInfo: 0, applyFailed: 0 } };
+    }
     const sources: string[] = [];
     if (pdm) sources.push(`SELECT 'pdm_work_review' AS source, row_to_json(r)::jsonb AS payload,
       r.requested_at, :pdmPrefix || r.id AS row_key FROM (${pdm.sql}) r`);
