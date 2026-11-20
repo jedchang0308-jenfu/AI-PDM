@@ -35,7 +35,9 @@
 
 本次 RD 自查：針對性單元／UI 測試 105 passed，原生解析器 61 cases passed，型別、受影響檔案 ESLint、DEV-079／100 契約及隔離建置通過；affected-slice runner 的 FULL 來源測試通過。A0054 多檔、資料夾、完整編輯頁多檔及 ZIP 均以無視窗 Edge、任務隔離 PostgreSQL、實際 Windows worker／Document Manager 跑過，必要參照 passed、4 個實例的數量已讀回、下載 SHA256 一致，並驗證歷史包凍結。補 2D、缺 2D 拒絕、未掃描新包拒絕及實際送審交易的隔離回歸通過。這些是 RD 自查與 fixture 身分，不宣稱本次人工驗收或正式環境驗收。
 
-第一輪資料夾測試保留為失敗證據（外層目錄使參照未知），補上相鄰檔案配對後重測通過；第一輪完整頁測試的下載名稱預期誤用輸入 ZIP 名，修正為工作圖號後通過。證據位於試用工作樹 `output/qa/unified-upload`；實際 shared daily 1021／1020 畫面及 636 寬度檢查位於 `output/playwright/unified-upload-live`，該次檢查未修改共用業務資料。1021 保留本分支與本機解析器供試用，1020 保持 main；未推送、合併或正式部署。npm 安全查核尚未完成：隔離區 DNS 失敗，主機重試被自動核准審查拒絕，等待使用者允許送出依賴名稱與版本至 npm registry。
+第一輪資料夾測試保留為失敗證據（外層目錄使參照未知），補上相鄰檔案配對後重測通過；第一輪完整頁測試的下載名稱預期誤用輸入 ZIP 名，修正為工作圖號後通過。證據位於試用工作樹 `output/qa/unified-upload`；實際 shared daily 1021／1020 畫面及 636 寬度檢查位於 `output/playwright/unified-upload-live`，該次檢查未修改共用業務資料。1021 保留本分支與本機解析器供試用，1020 保持 main；未推送、合併或正式部署。
+
+2026-11-20 使用者明確允許將依賴名稱及版本送至 npm registry，補跑 `npm run audit:production`，exit 0，通過現行 `--omit=dev --audit-level=high` 門檻。仍有 1 low／4 moderate（fast-xml-parser、glob、minimatch，以及間接依賴 rimraf／google-gax）；這五個套件版本與本分支基底 main `f9d3e933` 相同，本次新增的 fflate 未出現在該次報告中。沒有執行 `npm audit fix` 或升級套件；原始查核紀錄保存於 `output/qa/unified-upload/dependency-audit-20261120.log`。先前 DNS／自動核准拒絕維持為歷史紀錄，本次已完成獲授權的查核。
 
 ### 圖號送審規則
 
