@@ -9,7 +9,7 @@ import type { CanonicalWorkbenchListDto } from "@/lib/pdm-canonical-workbench-co
 const lazyLoads = vi.hoisted(() => ({ drawer: 0 }));
 vi.mock("./canonical-workbench-drawer", () => {
   lazyLoads.drawer++;
-  return { CanonicalWorkbenchDrawer: () => <div role="complementary" aria-label="按需載入的明細">明細模組已載入</div> };
+  return { CanonicalWorkbenchDrawer: ({ detail, error }: { detail: { data: { row: { name: string }; sectionsError?: string } } | null; error: string }) => <div role="complementary" aria-label="按需載入的明細">明細模組已載入{detail?.data.row?.name}{detail?.data.sectionsError}{error}</div> };
 });
 vi.mock("next/navigation", () => ({ usePathname: () => "/parts", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/pdm-detail-drawer", () => ({ useRememberedDrawerWidth: () => ({ drawerWidth: 480, startDrawerResize: vi.fn() }) }));
@@ -104,4 +104,26 @@ it("keeps the detail module out of initial list rendering and loads it when a ro
   });
   expect(lazyLoads.drawer).toBe(1);
   expect(container.querySelector('[role="complementary"]')?.textContent).toContain("明細模組已載入");
+});
+
+
+it("keeps primary details visible if supplemental loading loses its connection", async () => {
+  const { fetcher } = setupFetch();
+  const fallback = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async input => {
+    const url = String(input);
+    if (url.includes("sections=primary")) return json({
+      data: { row: list("已顯示的主要資料").data.groups[0].rows[0], presentation: { kind: "part" } },
+      meta: { contractToken: "fixture" }
+    });
+    if (url.includes("sections=deferred")) throw new Error("fixture connection loss");
+    return fallback(input);
+  });
+  await render();
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>(".canonical-row-open")!.click();
+    await vi.dynamicImportSettled();
+  });
+  expect(container.textContent).toContain("已顯示的主要資料");
+  expect(container.textContent).toContain("補充明細載入失敗");
 });

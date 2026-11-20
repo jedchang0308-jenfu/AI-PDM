@@ -63,7 +63,12 @@ check("CPG-019 focus and accessible state do not rely on color", gallery.include
 check("CPG-020 cards expose identity, source, layer and handling", gallery.includes("row.code") && gallery.includes("row.name") && gallery.includes("preview.sourceLabel") && gallery.includes("row.layerLabel") && gallery.includes("row.handlingLabel"));
 check("CPG-021 loading/empty/error remain local", gallery.includes("正在載入預覽圖") && gallery.includes("沒有符合條件的資料") && component.includes("清單載入失敗"));
 check("CPG-022 responsive contain media exists", css.includes("canonical-preview-gallery") && css.includes("object-fit: contain") && css.includes("@media (max-width: 560px)"));
-check("CPG-023 list/detail Part share one resolver", service.match(/resolvePartPreviewsAsync/g)?.length === 3 && partService.includes("export async function resolvePartPreviewsAsync"));
+check("CPG-023 list/incremental/detail Part share one resolver",
+  ["async list(", "async previews(", "private async presentation("].every(signature => {
+    const start = service.indexOf(signature);
+    const end = service.indexOf("\n  }", start);
+    return start >= 0 && end > start && service.slice(start, end).includes("resolvePartPreviewsAsync(");
+  }) && partService.includes("export async function resolvePartPreviewsAsync"));
 check("CPG-024 feature is default-off and dependency-gated", feature.includes("PDM_PART_PREVIEW_V1") && feature.includes("WORKBENCH_PREVIEW_GALLERY_V1_FLAG") && feature.includes("UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG"));
 check("CPG-025 direct sharp and focused scripts are registered", packageJson.dependencies?.sharp === "0.35.5" && packageJson.scripts?.["qc:dev-065:part-preview"] && packageJson.scripts?.["qc:dev-065:postgres"]);
 check("CPG-026 Drawing adapter is thin and loader-free", drawingAdapter.includes("CanonicalPreviewPanel") && !drawingAdapter.includes("useEffect") && !drawingAdapter.includes("fetch("));

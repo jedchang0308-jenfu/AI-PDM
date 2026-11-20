@@ -694,6 +694,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     const controller = new AbortController();
     detailAbortRef.current = controller;
     setDetail(null); setDetailLoading(true); setDetailError("");
+    let primaryLoaded = false;
     try {
       const response = await fetch(`${config.detailEndpoint}/${encodeURIComponent(rowKey)}?sections=primary`, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
@@ -701,6 +702,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (!response.ok) setDetailError(errorMessage(body, "明細載入失敗"));
       else {
         const result = body as Detail;
+        primaryLoaded = true;
         setDetail({ ...result, data: { ...result.data, sectionsPending: true } }); setContractToken(result.meta.contractToken); setDetailLoading(false);
         const sectionsResponse = await fetch(`${config.detailEndpoint}/${encodeURIComponent(rowKey)}?sections=deferred`, { cache: "no-store", signal: controller.signal });
         const sections = await readJson(sectionsResponse) as { data: {
@@ -718,7 +720,11 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       }
     } catch (requestError) {
       if (requestId !== detailRequestRef.current || (requestError instanceof Error && requestError.name === "AbortError")) return;
-      setDetailError("明細載入失敗");
+      if (primaryLoaded) {
+        setDetail(current => current ? { ...current, data: {
+          ...current.data, sectionsPending: false, sectionsError: "補充明細載入失敗，請重新開啟明細。"
+        } } : current);
+      } else setDetailError("明細載入失敗");
     } finally {
       if (requestId === detailRequestRef.current) {
         detailAbortRef.current = null;
