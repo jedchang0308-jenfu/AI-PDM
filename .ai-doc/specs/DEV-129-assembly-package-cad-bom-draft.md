@@ -37,7 +37,7 @@
 
 第一輪資料夾測試保留為失敗證據（外層目錄使參照未知），補上相鄰檔案配對後重測通過；第一輪完整頁測試的下載名稱預期誤用輸入 ZIP 名，修正為工作圖號後通過。證據位於試用工作樹 `output/qa/unified-upload`；實際 shared daily 1021／1020 畫面及 636 寬度檢查位於 `output/playwright/unified-upload-live`，該次檢查未修改共用業務資料。1021 保留本分支與本機解析器供試用，1020 保持 main；未推送、合併或正式部署。
 
-2026-11-20 使用者明確允許將依賴名稱及版本送至 npm registry，補跑 `npm run audit:production`，exit 0，通過現行 `--omit=dev --audit-level=high` 門檻。仍有 1 low／4 moderate（fast-xml-parser、glob、minimatch，以及間接依賴 rimraf／google-gax）；這五個套件版本與本分支基底 main `f9d3e933` 相同，本次新增的 fflate 未出現在該次報告中。沒有執行 `npm audit fix` 或升級套件；原始查核紀錄保存於 `output/qa/unified-upload/dependency-audit-20261120.log`。先前 DNS／自動核准拒絕維持為歷史紀錄，本次已完成獲授權的查核。
+2026-11-20 使用者明確允許將依賴名稱及版本送至 npm registry，並要求升級套件後合併 main。先補跑 `npm run audit:production`，確認基底有 1 low／4 moderate；再將 fast-xml-parser 更新至 5.12.1，並以 scoped override 將 google-gax 的 rimraf 更新至 6.1.4、glob 14.0.6／minimatch 11.0.9，同時接受相容範圍內的開發工具修版。最終 `npm run audit:production` 與完整 `npm audit --json` 均為 0 vulnerabilities。修版後聚焦測試 105 passed、typecheck、受影響檔案 ESLint、隔離建置、A0054 真實資料夾流程及 affected-slice FULL 來源檢查通過。查核與升級紀錄保存於 `output/qa/unified-upload/dependency-*-20261120.*`。
 
 ### 圖號送審規則
 
