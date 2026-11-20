@@ -644,20 +644,25 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       previewPollRef.current.starts += 1;
       const controller = new AbortController();
       ownedController = controller;
-      const params = new URLSearchParams({ view: "previews" });
-      for (const row of groups.flatMap(group => group.rows)) {
+      const rowKeys = groups.flatMap(group => group.rows).filter(row => {
         const state = previewByRowKey[row.rowKey]?.state;
-        if (state === undefined || state === "pending" || state === "delayed") params.append("rowKey", row.rowKey);
-      }
+        return state === undefined || state === "pending" || state === "delayed";
+      }).map(row => row.rowKey);
       try {
-        const response = await fetch(`${config.listEndpoint}?${params}`, { cache: "no-store", signal: controller.signal });
-        const body = await readJson(response) as { data?: { previewByRowKey?: typeof previewByRowKey } };
-        if (active && generation === previewPollRef.current.generation && response.ok && body.data?.previewByRowKey) {
-          const updates = body.data.previewByRowKey;
-          setPreviewByRowKey(current => ({ ...current, ...updates }));
-        } else if (active && !response.ok) {
-          setPreviewPollingStopped(true);
+        const updates: typeof previewByRowKey = {};
+        for (let offset = 0; offset < rowKeys.length; offset += 100) {
+          const params = new URLSearchParams({ view: "previews" });
+          for (const key of rowKeys.slice(offset, offset + 100)) params.append("rowKey", key);
+          const response = await fetch(`${config.listEndpoint}?${params}`, { cache: "no-store", signal: controller.signal });
+          const body = await readJson(response) as { data?: { previewByRowKey?: typeof previewByRowKey } };
+          if (!active || generation !== previewPollRef.current.generation) return;
+          if (!response.ok || !body.data?.previewByRowKey) {
+            setPreviewPollingStopped(true);
+            return;
+          }
+          Object.assign(updates, body.data.previewByRowKey);
         }
+        setPreviewByRowKey(current => ({ ...current, ...updates }));
       } catch (cause) {
         if (!(cause instanceof Error && cause.name === "AbortError") && canPoll()) setPreviewPollingStopped(true);
       } finally {

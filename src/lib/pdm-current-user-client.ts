@@ -5,7 +5,8 @@ import { subscribePdmPermissionInvalidation, subscribePdmMutationInvalidation } 
 // One browser app session owns this response. Never persist identity to storage.
 let current: Promise<Response> | null = null;
 let identityGeneration = 0;
-subscribePdmPermissionInvalidation(() => { identityGeneration++; current = null; });
+export function clearCurrentPdmUser() { identityGeneration++; current = null; }
+subscribePdmPermissionInvalidation(clearCurrentPdmUser);
 
 export async function fetchCurrentPdmUser(): Promise<Response> {
   if (!current) {

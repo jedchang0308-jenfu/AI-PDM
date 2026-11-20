@@ -129,6 +129,23 @@ describe("returning to a workbench (captured hooks)", () => {
   });
 });
 
+it("batches preview requests when multiple drawing branches exceed 100 rows", async () => {
+  const { h, fetch } = await start("missing");
+  const many = Array.from({ length: 201 }, (_, i) => ({ ...row, rowKey: "branch-" + i }));
+  const loaded = { data: { groups: [{ rows: many }], previewEnabled: true, nextCursor: null, previousCursor: null }, meta: { contractToken: "fixture" } };
+  fetch.mockImplementationOnce(async () => new Response(JSON.stringify(loaded)));
+  fetch.mockImplementation(async input => {
+    const keys = new URL(String(input), "http://fixture").searchParams.getAll("rowKey");
+    expect(keys.length).toBeLessThanOrEqual(100);
+    return new Response(JSON.stringify({ data: { previewByRowKey: Object.fromEntries(keys.map(key => [key, { state: "missing", media: null }])) } }));
+  });
+  await h.load("new-many-row-page"); h.render();
+  await vi.advanceTimersByTimeAsync(0); h.render();
+  const requests = fetch.mock.calls.map(([input]) => new URL(String(input), "http://fixture")).filter(url => url.searchParams.get("view") === "previews");
+  expect(requests).toHaveLength(3);
+  expect(requests.flatMap(url => url.searchParams.getAll("rowKey"))).toEqual(many.map(item => item.rowKey));
+});
+
 describe("DEV122 imported workbench list polling lifetime (captured hooks)", () => {
   it.each(["pending", "delayed"])("%s stops after 30 actual background starts, including equivalent rerenders", async state => {
     const { h, fetch } = await start(state);
