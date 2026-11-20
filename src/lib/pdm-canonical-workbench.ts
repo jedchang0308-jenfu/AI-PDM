@@ -53,7 +53,7 @@ export class PdmCanonicalWorkbenchService {
     const { result, previewByRowKey } = await withPdmWorkbenchReadSnapshot(this.client, async (snapshot) => {
       const repository = new PdmCanonicalWorkbenchAsyncRepository(snapshot);
       const result = await repository.listWithinSnapshot(snapshot, { companyId: actor.companyId, entityType, query,
-        includeTotals: url.searchParams.get("includeTotals") === "true", includePreviews });
+        includeTotals: url.searchParams.get("includeTotals") !== "false", includePreviews });
       const visibleRows = result.groups.flatMap((group) => group.rows);
       const rowKeysByPartId = partPreviewEnabled ? Object.fromEntries(
         [...new Set(visibleRows.map((row) => row.canonicalEntityId))].map((partId) => [

@@ -306,7 +306,6 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const previewPollRef = useRef({ starts: 0, generation: 0, timer: null as number | null });
   const listAbortRef = useRef<AbortController | null>(null);
   const listRequestRef = useRef(0);
-  const listPageRef = useRef<{ cursor: string | null; direction: "after" | "before" }>({ cursor: null, direction: "after" });
   const restoredPageRef = useRef<{ cursor: string | null; direction: "after" | "before" } | null>(null);
   const entryCommandKeysRef = useRef(new Map<string, string>());
 
@@ -479,6 +478,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     const params = new URLSearchParams();
     params.set("limit", "100");
     params.set("includePreviews", "false");
+    params.set("includeTotals", "false");
     if (query.trim()) params.set("query", query.trim());
     serializePdmWorkbenchFilterSelection(params, "layer", layer);
     serializePdmWorkbenchFilterSelection(params, "handling", handling);
@@ -498,33 +498,29 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     return seriesFilterOptionsFromResponse({ seriesCodeOptions: [...seriesOptions.map((option) => option.value), ...selectedValues] });
   }, [seriesFilter, seriesOptions]);
 
-  const load = useCallback(async (cursor?: string | null, direction: "after" | "before" = "after", options?: { background?: boolean }) => {
-    const background = options?.background === true;
-    if (background && (listAbortRef.current || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS)) return;
-    if (!background) {
-      // Only a foreground load opens a fresh budget; payload/effect changes do not.
-      previewPollRef.current.generation += 1;
-      setPreviewPollGeneration(previewPollRef.current.generation);
-      previewPollRef.current.starts = 0;
-      if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
-      previewPollRef.current.timer = null;
-      setPreviewPollingStopped(false);
-      listAbortRef.current?.abort();
-    }
+  const load = useCallback(async (cursor?: string | null, direction: "after" | "before" = "after") => {
+    // A new list request starts a new preview polling episode.
+    previewPollRef.current.generation += 1;
+    setPreviewPollGeneration(previewPollRef.current.generation);
+    previewPollRef.current.starts = 0;
+    if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
+    previewPollRef.current.timer = null;
+    setPreviewPollingStopped(false);
+    listAbortRef.current?.abort();
     const generation = previewPollRef.current.generation;
     const requestId = ++listRequestRef.current;
     const controller = new AbortController();
     listAbortRef.current = controller;
-    if (!background) { setLoading(true); setError(""); }
+    setLoading(true); setError("");
     if (retiredQuery) {
-      if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setError("此篩選網址已失效"); setLoading(false); }
+      setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setError("此篩選網址已失效"); setLoading(false);
       if (listRequestRef.current === requestId) listAbortRef.current = null;
       return;
     }
     const separator = listUrl.includes("?") ? "&" : "?";
     const requestUrl = cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl;
     const cacheGeneration = workbenchCache.generation();
-    const cached = !background ? workbenchCache.readList(requestUrl) : null;
+    const cached = workbenchCache.readList(requestUrl);
     if (cached) {
       setGroups(cached.groups);
       setPreviewCapability(cached.previewEnabled ?? cached.previewByRowKey !== undefined);
@@ -536,7 +532,6 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       return;
     }
     try {
-      if (background) previewPollRef.current.starts += 1;
       const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation) return;
@@ -544,20 +539,19 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         workbenchCache.clear(false);
         const message = errorMessage(body, "清單載入失敗");
         setError(message);
-        if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
+        setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
         return;
       }
-      if (cacheGeneration !== workbenchCache.generation()) { if (!background) setLoading(false); return; }
+      if (cacheGeneration !== workbenchCache.generation()) { setLoading(false); return; }
       const result = body as CanonicalWorkbenchListDto;
       const previewContractError = validatePreviewMapContract(result.data.groups, result.data.previewByRowKey);
       if (previewContractError) {
         workbenchCache.clear(false);
         setGroups([]); setPreviewByRowKey({});
         setError(`預覽資料契約錯誤：${previewContractError}`);
-        if (!background) setLoading(false);
+        setLoading(false);
         return;
       }
-      listPageRef.current = { cursor: cursor ?? null, direction };
       workbenchCache.writeList(requestUrl, result.data, cacheGeneration);
       setGroups(result.data.groups);
       const hasPreviewCapability = result.data.previewEnabled ?? result.data.previewByRowKey !== undefined;
@@ -569,11 +563,10 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation || (requestError instanceof Error && requestError.name === "AbortError")) return;
       workbenchCache.clear(false);
       setError("清單載入失敗");
-      if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
+      setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
     } finally {
       if (requestId === listRequestRef.current) {
         listAbortRef.current = null;
-        if (background && generation === previewPollRef.current.generation && previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) setPreviewPollingStopped(true);
       }
     }
   }, [listUrl, retiredQuery, workbenchCache]);
