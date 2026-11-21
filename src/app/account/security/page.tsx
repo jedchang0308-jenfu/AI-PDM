@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchCurrentPdmUser } from "@/lib/pdm-current-user-client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, MonitorSmartphone, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
@@ -61,7 +63,7 @@ export default function AccountSecurityPage() {
     setMessage(null);
     const [sessionResponse, meResponse] = await Promise.all([
       fetch("/api/account/sessions", { cache: "no-store" }),
-      fetch("/api/auth/me", { cache: "no-store" })
+      fetchCurrentPdmUser()
     ]);
     const sessionBody = await sessionResponse.json().catch(() => ({}));
     const meBody = await meResponse.json().catch(() => ({}));

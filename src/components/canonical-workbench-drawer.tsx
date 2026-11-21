@@ -205,6 +205,8 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   >
     {loading ? <p className="canonical-drawer-message"><LoadingIndicator>正在載入明細…</LoadingIndicator></p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body" inert={submitting}>
        <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
+       {detail.data.sectionsPending ? <p role="status"><LoadingIndicator>補充資料載入中…</LoadingIndicator></p> : null}
+       {detail.data.sectionsError ? <p role="alert">{detail.data.sectionsError}</p> : null}
        <DetailRecognitionSections detail={detail} />
        {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}
       {presentation.kind === "part" && presentation.preview ? <CanonicalPartPreviewSection
@@ -215,7 +217,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
         onCommitted={(result) => onPartPreviewCommitted(detail.data.row, result)}
       /> : null}
       {presentation.kind === "part" ? <section data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3><AttachmentManagementAction allowed={canManageAttachments} onClick={() => onManageAttachments(detail.data.row)} /></div>{presentation.files.length ? <ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul> : <p className="canonical-empty">尚無附件</p>}</section> : presentation.files.length ? <section><h3>圖面檔案</h3><ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul></section> : null}
-      {presentation.kind === "drawing" || presentation.kind === "part" ? <>
+      {!detail.data.sectionsPending && !detail.data.sectionsError && (presentation.kind === "drawing" || presentation.kind === "part") ? <>
         <CanonicalRelationMatrixSection
         matrix={presentation.relationMatrix}
         contractToken={detail.meta.contractToken}
@@ -236,7 +238,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
         onOpenPart={onOpenMatrixPart}
       /></> : null}
       {detail.data.row.handling === "blocked" ? <section className="canonical-blocker"><h3>受阻資訊</h3><p>{detail.data.row.blockerReason || "請系統管理員處理"}</p></section> : null}
-      {presentation.kind === "drawing" ? historyRevisionId ? <DrawingHistoryRevision drawingId={presentation.history.find((history) => history.id === historyRevisionId)?.drawingId ?? detail.data.row.entityId} revisionId={historyRevisionId} onBack={() => onHistoryRevisionChange(null)} /> : <section><h3>歷史版次清單</h3>{presentation.history.length ? <ul className="canonical-record-list">{presentation.history.map((history) => <li className="canonical-record" key={history.id}><button type="button" className="canonical-history-open" onClick={() => onHistoryRevisionChange(history.id)}><strong>{history.layerLabel} {history.revision}</strong><span>開啟指定版次</span></button></li>)}</ul> : <p className="canonical-empty">目前沒有歷史版次</p>}</section> : null}
+      {!detail.data.sectionsPending && !detail.data.sectionsError && presentation.kind === "drawing" ? historyRevisionId ? <DrawingHistoryRevision drawingId={presentation.history.find((history) => history.id === historyRevisionId)?.drawingId ?? detail.data.row.entityId} revisionId={historyRevisionId} onBack={() => onHistoryRevisionChange(null)} /> : <section><h3>歷史版次清單</h3>{presentation.history.length ? <ul className="canonical-record-list">{presentation.history.map((history) => <li className="canonical-record" key={history.id}><button type="button" className="canonical-history-open" onClick={() => onHistoryRevisionChange(history.id)}><strong>{history.layerLabel} {history.revision}</strong><span>開啟指定版次</span></button></li>)}</ul> : <p className="canonical-empty">目前沒有歷史版次</p>}</section> : null}
     </div> : null}
   </PdmEntityDetailDrawer>;
 }

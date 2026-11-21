@@ -26,7 +26,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}`,
+      const response = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}?includePrimary=true`,
         { cache: "no-store" });
       const body = await response.json().catch(() => ({})) as ReviewResponse;
       if (!response.ok) {

@@ -1,3 +1,5 @@
+import { readPrincipalReviewTarget } from "@/lib/pdm-principal-review-target";
+import { compareReviewTarget } from "@/lib/pdm-review-package";
 import { canAccessWorkReviewAssignment } from "@/lib/pdm-work-review";
 import { SHARED_REVIEW_ENTRY_PERMISSIONS } from "@/lib/approval-workbench-contract";
 import crypto from "node:crypto";
@@ -30,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
       }
       const { requestId } = await params;
       return await withVerifiedJenfuPrincipalRequest(await principalRequestInput(principalToken, request),
-        (tx, verified) => readWorkReview(tx, requestId, verified),
+        (tx, verified) => readWorkReview(tx, requestId, verified, new URL(request.url).searchParams.get("includePrimary") === "true"),
         { readOnly: true, isolationLevel: "repeatable_read" });
     } catch (error) {
       return error instanceof JenfuPrincipalRequestError
@@ -41,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
 }
 
 async function readWorkReview(client: AsyncDatabaseClient, requestId: string,
-  verified: VerifiedPrincipalRequest) {
+  verified: VerifiedPrincipalRequest, includePrimary = false) {
   const actor = { id: verified.profile.pdmUserId, companyId: verified.profile.companyId };
   try {
     const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: actor.companyId, requestId });
@@ -154,7 +156,19 @@ async function readWorkReview(client: AsyncDatabaseClient, requestId: string,
         dev087RequestHash(basis) === packageValue.decisionBasis.hash
         ? "current" : "stale";
     }
+    let initialTarget;
+    if (includePrimary) {
+      const selected = visibleTargets.find(target => target.targetKey === packageValue.primaryTargetKey);
+      if (selected) {
+        const primary = splitReviewPackageTargetKey(selected.targetKey);
+        const read = await readPrincipalReviewTarget(client, verified, {
+          requestId: item.id, entityType: primary.entityType, entityId: primary.targetId
+        });
+        initialTarget = { ...read.target, drift: compareReviewTarget(read.target, read.current) };
+      }
+    }
     return Response.json({ data: {
+      ...(initialTarget ? { initialTarget } : {}),
       schemaVersion: packageValue.schemaVersion,
       requestId: item.id,
       requestKind: item.requestKind,

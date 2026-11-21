@@ -818,9 +818,10 @@ export class AsyncApprovalPlatformRepository {
   }
 
   async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & {
-    companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean
+    companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean; summaryOnly?: boolean
   }):
     Promise<ApprovalPlatformInboxPage> {
+    if (this.client.kind === "postgres") return this.principalInboxPage(input);
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const [reviews, transferReviews] = await Promise.all([
       this.listPdmWorkReviewInbox({ ...input, query: undefined, cursor: null, limit: undefined, supportedRequestKinds:
@@ -833,6 +834,93 @@ export class AsyncApprovalPlatformRepository {
       if (item.requestedBy) item.requestedByName = names.get(item.requestedBy) ?? null;
     }
     return paginateInboxItems(items, input, limit);
+  }
+
+  private async principalInboxPage(input: ApprovalPlatformInboxFilter & {
+    companyId: string; actorId: string; principalId: string;
+    sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean; summaryOnly?: boolean
+  }): Promise<ApprovalPlatformInboxPage> {
+    const sourceInput = { ...input, cursor: null, query: undefined, limit: undefined };
+    const pdm = this.pdmInboxQuery({ ...sourceInput,
+      supportedRequestKinds: ["drawing_revision", "drawing_rd_void", "part_change"] });
+    const transfer = this.principalTransferInboxQuery(sourceInput);
+    if (input.summaryOnly && !input.query?.trim()) {
+      const queries = [pdm, transfer].filter(query => query !== null);
+      const counts = queries.map(query => `SELECT count(*) AS total FROM (${query.sql}) authorized`);
+      const result = counts.length ? await this.client.queryOne<{ total: number }>(
+        `SELECT sum(total)::int AS total FROM (${counts.join(" UNION ALL ")}) counts`,
+        { ...pdm?.params, ...transfer?.params }) : null;
+      const total = Number(result?.total ?? 0);
+      return { items: [], nextCursor: null, previousCursor: null,
+        summary: { total, pending: total, needsInfo: 0, applyFailed: 0 } };
+    }
+    const sources: string[] = [];
+    if (pdm) sources.push(`SELECT 'pdm_work_review' AS source, row_to_json(r)::jsonb AS payload,
+      r.requested_at, :pdmPrefix || r.id AS row_key FROM (${pdm.sql}) r`);
+    if (transfer) sources.push(`SELECT 'platform' AS source, row_to_json(r)::jsonb AS payload,
+      r.requested_at, :transferPrefix || r.id AS row_key FROM (${transfer.sql}) r`);
+    if (!sources.length) return { items: [], nextCursor: null, previousCursor: null,
+      summary: { total: 0, pending: 0, needsInfo: 0, applyFailed: 0 } };
+    const sourceSql = sources.join(" UNION ALL ");
+    const sourceParams = { ...pdm?.params, ...transfer?.params, pdmPrefix: "approval:pdm_work_review:", transferPrefix: "approval:platform:" };
+    // Search uses the same person name precedence as rendered rows. Ordinary
+    // entry and count requests resolve names only for the returned page.
+    let searchNames: Map<string, string> | undefined;
+    if (input.query?.trim()) {
+      const ids = await this.client.query<{ requested_by: string }>(
+        `SELECT DISTINCT payload->>'requested_by' AS requested_by FROM (${sourceSql}) visible`, sourceParams);
+      searchNames = await readPdmPersonDisplayNames(this.client, input.companyId, ids.map(row => row.requested_by));
+    }
+    const before = input.cursor?.direction === "before";
+    const cursorWhere = input.cursor
+      ? before
+        ? "requested_at > :cursorAt OR (requested_at = :cursorAt AND row_key COLLATE \"C\" < :cursorKey)"
+        : "requested_at < :cursorAt OR (requested_at = :cursorAt AND row_key COLLATE \"C\" > :cursorKey)"
+      : "TRUE";
+    const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
+    const response = await this.client.queryOne<{ total: number; page: Array<{
+      source: "pdm_work_review" | "platform"; payload: PdmWorkReviewInboxRow | PrincipalTransferReviewRow
+    }> }>(`WITH sources AS (${sourceSql}), searchable AS (
+      SELECT *, concat_ws(' ', payload->>'id', payload->>'requested_by',
+        COALESCE(CAST(:searchNames AS jsonb)->>(payload->>'requested_by'), payload->>'requested_by_name'),
+        CASE WHEN source = 'platform' THEN '技轉包審核 ' || COALESCE(payload->>'title','') || ' ' || COALESCE(payload->>'transfer_package_id','')
+        ELSE (CASE payload->>'request_kind'
+          WHEN 'drawing_revision' THEN '圖面研發版審核'
+          WHEN 'drawing_rd_void' THEN '圖面研發版作廢審核'
+          ELSE '料號變更審核' END) || ' - ' ||
+          COALESCE(payload->>'target_code',payload->>'canonical_entity_id','') || ' / ' ||
+          CASE WHEN payload->>'entity_type' = 'drawing' AND payload->>'revision' IS NOT NULL
+            THEN '研發版 ' || (payload->>'revision') ELSE COALESCE(payload->>'target_name','') END END
+      ) AS search_text FROM sources
+    ), filtered AS (
+      SELECT * FROM searchable WHERE :needle = '' OR strpos(lower(search_text), :needle) > 0
+    ), page AS (
+      SELECT source, payload, requested_at, row_key FROM filtered WHERE ${cursorWhere}
+      ORDER BY requested_at ${before ? "ASC" : "DESC"}, row_key COLLATE "C" ${before ? "DESC" : "ASC"}
+      LIMIT :pageLimit
+    ) SELECT (SELECT count(*)::int FROM filtered) AS total,
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('source',source,'payload',payload)
+        ORDER BY requested_at DESC, row_key COLLATE "C" ASC) FROM page), '[]'::jsonb) AS page`,
+    { ...sourceParams, searchNames: JSON.stringify(Object.fromEntries(searchNames ?? [])),
+      needle: input.query?.trim().toLocaleLowerCase("zh-Hant") ?? "",
+      cursorAt: input.cursor?.sortValue ?? "", cursorKey: input.cursor?.rowKey ?? "",
+      pageLimit: input.summaryOnly ? 0 : limit + 1 });
+    let rows = response?.page ?? [];
+    const more = rows.length > limit;
+    if (more) rows = before ? rows.slice(1) : rows.slice(0, limit);
+    const items = rows.flatMap(row => row.source === "pdm_work_review"
+      ? this.listPdmWorkReviewInboxRows([row.payload as PdmWorkReviewInboxRow])
+      : this.listPrincipalTransferReviewInboxRows([row.payload as PrincipalTransferReviewRow]));
+    const names = searchNames ?? await readPdmPersonDisplayNames(this.client, input.companyId, items.map(item => item.requestedBy));
+    for (const item of items) if (item.requestedBy) item.requestedByName = names.get(item.requestedBy) ?? null;
+    const first = items[0], last = items.at(-1);
+    const cursor = (item: ApprovalPlatformInboxItem, direction: "before" | "after") => ({
+      sortValue: item.requestedAt, rowKey: item.rowKey, direction
+    });
+    return { items,
+      nextCursor: last && (before ? Boolean(input.cursor) : more) ? cursor(last, "after") : null,
+      previousCursor: first && (before ? more : Boolean(input.cursor)) ? cursor(first, "before") : null,
+      summary: { total: Number(response?.total ?? 0), pending: Number(response?.total ?? 0), needsInfo: 0, applyFailed: 0 } };
   }
 
   async listPrincipalSubmittedReviews(input: ApprovalPlatformInboxFilter & {
@@ -942,16 +1030,16 @@ export class AsyncApprovalPlatformRepository {
     };
   }
 
-  private async listPrincipalTransferReviewInbox(input: ApprovalPlatformInboxFilter &
-    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean }): Promise<ApprovalPlatformInboxItem[]> {
-    if (this.client.kind !== "postgres" || !input.principalId || !input.actorId) return [];
-    if (input.domainCode && input.domainCode !== "transfer") return [];
-    if (input.actionCode && input.actionCode !== "transfer.package_review") return [];
-    if (input.status && !["active", "all", "pending"].includes(input.status)) return [];
+  private principalTransferInboxQuery(input: ApprovalPlatformInboxFilter &
+    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean }) {
+    if (this.client.kind !== "postgres" || !input.principalId || !input.actorId) return null;
+    if (input.domainCode && input.domainCode !== "transfer") return null;
+    if (input.actionCode && input.actionCode !== "transfer.package_review") return null;
+    if (input.status && !["active", "all", "pending"].includes(input.status)) return null;
     const search = approvalSearchPredicate(input.query, [
       "request.id", "request.title", "reviewer_name.display_name", "package.id"
     ]);
-    const rows = await this.client.query<PrincipalTransferReviewRow>(`
+    return { sql: `
       SELECT request.id, request.company_id, request.title, request.reason,
              request.requested_by, reviewer_name.display_name AS requested_by_name,
              request.requested_at::text, package.id AS transfer_package_id,
@@ -976,8 +1064,11 @@ export class AsyncApprovalPlatformRepository {
         )
         ${search.sql}
       ORDER BY request.requested_at DESC, request.id DESC
-    `, { companyId: input.companyId, principalId: input.principalId,
-      actorId: input.actorId, includeAssigned: input.includeAssigned !== false, ...search.params });
+    `, params: { companyId: input.companyId, principalId: input.principalId,
+      actorId: input.actorId, includeAssigned: input.includeAssigned !== false, ...search.params } };
+  }
+
+  private listPrincipalTransferReviewInboxRows(rows: PrincipalTransferReviewRow[]): ApprovalPlatformInboxItem[] {
     return rows.map((row) => ({
       rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id, source: "platform" as const, companyId: row.company_id,
@@ -990,6 +1081,14 @@ export class AsyncApprovalPlatformRepository {
       primaryTarget: { type: "transfer_package", targetId: row.transfer_package_id,
         code: row.transfer_package_id, label: row.title }
     }));
+  }
+
+  private async listPrincipalTransferReviewInbox(input: ApprovalPlatformInboxFilter &
+    { companyId: string; actorId: string; principalId: string; sharedAccess?: SharedReviewInboxAccess; includeAssigned?: boolean }): Promise<ApprovalPlatformInboxItem[]> {
+    const query = this.principalTransferInboxQuery(input);
+    if (!query) return [];
+    const rows = await this.client.query<PrincipalTransferReviewRow>(query.sql, query.params);
+    return this.listPrincipalTransferReviewInboxRows(rows);
   }
 
   async getRequestDetail(id: string, companyId = DEFAULT_COMPANY_ID): Promise<ApprovalPlatformRequestDetail | null> {
@@ -1276,7 +1375,7 @@ export class AsyncApprovalPlatformRepository {
     return items;
   }
 
-  private async listPdmWorkReviewInbox(input: {
+  private pdmInboxQuery(input: {
     companyId: string;
     actorId?: string;
     status?: "active" | "all" | ApprovalPlatformStatus;
@@ -1289,10 +1388,10 @@ export class AsyncApprovalPlatformRepository {
     sharedAccess?: SharedReviewInboxAccess;
     includeAssigned?: boolean;
     limit?: number;
-  }): Promise<ApprovalPlatformInboxItem[]> {
-    if (!input.actorId) return [];
-    if (input.domainCode?.trim() && input.domainCode.trim() !== "numbering") return [];
-    if (input.status && !["active", "all", "pending"].includes(input.status)) return [];
+  }) {
+    if (!input.actorId) return null;
+    if (input.domainCode?.trim() && input.domainCode.trim() !== "numbering") return null;
+    if (input.status && !["active", "all", "pending"].includes(input.status)) return null;
 
     const requestedAction = input.actionCode?.trim();
     const allowedActions = input.allowedActionCodes?.map((value) => value.trim()).filter(Boolean);
@@ -1304,7 +1403,7 @@ export class AsyncApprovalPlatformRepository {
       .filter(([, action]) => !requestedAction || action.actionCode === requestedAction)
       .filter(([, action]) => !allowedActions?.length || allowedActions.some((value) => value === action.actionCode || value.replace(/^numbering\./u, "") === action.actionCode.replace(/^numbering\./u, "")))
       .map(([kind]) => kind);
-    if (!requestKinds.length) return [];
+    if (!requestKinds.length) return null;
 
     const kindParams = Object.fromEntries(requestKinds.map((kind, index) => [`pdmRequestKind${index}`, kind]));
     const search = approvalSearchPredicate(input.query, [
@@ -1328,7 +1427,7 @@ export class AsyncApprovalPlatformRepository {
     const shared = this.client.kind === "postgres" ? input.sharedAccess : undefined;
     const requesterId = `COALESCE(${shared ? "review.submitted_by, " : ""}drawing_work.owner_user_id,
       part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by)`;
-    const rows = await this.client.query<PdmWorkReviewInboxRow>(
+    return { sql:
       `
       SELECT
         review.id,
@@ -1393,8 +1492,7 @@ export class AsyncApprovalPlatformRepository {
         ${cursorSql}
       ORDER BY review.created_at ${order}
       ${input.limit ? "LIMIT :limit" : ""}
-    `,
-      {
+    `, params: {
         companyId: input.companyId,
         actorId: input.actorId,
         ...(input.limit ? { limit: input.limit } : {}),
@@ -1406,9 +1504,10 @@ export class AsyncApprovalPlatformRepository {
           sharedPublishDrawing: shared.publishDrawing, sharedPublishPart: shared.publishPart
         } : {}),
         ...(cursor ? { pdmCursorSortValue: cursor.sortValue, pdmCursorRowKey: cursor.rowKey, pdmRowKeyPrefix: "approval:pdm_work_review:" } : {})
-      }
-    );
+      } };
+  }
 
+  private listPdmWorkReviewInboxRows(rows: PdmWorkReviewInboxRow[]): ApprovalPlatformInboxItem[] {
     return rows.map((row) => {
       const action = PDM_WORK_REVIEW_ACTIONS[row.request_kind];
       const code = row.target_code ?? row.canonical_entity_id;
@@ -1442,6 +1541,26 @@ export class AsyncApprovalPlatformRepository {
         }
       };
     });
+  }
+
+  private async listPdmWorkReviewInbox(input: {
+    companyId: string;
+    actorId?: string;
+    status?: "active" | "all" | ApprovalPlatformStatus;
+    domainCode?: string;
+    actionCode?: string;
+    allowedActionCodes?: string[];
+    query?: string;
+    cursor?: ApprovalPlatformInboxCursor | null;
+    supportedRequestKinds?: readonly PdmWorkReviewRequestKind[];
+    sharedAccess?: SharedReviewInboxAccess;
+    includeAssigned?: boolean;
+    limit?: number;
+  }): Promise<ApprovalPlatformInboxItem[]> {
+    const query = this.pdmInboxQuery(input);
+    if (!query) return [];
+    const rows = await this.client.query<PdmWorkReviewInboxRow>(query.sql, query.params);
+    return this.listPdmWorkReviewInboxRows(rows);
   }
 
   private statusWhereClause(column: string, status: "active" | "all" | ApprovalPlatformStatus = "active") {

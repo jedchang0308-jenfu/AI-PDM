@@ -7,6 +7,11 @@ vi.mock('next/navigation',()=>({usePathname:()=> '/',useRouter:()=>({push:vi.fn(
 vi.mock('next/link',()=>({default:({children,prefetch:_prefetch,...props}:React.AnchorHTMLAttributes<HTMLAnchorElement>&{prefetch?:boolean})=><a {...props}>{children}</a>}))
 vi.mock('@/components/pdm-permission-provider',()=>({usePdmPermissions:()=>({state:{kind:'ready',projection:{pages:{},actions:{}}}})}))
 vi.mock('@/lib/pdm-permission-client',()=>({pdmPermissionFetch:(...args:unknown[])=>state.fetch(...args),invalidatePdmPermissions:vi.fn()}))
+vi.mock('@/lib/pdm-current-user-client',()=>({
+  fetchCurrentPdmUser:()=>state.fetch('/api/auth/me'),
+  fetchPendingPdmApprovalCount:()=>state.fetch('/api/approvals/inbox?view=count'),
+  clearPendingPdmApprovalCount:vi.fn()
+}))
 import { SidebarNav } from './sidebar-nav'
 afterEach(()=>{vi.clearAllMocks();document.body.innerHTML='';window.localStorage.clear()})
 describe('DEV-127 normal sidebar signed-in name',()=>{

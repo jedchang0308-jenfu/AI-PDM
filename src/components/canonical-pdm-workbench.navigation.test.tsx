@@ -9,7 +9,7 @@ import type { CanonicalWorkbenchListDto } from "@/lib/pdm-canonical-workbench-co
 const lazyLoads = vi.hoisted(() => ({ drawer: 0 }));
 vi.mock("./canonical-workbench-drawer", () => {
   lazyLoads.drawer++;
-  return { CanonicalWorkbenchDrawer: () => <div role="complementary" aria-label="按需載入的明細">明細模組已載入</div> };
+  return { CanonicalWorkbenchDrawer: ({ detail, error }: { detail: { data: { row: { name: string }; sectionsError?: string } } | null; error: string }) => <div role="complementary" aria-label="按需載入的明細">明細模組已載入{detail?.data.row?.name}{detail?.data.sectionsError}{error}</div> };
 });
 vi.mock("next/navigation", () => ({ usePathname: () => "/parts", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/pdm-detail-drawer", () => ({ useRememberedDrawerWidth: () => ({ drawerWidth: 480, startDrawerResize: vi.fn() }) }));
@@ -63,32 +63,24 @@ function setupFetch() {
   return { fetcher, defer() { let finish!: (response: Response) => void; pending = new Promise(resolve => { finish = resolve; }); return finish; } };
 }
 
-it("renders a returning list before revalidation completes, shares series, and replaces with fresh data", async () => {
-  const { fetcher, defer } = setupFetch();
-  await render();
+it("returns to a cached list without another GET and loads series only when opened", async () => {
+  const { fetcher } = setupFetch();
+  await render(); await render(false); await render();
   expect(container.textContent).toContain("原先的清單");
-  expect(vi.getTimerCount()).toBe(0);
-  await render(false);
-  const finish = defer();
-  await render();
-  expect(container.textContent).toContain("原先的清單");
-  expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
-  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(1);
+  expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/series-codes")).toHaveLength(0);
+  const trigger = [...container.querySelectorAll("button")].find(button => button.closest(".pdm-workbench-multi-select-filter")?.textContent?.startsWith("系列"))!;
+  await act(async () => trigger.click());
   expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/series-codes")).toHaveLength(1);
-  expect(fetcher.mock.calls.filter(([url]) => url === "/api/numbering/permissions")).toHaveLength(1);
-  await act(async () => finish(json(list("伺服器新資料"))));
-  expect(container.textContent).toContain("伺服器新資料");
-  expect(container.textContent).not.toContain("原先的清單");
 });
 
-it.each([401, 403, 503])("removes restored rows after HTTP %i without keeping a successful-looking list", async status => {
-  const { defer } = setupFetch();
+it("refreshes a returning list after the 30 second cache expires", async () => {
+  const { fetcher } = setupFetch();
   await render(); await render(false);
-  const finish = defer(); await render();
-  expect(container.textContent).toContain("原先的清單");
-  await act(async () => finish(json({ message: "無法讀取清單" }, status)));
-  expect(container.textContent).not.toContain("原先的清單");
-  expect(container.querySelector('[role="alert"]')).not.toBeNull();
+  await act(async () => vi.advanceTimersByTimeAsync(30_001));
+  await render();
+  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
 });
 
 it("clears visible cached rows at logout and rejects an older pending response", async () => {
@@ -112,4 +104,26 @@ it("keeps the detail module out of initial list rendering and loads it when a ro
   });
   expect(lazyLoads.drawer).toBe(1);
   expect(container.querySelector('[role="complementary"]')?.textContent).toContain("明細模組已載入");
+});
+
+
+it("keeps primary details visible if supplemental loading loses its connection", async () => {
+  const { fetcher } = setupFetch();
+  const fallback = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async input => {
+    const url = String(input);
+    if (url.includes("sections=primary")) return json({
+      data: { row: list("已顯示的主要資料").data.groups[0].rows[0], presentation: { kind: "part" } },
+      meta: { contractToken: "fixture" }
+    });
+    if (url.includes("sections=deferred")) throw new Error("fixture connection loss");
+    return fallback(input);
+  });
+  await render();
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>(".canonical-row-open")!.click();
+    await vi.dynamicImportSettled();
+  });
+  expect(container.textContent).toContain("已顯示的主要資料");
+  expect(container.textContent).toContain("補充明細載入失敗");
 });

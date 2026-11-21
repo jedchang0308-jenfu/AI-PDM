@@ -232,7 +232,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
 
   async listWithinSnapshot(
     client: AsyncDatabaseClient,
-    input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery }
+    input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery; includeTotals?: boolean; includePreviews?: boolean }
   ) {
       const domain = domainSql(input.entityType);
       const layerValues = input.query.layers.map((layer) => dataLayers[input.entityType][layer]).filter((value): value is CanonicalDataLayer => Boolean(value));
@@ -333,9 +333,40 @@ export class PdmCanonicalWorkbenchAsyncRepository {
           ORDER BY ${sortExpression} ${direction}, ${domain.code} ${direction}, entity.id ${direction}, state.updated_at DESC, state.id`,
         { ...commonParams, ...entityList.params }
       );
+      const { previewSources, previewDerivativeJobs } = input.includePreviews !== false && input.entityType === "drawing"
+        ? await this.readDrawingPreviews(client, input.companyId, rows)
+        : { previewSources: [], previewDerivativeJobs: [] };
+      const count = input.includeTotals !== false ? await client.queryOne<{ total_groups: number | string; total_rows: number | string }>(
+        `SELECT COUNT(DISTINCT state.canonical_entity_id) AS total_groups, COUNT(*) AS total_rows
+           FROM canonical_workbench_states state
+           JOIN ${domain.table} entity ON entity.id = state.canonical_entity_id AND entity.company_id = state.company_id
+           ${domain.joins}
+          WHERE ${match}`,
+        commonParams
+      ) : null;
+      const byAggregate = new Map<string, CanonicalWorkbenchStateRecord[]>();
+      rows.map(toRecord).forEach((row) => byAggregate.set(row.aggregateId, [...(byAggregate.get(row.aggregateId) ?? []), row]));
+      const groups = orderedPage.map((identity) => ({
+        groupKey: canonicalGroupKey(identity.aggregate_id),
+        rows: byAggregate.get(identity.aggregate_id) ?? []
+      })).filter((group) => group.rows.length > 0);
+      const first = orderedPage.at(0);
+      const last = orderedPage.at(-1);
+      const cursorPayload = (anchor: IdentityRow, direction: "after" | "before") => ({ version: 3 as const, companyId: input.companyId, entityType: input.entityType, filterHash: hash, sortBy: input.query.sortBy, sort: input.query.sort, direction, sortValue: anchor.sort_value, code: anchor.code, entityId: anchor.entity_id });
+      return {
+        groups,
+        nextCursor: last && (before || identities.length > input.query.limit) ? encodeCursor(cursorPayload(last, "after")) : null,
+        previousCursor: first && Boolean(cursor) ? encodeCursor(cursorPayload(first, "before")) : null,
+        ...(count ? { totalGroups: Number(count.total_groups), totalRows: Number(count.total_rows) } : {}),
+        previewSources,
+        previewDerivativeJobs
+      };
+  }
+
+  async readDrawingPreviews(client: AsyncDatabaseClient, companyId: string, rows: { id: string }[]) {
       let previewSources: CanonicalPreviewSourceRow[] = [];
       let previewDerivativeJobs: CanonicalPreviewDerivativeJobRow[] = [];
-      if (input.entityType === "drawing" && rows.length) {
+      if (rows.length) {
         const rowList = namedList("previewRow", rows.map((row) => row.id));
         const sources = await client.query<PreviewSourceDbRow>(
           `SELECT state.id AS row_id, state.revision_id, state.data_layer,
@@ -358,7 +389,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
               AND state.entity_type = 'drawing'
               AND state.id IN (${rowList.sql})
             ORDER BY state.id, binding.is_primary DESC, binding.sort_order, binding.id`,
-          { companyId: input.companyId, ...rowList.params }
+          { companyId: companyId, ...rowList.params }
         );
         previewSources = sources.map((row) => ({
           rowId: row.row_id,
@@ -393,7 +424,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
                FROM preview_jobs
               WHERE company_id = :companyId AND source_file_asset_id IN (${assetList.sql})
               ORDER BY source_file_asset_id, created_at DESC, last_heartbeat_at DESC`,
-            { companyId: input.companyId, ...assetList.params }
+            { companyId: companyId, ...assetList.params }
           );
           previewDerivativeJobs = derivativeJobs.map((row) => ({
             recordKind: row.record_kind,
@@ -411,32 +442,17 @@ export class PdmCanonicalWorkbenchAsyncRepository {
           }));
         }
       }
-      const count = await client.queryOne<{ total_groups: number | string; total_rows: number | string }>(
-        `SELECT COUNT(DISTINCT state.canonical_entity_id) AS total_groups, COUNT(*) AS total_rows
-           FROM canonical_workbench_states state
-           JOIN ${domain.table} entity ON entity.id = state.canonical_entity_id AND entity.company_id = state.company_id
-           ${domain.joins}
-          WHERE ${match}`,
-        commonParams
-      );
-      const byAggregate = new Map<string, CanonicalWorkbenchStateRecord[]>();
-      rows.map(toRecord).forEach((row) => byAggregate.set(row.aggregateId, [...(byAggregate.get(row.aggregateId) ?? []), row]));
-      const groups = orderedPage.map((identity) => ({
-        groupKey: canonicalGroupKey(identity.aggregate_id),
-        rows: byAggregate.get(identity.aggregate_id) ?? []
-      })).filter((group) => group.rows.length > 0);
-      const first = orderedPage.at(0);
-      const last = orderedPage.at(-1);
-      const cursorPayload = (anchor: IdentityRow, direction: "after" | "before") => ({ version: 3 as const, companyId: input.companyId, entityType: input.entityType, filterHash: hash, sortBy: input.query.sortBy, sort: input.query.sort, direction, sortValue: anchor.sort_value, code: anchor.code, entityId: anchor.entity_id });
-      return {
-        groups,
-        nextCursor: last && (before || identities.length > input.query.limit) ? encodeCursor(cursorPayload(last, "after")) : null,
-        previousCursor: first && Boolean(cursor) ? encodeCursor(cursorPayload(first, "before")) : null,
-        totalGroups: Number(count?.total_groups ?? 0),
-        totalRows: Number(count?.total_rows ?? 0),
-        previewSources,
-        previewDerivativeJobs
-      };
+    return { previewSources, previewDerivativeJobs };
+  }
+
+  async getPreviewRows(companyId: string, entityType: WorkbenchEntityType, rowIds: string[]) {
+    const ids = namedList("previewId", rowIds);
+    return this.client.query<{ id: string; revisionId: string | null; canonicalEntityId: string; dataLayer: string }>(
+      `SELECT id, revision_id AS "revisionId", canonical_entity_id AS "canonicalEntityId",
+              data_layer AS "dataLayer"
+       FROM canonical_workbench_states
+       WHERE company_id = :companyId AND entity_type = :entityType AND id IN (${ids.sql})`,
+      { companyId, entityType, ...ids.params });
   }
 
   async getByRowId(input: { companyId: string; rowId: string }): Promise<CanonicalWorkbenchStateRecord | null> {

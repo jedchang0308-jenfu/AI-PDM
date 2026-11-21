@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchCurrentPdmUser, fetchPendingPdmApprovalCount, clearPendingPdmApprovalCount } from "@/lib/pdm-current-user-client";
+
 import Link from "next/link";
 import { usePdmPermissions } from "@/components/pdm-permission-provider";
 import { LoadingIndicator } from "@/components/loading-indicator";
@@ -175,7 +177,7 @@ export function SidebarNav() {
     }
     let cancelled = false;
     const loadPendingApprovalCount = () => {
-      fetch("/api/approvals/inbox?status=pending&limit=100")
+      fetchPendingPdmApprovalCount()
         .then((response) => (response.ok ? response.json() : null))
         .then((body: { summary?: { pending?: number } } | null) => {
           if (cancelled) return;
@@ -191,12 +193,13 @@ export function SidebarNav() {
     };
 
     loadPendingApprovalCount();
-    window.addEventListener("approval-inbox-changed", loadPendingApprovalCount);
+    const refreshAfterChange = () => { clearPendingPdmApprovalCount(); loadPendingApprovalCount(); };
+    window.addEventListener("approval-inbox-changed", refreshAfterChange);
     document.addEventListener("visibilitychange", refreshOnVisible);
 
     return () => {
       cancelled = true;
-      window.removeEventListener("approval-inbox-changed", loadPendingApprovalCount);
+      window.removeEventListener("approval-inbox-changed", refreshAfterChange);
       document.removeEventListener("visibilitychange", refreshOnVisible);
     };
   }, [permissions, publicAuthPage]);
@@ -208,7 +211,7 @@ export function SidebarNav() {
       return;
     }
     let cancelled = false;
-    fetch("/api/auth/me", { cache: "no-store" })
+    fetchCurrentPdmUser()
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { user?: SidebarUser } | null) => {
         if (!cancelled) setCurrentUser(body?.user ?? null);
