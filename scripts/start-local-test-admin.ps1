@@ -69,7 +69,7 @@ function Get-VerifiedDatabaseProcess {
 $databaseStatus = @(& $PgCtl -D $DatabaseDirectory status 2>&1)
 $databaseIsRunning = $LASTEXITCODE -eq 0
 if ($CheckOnly -and -not $databaseIsRunning) {
-  throw "The isolated PostgreSQL database is stopped; run npm run dev:local:retained-test-admin to start it."
+  throw "The isolated PostgreSQL database is stopped; run scripts/start-local-test-admin.ps1 without -CheckOnly to start the retained profile."
 }
 if (-not $databaseIsRunning) {
   $existingListeners = @(Get-NetTCPConnection -LocalPort $DatabasePort -State Listen -ErrorAction SilentlyContinue)

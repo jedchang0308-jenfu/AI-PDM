@@ -10,6 +10,7 @@ import {
   isLoopbackHost,
   LocalSandboxError,
   readLocalSandboxConfig,
+  localModeOrigin,
   type LocalFixture,
   type LocalSandboxConfig,
 } from "../../contracts/local-principal-sandbox/v1/protocol.mjs";
@@ -283,6 +284,10 @@ async function readProfile(environment: Record<string, string | undefined>) {
   try { value = JSON.parse(raw); } catch { fail("LOCAL_SANDBOX_PROFILE_INVALID"); }
   const profile = parseProfile(value);
   if (!samePath(profile.sandboxRoot, root)) fail("LOCAL_SANDBOX_PROFILE_TARGET_MISMATCH");
+  const config = readLocalSandboxConfig(environment, "ai-pdm");
+  if (config.mode) return Object.freeze({ ...profile,
+    origin: localModeOrigin(profile.origin, config.mode, "ai-pdm"),
+    platformOrigin: localModeOrigin(profile.platformOrigin, config.mode, "portal") });
   return profile;
 }
 
@@ -464,7 +469,8 @@ function usesDailyAlternateOrigin(origin: string | undefined, sandboxId: string 
 export function localPrincipalSessionCookieName(sandboxId: string, origin = process.env.JENFU_LOCAL_SANDBOX_ORIGIN) {
   if (!SANDBOX_ID.test(sandboxId)) fail("LOCAL_SANDBOX_PROFILE_INVALID");
   return LOCAL_COOKIE_PREFIX + sandboxId.replaceAll("-", "_") +
-    (usesDailyAlternateOrigin(origin, sandboxId) ? "_1021" : "");
+    (process.env.JENFU_LOCAL_SANDBOX_MODE ? "_" + process.env.JENFU_LOCAL_SANDBOX_MODE :
+      usesDailyAlternateOrigin(origin, sandboxId) ? "_1021" : "");
 }
 
 export function readLocalPrincipalSessionCookie(request: Request, sandboxId: string) {
@@ -588,7 +594,8 @@ export async function getLocalSandboxPrincipalRuntime(environment: Record<string
 }
 
 function localStateCookieName(origin: string | undefined) {
-  return usesDailyAlternateOrigin(origin, process.env.JENFU_LOCAL_SANDBOX_ID) ? `${STATE_COOKIE}_1021` : STATE_COOKIE;
+  return process.env.JENFU_LOCAL_SANDBOX_MODE ? `${STATE_COOKIE}_${process.env.JENFU_LOCAL_SANDBOX_MODE}` :
+    usesDailyAlternateOrigin(origin, process.env.JENFU_LOCAL_SANDBOX_ID) ? `${STATE_COOKIE}_1021` : STATE_COOKIE;
 }
 
 export function createLocalStateCookie(value: string, origin: string, expiresAtSeconds: number) {

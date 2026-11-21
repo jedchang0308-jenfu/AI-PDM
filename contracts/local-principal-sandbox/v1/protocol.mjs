@@ -63,6 +63,18 @@ export function requireLoopbackOrigin(input) {
   return url.origin
 }
 
+// Private profiles retain their original fixed integrated origins. A launcher
+// may select only the reviewed second listener, never an arbitrary redirect.
+const MODE_PORTS = Object.freeze({ portal: 1000, orgmaster: 1010, 'ai-pdm': 1020, 'financial-management-system': 1030 })
+export function localModeOrigin(origin, mode, applicationId) {
+  requireLoopbackOrigin(origin)
+  if (mode === undefined) return origin
+  if (!['integrated', 'standalone'].includes(mode)) throw new LocalSandboxError('local_mode_invalid', 503)
+  const port = Object.values(MODE_PORTS).find(port => origin === `http://localhost:${port}`)
+  if (!port || applicationId !== undefined && MODE_PORTS[applicationId] !== port) throw new LocalSandboxError('local_origin_invalid', 503)
+  return `http://localhost:${port + (mode === 'standalone' ? 1 : 0)}`
+}
+
 export function readLocalSandboxConfig(environment, applicationId = 'portal') {
   if (environment.JENFU_LOCAL_SANDBOX_ENABLED !== '1') throw new LocalSandboxError('local_sandbox_disabled', 404)
   if (environment.NODE_ENV !== 'development' || environment.K_SERVICE || environment.K_REVISION ||
@@ -74,6 +86,9 @@ export function readLocalSandboxConfig(environment, applicationId = 'portal') {
   if (!IDENTIFIER.test(sandboxId ?? '')) throw new LocalSandboxError('local_target_invalid', 503)
   const origin = requireLoopbackOrigin(environment.JENFU_LOCAL_SANDBOX_ORIGIN)
   const platformOrigin = requireLoopbackOrigin(environment.JENFU_LOCAL_SANDBOX_PLATFORM_ORIGIN)
+  const mode = environment.JENFU_LOCAL_SANDBOX_MODE
+  if (mode !== undefined && (origin !== localModeOrigin(`http://localhost:${MODE_PORTS[applicationId]}`, mode) ||
+      platformOrigin !== localModeOrigin('http://localhost:1000', mode))) throw new LocalSandboxError('local_origin_invalid', 503)
   const bindHost = environment.JENFU_LOCAL_SANDBOX_BIND_HOST
   if (!isLoopbackHost(bindHost)) throw new LocalSandboxError('local_bind_invalid', 503)
   let database
@@ -87,7 +102,8 @@ export function readLocalSandboxConfig(environment, applicationId = 'portal') {
   if (!/^[a-z][a-z0-9_]{2,62}$/.test(runtimeRole ?? '') ||
     decodeURIComponent(database.username) !== runtimeRole) throw new LocalSandboxError('local_target_invalid', 503)
   return Object.freeze({ contractVersion: LOCAL_SANDBOX_VERSION, applicationId, sandboxId, origin,
-    platformOrigin, bindHost, databaseName, runtimeRole, databaseUrl: database.href })
+    platformOrigin, bindHost, databaseName, runtimeRole, databaseUrl: database.href,
+    ...(mode === undefined ? {} : { mode }) })
 }
 
 // listenAddress is an OS/launcher-verified bound address, never a request header or

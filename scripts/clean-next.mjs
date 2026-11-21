@@ -80,7 +80,7 @@ if (isProjectOwnedLocalServer(owner) && !allowRunningLocalServer) {
   await writeBlockedStatus(owner);
   console.error(`Refusing to remove ${nextDir} while AI_PDM is listening on ${url}.`);
   console.error(`Port owner: PID ${owner.processId} (${owner.processName || "unknown"}).`);
-  console.error("Use npm run dev:local:restart for stale-server recovery, or stop the server before build/clean.");
+  console.error("Stop the verified server through its owning launcher before running build/clean.");
   console.error(`Intentional bypass only: set ${overrideEnv}=1 or pass --allow-running-local-server.`);
   process.exit(1);
 }

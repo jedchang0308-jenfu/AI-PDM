@@ -36,3 +36,26 @@ it("reads and clears only the cookies for the configured PDM listener", () => {
     );
   }
 });
+
+it("separates native sessions and PKCE for explicit integrated and standalone modes", () => {
+  const sandbox = "isolated-dual-mode";
+  const expires = new Date(Date.now() + 60_000);
+  const cookies: string[] = [];
+  for (const [mode, port] of [["integrated", 1020], ["standalone", 1021]] as const) {
+    vi.stubEnv("JENFU_LOCAL_SANDBOX_MODE", mode);
+    const origin = `http://localhost:${port}`;
+    cookies.push(createLocalPrincipalSessionCookie(`a.${mode}.b`, sandbox, expires.toISOString(), origin).split(";")[0]);
+    cookies.push(createLocalStateCookie(mode, origin, Math.floor(expires.getTime() / 1000)).split(";")[0]);
+  }
+  for (const [mode, port] of [["integrated", 1020], ["standalone", 1021]] as const) {
+    vi.stubEnv("JENFU_LOCAL_SANDBOX_MODE", mode);
+    vi.stubEnv("JENFU_LOCAL_SANDBOX_ORIGIN", `http://localhost:${port}`);
+    vi.stubEnv("JENFU_LOCAL_SANDBOX_ID", sandbox);
+    const request = new Request(`http://localhost:${port}/api/auth/local-sandbox/callback`, {headers:{cookie:cookies.join("; ")}});
+    expect(readLocalPrincipalSessionCookie(request,sandbox)).toBe(`a.${mode}.b`);
+    expect(localStateCookieValue(request)).toBe(mode);
+    expect(clearLocalPrincipalSessionCookie(sandbox, `http://localhost:${port}`)).toContain(`_${mode}=;`);
+    const other = mode === "integrated" ? "standalone" : "integrated";
+    expect(clearLocalPrincipalSessionCookie(sandbox, `http://localhost:${port}`)).not.toContain(`_${other}=`);
+  }
+});

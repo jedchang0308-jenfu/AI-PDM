@@ -324,7 +324,7 @@ if ($owners.Count -gt 0) {
       Write-RuntimeStatus -State "unhealthy_existing" -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "Existing AI_PDM web server is unhealthy."
       throw "AI_PDM is listening but unhealthy."
     }
-    if (-not $RestartProjectProcess) { throw "Run npm run dev:local:restart to restart the verified AI_PDM process." }
+    if (-not $RestartProjectProcess) { throw "To restart the verified AI_PDM process, rerun this profile's launcher with -RestartProjectProcess." }
     Stop-VerifiedProjectOwner -OwnerProcessId $owner.ProcessId
   }
 }

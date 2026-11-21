@@ -27,23 +27,21 @@ PowerShell 可能會攔截 `npm.ps1`，本專案建議使用 `npm.cmd`。
 
 ## 快速啟動
 
+在本專案根目錄雙擊 `啟動本系統.bat`。啟動器使用目前工作樹，背景開啟必要服務。開啟 `http://localhost:1021`，需要登入時會轉到 Platform 的 `http://localhost:1001/login`，登入後返回 AI-PDM。關閉啟動視窗後可繼續使用。
+
+雙擊本專案的 `停止本系統.bat` 可停止這次單機環境。命令列可執行下列指令。
+
 ```powershell
-npm.cmd run dev:local -- --no-browser
+npm.cmd run dev:local
+npm.cmd run dev:local -- --status
+npm.cmd run dev:local -- --stop
 ```
 
-這個入口啟動獨立 PDM 和日常測試所需的 Platform 登入服務。在 Jenfu-Platform 執行同一個命令會啟動四系統。兩個 PDM 入口可以並行，先開使用 `1020`，後開使用 `1021`。依終端的 `Local URL` 開啟。兩端沿用 Platform 綁定的 `51870/jenfu_local_shared_daily` 和同一份本機檔案庫，登入使用 `http://localhost:1000/login` 的測試帳號。
+做跨系統驗證時，在 Jenfu-Platform 根目錄雙擊 `啟動全系統.bat`，從 `http://localhost:1000/login` 進入 AI-PDM 的 `1020`；結束時使用 Platform 的 `停止全系統.bat`。兩種模式可同時使用，各自停止。日常資料與附件共用，重設、批次覆寫及刪除演練須使用任務專屬的隔離副本。
 
-使用 `npm.cmd run dev:local -- --status` 檢查狀態，使用 `npm.cmd run dev:local -- --stop` 停止目前入口的服務。Platform 與獨立 PDM 同時執行時，共用登入服務和 PostgreSQL 會繼續供仍在運作的一端使用。舊版日常控制器運作中時，先由 Platform 的 `--stop` 正常結束舊版控制器。保留的遮罩 TestAdmin 快照另用 `npm.cmd run dev:local:retained-test-admin -- -NoBrowser`。
-
-完整關閉這組地端環境時，在 Platform 執行 `npm run dev:local -- --stop-all`，或雙擊桌面「停止鉦富測試環境」。此操作會正常關閉日常四系統、獨立 PDM 與 51870 共用 PostgreSQL，保留資料與原路徑。原啟動捷徑恢復四系統；需要獨立 PDM 時，再從本專案執行 `npm run dev:local`。
+在單機 PDM 建立的圖面與附件也可從整合 PDM 讀取。啟動器若指出本工作樹缺少 Next，請在訊息所列工作樹依其鎖檔安裝依賴，再由原入口重試。
 
 `next-env.d.ts` 由 Next.js 產生並由 Git 忽略。`npm run typecheck` 與 `npm run typecheck:workspace` 會先產生型別；從全新工作樹直接執行需要此檔的舊版 QC 腳本時，可先執行 `npm exec -- next typegen`。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-localhost-3000.ps1 -Port 12020 -NoBrowser
-```
-
-可用 `-CheckOnly -NoBrowser` 只檢查指定埠的 listener；未知或非本專案 process 會阻擋啟動，不會被停止。PID、狀態、log、`PDM_DATA_DIR` 與 `PDM_REPOSITORY_DIR` 都依指定埠隔離在 `tmp/local-dev/<port>/`。這個入口不啟動或停止已安裝的 DEV-125 Windows service。
 
 ## 帳號模式
 
