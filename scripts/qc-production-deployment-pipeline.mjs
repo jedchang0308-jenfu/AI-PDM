@@ -134,11 +134,14 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
 
-record("PROD-PIPE-007B hardened distroless nonroot runner excludes unused OS zlib and includes app assets", () => {
-  assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca$/mu);
+record("PROD-PIPE-007B hardened distroless nonroot runner excludes unused OS crypto and zlib libraries and includes app assets", () => {
+  assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot-amd64@sha256:d4b8c34560df58c821ebda89a2897d7d183220c0debaf474a2b67a6c7cc22064$/mu);
   assert.match(dockerfile, /^ARG RUNTIME_SANITIZER_IMAGE=alpine:3\.22@sha256:[a-f0-9]{64}$/mu);
   assert.match(dockerfile, /^FROM \$\{RUNTIME_NODE_IMAGE\} AS runtime-base$/mu);
   assert.match(dockerfile, /^FROM \$\{RUNTIME_SANITIZER_IMAGE\} AS runtime-sanitizer$/mu);
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libssl\.so\.3/u);
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libcrypto\.so\.3/u);
+  assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/libssl3t64\.md5sums/u);
   assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libz\.so\.1\.3\.1/u);
   assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/zlib1g\.md5sums/u);
   assert.match(dockerfile, /^FROM scratch AS runner$/mu);
