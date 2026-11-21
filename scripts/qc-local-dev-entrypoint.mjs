@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
@@ -29,7 +30,7 @@ const packageJson = JSON.parse(read("package.json"));
 const scripts = packageJson.scripts ?? {};
 const launcher = read("scripts/start-localhost-3000.ps1");
 const localTestAdminLauncher = read("scripts/start-local-test-admin.ps1");
-const dailyLauncher = read("scripts/start-local-daily.mjs");
+const dailyLauncher = read("scripts/local-sandbox-client.mjs");
 const stateFlowStatusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
 const cleanNext = read("scripts/clean-next.mjs");
 const nextConfig = read("next.config.mjs");
@@ -43,30 +44,34 @@ if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 1020") {
 if (scripts["dev"] !== "npm run dev:local") {
   failures.push("package.json scripts.dev must route daily startup through the managed launcher");
 }
-if (scripts["dev:local"] !== "node scripts/start-local-daily.mjs") {
+if (scripts["dev:local"] !== "node scripts/local-sandbox-client.mjs") {
   failures.push("package.json scripts.dev:local must delegate to Platform's shared daily controller");
 }
-if (!String(scripts["dev:local:retained-test-admin"] ?? "").includes("scripts/start-local-test-admin.ps1")) {
-  failures.push("the retained test-admin snapshot must remain an explicit separate entrypoint");
-}
-if (!String(scripts["dev:local:check"] ?? "").includes("scripts/start-local-test-admin.ps1") ||
-  !String(scripts["dev:local:check"] ?? "").includes("-CheckOnly")) {
-  failures.push("package.json scripts.dev:local:check must run the fixed entrypoint in CheckOnly mode");
-}
-if (!String(scripts["dev:local:restart"] ?? "").includes("scripts/start-local-test-admin.ps1") ||
-  !String(scripts["dev:local:restart"] ?? "").includes("-RestartProjectProcess")) {
-  failures.push("package.json scripts.dev:local:restart must explicitly opt into restarting project processes");
-}
-if (!String(scripts["dev:local:restart"] ?? "").includes("-CleanNext")) {
-  failures.push("package.json scripts.dev:local:restart must clean .next during stale-server recovery");
-}
-
-assertIncludes("shared daily delegate", dailyLauncher, [
-  "realpath(fileURLToPath(new URL('../', import.meta.url)))",
-  "path.join(pdmWorktree, '..', 'Jenfu-Platform')",
-  "'scripts', 'dev-local-daily.mjs'",
-  "runDailyLocal(process.argv.slice(2), platform, { pdmWorktree })"
+assertIncludes("isolated test-admin maintenance options", localTestAdminLauncher, [
+  'if ($CheckOnly) { $launcherParameters.CheckOnly = $true }',
+  'if ($RestartProjectProcess) { $launcherParameters.RestartProjectProcess = $true }',
+  'if ($CleanNext) { $launcherParameters.CleanNext = $true }',
 ]);
+
+assertIncludes("standalone PDM source and request forwarding", dailyLauncher, [
+  "'--git-common-dir'",
+  "'scripts/dev-local-daily.mjs'",
+  "runDailyLocal(process.argv.slice(2), platformRoot, { ownerWorktree, app: 'ai-pdm' })"
+]);
+
+for (const [mode, port] of [["integrated", 1020], ["standalone", 1021]]) {
+  const check = origin => spawnSync(process.execPath, ["scripts/local-sandbox-server.mjs", "--check"], {
+    cwd: root, encoding: "utf8", timeout: 10_000, windowsHide: true,
+    env: { ...process.env, JENFU_LOCAL_SANDBOX_ENABLED: "1", JENFU_LOCAL_SANDBOX_MODE: mode,
+      JENFU_LOCAL_SANDBOX_BIND_HOST: "127.0.0.1", JENFU_LOCAL_SANDBOX_ORIGIN: origin }
+  });
+  const accepted = check("http://localhost:" + port);
+  if (accepted.status !== 0) failures.push(mode + " PDM owner preflight failed: " + (accepted.stderr || accepted.error));
+  const rejected = check("http://localhost:" + (port === 1020 ? 1021 : 1020));
+  if (rejected.status !== 1 || !rejected.stderr?.includes("Expected a bound")) {
+    failures.push(mode + " PDM accepted the other mode's endpoint or failed for an unrelated reason");
+  }
+}
 
 assertIncludes("retained test-admin launcher", localTestAdminLauncher, [
   "$Port = 1020",
@@ -156,7 +161,7 @@ assertIncludes("managed launcher", launcher, [
   '"ai-pdm-$Port.err.log"',
   'Join-Path $RuntimeDir "data"',
   'Join-Path $RuntimeDir "repository"',
-  "Run npm run dev:local:restart",
+  "rerun this profile's launcher with -RestartProjectProcess",
   "Stop-Process -Id $OwnerProcessId -Force",
   "$RestartProjectProcess",
   "$StopForeignProcess",

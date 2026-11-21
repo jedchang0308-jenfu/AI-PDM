@@ -7,7 +7,7 @@ export const APPLICATION_IDS: readonly ApplicationId[]
 export const CLIENT_APPLICATIONS: Readonly<Record<'orgmaster' | 'ai-pdm' | 'fms', ApplicationId>>
 export const LOCAL_IDENTITY_ISSUER: 'urn:jenfu:local-principal-sandbox'
 export class LocalSandboxError extends Error { code: string; status: number; constructor(code: string, status?: number) }
-export type LocalSandboxConfig = Readonly<{ contractVersion: typeof LOCAL_SANDBOX_VERSION; applicationId: ApplicationId | 'portal'; sandboxId: string; origin: string; platformOrigin: string; bindHost: string; databaseName: string; runtimeRole: string; databaseUrl: string }>
+export type LocalSandboxConfig = Readonly<{ contractVersion: typeof LOCAL_SANDBOX_VERSION; applicationId: ApplicationId | 'portal'; sandboxId: string; origin: string; platformOrigin: string; bindHost: string; databaseName: string; runtimeRole: string; databaseUrl: string; mode?: 'integrated' | 'standalone' }>
 export type LocalGrant = { applicationId: ApplicationId; companyId: string; stableRoleId: string; catalogVersion: string; catalogSha256: string; roleDefinitionHash: string; scopeKind: string; scopeRef: string | null; grantVersion: number; status: 'active' | 'revoked'; validFrom: string; validUntil: string | null }
 export type LocalScenario = { scenarioId: string; label: string; principalId: string; employeeId: string; identityIssuer: typeof LOCAL_IDENTITY_ISSUER; identitySubject: string; accountType: 'human_personal' | 'human_privileged'; principalStatus: 'active' | 'disabled' | 'revoked'; employeeStatus: 'active' | 'inactive'; accountLifecycleVersion: number; profileVersion: number; grants: LocalGrant[] }
 export type LocalFixture = { contractVersion: typeof LOCAL_FIXTURE_VERSION; fixtureVersion: string; fixtureHash: string; scenarios: LocalScenario[] }
@@ -17,6 +17,7 @@ export function contractDigest(value: unknown): string
 export function constantEquals(left: unknown, right: unknown): boolean
 export function isLoopbackHost(host: unknown): boolean
 export function requireLoopbackOrigin(input: string): string
+export function localModeOrigin(origin: string, mode?: 'integrated' | 'standalone', applicationId?: ApplicationId | 'portal'): string
 export function readLocalSandboxConfig(environment: Record<string, string | undefined>, applicationId?: ApplicationId | 'portal'): LocalSandboxConfig
 export function assertLocalSandboxRequest(request: Request, config: LocalSandboxConfig, options?: { browserMutation?: boolean; listenAddress?: string }): void
 export function readLocalJsonBody(request: Request): Promise<{ rawBody: string; value: Record<string, unknown> }>

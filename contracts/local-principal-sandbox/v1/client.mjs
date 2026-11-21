@@ -6,6 +6,7 @@ import {
   LocalSandboxError,
   isLoopbackHost,
   requireLoopbackOrigin,
+  localModeOrigin,
   signLocalRequest,
   validateLocalAssertion,
   verifyLocalResponse,
@@ -47,7 +48,7 @@ function boundedText(value, maxLength, code = 'local_request_invalid') {
 
 function validConfig(config, clientId) {
   try {
-    exactRecord(config, CONFIG_KEYS, 'local_client_not_configured')
+    exactRecord(config, [...CONFIG_KEYS, ...(Object.hasOwn(config ?? {}, 'mode') ? ['mode'] : [])], 'local_client_not_configured')
     if (!Object.isFrozen(config) || config.contractVersion !== LOCAL_SANDBOX_VERSION
       || !Object.hasOwn(CLIENT_APPLICATIONS, clientId) || CLIENT_APPLICATIONS[clientId] !== config.applicationId
       || !/^[a-z][a-z0-9-]{2,63}$/u.test(config.sandboxId)
@@ -57,6 +58,12 @@ function validConfig(config, clientId) {
       || config.databaseName !== `jenfu_local_${config.sandboxId.replaceAll('-', '_')}` || config.databaseName.length > 63
       || !/^[a-z][a-z0-9_]{2,62}$/u.test(config.runtimeRole)) fail('local_client_not_configured', 503)
 
+    if (config.mode !== undefined) {
+      const baseline = new URL(config.origin)
+      if (config.mode === 'standalone') baseline.port = String(Number(baseline.port) - 1)
+      if (localModeOrigin(baseline.origin, config.mode, config.applicationId) !== config.origin ||
+        localModeOrigin('http://localhost:1000', config.mode, 'portal') !== config.platformOrigin) fail('local_client_not_configured', 503)
+    }
     const database = new URL(config.databaseUrl)
     if (!['postgres:', 'postgresql:'].includes(database.protocol)
       || !isLoopbackHost(database.hostname)
