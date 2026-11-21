@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { getLocalSandboxPrincipalRuntime } from "./local-sandbox-principal-runtime";
@@ -10,7 +10,9 @@ vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: boundary.dat
 afterEach(() => vi.clearAllMocks());
 
 it.each(["integrated", "standalone"] as const)("loads a fixed shared-daily profile in %s mode before listener and database access", async mode => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "pdm-mode-profile-"));
+  // The profile reader intentionally rejects aliases/links; CI TEMP may use RUNNER~1.
+  const temporaryRoot = await realpath(os.tmpdir());
+  const root = await realpath(await mkdtemp(path.join(temporaryRoot, "pdm-mode-profile-")));
   try {
     await mkdir(path.join(root, "control"));
     const databaseUrl = "postgresql://local_runtime:fake_local_password@127.0.0.1:51870/jenfu_local_shared_daily";
@@ -36,7 +38,7 @@ it.each(["integrated", "standalone"] as const)("loads a fixed shared-daily profi
       platformOrigin: environment.JENFU_LOCAL_SANDBOX_PLATFORM_ORIGIN }));
     expect(boundary.database).not.toHaveBeenCalled();
   } finally {
-    if (path.dirname(root) !== os.tmpdir() || !path.basename(root).startsWith("pdm-mode-profile-")) throw new Error("TEST_CLEANUP_TARGET_INVALID");
+    if (path.dirname(root) !== temporaryRoot || !path.basename(root).startsWith("pdm-mode-profile-")) throw new Error("TEST_CLEANUP_TARGET_INVALID");
     await rm(root, { recursive: true, force: true });
   }
 });
