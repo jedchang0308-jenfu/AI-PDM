@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtemp, mkdir, copyFile, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, copyFile, writeFile, realpath, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -28,8 +28,11 @@ test('a fresh linked worktree delegates its own source and arguments to the comm
     assert.equal(child.status, 0, child.stderr)
     const result = JSON.parse(child.stdout)
     assert.deepEqual(result.args, ['--status', '--no-browser'])
-    assert.equal(result.root, platform)
-    assert.deepEqual(result.request, { ownerWorktree: worktree, app: 'ai-pdm' })
+    // Git expands Windows 8.3 TEMP aliases; compare the actual directories.
+    assert.equal(await realpath(result.root), await realpath(platform))
+    assert.equal(await realpath(result.request.ownerWorktree), await realpath(worktree))
+    assert.equal(result.request.app, 'ai-pdm')
+    assert.deepEqual(Object.keys(result.request).sort(), ['app', 'ownerWorktree'])
   } finally {
     if (path.dirname(root) !== os.tmpdir() || !path.basename(root).startsWith('pdm-local-caller-')) throw new Error('TEST_CLEANUP_TARGET_INVALID')
     await rm(root, { recursive: true, force: true })
