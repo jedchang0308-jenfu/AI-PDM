@@ -1253,7 +1253,15 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   const completed = build ? await readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
     build, provenance, deployment, read, seal, run, verifyMigrationAbsence: !reconciled }) : null
   const partial = !build && provenance ? await readUnpublishedBuild({ profile, transport, baselineIntentRef, intent, paths, provenance, read, run }) : null
-  if (!completed && !partial) await assertZeroBuilds(profile, transport, intent)
+  let preparedBuild = null
+  if (!completed && !partial) {
+    if (same(terminalFacts.failureSignal, { code: 'ARTIFACT_POLICY_FAILED', family: 'ARTIFACT' })
+      && same(rollbackFacts.failureSignal, terminalFacts.failureSignal)) {
+      preparedBuild = await readPreparedUnsealedProviderBuild({ profile, transport, baselineIntentRef, intent, run })
+      await assertMissing(read, paths.migrationAdmission)
+      await assertStableNoMigrationExecution(profile, transport, intent, paths, run)
+    } else await assertZeroBuilds(profile, transport, intent)
+  }
   let releasedIntentRef = intent.baselineIntentRef, inheritedBasis = null
   if (completed && prepareFacts.preActivationAbortBasis) {
     inheritedBasis = prepareFacts.preActivationAbortBasis
@@ -1365,7 +1373,8 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   return { kind: reconciled ? 'PRINCIPAL_FENCED_ABORT_RECONCILED' : 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
     authorityBasis: { schemaVersion, failedIntentRef: baselineIntentRef,
       releasedIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
-      absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: completed || partial ? 1 : 0,
+      absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: completed || partial || preparedBuild ? 1 : 0,
+      ...(preparedBuild ? { preparedBuild } : {}),
       ...(reconciled ? { originalDatabaseDisposition: 'UNKNOWN', reconciliation: reconciliation.basis, sealedBuild: completed, principalOnlyFenceRef, principalOnlyRecovery: recovery }
         : completed ? { sealedBuild: completed, inheritedBasis } : partial ? { unpublishedBuild: partial, inheritedBasis } : {}),
       stageRefs: { prepare: prepare.ref, ...(completed ? { build: build.ref, deployment: deployment.ref } : {}), rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
@@ -1830,6 +1839,7 @@ async function assertZeroBuilds(profile, transport, intent) {
 // only a quiescent failed attempt.  The image and scan result never become
 // reusable release authority.
 async function readPreparedUnsealedProviderBuild({ profile, transport, baselineIntentRef, intent, run }) {
+  const bucket = profile.artifact.releaseBucket
   const first = await readFailedBuilds(profile, transport, intent, 2)
   const second = await readFailedBuilds(profile, transport, intent, 2)
   if (!same(first, second) || first.length !== 1) fail()
@@ -1870,6 +1880,25 @@ async function readPreparedUnsealedProviderBuild({ profile, transport, baselineI
     entrypoint: '', env: [], secretEnv: [], volumes: [], script: '', allowFailure: false,
     waitFor: [], id: '', timeout: null, automapSubstitutions: false, allowExitCodes: [],
   })
+  const legacyTags = ['dev-012', profile.application.id, intent.releaseId.toLowerCase()]
+  let tagsVerified = same(build.tags, legacyTags)
+  if (!tagsVerified && Array.isArray(build.tags) && build.tags.length === 5
+    && /^owner-submission-[1-3]$/u.test(build.tags[4] ?? '')) {
+    const request = { source: { storageSource: expectedStorage },
+      steps: [{ name: profile.build.dockerBuilderImage, dir: 'source', args: step.args }],
+      images: [tag], timeout: '1800s', queueTtl: '300s',
+      logsBucket: `gs://${bucket}/logs/cloud-build`,
+      serviceAccount: `projects/${project}/serviceAccounts/${profile.identities.builder}`,
+      options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', requestedVerifyOption: 'VERIFIED' } }
+    const buildInputSha256 = sha256(canonicalize({ ownerApplicationId: profile.application.id,
+      sourceArchiveSha256: sourceObject.sha256, request }))
+    const inputTag = `owner-build-${buildInputSha256}`
+    if (!same(build.tags, ['dev-012', profile.application.id, inputTag, intent.releaseId.toLowerCase(), build.tags[4]])) fail()
+    const submission = Number(build.tags[4].slice('owner-submission-'.length))
+    const claim = await transport.readBytes(`gs://${bucket}/receipts/build-inputs/${buildInputSha256}/submission-${submission}.json`, { prefixes: ['receipts'] })
+    tagsVerified = claim.bytes.equals(Buffer.from(`${canonicalize({ schemaVersion: 'jenfu.dev012.build-submission.v1',
+      ownerApplicationId: profile.application.id, buildInputSha256, sourceArchiveSha256: sourceObject.sha256, submission, inputTag })}\n`))
+  }
   const buildRecipeExtensions = {
     availableSecrets: build.availableSecrets ?? null, secrets: build.secrets ?? [],
     substitutions: build.substitutions ?? {}, artifacts: build.artifacts ?? { images: build.images },
@@ -1890,7 +1919,7 @@ async function readPreparedUnsealedProviderBuild({ profile, transport, baselineI
     || build.logsBucket !== `gs://${profile.artifact.releaseBucket}/logs/cloud-build`
     || !same(build.options, { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', pool: {},
       requestedVerifyOption: 'VERIFIED', workerRelease: 'legacy' })
-    || !same(build.tags, ['dev-012', profile.application.id, intent.releaseId.toLowerCase()])
+    || !tagsVerified
     || image?.length !== 1 || !/^sha256:[a-f0-9]{64}$/u.test(image[0].digest ?? '')
     || !Number.isFinite(created) || !Number.isFinite(started) || !Number.isFinite(finished)
     || created < window.start || created > started || started > finished || finished > window.end) fail()
@@ -1974,7 +2003,7 @@ async function readUnpublishedBuildEvidence({ profile, transport, baselineIntent
 // anchor. Do not recursively promote an arbitrary aborted lineage.
 async function readInheritedPrebuildAnchor({ profile, transport, intent, inheritedBasis: basis, anchor, read }) {
   if (basis.schemaVersion !== 'ai-pdm.principal-prebuild-abort-basis.v1' || basis.databaseDisposition !== 'NOT_APPLIED'
-    || basis.failedBuildCount !== 0 || !same(basis.failedIntentRef, intent.baselineIntentRef)
+    || basis.failedBuildCount !== (basis.preparedBuild ? 1 : 0) || !same(basis.failedIntentRef, intent.baselineIntentRef)
     || basis.previousRevision !== intent.previousRevision || !/^[a-f0-9]{64}$/u.test(basis.controlSha256 ?? '')) fail()
   const prior = anchor.value, ref = anchor.ref, bucket = profile.artifact.releaseBucket
   if (prior.schemaVersion !== profile.schemas.releaseIntent || prior.ownerApplicationId !== profile.application.id
@@ -2014,13 +2043,20 @@ async function readInheritedPrebuildAnchor({ profile, transport, intent, inherit
   if (!same(basis.absentStages, stages)) fail()
   await assertAbsentStages(read, priorPaths, [...stages, 'sbom', 'scan'])
   await assertMissing(read, migrationSubmissionIntentUri(profile, priorPaths.migrate))
-  await assertZeroBuilds(profile, transport, prior)
   const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
   const runId = basis.ownerRunRef?.startsWith(runPrefix) ? basis.ownerRunRef.slice(runPrefix.length) : ''
   if (!/^[1-9][0-9]*$/u.test(runId)) fail()
   const run = await transport.readOwnerRun(profile, basis.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== prior.sourceRevision) fail()
+  if (basis.preparedBuild) {
+    await assertMissing(read, priorPaths.migrationAdmission)
+    const signal = { code: 'ARTIFACT_POLICY_FAILED', family: 'ARTIFACT' }
+    if (!same(terminal.value.facts.failureSignal, signal) || !same(rollback.value.facts.failureSignal, signal)) fail()
+    const observed = await readPreparedUnsealedProviderBuild({ profile, transport, baselineIntentRef: ref, intent: prior, run })
+    if (!same(observed, basis.preparedBuild)) fail()
+    await assertStableNoMigrationExecution(profile, transport, prior, priorPaths, run)
+  } else await assertZeroBuilds(profile, transport, prior)
   return basis.releasedIntentRef
 }
 
