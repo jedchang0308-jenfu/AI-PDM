@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Search } from "lucide-react";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
@@ -41,11 +43,13 @@ const skipDetailFetch = () => true;
 export function PrincipalApprovalInbox() {
   const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<"loading" | "ready" | "unauthorized" | "error">("loading");
+  const [unauthorized, setUnauthorized] = useState(false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [legacyRedirectMessage, setLegacyRedirectMessage] = useState<string | null>(null);
-  const onUnauthorized = useCallback(() => setState("unauthorized"), []);
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-submitted-approval-drawer-width" });
+  const onUnauthorized = useCallback(() => setUnauthorized(true), []);
   const controller = usePdmWorkbenchController<ApprovalWorkbenchRow, ApprovalWorkbenchRow,
     ApprovalWorkbenchQuery, InboxFilters>({
       initialQuery,
@@ -65,9 +69,9 @@ export function PrincipalApprovalInbox() {
       onUnauthorized
     });
   const {
-    initialized, rows, filters, loading, error: controllerError, query, setQuery,
+    initialized, rows, setRows, filters, loading, error: controllerError, setError: setControllerError, query, setQuery,
     selectedKey, setSelectedKey, nextCursor, previousCursor, pageIndex,
-    loadRows, goNext, goPrevious, closeDetail
+    loadRows, goNext, goPrevious, openDetail, closeDetail
   } = controller;
 
   useEffect(() => {
@@ -79,16 +83,27 @@ export function PrincipalApprovalInbox() {
     setLegacyRedirectMessage(legacyRedirect ? messages[legacyRedirect] ?? null : null);
   }, []);
   useEffect(() => {
-    if (!initialized || state !== "loading") return;
-    if (controllerError) {
-      setState("error");
-      setError(controllerError);
-    } else if (!loading) setState("ready");
-  }, [controllerError, initialized, loading, state]);
+    if (filters) setUnauthorized(false);
+  }, [filters]);
 
-  const showAction = useMemo(() => query.view === "submitted" ||
-    new Set(rows.map((item) => item.actionCode)).size > 1, [query.view, rows]);
+  const submittedView = query.view === "submitted";
+  const listError = controllerError === "permission_not_granted"
+    ? (submittedView ? "你目前沒有查看送審紀錄的權限。" : "你目前沒有查看待審工作的權限。")
+    : controllerError;
+  const listLoading = !initialized || loading;
+  const showList = !unauthorized && !listError;
+  const submittedDetail = submittedView && showList
+    ? rows.find((item) => item.rowKey === selectedKey)
+    : undefined;
+  const activeRowKey = selectedKey ?? (submittedView ? focusedKey : null);
+  const showAction = useMemo(() => submittedView ||
+    new Set(rows.map((item) => item.actionCode)).size > 1, [submittedView, rows]);
   const openApprovalRow = useCallback((item: ApprovalWorkbenchRow) => {
+    if (submittedView) {
+      setFocusedKey(rowKey(item));
+      void openDetail(rowKey(item));
+      return;
+    }
     if (item.historyOnly) return;
     const transferReview = item.source === "platform" && item.actionCode === "transfer.package_review";
     if (!(transferReview || (item.source === "pdm_work_review" && isPdmOwnerApprovalAction(item.actionCode))) ||
@@ -105,19 +120,20 @@ export function PrincipalApprovalInbox() {
     }
     ownerUrl.searchParams.set("returnTo", approvalDrawerReturnTo(item.id));
     router.push(`${ownerUrl.pathname}${ownerUrl.search}`);
-  }, [router]);
+  }, [openDetail, router, submittedView]);
   const keyboard = useListKeyboardShortcuts({
-    items: rows, selectedKey, listRef,
+    items: rows, selectedKey: activeRowKey, listRef,
     rowSelector: "[data-approval-workbench-row='true']",
     getKey: rowKey,
     getCopyText: (item) => item.targetSummary || item.title,
     onSelect: (item, options) => {
       if (options.openDetail) openApprovalRow(item);
+      else if (submittedView) setFocusedKey(rowKey(item));
       else setSelectedKey(rowKey(item));
     },
     onOpenDetail: openApprovalRow,
     onCloseDetail: () => closeDetail(),
-    isDetailOpen: false
+    isDetailOpen: Boolean(submittedDetail)
   });
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -135,17 +151,19 @@ export function PrincipalApprovalInbox() {
       </button>
     </header>
     {legacyRedirectMessage ? <div className="approval-message info">{legacyRedirectMessage}</div> : null}
-    {(error || controllerError) && state === "ready" ?
-      <div className="approval-message error" role="alert">{error || controllerError}</div> : null}
+    {listError || error ? <div className="approval-message error" role="alert">{listError || error}</div> : null}
     <section className="approval-filter-bar pdm-workbench-filter-bar" aria-label="審核篩選">
       <label className="approval-filter-field">
         <span>檢視</span>
         <select value={query.view ?? "review"} onChange={event => {
           const mine = event.target.value === "submitted";
+          setFocusedKey(null);
           setError("");
-          setState("loading");
+          setControllerError("");
+          setRows([]);
           setQuery(current => ({ ...current, view: mine ? "submitted" : undefined,
             status: mine ? "all" : "active" }));
+          closeDetail();
         }}>
           <option value="review">待審工作</option>
           <option value="submitted">我的送審</option>
@@ -180,23 +198,28 @@ export function PrincipalApprovalInbox() {
           清除篩選
         </button> : null}
     </section>
-    {state === "unauthorized" ? <div className="panel approval-empty">請先登入。</div> : null}
-    {state === "error" ? <div className="panel approval-error">{error || controllerError}</div> : null}
-    {(state === "loading" || (state === "ready" && !controllerError)) ? <div className="approval-platform-layout">
+    {unauthorized && !listError ? <div className="panel approval-empty">請先登入。</div> : null}
+    {showList ? <div className="approval-platform-layout">
       <section className="panel approval-inbox-panel" aria-label="審核清單">
         <div className="panel-header">
           <h2>{query.view === "submitted" ? "我的送審" : "審核清單"}</h2>
-          <span className="approval-count">{loading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${filters?.total ?? rows.length} 筆`}</span>
+          <span className="approval-count">{listLoading && rows.length === 0 ? <LoadingIndicator>讀取中</LoadingIndicator> : `${filters?.total ?? rows.length} 筆`}</span>
         </div>
-        <PdmWorkbenchList rows={rows} getRowKey={rowKey} selectedKey={selectedKey}
+        <PdmWorkbenchList rows={rows} getRowKey={rowKey} selectedKey={activeRowKey}
           ariaLabel="審核工作清單" className="approval-inbox-list"
           tableClassName="approval-workbench-table" rowDataAttribute="data-approval-workbench-row"
           rowAriaKeyShortcuts={keyboard.shortcuts} containerRef={listRef}
-          onContainerKeyDown={keyboard.handleKeyDown} loading={loading}
+          onContainerKeyDown={keyboard.handleKeyDown} loading={listLoading}
           loadingState={<div className="approval-empty"><LoadingIndicator>正在載入審核清單...</LoadingIndicator></div>}
-          emptyState={state === "ready" ? <div className="approval-empty">{query.view === "submitted"
-            ? "目前沒有符合條件的送審紀錄。" : "目前沒有符合條件的待處理審核。"}</div> : null}
+          emptyState={<div className="approval-empty">{submittedView
+            ? "目前沒有符合條件的送審紀錄。" : "目前沒有符合條件的待處理審核。"}</div>}
           onOpenRow={openApprovalRow}
+          onRowKeyDown={(event, item) => {
+            if (!submittedView || event.key !== "Enter") return;
+            event.preventDefault();
+            event.stopPropagation();
+            openApprovalRow(item);
+          }}
           columns={[
             { key: "target", header: "審核項目", dataLabel: "審核項目", className: "approval-workbench-col-target",
               render: (item) => <span className="approval-inbox-primary"><strong>{item.targetSummary || item.title}</strong>
@@ -204,16 +227,54 @@ export function PrincipalApprovalInbox() {
             { key: "requester", header: "送審者", dataLabel: "送審者", className: "approval-workbench-col-requester",
               render: (item) => <span>{item.requestedByName ?? "未知申請者"}</span> },
             { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status",
-              render: (item) => <span className="approval-status-cell"><span className="approval-status-chip warning">
-                {projectApprovalDecisionFeedback(item).label}</span></span> },
+              render: (item) => {
+                const feedback = submittedView ? submittedApprovalFeedback(item) : projectApprovalDecisionFeedback(item);
+                return <span className="approval-status-cell"><span className={`approval-status-chip ${submittedView ? feedback.tone : "warning"}`}>
+                  {feedback.label}</span></span>;
+              } },
             { key: "requestedAt", header: "送審時間", dataLabel: "送審時間", className: "approval-workbench-col-time",
-              render: (item) => <time dateTime={item.requestedAt}>{formatCompactDate(item.requestedAt)}</time> }
+              render: (item) => <time dateTime={item.requestedAt}>{formatApprovalDate(item.requestedAt)}</time> }
           ]} />
         <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)}
           hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
     </div> : null}
+    {submittedDetail ? <SubmittedApprovalDetail item={submittedDetail} width={drawerWidth}
+      onClose={closeDetail} onStartResize={startDrawerResize} /> : null}
   </div>;
+}
+
+function SubmittedApprovalDetail({ item, width, onClose, onStartResize }: {
+  item: ApprovalWorkbenchRow;
+  width: number;
+  onClose: () => void;
+  onStartResize: (clientX: number) => void;
+}) {
+  const target = item.targetSummary || item.title;
+  const feedback = submittedApprovalFeedback(item);
+  return <PdmEntityDetailDrawer open width={width} ariaLabel="送審明細" title={target}
+    subtitle={item.actionTitle} status={<span className={`approval-status-chip ${feedback.tone}`}>{feedback.label}</span>}
+    entityCode={item.id} className="approval-detail-drawer" keepOpenSelector=".approval-inbox-list"
+    onClose={onClose} onStartResize={onStartResize}>
+    <div className="pdm-entity-drawer-body approval-detail-drawer-body">
+      <section className="drawing-detail-section" aria-label="送審資料">
+        <dl className="approval-submitted-facts">
+          {item.title && item.title !== target ? <div><dt>案件名稱</dt><dd>{item.title}</dd></div> : null}
+          <div><dt>送審者</dt><dd>{item.requestedByName ?? "未知申請者"}</dd></div>
+          <div><dt>送審時間</dt><dd><time dateTime={item.requestedAt}>{formatApprovalDate(item.requestedAt, true)}</time></dd></div>
+          <div><dt>審核單號</dt><dd>{item.id}</dd></div>
+        </dl>
+      </section>
+    </div>
+  </PdmEntityDetailDrawer>;
+}
+
+function submittedApprovalFeedback(item: ApprovalWorkbenchRow) {
+  if (item.source === "pdm_work_review") {
+    if (item.status === "approved") return { label: "已核准", tone: "success" };
+    if (item.status === "needs_info") return projectApprovalDecisionFeedback({ status: "rejected" });
+  }
+  return projectApprovalDecisionFeedback({ ...item, applyStatus: item.status === "applied" ? "applied" : undefined });
 }
 
 function readLocation(): PdmWorkbenchLocationState<ApprovalWorkbenchQuery> {
@@ -300,9 +361,10 @@ function normalizeQuery(value: string | null) {
   return (value ?? "").trim().replace(/\s+/gu, " ").slice(0, 160);
 }
 
-function formatCompactDate(value: string) {
+function formatApprovalDate(value: string, includeYear = false) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-TW", {
+    year: includeYear ? "numeric" : undefined,
     month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
   });
 }
