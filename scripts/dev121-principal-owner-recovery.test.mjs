@@ -842,12 +842,12 @@ test('prebuild prepare re-queries failed-tag Build absence after the producer an
   }
 })
 
-async function ordinaryAfterPrebuildAbortFixture() {
-  const h = ordinaryPrebuildAbortFixture()
+async function ordinaryAfterPrebuildAbortFixture(providedHarness = null) {
+  const h = providedHarness ?? ordinaryPrebuildAbortFixture()
   h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', ledger: 'ai_pdm_core.schema_migrations',
     migrationBootstrap: true, principalContractLedgerFloor: 35 }
   const prebuild = h.failed, prebuildRun = structuredClone(h.ownerRun)
-  prebuildRun.createdAt = '2026-09-30T00:00:00Z'; prebuildRun.updatedAt = '2026-09-30T00:01:00Z'
+  prebuildRun.createdAt = '2026-09-30T00:00:00Z'; prebuildRun.updatedAt = providedHarness ? h.ownerRun.updatedAt : '2026-09-30T00:01:00Z'
   const basis = (await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })).authorityBasis
   const failed = h.release({ source: 'f'.repeat(40), releaseId: 'DEV121-ORDINARY-AFTER-PREBUILD',
     revision: 'ai-pdm-prod-555555555555', previous: previousRevision, imageDigit: 'f',
@@ -2128,4 +2128,94 @@ test('B32 fixed ordinary predecessor retains depth-eight, ninth-depth and cycle 
     await runAiPdmEvidenceContext(child, () => assert.rejects(readPreActivationAbortContinuation(h.helperInput), /GRAPH_CYCLE_OR_HASH_CONFLICT/))
   })
   assert.equal(h.calls.puts, 0)
+})
+
+async function ordinaryArtifactPolicyAbortFixture() {
+  const provider = await preparedArtifactPolicyAbortFixture()
+  const h = ordinaryPrebuildAbortFixture(), intent = h.failed.intent, paths = h.failed.paths
+  h.profile.build = provider.h.profile.build
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner' }
+  h.objects.delete(paths.migrationAdmission)
+  const sourceUri = `gs://${bucket}/source/releases/${intent.releaseId}/${h.failed.intentRow.ref.sha256}/source.tar.gz`
+  const row = provider.h.objects.get(provider.sourceUri)
+  h.objects.set(sourceUri, { ...row, ref: { ...row.ref, uri: sourceUri } })
+  const build = structuredClone(provider.build), oldTag = provider.build.images[0]
+  const tag = `${h.profile.artifact.uri}:release-${intent.sourceRevision}`
+  build.source.storageSource.object = sourceUri.slice(`gs://${bucket}/`.length)
+  build.sourceProvenance.resolvedStorageSource = structuredClone(build.source.storageSource)
+  build.sourceProvenance.fileHashes = { [`${sourceUri}#${provider.sourceGeneration}`]: provider.build.sourceProvenance.fileHashes[`${provider.sourceUri}#${provider.sourceGeneration}`] }
+  build.steps[0].args = build.steps[0].args.map(value => value.replaceAll(provider.intent.sourceRevision, intent.sourceRevision).replaceAll(provider.intent.sourceSha256, intent.sourceSha256).replaceAll(oldTag, tag))
+  build.images = [tag]; build.results.images[0].name = tag
+  build.tags = ['dev-012', 'ai-pdm', intent.releaseId.toLowerCase()]
+  build.createTime = '2026-09-30T00:00:10Z'; build.startTime = '2026-09-30T00:00:11Z'; build.finishTime = '2026-09-30T00:00:30Z'
+  h.ownerRun.createdAt = '2026-09-30T00:00:00Z'; h.ownerRun.updatedAt = '2026-09-30T00:00:50Z'
+  const signal = { code: 'ARTIFACT_POLICY_FAILED', family: 'ARTIFACT' }
+  const rollbackFacts = { ...h.objects.get(paths.rollback).value.facts, failureSignal: signal }
+  const rollback = h.failed.seal('rollback', rollbackFacts)
+  h.failed.seal('terminal', { ...h.objects.get(paths.terminal).value.facts, failureSignal: signal }, rollback.ref)
+  const original = h.transport.request
+  h.transport.request = (url, ...args) => {
+    if (url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${intent.releaseId.toLowerCase()}`) return { builds: [structuredClone(build)] }
+    if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions: [] }
+    return original(url, ...args)
+  }
+  return { h, build, sourceSha256: provider.sourceSha256 }
+}
+
+test('ordinary artifact-policy abort accepts only quiescent failed build evidence and revalidates producer and prepare', async () => {
+  const { h, build } = await ordinaryArtifactPolicyAbortFixture()
+  const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(result.authorityBasis.failedBuildCount, 1)
+  assert.equal(result.authorityBasis.preparedBuild.buildId, build.id)
+  assert.equal(result.authorityBasis.preparedBuild.releaseAuthority, false)
+  assert.equal(result.authorityBasis.preparedBuild.artifactPolicyPassed, false)
+  const next = await ordinaryNextRelease(h)
+  const prepared = await executeOwnerStage(next.input)
+  assert.deepEqual(prepared.value.facts.preActivationAbortBasis, result.authorityBasis)
+  build.status = 'WORKING'
+  await assert.rejects(executeOwnerStage(next.input), /CONTINUATION_INVALID/)
+})
+
+test('ordinary unsealed abort rejects unexpected recipes, artifacts, migration admission and owner failure drift', async () => {
+  for (const mutate of [
+    f => { f.build.steps[0].env = ['UNEXPECTED=1'] },
+    f => { f.build.tags.push('unapproved') },
+    f => { f.build.status = 'WORKING' },
+    f => { f.build.source.storageSource.generation = '20' },
+    f => f.h.put(f.h.failed.paths.migrationAdmission, { unexpected: true }),
+    f => f.h.put(migrationSubmissionIntentUri(f.h.profile, f.h.failed.paths.migrate), { unexpected: true }),
+    f => { const row = f.h.objects.get(f.h.failed.paths.terminal); f.h.failed.seal('terminal', { ...row.value.facts, failureSignal: { code: 'UNKNOWN', family: 'ARTIFACT' } }, row.value.previousReceiptRef) },
+  ]) {
+    const f = await ordinaryArtifactPolicyAbortFixture(); mutate(f)
+    await assert.rejects(readPreActivationAbortContinuation({ ...f.h.helperInput, verifyProvider: true }), /CONTINUATION|MISSING/)
+    assert.equal(f.h.calls.puts, 0)
+  }
+})
+
+test('unsealed provider build accepts exact current submission tags only with the immutable claim', async () => {
+  const f = await ordinaryArtifactPolicyAbortFixture(), { h, build } = f
+  const request = { source: build.source, steps: build.steps, images: build.images, timeout: build.timeout,
+    queueTtl: build.queueTtl, logsBucket: build.logsBucket, serviceAccount: build.serviceAccount,
+    options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', requestedVerifyOption: 'VERIFIED' } }
+  const buildInputSha256 = sha256(canonicalize({ ownerApplicationId: 'ai-pdm', sourceArchiveSha256: f.sourceSha256, request }))
+  const inputTag = `owner-build-${buildInputSha256}`
+  build.tags = ['dev-012', 'ai-pdm', inputTag, h.failed.intent.releaseId.toLowerCase(), 'owner-submission-1']
+  const uri = `gs://${bucket}/receipts/build-inputs/${buildInputSha256}/submission-1.json`
+  h.put(uri, { schemaVersion: 'jenfu.dev012.build-submission.v1', ownerApplicationId: 'ai-pdm', buildInputSha256,
+    sourceArchiveSha256: f.sourceSha256, submission: 1, inputTag })
+  assert.equal((await readPreActivationAbortContinuation(h.helperInput)).authorityBasis.preparedBuild.releaseAuthority, false)
+  h.objects.delete(uri)
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /MISSING/)
+  build.tags[2] = `owner-build-${'0'.repeat(64)}`
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /CONTINUATION_INVALID/)
+})
+
+test('ordinary forward abort revalidates the inherited unsealed build without promoting its artifact', async () => {
+  const f = await ordinaryArtifactPolicyAbortFixture()
+  const h = await ordinaryAfterPrebuildAbortFixture(f.h)
+  const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.deepEqual(result.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+  assert.equal(h.basis.preparedBuild.releaseAuthority, false)
+  f.build.tags[0] = 'wrong-owner'
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /CONTINUATION_INVALID/)
 })
