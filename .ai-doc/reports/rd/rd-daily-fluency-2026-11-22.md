@@ -38,4 +38,6 @@
 
 首個有效失敗保留：本機原本缺 `fflate`，型別／圖號回歸在 import 前失敗；依既有 lock 補齊後通過。依賴補齊時禁止 install scripts，導致 SQLite native binding 未產出，第一輪隔離 build 在主資料唯讀 snapshot 前失敗；重建原套件後，隔離 build 已通過並證明 primary invariant、artifact、cleanup。第一輪來源 lint 的 ref-during-render 已改為 layout effect，測試捕捉值也移到 effect；並非忽略 lint。UI harness 的 browser sandbox、計時安裝時點、查重 POST 分類與 textarea implicit label 定位失敗屬前提／fixture修正，沒有當作產品 PASS。
 
-最終 app build 與 affected-slice runner 的結果收斂於交付提交後的本機工具紀錄；未執行 GitHub required CI 或正式發布。
+最終 app source 提交為 `e972b575e998f0a8a74aa2909b8a9f50e8f0d909`，分支 `codex/daily-fluency-cache-drafts`。最後隔離 build PASS，`artifact=true; primary=true; cleanup=true`；主資料不變指紋為 `37eb1dba3d34a63bed3f68c96b5b1c311b4545722bb35d58e21ba352bff360d7`。該確切提交的 affected-slice runner 通過 preflight、planner 與 release-core，分類為 application／preview／release-control／documentation；無資料庫、worker、IAM 或雲端異動。完整證據保留於 `output/playwright/daily-fluency/affected/` 及 `build-final.log`。未執行 GitHub required CI、push 或正式發布。
+
+任務專用 Next／Edge 已結束，13227 埠已釋放；基線 source copy、dev build 與隔離資料暫存已移除，量測 JSON、圖片及 logs 保留。重現 `--baseline` 時需先從上述基線 commit 重建隔離 source copy；一般改善版測試不依賴該已移除的 copy。其他既有 worktree 與未暫存的 `.tmpdev032-migration-runner-build-current` 刪除變更原樣保留。
