@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { reviewedBusinessLayouts } from './dev126-local-reset-inventory.mjs'
 import test from 'node:test'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
@@ -100,13 +101,7 @@ async function prepareHarness(t, options = {}) {
   targetInput.expectedTargetFingerprint = fingerprint(targetInput, sourceGeneration)
   targetInput.observedTargetFingerprint = targetInput.expectedTargetFingerprint
   Object.freeze(targetInput)
-  const includedRelations = Array.from({ length: policy.businessRelationCount }, (_, index) => `business_${String(index + 1).padStart(3, '0')}`)
-  includedRelations[0] = 'users'
-  includedRelations[1] = 'principal_accounts'
-  includedRelations[2] = 'file_assets'
-  includedRelations[3] = 'file_derivatives'
-  includedRelations[4] = 'release_packages'
-  includedRelations[5] = 'submission_files'
+  const includedRelations = [...(options.businessRelations ?? reviewedBusinessLayouts[0])]
   const relationNames = [...includedRelations, ...policy.controlRelations].sort()
   const repositoryObject = options.repositoryObject
     ? { key: options.repositoryObject.key, bytes: Buffer.from(options.repositoryObject.content) }
@@ -262,8 +257,8 @@ async function prepareHarness(t, options = {}) {
         assert.doesNotMatch(sql, /SELECT pg_catalog\.set_config\(|\\(?:restrict|unrestrict)\s/u)
         assert.doesNotMatch(sql, /dev126PG18FixtureKey/u)
         if (harness.copyRowData) assert.ok(sql.includes(harness.copyRowData))
-        assert.equal((sql.match(/DISABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
-        assert.equal((sql.match(/ENABLE TRIGGER USER;/gu) ?? []).length, policy.businessRelationCount)
+        assert.equal((sql.match(/DISABLE TRIGGER USER;/gu) ?? []).length, includedRelations.length)
+        assert.equal((sql.match(/ENABLE TRIGGER USER;/gu) ?? []).length, includedRelations.length)
         const applyPsql = harness.psqlApplySequence?.[psqlAttempt - 1] ?? harness.applyPsql
         const psqlCode = harness.psqlCodeSequence?.[psqlAttempt - 1] ?? harness.psqlCode
         if (applyPsql) {
@@ -389,6 +384,20 @@ function makeRestoreOwnerPool(harness, queries) {
     }
   }
 }
+
+test('restores the complete migrated inventory and rejects a substituted table before any child process', async t => {
+  const current = reviewedBusinessLayouts.at(-1)
+  const h = await prepareHarness(t, { businessRelations: current })
+  const result = await h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope })
+  assert.equal(result.restored, true)
+  const altered = [...current]
+  altered[altered.indexOf('reviewer_authority')] = 'unreviewed_table'
+  const invalid = await prepareHarness(t, { businessRelations: altered })
+  await assert.rejects(invalid.owner.restoreBusinessBaseline({ targetInput: invalid.targetInput, scope: invalid.scope }),
+    error => error.code === 'dev126_reset_restore_inventory_invalid')
+  assert.equal(invalid.spawns.length, 0)
+  assert.equal(invalid.databaseCalls.includes('markMaintenance'), false)
+})
 
 test('restores the pinned business set atomically, then rebinds PDM metadata to the Platform generation', async t => {
   const h = await prepareHarness(t)
@@ -854,4 +863,17 @@ test('rejects an abandoned handshake with a fabricated Central acknowledgement b
   await assert.rejects(h.owner.restoreBusinessBaseline({ targetInput: h.targetInput, scope: h.scope }),
     error => error instanceof LocalSandboxError && error.code === 'dev126_reset_restore_binding_invalid')
   assert.deepEqual(h.spawns, [])
+})
+
+test('reviewed inventory includes every table introduced by migrations 103 through 109', async () => {
+  const baseline = reviewedBusinessLayouts[0]
+  const additions = []
+  for (let version = 103; version <= 109; version++) {
+    const directory = new URL('../../db/postgres/', import.meta.url)
+    const names = (await readdir(directory)).filter(name => name.startsWith(`${version}_`))
+    assert.equal(names.length, 1)
+    const sql = await readFile(new URL(names[0], directory), 'utf8')
+    additions.push(...Array.from(sql.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?ai_pdm_core\.([a-z_]+)/gi), match => match[1]))
+    assert.deepEqual([...new Set([...baseline, ...additions])].sort(), [...reviewedBusinessLayouts[version - 102]].sort())
+  }
 })

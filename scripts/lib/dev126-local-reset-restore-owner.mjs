@@ -9,6 +9,7 @@ import { Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import path from 'node:path'
 import pg from 'pg'
+import { reviewedBusinessLayouts } from './dev126-local-reset-inventory.mjs'
 import { contractDigest, isLoopbackHost, LocalSandboxError, readLocalSandboxConfig } from '../../contracts/local-principal-sandbox/v1/protocol.mjs'
 import { DEV126_LOCAL_RESET_BASELINE_POLICY as baselinePolicy,
   readDev126LocalResetBaseline } from './dev126-local-reset-baseline-owner.mjs'
@@ -35,8 +36,7 @@ const FIXED_RESTORE_HEADER_LINES = new Set([
   'SET client_min_messages = warning;',
   'SET row_security = off;',
 ])
-const BUSINESS_RELATION_COUNT = 167
-const TOTAL_RELATION_COUNT = BUSINESS_RELATION_COUNT + CONTROL_RELATIONS.length
+const LEGACY_BUSINESS_RELATION_COUNT = 167
 const SCOPED_LOGIN_ROLE = /^local_pdm_seed_[a-f0-9]{16}$/u
 const SANDBOX_ID = /^[a-z][a-z0-9-]{2,63}$/u
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
@@ -169,9 +169,14 @@ function validateBaseline(baseline, scope, targetInput) {
   const relations = manifest.database.relations
   const excluded = [...manifest.database.excludedRelations].sort()
   const expectedExcluded = [...CONTROL_RELATIONS].sort()
-  if (included.length !== BUSINESS_RELATION_COUNT || new Set(included).size !== included.length ||
+  // Historical v1 baselines keep their original admission rule. Expanded
+  // schemas must match every name of a reviewed migration layout.
+  const names = new Set(included)
+  const supported = included.length === LEGACY_BUSINESS_RELATION_COUNT ||
+    reviewedBusinessLayouts.some(layout => layout.length === included.length && layout.every(name => names.has(name)))
+  if (!supported || names.size !== included.length ||
     included.some(name => !IDENTIFIER.test(name) || CONTROL_RELATIONS.includes(name)) ||
-    JSON.stringify(excluded) !== JSON.stringify(expectedExcluded) || relations.length !== BUSINESS_RELATION_COUNT ||
+    JSON.stringify(excluded) !== JSON.stringify(expectedExcluded) || relations.length !== included.length ||
     relations.some(relation => !isRecord(relation) || !IDENTIFIER.test(relation.name ?? '') ||
       !['r', 'p'].includes(relation.kind) || relation.owner !== OWNER_ROLE ||
       !Number.isSafeInteger(relation.rowCount) || relation.rowCount < 0 || !HASH.test(relation.rowsSha256 ?? '')) ||
@@ -299,7 +304,7 @@ function validateOwnerState(state, context, scope, manifest, { allowMaintenance 
   const expectedLiveNames = [...manifest.database.includedRelations, ...CONTROL_RELATIONS].sort()
   const observedLiveNames = state.relations.map(relation => relation.name).sort()
   if (JSON.stringify(observedLiveNames) !== JSON.stringify(expectedLiveNames) ||
-    state.relations.length !== TOTAL_RELATION_COUNT ||
+    state.relations.length !== expectedLiveNames.length ||
     state.relations.some(relation => relation.owner !== OWNER_ROLE || !['r', 'p'].includes(relation.kind) ||
       (businessByName.has(relation.name) && businessByName.get(relation.name).kind !== relation.kind))) {
     fail('dev126_reset_restore_inventory_drift', 503)
@@ -1662,7 +1667,7 @@ export const DEV126_LOCAL_RESET_RESTORE_OWNER_POLICY = Object.freeze({
   schema: SCHEMA,
   ownerRole: OWNER_ROLE,
   scopedLoginPattern: 'local_pdm_seed_[a-f0-9]{16}',
-  businessRelationCount: BUSINESS_RELATION_COUNT,
+  businessRelationCount: LEGACY_BUSINESS_RELATION_COUNT,
   controlRelations: CONTROL_RELATIONS,
   sessionRelation: SESSION_RELATION,
   transaction: 'psql-single-transaction-no-cascade',
