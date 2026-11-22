@@ -1273,7 +1273,7 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     assertImmutableRef(inheritedBasis.releasedIntentRef, bucket, ['receipts'])
     releasedIntentRef = inheritedBasis.releasedIntentRef
     anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts'])
-  } else if (partial && prepareFacts.preActivationAbortBasis) {
+  } else if ((partial || preparedBuild) && prepareFacts.preActivationAbortBasis) {
     inheritedBasis = prepareFacts.preActivationAbortBasis
     releasedIntentRef = await readInheritedPrebuildAnchor({ profile, transport, intent, inheritedBasis, anchor, read })
     anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts'])
@@ -1374,7 +1374,7 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     authorityBasis: { schemaVersion, failedIntentRef: baselineIntentRef,
       releasedIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
       absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: completed || partial || preparedBuild ? 1 : 0,
-      ...(preparedBuild ? { preparedBuild } : {}),
+      ...(preparedBuild ? { preparedBuild, ...(inheritedBasis ? { inheritedBasis } : {}) } : {}),
       ...(reconciled ? { originalDatabaseDisposition: 'UNKNOWN', reconciliation: reconciliation.basis, sealedBuild: completed, principalOnlyFenceRef, principalOnlyRecovery: recovery }
         : completed ? { sealedBuild: completed, inheritedBasis } : partial ? { unpublishedBuild: partial, inheritedBasis } : {}),
       stageRefs: { prepare: prepare.ref, ...(completed ? { build: build.ref, deployment: deployment.ref } : {}), rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
@@ -2010,7 +2010,7 @@ async function readInheritedPrebuildAnchor({ profile, transport, intent, inherit
     || !/^[a-f0-9]{40}$/u.test(prior.sourceRevision ?? '') || prior.previousRevision !== intent.previousRevision
     || ref.uri !== `gs://${bucket}/receipts/releases/${prior.releaseId}/release-intent.json`
     || Object.hasOwn(prior, 'principalOnlyRecovery') || Object.hasOwn(prior, 'principalOnlyFenceRef')
-    || !same(prior.baselineIntentRef, basis.releasedIntentRef) || same(ref, basis.releasedIntentRef)) fail()
+    || same(ref, basis.releasedIntentRef)) fail()
   assertImmutableRef(basis.releasedIntentRef, bucket, ['receipts'])
   const priorPaths = releasePaths(profile, prior, ref.sha256)
   const [prepare, rollback, terminal, lock, authorization, readiness] = await Promise.all([
@@ -2036,7 +2036,7 @@ async function readInheritedPrebuildAnchor({ profile, transport, intent, inherit
   const refs = { sourceLock: prior.sourceLockRef, authorization: prior.authorizationPolicyRef, readiness: prior.readinessReceiptRef,
     foundation: prior.foundationReceiptRef, infra: prior.infraReceiptRef, runtimeConfig: prior.runtimeConfigRef }
   if (prepare.value.previousReceiptRef !== null || rollback.value.previousReceiptRef !== null || !same(terminal.value.previousReceiptRef, rollback.ref)
-    || !same(prepare.value.facts.prerequisiteRefs, refs) || prepare.value.facts.preActivationAbortBasis
+    || !same(prepare.value.facts.prerequisiteRefs, refs)
     || basis.inputFingerprint !== sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: prior.releaseId,
       sourceRevision: prior.sourceRevision, releaseIntentSha256: ref.sha256 }))) fail()
   const stages = ['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
@@ -2057,6 +2057,15 @@ async function readInheritedPrebuildAnchor({ profile, transport, intent, inherit
     if (!same(observed, basis.preparedBuild)) fail()
     await assertStableNoMigrationExecution(profile, transport, prior, priorPaths, run)
   } else await assertZeroBuilds(profile, transport, prior)
+  const inherited = prepare.value.facts.preActivationAbortBasis ?? null
+  if (!same(basis.inheritedBasis ?? null, inherited)) fail()
+  if (inherited) {
+    const predecessor = await transport.readJson(prior.baselineIntentRef, bucket, ['receipts'])
+    const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), prior.baselineIntentRef, true)
+    const released = await runAiPdmEvidenceContext(child, () => readInheritedPrebuildAnchor({
+      profile, transport, intent: prior, inheritedBasis: inherited, anchor: predecessor, read }))
+    if (!same(released, basis.releasedIntentRef)) fail()
+  } else if (!same(prior.baselineIntentRef, basis.releasedIntentRef)) fail()
   return basis.releasedIntentRef
 }
 

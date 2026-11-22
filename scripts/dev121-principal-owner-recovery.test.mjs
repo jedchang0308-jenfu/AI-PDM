@@ -2219,3 +2219,60 @@ test('ordinary forward abort revalidates the inherited unsealed build without pr
   f.build.tags[0] = 'wrong-owner'
   await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /CONTINUATION_INVALID/)
 })
+
+async function consecutiveArtifactPolicyAbortFixture() {
+  const f = await ordinaryArtifactPolicyAbortFixture(), { h } = f
+  const first = h.failed, firstRun = structuredClone(h.ownerRun)
+  const basis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
+  const second = h.release({ source: 'd'.repeat(40), releaseId: 'DEV121-SECOND-POLICY-ABORT', revision: candidateRevision,
+    previous: previousRevision, imageDigit: 'd', anchorRef: first.intentRow.ref, preActivationAbortBasis: basis })
+  for (const name of ['build','provenance','deployment','migrate','migrationAdmission','candidate','entrypoint','verify','decision','activate','canonical','finalize']) h.objects.delete(second.paths[name])
+  const facts = structuredClone(h.objects.get(first.paths.rollback).value.facts)
+  const rollback = second.seal('rollback', facts)
+  const { recoveryOrder, ...terminalFacts } = facts
+  second.seal('terminal', terminalFacts, rollback.ref)
+  const firstUri = `gs://${bucket}/source/releases/${first.intent.releaseId}/${first.intentRow.ref.sha256}/source.tar.gz`
+  const uri = `gs://${bucket}/source/releases/${second.intent.releaseId}/${second.intentRow.ref.sha256}/source.tar.gz`
+  const row = h.objects.get(firstUri)
+  h.objects.set(uri, { ...row, ref: { ...row.ref, uri } })
+  const build = structuredClone(f.build), oldTag = build.images[0]
+  build.id = '210fa1d3-b991-41b6-b80b-3f2d86494b4c'; build.name = build.name.replace(f.build.id, build.id)
+  build.source.storageSource.object = uri.slice(`gs://${bucket}/`.length)
+  build.sourceProvenance.resolvedStorageSource = structuredClone(build.source.storageSource)
+  build.sourceProvenance.fileHashes = { [`${uri}#${row.metadata.generation}`]: Object.values(build.sourceProvenance.fileHashes)[0] }
+  const tag = `${h.profile.artifact.uri}:release-${second.intent.sourceRevision}`
+  build.steps[0].args = build.steps[0].args.map(value => value.replaceAll(first.intent.sourceRevision, second.intent.sourceRevision).replaceAll(oldTag, tag))
+  build.images = [tag]; build.results.images[0].name = tag; build.tags = ['dev-012','ai-pdm',second.intent.releaseId.toLowerCase()]
+  build.createTime = '2026-10-01T00:00:10Z'; build.startTime = '2026-10-01T00:00:11Z'; build.finishTime = '2026-10-01T00:00:30Z'
+  const secondRun = { ...firstRun, id: '43', headSha: second.intent.sourceRevision, createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:01:00Z' }
+  h.transport.readOwnerRun = async (_profile, ref) => ref.endsWith('/42') ? firstRun : secondRun
+  const request = h.transport.request
+  h.transport.request = (url, ...args) => url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${second.intent.releaseId.toLowerCase()}`
+    ? { builds: [structuredClone(build)] } : request(url, ...args)
+  Object.assign(h.controlCore, { releaseId: second.intent.releaseId, sourceRevision: second.intent.sourceRevision,
+    sourceLockSha256: second.lock.ref.sha256, candidateRevision: null, ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/43',
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId:'ai-pdm',releaseId:second.intent.releaseId,sourceRevision:second.intent.sourceRevision,releaseIntentSha256:second.intentRow.ref.sha256 })) })
+  h.control(); h.failed = second; h.helperInput.baselineIntentRef = second.intentRow.ref
+  return { h, first, firstBuild: f.build, basis, build }
+}
+
+test('two consecutive artifact-policy aborts retain the released anchor, both failed builds and cold/cached prepare', async () => {
+  const f = await consecutiveArtifactPolicyAbortFixture()
+  const result = await readPreActivationAbortContinuation(f.h.helperInput)
+  assert.deepEqual(result.authorityBasis.releasedIntentRef, f.h.anchor.intentRow.ref)
+  assert.deepEqual(result.authorityBasis.inheritedBasis, f.basis)
+  assert.equal(result.authorityBasis.preparedBuild.releaseAuthority, false)
+  const next = await ordinaryNextRelease(f.h)
+  const prepared = await executeOwnerStage(next.input)
+  assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepared.ref.sha256)
+  f.firstBuild.status = 'WORKING'
+  await assert.rejects(executeOwnerStage(next.input), /CONTINUATION_INVALID/)
+})
+
+test('consecutive abort rejects a forged inherited prepared-build projection before authority publication', async () => {
+  const f = await consecutiveArtifactPolicyAbortFixture(), row = f.h.objects.get(f.h.failed.paths.prepare)
+  const facts = structuredClone(row.value.facts)
+  facts.preActivationAbortBasis.preparedBuild.failedArtifactDigest = f.h.anchor.image
+  f.h.failed.seal('prepare', facts)
+  await assert.rejects(readPreActivationAbortContinuation(f.h.helperInput), /CONTINUATION_INVALID/)
+})
