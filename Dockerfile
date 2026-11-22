@@ -1,5 +1,5 @@
 ARG NODE_IMAGE=node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
-ARG RUNTIME_NODE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca
+ARG RUNTIME_NODE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:d4b8c34560df58c821ebda89a2897d7d183220c0debaf474a2b67a6c7cc22064
 ARG RUNTIME_SANITIZER_IMAGE=alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
 ARG SOURCE_REVISION=unknown
 ARG SOURCE_TREE=unknown
@@ -58,29 +58,26 @@ CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 
 FROM ${RUNTIME_NODE_IMAGE} AS runtime-base
 
-FROM ${NODE_IMAGE} AS runtime-security-packages
-COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-RUN printf '%s\n' 'deb https://security.debian.org/debian-security trixie-security main' > /tmp/runtime-security.list \
-    && apt-get -o APT::Update::Error-Mode=any -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- update \
-    && cd /tmp \
-    && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 \
-    && printf '%s\n' 'ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074  /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb' | sha256sum -c - \
-    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Package)" = libssl3t64 \
-    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Version)" = 3.5.7-1~deb13u3 \
-    && dpkg-deb -x /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /patch-rootfs \
-    && dpkg-deb -e /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /package-metadata \
-    && mkdir -p /patch-rootfs/var/lib/dpkg/status.d \
-    && { printf '%s\n' 'Status: install ok installed'; cat /package-metadata/control; } > /patch-rootfs/var/lib/dpkg/status.d/libssl3t64 \
-    && cp /package-metadata/md5sums /patch-rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums
-
 FROM ${RUNTIME_SANITIZER_IMAGE} AS runtime-sanitizer
 COPY --from=runtime-base / /rootfs
-COPY --from=runtime-security-packages /patch-rootfs/ /rootfs/
-RUN rm -f \
+# Remove the package payload (including loadable engines) before its inventory.
+RUN set -eu; cd /rootfs; \
+    files=var/lib/dpkg/status.d/libssl3t64.md5sums; \
+    test -s "$files"; md5sum -c "$files" >/dev/null; \
+    while read -r sum path; do \
+      case "$path" in usr/*) rm -- "$path" ;; *) exit 1 ;; esac; \
+    done < "$files"; \
+    rm -f \
+      /rootfs/var/lib/dpkg/status.d/libssl3t64 \
+      /rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1 \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
       /rootfs/var/lib/dpkg/status.d/zlib1g \
       /rootfs/var/lib/dpkg/status.d/zlib1g.md5sums \
+    && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libssl.so.3 \
+    && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libcrypto.so.3 \
+    && test ! -e /rootfs/var/lib/dpkg/status.d/libssl3t64 \
+    && test ! -e /rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums \
     && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1 \
     && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
     && test ! -e /rootfs/var/lib/dpkg/status.d/zlib1g \
@@ -124,5 +121,7 @@ COPY --from=builder --chown=65532:65532 /app/.ai-doc/reference/pdm-management-po
 RUN ["/nodejs/bin/node", "-e", "const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');const d='/app/worker-downloads/windows-service',p=path.join(d,'manifest.json'),required=process.env.PDM_WINDOWS_INSTALLER_REQUIRED==='true';if(!fs.existsSync(p)){if(required)throw Error('DEV125_INSTALLER_MANIFEST_MISSING');process.exit(0)}const m=JSON.parse(fs.readFileSync(p,'utf8')),keys=['contractVersion','fileName','protocolVersion','sha256','size','sourceRevision','version'];if(JSON.stringify(Object.keys(m).sort())!==JSON.stringify(keys)||m.contractVersion!=='ai-pdm.windows-service-installer.v1'||m.sourceRevision!==process.env.PDM_SOURCE_REVISION||m.protocolVersion!==1||!/^AI-PDM-Windows-Setup-[0-9A-Za-z._-]{1,40}\\.exe$/.test(m.fileName)||!Number.isSafeInteger(m.size)||!/^[a-f0-9]{64}$/.test(m.sha256))throw Error('DEV125_INSTALLER_MANIFEST_INVALID');const entries=fs.readdirSync(d).sort(),allowed=new Set(['.gitkeep','manifest.json',m.fileName]);if(entries.some(v=>!allowed.has(v)))throw Error('DEV125_INSTALLER_DIRECTORY_INVALID');const b=fs.readFileSync(path.join(d,m.fileName));if(b.length!==m.size||crypto.createHash('sha256').update(b).digest('hex')!==m.sha256)throw Error('DEV125_INSTALLER_DIGEST_INVALID')"]
 USER 65532:65532
 EXPOSE 8080
+COPY --from=runtime-smoke /runtime-smoke.mjs /runtime-smoke.mjs
+RUN ["/nodejs/bin/node", "/runtime-smoke.mjs", "--app"]
 ENTRYPOINT ["/nodejs/bin/node"]
 CMD ["server.js"]
