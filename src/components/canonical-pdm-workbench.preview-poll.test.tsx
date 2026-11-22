@@ -63,7 +63,7 @@ function harness(locationMode = false, workbenchCache = createPdmWorkbenchCache(
       runtime.current = h; s = r = m = c = 0; h.effects = [];
       tree = CanonicalPdmWorkbench({ entityType: "drawing" });
       const nextLifetime = h.effects.find((e: any) => e.deps?.length === 1 && e.deps[0] === h.load);
-      const nextPoll = h.effects.find((e: any) => [6, 7, 8].includes(e.deps?.length) && e.deps[2] === h.load);
+      const nextPoll = h.effects.find((e: any) => e.deps?.length === 10 && typeof e.deps[0] === "string" && e.deps[0].startsWith("/api/"));
       if (nextLifetime && (!same(lifetime?.deps, nextLifetime.deps) || replay)) { lifetime?.cleanup?.(); lifetime = { ...nextLifetime, cleanup: nextLifetime.fn() }; }
       if (!same(poll?.deps, nextPoll.deps) || replay) { poll?.cleanup?.(); poll = { ...nextPoll, cleanup: nextPoll.fn() }; }
       if (locationMode) {
@@ -95,24 +95,19 @@ async function start(state = "pending") {
 afterEach(() => { runtime.current?.unmount(); runtime.current = null; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("returning to a workbench (captured hooks)", () => {
-  it("shows the cached list while still issuing a fresh GET, then replaces it", async () => {
+  it("shows the cached list without issuing another GET", async () => {
     const { h: first, fetch } = await start("missing");
     first.unmount();
-    let finish!: (response: Response) => void;
-    fetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
     const h = harness(false, first.workbenchCache);
-    const flight = h.load(); h.render();
+    await h.load(); h.render();
     expect(h.text()).toContain("unchanged");
-    expect(h.text()).toContain("更新中");
-    expect(fetch).toHaveBeenCalledTimes(2);
-    finish(response("missing", "fresh server row"));
-    await flight; h.render();
-    expect(h.text()).toContain("fresh server row");
     expect(h.text()).not.toContain("更新中");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
   it.each([401, 403, 503])("clears a restored list and cache after HTTP %i", async status => {
     const { h: first, fetch } = await start("missing");
     first.unmount();
+    await vi.advanceTimersByTimeAsync(30_001);
     fetch.mockImplementationOnce(async () => new Response(JSON.stringify({ message: "denied or unavailable" }), { status }));
     const h = harness(false, first.workbenchCache);
     await h.load(); h.render();
@@ -124,6 +119,7 @@ describe("returning to a workbench (captured hooks)", () => {
     const { h, fetch } = await start("missing");
     let finish!: (response: Response) => void;
     fetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+    h.workbenchCache.clear();
     const flight = h.load();
     h.workbenchCache.clear();
     finish(response("missing", "old account response"));
@@ -131,6 +127,23 @@ describe("returning to a workbench (captured hooks)", () => {
     expect(h.text()).not.toContain("old account response");
     expect(h.workbenchCache.readList(String(fetch.mock.calls[0][0]))).toBeNull();
   });
+});
+
+it("batches preview requests when multiple drawing branches exceed 100 rows", async () => {
+  const { h, fetch } = await start("missing");
+  const many = Array.from({ length: 201 }, (_, i) => ({ ...row, rowKey: "branch-" + i }));
+  const loaded = { data: { groups: [{ rows: many }], previewEnabled: true, nextCursor: null, previousCursor: null }, meta: { contractToken: "fixture" } };
+  fetch.mockImplementationOnce(async () => new Response(JSON.stringify(loaded)));
+  fetch.mockImplementation(async input => {
+    const keys = new URL(String(input), "http://fixture").searchParams.getAll("rowKey");
+    expect(keys.length).toBeLessThanOrEqual(100);
+    return new Response(JSON.stringify({ data: { previewByRowKey: Object.fromEntries(keys.map(key => [key, { state: "missing", media: null }])) } }));
+  });
+  await h.load("new-many-row-page"); h.render();
+  await vi.advanceTimersByTimeAsync(0); h.render();
+  const requests = fetch.mock.calls.map(([input]) => new URL(String(input), "http://fixture")).filter(url => url.searchParams.get("view") === "previews");
+  expect(requests).toHaveLength(3);
+  expect(requests.flatMap(url => url.searchParams.getAll("rowKey"))).toEqual(many.map(item => item.rowKey));
 });
 
 describe("DEV122 imported workbench list polling lifetime (captured hooks)", () => {
@@ -154,7 +167,8 @@ describe("DEV122 imported workbench list polling lifetime (captured hooks)", () 
     await h.load("fresh-owned-cursor", "before"); h.render();
     await vi.advanceTimersByTimeAsync(2500);
     expect(fetch).toHaveBeenCalledTimes(4);
-    expect(fetch.mock.calls[3][0]).toContain("cursor=fresh-owned-cursor&direction=before");
+    expect(fetch.mock.calls[2][0]).toContain("cursor=fresh-owned-cursor&direction=before");
+    expect(fetch.mock.calls[3][0]).toContain("view=previews");
   });
 
   it("30th start aborted by layout exit still reports the exhausted budget on re-entry", async () => {

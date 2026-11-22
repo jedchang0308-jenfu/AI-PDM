@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchCurrentPdmUser } from "@/lib/pdm-current-user-client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldOff, UserCog, UserPlus } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
@@ -127,7 +129,7 @@ export default function AccountsSettingsPage() {
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
+    void fetchCurrentPdmUser().then(async (response) => {
       if (!response.ok) throw new Error("account_session_unavailable");
       const body = await response.json();
       if (active) setPrincipalMode(body.session?.contractVersion === "jenfu.ai-pdm-session.v2");

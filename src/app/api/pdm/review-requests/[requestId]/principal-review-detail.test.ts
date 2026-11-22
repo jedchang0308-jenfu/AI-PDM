@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   issueContract: vi.fn(), legacyActor: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
-  readWork: vi.fn(), resolveWorkBasis: vi.fn(), reviewResources: vi.fn()
+  readPrimary: vi.fn(), readWork: vi.fn(), resolveWorkBasis: vi.fn(), reviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
@@ -44,6 +44,8 @@ vi.mock("@/lib/pdm-review-package", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-review-package")>(),
   verifyReviewPackageIntegrity: mocks.verifyPackage
 }));
+
+vi.mock("@/lib/pdm-principal-review-target", () => ({ readPrincipalReviewTarget: mocks.readPrimary }));
 
 import { GET } from "@/app/api/pdm/review-requests/[requestId]/route";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
@@ -92,6 +94,22 @@ beforeEach(() => {
 });
 
 describe("principal DEV-087 review detail", () => {
+  it("returns the authorized primary target with the shell when requested", async () => {
+    const target = { targetKey: "part:part-one", scope: "submitted", evidenceHash: "evidence",
+      markers: {}, workspace: { kind: "part", identity: { code: "P-001", revision: null }, files: [], attachments: [] } };
+    mocks.verifyPackage.mockReturnValueOnce({
+      schemaVersion: "pdm-review-package-v2", requestKind: "part_change", decisionBasis: { version: 1 },
+      primaryTargetKey: target.targetKey, root: {}, matrix: {}, targets: [target] });
+    mocks.readPrimary.mockResolvedValueOnce({ target, current: null });
+    const initial = request();
+    const response = await GET(new Request(initial.url + "?includePrimary=true", { headers: initial.headers }), params);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.initialTarget).toMatchObject({
+      targetKey: target.targetKey, drift: { status: "missing" } });
+    expect(mocks.readPrimary).toHaveBeenCalledWith(tx, verified, {
+      requestId: "review-one", entityType: "part", entityId: "part-one" });
+  });
+
   it("rejects missing Principal session before reading an assigned request", async () => {
     const response = await GET(new Request(request().url), params);
     expect(response.status).toBe(401);

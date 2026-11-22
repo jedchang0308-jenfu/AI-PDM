@@ -14,6 +14,7 @@ import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 type ShellTarget = { targetKey: ReviewPackageTargetKey; targetId: string; entityType: ReviewPackageEntityType; number: string; identity: Record<string, unknown>; revision: string | null; scope: ReviewPackageScope; markers: ReviewPackageMarkerFacts; evidenceHash: string; fileCount: number; attachmentCount: number };
 export type CanonicalReviewPackageShell = {
   schemaVersion: "pdm-review-package-v2"; requestId: string; requestKind: string; entityType: ReviewPackageEntityType; entityId: string; rowVersion: number; packageHash: string; submittedAt: string;
+  initialTarget?: Target;
   lifecycle?: ReviewPackageLifecycleBasis | null;
   primaryTargetKey: ReviewPackageTargetKey; root: { id: string; code: string };
   matrix: { rootId: string; rootCode: string; evidenceHash: string; drawings: Array<{ axisId: string; targetKey: `drawing:${string}`; code: string; revision: string | null }>; parts: Array<{ axisId: string; targetKey: `part:${string}`; code: string; revision: null }>; cells: Array<{ drawingNumberId: string; partNumberId: string; drawingNumber: string; partNumber: string; relationType: "manufacturing_basis" | "reference" | null }> };
@@ -51,7 +52,7 @@ export function CanonicalReviewPackageWorkspace({ requestId, returnTo, initialSh
   const loadShell = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const response = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
+      const response = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}?includePrimary=true`, { cache: "no-store" });
       const body = await response.json().catch(() => null) as ApiResult<CanonicalReviewPackageShell> | { error?: unknown } | null;
       if (!response.ok || !body || !("data" in body)) throw new Error(apiMessage(body, "審核包目前無法載入。"));
       setShell(body.data); setContractToken(body.meta.contractToken); setLoading(false);
@@ -85,6 +86,9 @@ export function CanonicalReviewPackageWorkspace({ requestId, returnTo, initialSh
   const loadTarget = useCallback(async () => {
     if (!shell || !activeKey) return;
     const requestSequence = ++targetRequestRef.current;
+    if (shell.initialTarget?.targetKey === activeKey) {
+      setTarget(shell.initialTarget); setTargetLoading(false); return;
+    }
     const { entityType, targetId: entityId } = splitReviewPackageTargetKey(activeKey as ReviewPackageTargetKey);
     setTargetLoading(true); setError("");
     try {

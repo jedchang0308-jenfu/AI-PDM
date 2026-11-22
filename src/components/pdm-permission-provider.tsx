@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { clearCurrentPdmUser, clearPendingPdmApprovalCount } from "@/lib/pdm-current-user-client";
 import { createPdmPermissionStore, subscribePdmPermissionInvalidation, subscribePdmMutationInvalidation, type PdmPermissionInvalidationReason } from "@/lib/pdm-permission-client";
 import { createPdmWorkbenchCache } from "@/lib/pdm-workbench-cache";
 import { createPdmPreviewImageCache, createPdmPreviewImageDenials } from "@/lib/pdm-preview-image-cache";
@@ -36,7 +37,7 @@ export function PdmPermissionProvider({ children }: { children: ReactNode }) {
   const active = useRef(false);
   useEffect(() => {
     active.current = true;
-    if (publicPage) { workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); store.invalidate("logout"); }
+    if (publicPage) { clearCurrentPdmUser(); clearPendingPdmApprovalCount(); workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); store.invalidate("logout"); }
     else if (store.getSnapshot().kind === "unauthenticated") store.invalidate("account-changed");
     else void store.ensure();
     const unsubscribe = subscribePdmPermissionInvalidation(reason => { workbenchCache.clear(); if (reason !== "forbidden") deniedHrefs.clear(); previewImageCache.clear(); store.invalidate(reason); });

@@ -47,11 +47,13 @@ export class PdmCanonicalWorkbenchService {
 
   async list(url: URL, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor): Promise<CanonicalWorkbenchListDto> {
     const query = normalizeCanonicalWorkbenchQuery(url, entityType);
-    const drawingPreviewEnabled = entityType === "drawing" && isDrawingWorkbenchPreviewGalleryV1Enabled();
-    const partPreviewEnabled = entityType === "part" && isPartWorkbenchPreviewGalleryV1Enabled();
+    const includePreviews = url.searchParams.get("includePreviews") !== "false";
+    const drawingPreviewEnabled = includePreviews && entityType === "drawing" && isDrawingWorkbenchPreviewGalleryV1Enabled();
+    const partPreviewEnabled = includePreviews && entityType === "part" && isPartWorkbenchPreviewGalleryV1Enabled();
     const { result, previewByRowKey } = await withPdmWorkbenchReadSnapshot(this.client, async (snapshot) => {
       const repository = new PdmCanonicalWorkbenchAsyncRepository(snapshot);
-      const result = await repository.listWithinSnapshot(snapshot, { companyId: actor.companyId, entityType, query });
+      const result = await repository.listWithinSnapshot(snapshot, { companyId: actor.companyId, entityType, query,
+        includeTotals: url.searchParams.get("includeTotals") !== "false", includePreviews });
       const visibleRows = result.groups.flatMap((group) => group.rows);
       const rowKeysByPartId = partPreviewEnabled ? Object.fromEntries(
         [...new Set(visibleRows.map((row) => row.canonicalEntityId))].map((partId) => [
@@ -81,6 +83,7 @@ export class PdmCanonicalWorkbenchService {
         previousCursor: result.previousCursor,
         totalGroups: result.totalGroups,
         totalRows: result.totalRows,
+        previewEnabled: entityType === "drawing" ? isDrawingWorkbenchPreviewGalleryV1Enabled() : isPartWorkbenchPreviewGalleryV1Enabled(),
         ...(previewByRowKey !== undefined ? { previewByRowKey } : {})
       },
       meta: {
@@ -92,7 +95,27 @@ export class PdmCanonicalWorkbenchService {
     return response;
   }
 
-  async detail(rowKey: string, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor): Promise<CanonicalWorkbenchDetailDto> {
+  async previews(url: URL, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor) {
+    const keys = [...new Set(url.searchParams.getAll("rowKey"))];
+    if (!keys.length || keys.length > 100) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "預覽範圍無效", 400);
+    const enabled = entityType === "drawing" ? isDrawingWorkbenchPreviewGalleryV1Enabled() : isPartWorkbenchPreviewGalleryV1Enabled();
+    if (!enabled) return { data: { previewByRowKey: {} } };
+    const repository = new PdmCanonicalWorkbenchAsyncRepository(this.client);
+    const rows = await repository.getPreviewRows(actor.companyId, entityType, keys.map(parseCanonicalRowKey));
+    if (entityType === "drawing") {
+      const { previewSources, previewDerivativeJobs } = await repository.readDrawingPreviews(this.client, actor.companyId, rows);
+      return { data: { previewByRowKey: buildCanonicalDrawingPreviewMap({
+        rows, sources: previewSources, derivativeJobs: previewDerivativeJobs
+      }) } };
+    }
+    const rowKeysByPartId: Record<string, string[]> = {};
+    for (const row of rows) (rowKeysByPartId[row.canonicalEntityId] ??= []).push(`cw_${row.id}`);
+    return { data: { previewByRowKey: await resolvePartPreviewsAsync(this.client, {
+      companyId: actor.companyId, partIds: Object.keys(rowKeysByPartId), rowKeysByPartId
+    }) } };
+  }
+
+  async detail(rowKey: string, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor, primaryOnly = false): Promise<CanonicalWorkbenchDetailDto> {
     const rowId = parseCanonicalRowKey(rowKey);
     const repository = new PdmCanonicalWorkbenchAsyncRepository(this.client);
     const record = await repository.getByRowId({ companyId: actor.companyId, rowId });
@@ -100,7 +123,7 @@ export class PdmCanonicalWorkbenchService {
     if (record.entityType === "relation") throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED", "此工作台已退役，請使用編號搜尋", 410);
     if (record.entityType !== entityType) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "資料不存在", 404);
     const currentRecord = record as CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType };
-    const presentation = await this.presentation(currentRecord, actor);
+    const presentation = await this.presentation(currentRecord, actor, primaryOnly);
     const response: CanonicalWorkbenchDetailDto = {
       data: {
         row: projectCanonicalWorkbenchRow(currentRecord, actor),
@@ -112,17 +135,30 @@ export class PdmCanonicalWorkbenchService {
     return response;
   }
 
-  private async presentation(record: CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType }, actor: CanonicalWorkbenchActor): Promise<CanonicalWorkbenchDetailPresentation> {
+  async detailSections(rowKey: string, entityType: WorkbenchEntityType, actor: CanonicalWorkbenchActor) {
+    const record = await new PdmCanonicalWorkbenchAsyncRepository(this.client).getByRowId({
+      companyId: actor.companyId, rowId: parseCanonicalRowKey(rowKey)
+    });
+    if (!record || record.entityType !== entityType) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "資料不存在", 404);
+    const typed = record as CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType };
+    const [relationMatrix, recognition, history] = await Promise.all([
+      this.matrixForRecord(typed, actor.companyId), this.recognitionProjection(typed, actor.companyId),
+      entityType === "drawing" ? this.drawingHistory(actor.companyId, record.canonicalEntityId) : Promise.resolve([])
+    ]);
+    return { data: { rowKey, rowVersion: record.rowVersion, relationMatrix, recognition, history } };
+  }
+
+  private async presentation(record: CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType }, actor: CanonicalWorkbenchActor, primaryOnly = false): Promise<CanonicalWorkbenchDetailPresentation> {
     const [fields, files, matrix, recognition] = await Promise.all([
       this.fields(record.entityType, actor.companyId, record.canonicalEntityId),
       this.files(record, actor.companyId),
-      this.matrixForRecord(record, actor.companyId),
-      this.recognitionProjection(record, actor.companyId)
+      primaryOnly ? Promise.resolve({ rootId: "", rootCode: "", matrixEtag: "", drawings: [], parts: [], cells: [] }) : this.matrixForRecord(record, actor.companyId),
+      primaryOnly ? Promise.resolve({ partAttributes: [], revisionMetadata: [], controlledNotes: [], engineeringEvidence: [] }) : this.recognitionProjection(record, actor.companyId)
     ]);
     const base = { surface: "drawer_minimal" as const, fields, files, recognition };
     if (record.entityType === "drawing") {
       const [history, previews] = await Promise.all([
-        this.drawingHistory(actor.companyId, record.canonicalEntityId),
+        primaryOnly ? Promise.resolve([]) : this.drawingHistory(actor.companyId, record.canonicalEntityId),
         this.previewSlots(record, actor)
       ]);
       return {

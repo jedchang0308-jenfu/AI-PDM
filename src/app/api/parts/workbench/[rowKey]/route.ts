@@ -3,5 +3,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ rowKey: string }> }) {
   return principalCanonicalWorkbenchResponse(request,
     "src/app/api/parts/workbench/[rowKey]/route.ts", "part",
-    async (service, actor) => service.detail((await params).rowKey, "part", actor));
+    async (service, actor) => new URL(request.url).searchParams.get("sections") === "deferred"
+      ? service.detailSections((await params).rowKey, "part", actor)
+      : service.detail((await params).rowKey, "part", actor, new URL(request.url).searchParams.get("sections") === "primary"));
 }

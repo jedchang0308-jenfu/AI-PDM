@@ -159,6 +159,9 @@ describe.skipIf(!connectionString)("DEV-121 shared review PostgreSQL contract", 
       expect(pending.items.map(item => item.requestedByName)).toEqual(["林測試", "林測試"]);
       await expect(inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, query: "林測試" }))
         .resolves.toMatchObject({ summary: { total: 504 } });
+      const countOnly = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, summaryOnly: true });
+      expect(countOnly.items).toEqual([]);
+      expect(countOnly.summary).toEqual(pending.summary);
       const nextPending = await inbox.listPrincipalWorkReviewInbox({ ...reviewFilter, cursor: pending.nextCursor });
       expect(nextPending.summary).toEqual(pending.summary);
       expect(nextPending.items.map(item => item.id)).toEqual(["transfer-501", "transfer-500"]);

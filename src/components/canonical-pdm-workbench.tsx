@@ -255,7 +255,8 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const [itemKindFilter, setItemKindFilter] = useState<ItemKindSelection>({ mode: "all" });
   const [seriesFilter, setSeriesFilter] = useState<SeriesSelection>({ mode: "all" });
   const [seriesOptions, setSeriesOptions] = useState<SeriesFilterOption[]>([]);
-  const [seriesOptionsLoading, setSeriesOptionsLoading] = useState(true);
+  const [seriesOptionsLoading, setSeriesOptionsLoading] = useState(false);
+  const [seriesRequested, setSeriesRequested] = useState(false);
   const [materialFilter, setMaterialFilter] = useState("");
   const [colorFilter, setColorFilter] = useState("");
   const [sortBy, setSortBy] = useState<CanonicalWorkbenchSortField>("code");
@@ -305,7 +306,6 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const previewPollRef = useRef({ starts: 0, generation: 0, timer: null as number | null });
   const listAbortRef = useRef<AbortController | null>(null);
   const listRequestRef = useRef(0);
-  const listPageRef = useRef<{ cursor: string | null; direction: "after" | "before" }>({ cursor: null, direction: "after" });
   const restoredPageRef = useRef<{ cursor: string | null; direction: "after" | "before" } | null>(null);
   const entryCommandKeysRef = useRef(new Map<string, string>());
 
@@ -366,6 +366,8 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
 
   useEffect(() => {
     let active = true;
+    if (!seriesRequested) return;
+    setSeriesOptionsLoading(true);
     const cached = workbenchCache.readSeries();
     if (cached) { setSeriesOptions(cached); setSeriesOptionsLoading(false); return; }
     const cacheGeneration = workbenchCache.generation();
@@ -390,13 +392,13 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         setSeriesOptionsLoading(false);
       });
     return () => { active = false; controller.abort(); };
-  }, [workbenchCache]);
+  }, [workbenchCache, seriesRequested]);
 
   useEffect(() => workbenchCache.subscribe(() => {
     // A denial/account change must also remove any restored display data.
     setGroups([]); setPreviewByRowKey({}); setNextCursor(null); setPreviousCursor(null);
     setContractToken(""); setDetail(null);
-    setSeriesOptions([]); setSeriesOptionsLoading(false);
+    setSeriesOptions([]); setSeriesOptionsLoading(false); setSeriesRequested(false);
   }), [workbenchCache]);
 
 
@@ -475,6 +477,8 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const listUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set("limit", "100");
+    params.set("includePreviews", "false");
+    params.set("includeTotals", "false");
     if (query.trim()) params.set("query", query.trim());
     serializePdmWorkbenchFilterSelection(params, "layer", layer);
     serializePdmWorkbenchFilterSelection(params, "handling", handling);
@@ -494,42 +498,40 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     return seriesFilterOptionsFromResponse({ seriesCodeOptions: [...seriesOptions.map((option) => option.value), ...selectedValues] });
   }, [seriesFilter, seriesOptions]);
 
-  const load = useCallback(async (cursor?: string | null, direction: "after" | "before" = "after", options?: { background?: boolean }) => {
-    const background = options?.background === true;
-    if (background && (listAbortRef.current || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS)) return;
-    if (!background) {
-      // Only a foreground load opens a fresh budget; payload/effect changes do not.
-      previewPollRef.current.generation += 1;
-      setPreviewPollGeneration(previewPollRef.current.generation);
-      previewPollRef.current.starts = 0;
-      if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
-      previewPollRef.current.timer = null;
-      setPreviewPollingStopped(false);
-      listAbortRef.current?.abort();
-    }
+  const load = useCallback(async (cursor?: string | null, direction: "after" | "before" = "after") => {
+    // A new list request starts a new preview polling episode.
+    previewPollRef.current.generation += 1;
+    setPreviewPollGeneration(previewPollRef.current.generation);
+    previewPollRef.current.starts = 0;
+    if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
+    previewPollRef.current.timer = null;
+    setPreviewPollingStopped(false);
+    listAbortRef.current?.abort();
     const generation = previewPollRef.current.generation;
     const requestId = ++listRequestRef.current;
     const controller = new AbortController();
     listAbortRef.current = controller;
-    if (!background) { setLoading(true); setError(""); }
+    setLoading(true); setError("");
     if (retiredQuery) {
-      if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setError("此篩選網址已失效"); setLoading(false); }
+      setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setError("此篩選網址已失效"); setLoading(false);
       if (listRequestRef.current === requestId) listAbortRef.current = null;
       return;
     }
     const separator = listUrl.includes("?") ? "&" : "?";
     const requestUrl = cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl;
     const cacheGeneration = workbenchCache.generation();
-    const cached = !background ? workbenchCache.readList(requestUrl) : null;
+    const cached = workbenchCache.readList(requestUrl);
     if (cached) {
       setGroups(cached.groups);
-      setPreviewCapability(cached.previewByRowKey !== undefined);
+      setPreviewCapability(cached.previewEnabled ?? cached.previewByRowKey !== undefined);
       setPreviewByRowKey(cached.previewByRowKey ?? {});
-      // Cursor and command authority always come from the fresh response.
-      setNextCursor(null); setPreviousCursor(null); setContractToken("");
+      // Commands obtain their authority through the existing action flow.
+      setNextCursor(cached.nextCursor); setPreviousCursor(cached.previousCursor); setContractToken("");
+      setLoading(false);
+      listAbortRef.current = null;
+      return;
     }
     try {
-      if (background) previewPollRef.current.starts += 1;
       const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation) return;
@@ -537,23 +539,22 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         workbenchCache.clear(false);
         const message = errorMessage(body, "清單載入失敗");
         setError(message);
-        if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
+        setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
         return;
       }
-      if (cacheGeneration !== workbenchCache.generation()) { if (!background) setLoading(false); return; }
+      if (cacheGeneration !== workbenchCache.generation()) { setLoading(false); return; }
       const result = body as CanonicalWorkbenchListDto;
       const previewContractError = validatePreviewMapContract(result.data.groups, result.data.previewByRowKey);
       if (previewContractError) {
         workbenchCache.clear(false);
         setGroups([]); setPreviewByRowKey({});
         setError(`預覽資料契約錯誤：${previewContractError}`);
-        if (!background) setLoading(false);
+        setLoading(false);
         return;
       }
-      listPageRef.current = { cursor: cursor ?? null, direction };
       workbenchCache.writeList(requestUrl, result.data, cacheGeneration);
       setGroups(result.data.groups);
-      const hasPreviewCapability = result.data.previewByRowKey !== undefined;
+      const hasPreviewCapability = result.data.previewEnabled ?? result.data.previewByRowKey !== undefined;
       setPreviewCapability(hasPreviewCapability);
       setPreviewByRowKey(result.data.previewByRowKey ?? {});
       if (!hasPreviewCapability) { setLayout("list"); replaceLocation({ layout: null }); }
@@ -562,11 +563,10 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation || (requestError instanceof Error && requestError.name === "AbortError")) return;
       workbenchCache.clear(false);
       setError("清單載入失敗");
-      if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
+      setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
     } finally {
       if (requestId === listRequestRef.current) {
         listAbortRef.current = null;
-        if (background && generation === previewPollRef.current.generation && previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) setPreviewPollingStopped(true);
       }
     }
   }, [listUrl, retiredQuery, workbenchCache]);
@@ -615,13 +615,14 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     let hasDelayed = false;
     for (const row of groups.flatMap((group) => group.rows)) {
       const state = previewByRowKey[row.rowKey]?.state;
-      if (state === "pending") hasPending = true;
+      if (state === undefined || state === "pending") hasPending = true;
       if (state === "delayed") hasDelayed = true;
     }
     return hasPending ? "pending" : hasDelayed ? "delayed" : null;
   }, [groups, previewByRowKey]);
   useEffect(() => {
-    if (!previewCapability || (layout !== "list_3d" && layout !== "preview") || loading || error || !previewPollState || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) return;
+    if (previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS && !previewPollingStopped) setPreviewPollingStopped(true);
+    if (previewPollingStopped || !previewCapability || (layout !== "list_3d" && layout !== "preview") || loading || error || !previewPollState || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) return;
     const generation = previewPollRef.current.generation;
     let active = true;
     let inFlight = false;
@@ -640,13 +641,35 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       clearTimer();
       if (!canPoll() || inFlight || listAbortRef.current) return;
       inFlight = true;
-      const request = load(listPageRef.current.cursor, listPageRef.current.direction, { background: true });
-      ownedController = listAbortRef.current;
-      try { await request; }
-      finally {
+      previewPollRef.current.starts += 1;
+      const controller = new AbortController();
+      ownedController = controller;
+      const rowKeys = groups.flatMap(group => group.rows).filter(row => {
+        const state = previewByRowKey[row.rowKey]?.state;
+        return state === undefined || state === "pending" || state === "delayed";
+      }).map(row => row.rowKey);
+      try {
+        const updates: typeof previewByRowKey = {};
+        for (let offset = 0; offset < rowKeys.length; offset += 100) {
+          const params = new URLSearchParams({ view: "previews" });
+          for (const key of rowKeys.slice(offset, offset + 100)) params.append("rowKey", key);
+          const response = await fetch(`${config.listEndpoint}?${params}`, { cache: "no-store", signal: controller.signal });
+          const body = await readJson(response) as { data?: { previewByRowKey?: typeof previewByRowKey } };
+          if (!active || generation !== previewPollRef.current.generation) return;
+          if (!response.ok || !body.data?.previewByRowKey) {
+            setPreviewPollingStopped(true);
+            return;
+          }
+          Object.assign(updates, body.data.previewByRowKey);
+        }
+        setPreviewByRowKey(current => ({ ...current, ...updates }));
+      } catch (cause) {
+        if (!(cause instanceof Error && cause.name === "AbortError") && canPoll()) setPreviewPollingStopped(true);
+      } finally {
         inFlight = false;
         ownedController = null;
-        if (canPoll()) schedule();
+        if (active && previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) setPreviewPollingStopped(true);
+        else if (canPoll()) schedule();
       }
     };
     const handleVisibilityChange = () => {
@@ -654,14 +677,15 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (document.visibilityState === "visible" && !inFlight) void runPoll();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    schedule();
+    if (groups.some(group => group.rows.some(row => !previewByRowKey[row.rowKey]))) void runPoll();
+    else schedule();
     return () => {
       active = false;
       clearTimer();
-      if (ownedController && listAbortRef.current === ownedController) ownedController.abort();
+      ownedController?.abort();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [error, layout, load, loading, previewCapability, previewPollGeneration, previewPollingStopped, previewPollState]);
+  }, [config.listEndpoint, error, groups, layout, loading, previewByRowKey, previewCapability, previewPollGeneration, previewPollingStopped, previewPollState]);
 
   useEffect(() => {
     const handlePopState = () => restoreLocationState();
@@ -675,15 +699,37 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     const controller = new AbortController();
     detailAbortRef.current = controller;
     setDetail(null); setDetailLoading(true); setDetailError("");
+    let primaryLoaded = false;
     try {
-      const response = await fetch(`${config.detailEndpoint}/${encodeURIComponent(rowKey)}`, { cache: "no-store", signal: controller.signal });
+      const response = await fetch(`${config.detailEndpoint}/${encodeURIComponent(rowKey)}?sections=primary`, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
       if (requestId !== detailRequestRef.current) return;
       if (!response.ok) setDetailError(errorMessage(body, "明細載入失敗"));
-      else { const result = body as Detail; setDetail(result); setContractToken(result.meta.contractToken); }
+      else {
+        const result = body as Detail;
+        primaryLoaded = true;
+        setDetail({ ...result, data: { ...result.data, sectionsPending: true } }); setContractToken(result.meta.contractToken); setDetailLoading(false);
+        const sectionsResponse = await fetch(`${config.detailEndpoint}/${encodeURIComponent(rowKey)}?sections=deferred`, { cache: "no-store", signal: controller.signal });
+        const sections = await readJson(sectionsResponse) as { data: {
+          rowVersion: number; relationMatrix: Detail["data"]["presentation"]["relationMatrix"];
+          recognition: Detail["data"]["presentation"]["recognition"]; history: import("@/lib/pdm-canonical-workbench-contract").CanonicalDrawingHistory[];
+        } };
+        if (requestId !== detailRequestRef.current || controller.signal.aborted) return;
+        if (!sectionsResponse.ok) { setDetail({ ...result, data: { ...result.data, sectionsError: errorMessage(sections, "補充明細載入失敗") } }); return; }
+        if (sections.data.rowVersion !== result.data.row.rowVersion) { setDetailError("資料已更新，請重新開啟明細。"); return; }
+        setDetail({ ...result, data: { ...result.data, presentation: {
+          ...result.data.presentation, relationMatrix: sections.data.relationMatrix,
+          recognition: sections.data.recognition,
+          ...(result.data.presentation.kind === "drawing" ? { history: sections.data.history } : {})
+        } } });
+      }
     } catch (requestError) {
       if (requestId !== detailRequestRef.current || (requestError instanceof Error && requestError.name === "AbortError")) return;
-      setDetailError("明細載入失敗");
+      if (primaryLoaded) {
+        setDetail(current => current ? { ...current, data: {
+          ...current.data, sectionsPending: false, sectionsError: "補充明細載入失敗，請重新開啟明細。"
+        } } : current);
+      } else setDetailError("明細載入失敗");
     } finally {
       if (requestId === detailRequestRef.current) {
         detailAbortRef.current = null;
@@ -811,9 +857,16 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const command = useCallback(async (row: CanonicalWorkbenchRowDto, href: string, body: Record<string, unknown>, options?: { onFailure?: (message: string) => void; idempotencyKey?: string; discardConfirmed?: boolean }) => {
     setBusy(true); setError("");
     const idempotencyKey = options?.idempotencyKey ?? crypto.randomUUID();
+    let commandToken = contractToken;
     const request = async () => {
+      if (!commandToken) {
+        const authorityResponse = await fetch(`${config.detailEndpoint}/${encodeURIComponent(row.rowKey)}`, { cache: "no-store" });
+        const authority = await readJson(authorityResponse) as Detail;
+        if (!authorityResponse.ok) return { response: authorityResponse, result: authority };
+        commandToken = authority.meta.contractToken;
+      }
       const response = await fetch(href, {
-        method: "POST", headers: { "content-type": "application/json", "if-match": `\"${row.rowVersion}\"`, "idempotency-key": idempotencyKey, "x-pdm-workbench-contract": contractToken }, body: JSON.stringify(body)
+        method: "POST", headers: { "content-type": "application/json", "if-match": `\"${row.rowVersion}\"`, "idempotency-key": idempotencyKey, "x-pdm-workbench-contract": commandToken }, body: JSON.stringify(body)
       });
       return { response, result: await readJson(response) };
     };
@@ -840,7 +893,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (!response.ok) { const message = errorMessage(result, "操作失敗"); options?.onFailure?.(message); if (!options?.onFailure) setError(message); return null; }
       closeDetail(options?.discardConfirmed); await load(); return result;
     } finally { setBusy(false); }
-  }, [closeDetail, contractToken, detailKey, load, openDetail]);
+  }, [closeDetail, config.detailEndpoint, contractToken, detailKey, load, openDetail]);
 
   const loadObsoleteImpact = useCallback(async (row: CanonicalWorkbenchRowDto, notice = "") => {
     const entityType = row.entityType === "drawing" ? "drawing_number" : "part_number";
@@ -965,7 +1018,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       <PdmWorkbenchMultiSelectFilter label="處理" value={handling} options={HANDLING_OPTIONS} onApply={(value) => changeFilter(handling, value, () => setHandling(value))} />
       {entityType === "drawing" ? <PdmWorkbenchMultiSelectFilter label="用途" value={purposeFilter} options={DRAWING_PURPOSE_OPTIONS} onApply={(value) => changeFilter(purposeFilter, value, () => setPurposeFilter(value))} /> : null}
       {entityType === "part" ? <PdmWorkbenchMultiSelectFilter label="料件類型" value={itemKindFilter} options={CANONICAL_NUMBERING_ITEM_KIND_OPTIONS} onApply={(value) => changeFilter(itemKindFilter, value, () => setItemKindFilter(value))} /> : null}
-      <PdmWorkbenchMultiSelectFilter label="系列" value={seriesFilter} options={seriesFilterOptions} searchable disabled={seriesOptionsLoading || seriesFilterOptions.length === 0} onApply={(value) => changeFilter(seriesFilter, value, () => setSeriesFilter(value))} />
+      <PdmWorkbenchMultiSelectFilter label="系列" value={seriesFilter} options={seriesFilterOptions} searchable onOpen={() => setSeriesRequested(true)} loading={seriesOptionsLoading} onApply={(value) => changeFilter(seriesFilter, value, () => setSeriesFilter(value))} />
       {entityType === "part" ? <label className="canonical-domain-filter"><span>材質</span><input value={materialFilter} onChange={(event) => changeFilter(materialFilter, event.target.value, () => setMaterialFilter(event.target.value), true)} placeholder="代碼或名稱" /></label> : null}
       {entityType === "part" ? <label className="canonical-domain-filter"><span>顏色</span><input value={colorFilter} onChange={(event) => changeFilter(colorFilter, event.target.value, () => setColorFilter(event.target.value), true)} placeholder="代碼或名稱" /></label> : null}
     </section>
