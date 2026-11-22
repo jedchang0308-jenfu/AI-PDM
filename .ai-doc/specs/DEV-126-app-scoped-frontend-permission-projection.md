@@ -374,3 +374,19 @@ npm run dev:local:test-admin -- -SandboxRoot <隔離 sandbox 根目錄> -Port 12
 - 以 `scripts/start-localhost-3000.ps1` 的有效 env 和 sandbox profile 為檢查點。一般啟動有以該埠下的 data／repository 覆寫環境值的路徑，也存在現有 TestAdmin 入口。日常整合必須明式進入 sandbox 模式，直接驗證並使用一次綁定的 PostgreSQL、data 和 repository；子程序不得改用舊預設目錄或獨立 TestAdmin profile。各模式使用其已驗 target。
 - 日常資料根目錄固定為 `C:\VIBE CODING\.local\jenfu-shared-daily`。AI-PDM 的 PostgreSQL schema／runtime role 維持 owner 邊界，檔案固定在 `profile\data` 與 `profile\repository`。Platform 的一次綁定是日常路徑權威，各專案不再保存平行指標。DEV-128 仍行使既有來源／遮罩契約；本切片只使用許可的地端測試資料。
 - 切換與後續重啟驗證使用標記的測試附件，從正常 SSO 上傳並重開讀回同一檔案，核對 `jenfu_local_shared_daily` 的 metadata、檔案內容與實際 repository 路徑。缺失／漂移的綁定應在寫入前停止。2026-11-16 在舊日常綁定取得的附件讀回結果保留為歷史證據；共用名稱切換後的實際版本與讀回結果由 `JENFU/DEV-021#daily-local-test-binding` 統一記錄。訪客 API 維持 `401`。
+
+<a id="daily-fluency-text-recovery"></a>
+
+## 日常清單返回與文字復原（2026-11-22）
+
+本切片只改善前端等待與文字遺失，不含發布、正式資料／雲端資源異動或離線同步。
+
+- 沿用 `PdmPermissionProvider` 的 shell 記憶體快取與既有身分／權限 invalidation。圖號與料號清單以完整 URL（含查詢、篩選及 cursor）隔離；30 秒內直接重用，30 秒至 5 分鐘先顯示舊資料並更新。最多 12 筆，不持久保存清單／權限。快取不保留 actions 或 command token；開啟詳細資料及業務命令仍取得當次伺服器 authority。
+- 503／斷線只在同 scope、同 URL 且未滿 5 分鐘時保留清單並提示更新失敗。讀取與失敗不延長期限；401／403、登出、換帳號、權限失效仍清空。generation 拒絕失效前啟動的晚到回覆。首頁身分查詢、圖片快取及矩陣既有自動儲存機制保留，不重建。
+- 本機草稿僅含建立編號的文字與表單選項、料號矩陣六個可編輯文字欄位（品名、規格、材質、顏色、表面處理、變體備註）、圖號工作判定備註。附件、CAD bytes、辨識結果、正式編號配置、發布／送審命令及憑證不進本機草稿。
+- 草稿使用 `localStorage`，以已驗身分的 Principal／公司／PDM profile 與精確入口／record 隔離。初次身分尚未確認時不寫入；已有輸入會提示稍候。最多 20 個 slot、每筆 JSON 100,000 字元、7 天有效；滿額／quota／停用 storage 時保留可編輯畫面並提示未受保護，不為新草稿刪除仍有效的舊內容。過期 slot 可在下次寫入時清除。
+- 重開後先讀伺服器，再提供「恢復草稿／捨棄草稿」；不自動套回。既有工作比對 record 與 rowVersion；伺服器版本不同時保留文字供人工比對，不提供套用按鈕。新增編號沒有既存資料版本；既有根號追加另比對新讀取的 policy 語意（不把暫估下一號當版本），正式配置仍由 POST 確認。恢復不沿用 command token、舊權限或 Idempotency-Key。
+- 料號恢復後沿用原本 800 ms 自動儲存與 If-Match，明示將自動儲存；成功回覆與 savedFields 相符才移除本機副本。圖號備註與建立表單仍須原本的明確儲存／提交。伺服器未確認前不顯示正式成功。身分失效同步停止待送矩陣儲存並拒絕晚到回覆。
+- 同一筆草稿在其他分頁被更新時，以 revision 比對拒絕覆寫或刪除較新副本，恢復按鈕也重新讀回。這是本機防遺失機制，不提供跨裝置同步、附件離線處理或業務寫入重播。
+
+驗證入口：`node scripts/qc-daily-fluency-browser.mjs`（主機環境、獨立無視窗 Edge、任務自有 Next runtime／資料路徑，所有 API 為合成 fixture）；`--baseline` 使用本任務建立的 `.tmp/daily-fluency-baseline` 原始 source copy。結果在 `output/playwright/daily-fluency/`，不是正式效能或真實使用者授權驗收。此已知 UI runner 分類為 application；未知腳本仍走 FULL，既有 required CI 不變。

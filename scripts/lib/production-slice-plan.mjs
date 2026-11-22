@@ -137,6 +137,7 @@ const INFRASTRUCTURE = [
 ]
 
 const APPLICATION = [
+  /^scripts\/qc-daily-fluency-browser\.mjs$/u,
   /^scripts\/qc-dev129-assembly-(?:browser|submit-browser|zip)\.mjs$/u,
   /^vitest\.config\.ts$/u,
   // DEV-126 local runtime inputs change app startup/configuration, not schema,

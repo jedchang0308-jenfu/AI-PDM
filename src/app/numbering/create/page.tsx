@@ -12,5 +12,5 @@ export default async function NumberingCreatePage({ searchParams }: { searchPara
   const params = await searchParams;
   const value = (input: string | string[] | undefined) => Array.isArray(input) ? input[0] : input;
   const initialRoot = value(params.root)?.trim() || "";
-  return <CanonicalNumberingCreateForm initialFrom={safeFrom(value(params.from))} initialRoot={initialRoot} returnTo={safeReturnTo(value(params.returnTo))} />;
+  return <CanonicalNumberingCreateForm key={`${safeFrom(value(params.from))}:${initialRoot}`} initialFrom={safeFrom(value(params.from))} initialRoot={initialRoot} returnTo={safeReturnTo(value(params.returnTo))} />;
 }

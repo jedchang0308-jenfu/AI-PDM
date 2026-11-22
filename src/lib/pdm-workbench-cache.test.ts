@@ -11,19 +11,22 @@ describe("app-owned workbench display cache", () => {
     let now = 0;
     const cache = createPdmWorkbenchCache(() => now);
     cache.writeList("/api/parts/workbench?query=A", data, cache.generation());
-    expect(cache.readList("/api/parts/workbench?query=A")).toBe(data);
+    expect(cache.readList("/api/parts/workbench?query=A")).toEqual(data);
     expect(cache.readList("/api/parts/workbench?query=B")).toBeNull();
     expect(cache.readList("/api/parts/workbench?query=A&cursor=next")).toBeNull();
     expect(cache.readList("/api/numbering/drawings/workbench?query=A")).toBeNull();
     now = 30_000;
     expect(cache.readList("/api/parts/workbench?query=A")).toBeNull();
+    expect(cache.readListSnapshot("/api/parts/workbench?query=A")).toEqual({ data, fresh: false });
+    now = 300_000;
+    expect(cache.readListSnapshot("/api/parts/workbench?query=A")).toBeNull();
   });
   it("bounds memory, isolates app instances, and expires series as well", () => {
     let now = 0;
     const cache = createPdmWorkbenchCache(() => now, 30_000, 2);
     for (const key of ["A", "B", "C"]) cache.writeList(key, data, cache.generation());
     expect(cache.readList("A")).toBeNull();
-    expect(cache.readList("B")).toBe(data);
+    expect(cache.readList("B")).toEqual(data);
     expect(createPdmWorkbenchCache().readList("B")).toBeNull();
     cache.writeSeries([], cache.generation());
     expect(cache.readSeries()).toEqual([]);
@@ -46,5 +49,17 @@ describe("app-owned workbench display cache", () => {
     unsubscribe();
     cache.clear();
     expect(cleared).toBe(1);
+  });
+  it("keeps cached rows display-only and never extends their age on read", () => {
+    let now = 0;
+    const cache = createPdmWorkbenchCache(() => now);
+    const source = { ...data, groups: [{ groupKey: "A", rows: [{ rowKey: "A", actions: [{ key: "create_change", href: "/command", label: "修改" }] }] }] } as CanonicalWorkbenchListDto["data"];
+    cache.writeList("A", source, cache.generation());
+    expect(cache.readList("A")?.groups[0].rows[0].actions).toEqual([]);
+    expect(source.groups[0].rows[0].actions).toHaveLength(1);
+    now = 299_999;
+    expect(cache.readListSnapshot("A")?.fresh).toBe(false);
+    now++;
+    expect(cache.readListSnapshot("A")).toBeNull();
   });
 });

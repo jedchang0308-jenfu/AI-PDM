@@ -11,6 +11,17 @@ test('normalizes Windows paths before classification', () => {
   assert.equal(normalizeChangedPath('.\\src\\lib\\permissions.ts'), 'src/lib/permissions.ts')
 })
 
+test('isolated daily fluency browser evidence belongs to application checks', () => {
+  const plan = createProductionSlicePlan(['scripts/qc-daily-fluency-browser.mjs'])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.equal(plan.gates.application, true)
+  assert.equal(plan.gates.desktopUi, true)
+  assert.equal(plan.gates.isolatedBuild, true)
+  assert.equal(plan.gates.database, false)
+  assert.equal(plan.gates.infrastructure, false)
+  assert.equal(createProductionSlicePlan(['scripts/qc-unknown-browser.mjs']).classification, 'FULL')
+})
+
 test('DEV-127 reviewed administration consumer paths retain authorization and actual SQL responsibility', () => {
   const plan = createProductionSlicePlan([
     'contracts/orgmaster-administration/v1/contract-manifest.json',

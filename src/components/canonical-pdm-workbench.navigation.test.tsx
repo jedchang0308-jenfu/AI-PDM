@@ -76,11 +76,56 @@ it("returns to a cached list without another GET and loads series only when open
 });
 
 it("refreshes a returning list after the 30 second cache expires", async () => {
+  const { fetcher, defer } = setupFetch();
+  await render(); await render(false);
+  await act(async () => vi.advanceTimersByTimeAsync(30_001));
+  const finish = defer();
+  await render();
+  expect(container.textContent).toContain("原先的清單");
+  expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
+  await act(async () => finish(json(list("更新後的清單"))));
+  expect(container.textContent).toContain("更新後的清單");
+  expect(container.textContent).not.toContain("原先的清單");
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+});
+
+it.each(["unavailable", "connection"])("retains recent same-scope rows after a %s refresh failure", async failure => {
   const { fetcher } = setupFetch();
   await render(); await render(false);
   await act(async () => vi.advanceTimersByTimeAsync(30_001));
+  fetcher.mockImplementationOnce(async () => {
+    if (failure === "connection") throw new Error("fixture connection loss");
+    return json({ message: "fixture unavailable" }, 503);
+  });
   await render();
-  expect(fetcher.mock.calls.filter(([url]) => String(url).startsWith("/api/parts/workbench"))).toHaveLength(2);
+  expect(container.textContent).toContain("原先的清單");
+  expect(container.textContent).toContain("清單更新失敗");
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+});
+
+it("does not retain a snapshot that reaches its maximum age while refresh is pending", async () => {
+  const { defer } = setupFetch();
+  await render(); await render(false);
+  await act(async () => vi.advanceTimersByTimeAsync(299_999));
+  const finish = defer(); await render();
+  expect(container.textContent).toContain("原先的清單");
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  await act(async () => finish(json({ message: "fixture unavailable" }, 503)));
+  expect(container.textContent).not.toContain("原先的清單");
+  expect(container.textContent).toContain("fixture unavailable");
+});
+
+it.each([401, 403])("removes the restored snapshot when its refresh returns %i", async status => {
+  const { defer } = setupFetch();
+  await render(); await render(false);
+  await act(async () => vi.advanceTimersByTimeAsync(30_001));
+  const finish = defer(); await render();
+  expect(container.textContent).toContain("原先的清單");
+  await act(async () => finish(json({ message: "fixture denied" }, status)));
+  expect(container.textContent).not.toContain("原先的清單");
+  await render(false); await render();
+  expect(container.textContent).not.toContain("原先的清單");
 });
 
 it("clears visible cached rows at logout and rejects an older pending response", async () => {

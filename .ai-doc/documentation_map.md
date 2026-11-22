@@ -7,6 +7,8 @@
 
 ## DEV-126 地端 SSO 與前端權限投影（Local Principal Sandbox 實作中）
 
+2026-11-22 [清單返回與本機文字復原](specs/DEV-126-app-scoped-frontend-permission-projection.md#daily-fluency-text-recovery)：沿用 shell cache／800 ms 自動儲存；新增同身分／record／版本保護的有界草稿，正式業務仍由伺服器確認。此增量不改原本 SSO、角色與發布驗收狀態。
+
 2026-11-06 新增 [§14 PDM 獨立本機測試超級管理員](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-test-super-admin)：PR #573 merged，地端 1020 固定入口 `npm run dev:local` 會啟動或重用專用隔離 PostgreSQL 18 與 TestAdmin web runtime；登入提供全部 PDM page／action 與純 PDM policy 授權，獨立於 SSO。最新地端啟用與資料邊界見 §14 及 DEV-126 任務入口。
 
 [現行任務](dev_task.md#dev-126-frontend-permission-projection) → [§13 Principal-v2 quick login／CRUD／reset](specs/DEV-126-app-scoped-frontend-permission-projection.md#local-principal-quick-login)。Local sandbox source／owner tests、TypeScript已通過；main 回報 task-owned PostgreSQL 已套 local-only 043／093並將 authority 綁至`local-dev`，auth／permission／料號／圖號 API回200，Chrome圖號空集合、正常建檔與搜尋讀回成功。此為本機隔離證據，不代表發布；`external_specialist` expiry／sponsor／review、allow／deny、global logout、reset、PR／CI／release仍待完成，原真實 Principal 撤權未由 synthetic 案例取代。測試限制與收據歸屬見[現行任務](dev_task.md#dev-126-frontend-permission-projection)。
