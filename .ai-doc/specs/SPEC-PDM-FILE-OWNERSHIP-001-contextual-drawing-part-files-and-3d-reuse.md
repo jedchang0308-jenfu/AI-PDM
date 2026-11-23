@@ -145,6 +145,16 @@ flowchart LR
 
 ## 5. Required File Contract
 
+### 2026-11-23 DEV-130 目標取代註記
+
+[DEV-130](DEV-130-png-preview-optional-pdf-formal-file-gate.md) 已由人類確認分層門檻：研發版維持本節既有
+`.SLDDRW + .SLDPRT/.SLDASM` 必備角色，PDF／DWG 選配且缺少時不警告；正式版工作可先建立及編輯，只有執行
+「送出正式版」時才除上述兩項外另要求本版 PDF 與 DWG，DXF 不替代 DWG。不得提前阻擋工作建立或延後到最終核准。
+此註記是 target contract；產品實作與驗證完成前，
+下方「PDF、DWG/DXF 缺少為 warning」仍描述 current runtime，不得把文件定案誤報為已上線。既有 Released 歷史不回溯失效。
+從已核准研發版建立正式工作時，DEV-130允許server以來源revision／binding／asset／hash建立受控carry-forward receipt及target current binding，
+不複製bytes；這項明確例外取代下方「每次必須重新上傳bytes」對該研發轉正式流程的適用，但client任意選歷史asset仍不滿足。
+
 ### 5.1 必備角色
 
 | Role | 可滿足的副檔名 | 最低數量 | Primary | 缺少結果 |

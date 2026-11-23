@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isPdfPreviewSlot } from "@/lib/pdm-entity-detail-contract";
-import { isWorkspacePdf, selectCanonicalTwoDSource, selectWorkspacePreviewSource, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
+import { isWorkspacePdf, selectCanonicalTwoDSource, selectWorkspacePreviewSource, workspaceCurrentSourceAssetIds, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
 
 function source(id: string, ext: string, revisionId = "current"): CanonicalPreviewSourceRow {
   return { rowId: id, revisionId, dataLayer: "drawing_rd", reviewRequestId: null, bindingId: id, assetId: id, role: "drawing_2d", displayName: `${id}.${ext}`, fileName: `${id}.${ext}`, fileExt: ext, mimeType: ext === "pdf" ? "application/pdf" : "application/octet-stream", contentHash: id, isPrimary: true, sortOrder: 0 };
@@ -11,7 +11,7 @@ const pdf = { id: "pdf", role: "pdf", file_ext: "pdf", mime_type: "application/p
 describe("DEV122 B42 same revision PDF selection; pure source layer", () => {
   it("uses known MIME before conflicting extension or display name", () => {
     expect(isWorkspacePdf({ ...pdf, mime_type: "image/png" })).toBe(false);
-    expect(isWorkspacePdf({ ...pdf, mime_type: "application/octet-stream" })).toBe(false);
+    expect(isWorkspacePdf({ ...pdf, mime_type: "application/octet-stream" })).toBe(true);
     expect(isWorkspacePdf({ id: "legacy", file_name: "drawing.PDF" })).toBe(true);
     expect(isWorkspacePdf({ ...pdf, file_ext: "png", mime_type: " Application/PDF; charset=binary " })).toBe(true);
   });
@@ -63,9 +63,18 @@ describe("DEV122 B42 same revision PDF selection; pure source layer", () => {
     expect(selectWorkspacePreviewSource([pdf, { ...pdf, id: "primary", is_primary: 1 }], "two-d").file?.id).toBe("primary");
     expect(selectWorkspacePreviewSource([{ ...pdf, is_primary: 1 }, { ...pdf, id: "other", is_primary: 1 }], "two-d").file).toBeNull();
   });
-  it("keeps 3D selection and current/fallback scope separate from PDF", () => {
+  it("keeps 3D selection and current-revision scope separate from PDF", () => {
     const model = { id: "model", role: "cad_3d", current_revision_upload: 1 };
     expect(selectWorkspacePreviewSource([pdf, model], "three-d").file?.id).toBe("model");
-    expect(selectWorkspacePreviewSource([{ ...cad, current_revision_upload: 0 }], "two-d").file?.id).toBe("cad");
+    expect(selectWorkspacePreviewSource([{ ...cad, current_revision_upload: 0 }], "two-d").file).toBeNull();
+    expect(selectWorkspacePreviewSource([{ ...model, current_revision_upload: 0 }], "three-d").file).toBeNull();
+  });
+  it("uses only unique current-revision assets for editable recognition", () => {
+    expect(workspaceCurrentSourceAssetIds([
+      { ...cad, source_file_asset_id: "current-cad" },
+      { ...pdf, source_file_asset_id: "current-pdf" },
+      { ...pdf, id: "duplicate", source_file_asset_id: "current-pdf" },
+      { ...cad, id: "history", current_revision_upload: 0, source_file_asset_id: "history-cad" }
+    ])).toEqual(["current-cad", "current-pdf"]);
   });
 });

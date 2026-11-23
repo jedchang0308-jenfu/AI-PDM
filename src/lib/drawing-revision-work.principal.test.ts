@@ -6,14 +6,14 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(), cancel: vi.fn(), assertWorkMutationBasis: vi.fn(),
   readMasterLifecycleBasis: vi.fn(),
   hydrate: vi.fn(), issueContract: vi.fn(), verifyContract: vi.fn(),
-  runPrincipal: vi.fn(), recognition: vi.fn(), requiredFiles: vi.fn(),
+  runPrincipal: vi.fn(), runLegacy: vi.fn(), requiredFiles: vi.fn(), evaluateFileReadiness: vi.fn(),
   selectPrincipalReviewer: vi.fn(), selectLegacyReviewer: vi.fn(),
   buildReviewPackage: vi.fn(), reviewCreate: vi.fn(), reviewGet: vi.fn(),
   recordTerminalReceipt: vi.fn(), appendTrace: vi.fn(),
   parsePackage: vi.fn(), verifyPackage: vi.fn(),
   assertPackageRecognition: vi.fn(), assertFormalizationAllowed: vi.fn(),
   formalize: vi.fn(), beginApproval: vi.fn(), assertPrimaryRoot: vi.fn(),
-  withVerified: vi.fn(), deleteObject: vi.fn(), assertWorkFileSnapshot: vi.fn(),
+  withVerified: vi.fn(), deleteObject: vi.fn(), readObject: vi.fn(), assertWorkFileSnapshot: vi.fn(),
   resolveReviewResources: vi.fn(), checkReviewResources: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
@@ -26,6 +26,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
 }));
 vi.mock("@/lib/file-storage", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/file-storage")>(),
+  createFileStorageServiceForPointer: () => ({ readObject: mocks.readObject }),
   createFileStorageService: () => ({ deleteObject: mocks.deleteObject })
 }));
 
@@ -61,13 +62,17 @@ vi.mock("@/lib/pdm-workbench-authority-control", async (importOriginal) => ({
 vi.mock("@/lib/pdm-principal-dev087-command", () => ({
   runPrincipalDev087Command: mocks.runPrincipal
 }));
+vi.mock("@/lib/pdm-canonical-command", async original => ({
+  ...await original<typeof import("@/lib/pdm-canonical-command")>(),
+  runDev087IdempotentCommand: mocks.runLegacy
+}));
 vi.mock("@/lib/pdm-file-ownership", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-file-ownership")>(),
-  assertRequiredDrawingFiles: mocks.requiredFiles
+  assertDrawingRevisionFileReadiness: mocks.requiredFiles,
+  evaluateDrawingRevisionFileReadiness: mocks.evaluateFileReadiness
 }));
 vi.mock("@/lib/pdm-review-package", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-review-package")>(),
-  assertDrawingRecognitionWriteReady: mocks.recognition,
   buildReviewPackage: mocks.buildReviewPackage,
   verifyReviewPackageIntegrity: mocks.verifyPackage,
   assertReviewPackagePrimaryRoot: mocks.assertPrimaryRoot,
@@ -99,6 +104,9 @@ vi.mock("@/lib/repositories/pdm-work-review-async-repository", async (importOrig
   }
 }));
 
+import Database from "better-sqlite3";
+import crypto from "node:crypto";
+import { createAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { DrawingRevisionWorkService } from "@/lib/drawing-revision-work";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import { reviewDecisionBasisHash } from "@/lib/pdm-review-package";
@@ -143,6 +151,9 @@ beforeEach(() => {
   mocks.update.mockResolvedValue({ workId: "work-one", rowVersion: 3 });
   mocks.cancel.mockResolvedValue({ workId: "work-one", cancelled: true });
   mocks.readMasterLifecycleBasis.mockReset().mockResolvedValue(null);
+  mocks.evaluateFileReadiness.mockReturnValue({ targetKind: "research", ready: true,
+    slots: { drawing_2d: { present: true, count: 1, fileIds: [] }, cad_3d: { present: true, count: 1, fileIds: [] }, pdf: { present: false, count: 0, fileIds: [] }, dwg: { present: false, count: 0, fileIds: [] } },
+    blockers: [], warnings: [] });
   mocks.selectPrincipalReviewer.mockResolvedValue("reviewer-principal-profile");
   mocks.selectLegacyReviewer.mockResolvedValue("reviewer-legacy-profile");
   mocks.buildReviewPackage.mockResolvedValue({ packageHash: "review-package-hash" });
@@ -163,6 +174,85 @@ beforeEach(() => {
 });
 
 describe("principal drawing revision work read", () => {
+  it.each(["pending", "partial", "failed", "timeout", "not_started"])("blocks missing formal files and preserves %s recognition plus warnings in the submission transaction", async status => {
+    const pg = process.env.DEV130_TEST_PG;
+    if (pg && !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/postgres$/u.test(pg)) throw new Error("TASK_OWNED_PG_REQUIRED");
+    const database = pg ? null : new Database(":memory:");
+    const actual = pg ? createAsyncDatabaseClient({ kind: "postgres", connectionString: pg, searchPath: "ai_pdm_core,pg_catalog" }) : createAsyncDatabaseClient({ kind: "sqlite", database: database! });
+    const policy = await vi.importActual<typeof import("@/lib/pdm-file-ownership")>("@/lib/pdm-file-ownership");
+    mocks.requiredFiles.mockImplementation(policy.assertDrawingRevisionFileReadiness);
+    mocks.evaluateFileReadiness.mockImplementation(policy.evaluateDrawingRevisionFileReadiness);
+    // Storage and actor admission are fixtures; readiness, PDF parser, snapshot
+    // queries and database commit/rollback execute the real application code.
+    const schema = `
+      CREATE TABLE drawing_revision_works(id TEXT, company_id TEXT, proposed_payload TEXT, updated_at TEXT);
+      CREATE TABLE drawing_revisions(id TEXT, company_id TEXT, lifecycle_state TEXT, updated_at TEXT);
+      CREATE TABLE canonical_workbench_states(company_id TEXT,work_id TEXT,handling TEXT,row_version INTEGER,updated_at TEXT);
+      CREATE TABLE drawing_revision_work_files(work_id TEXT,file_binding_id TEXT,ordinal INTEGER);
+      CREATE TABLE drawing_revision_files(id TEXT,company_id TEXT,drawing_revision_id TEXT,source_file_asset_id TEXT,role TEXT,is_primary INTEGER,removed_at TEXT);
+      CREATE TABLE file_assets(id TEXT,file_name TEXT,file_ext TEXT,mime_type TEXT,file_size INTEGER,content_hash TEXT,storage_provider TEXT,original_path TEXT,storage_bucket TEXT,storage_key TEXT,storage_generation TEXT,storage_metageneration TEXT,deleted_at TEXT);
+      CREATE TABLE drawing_recognition_sessions(id TEXT,company_id TEXT,drawing_id TEXT,drawing_revision_id TEXT,source_context_type TEXT,source_context_id TEXT,status TEXT,warning_count INTEGER,error_code TEXT,error_summary TEXT,created_at TEXT,updated_at TEXT);
+      CREATE TABLE drawing_recognition_sources(company_id TEXT,session_id TEXT,file_asset_id TEXT);
+      CREATE TABLE drawing_recognition_adapter_results(id TEXT,company_id TEXT,session_id TEXT,source_id TEXT,adapter_code TEXT,status TEXT,diagnostics_json TEXT,completed_at TEXT);
+      CREATE TABLE drawing_assembly_packages(id TEXT,company_id TEXT,work_id TEXT,status TEXT,active_at TEXT,superseded_at TEXT);
+      INSERT INTO drawing_revision_works VALUES('work-one','company-one','{}',NULL);
+      INSERT INTO drawing_revisions VALUES('revision-one','company-one','preparing',NULL);
+      INSERT INTO canonical_workbench_states VALUES('company-one','work-one','owner',2,NULL);
+    `;
+    if (pg) { await actual.execute("CREATE SCHEMA ai_pdm_core"); await actual.execute(schema); }
+    else database!.exec(schema);
+    const rows = [["2d", "A.SLDDRW", "slddrw", "drawing_2d"], ["3d", "A.SLDPRT", "sldprt", "cad_3d"]];
+    for (const [index, [id, name, ext, role]] of rows.entries()) {
+      await actual.execute("INSERT INTO file_assets(id,file_name,file_ext,file_size,content_hash) VALUES(:id,:name,:ext,1,:hash)", { id,name,ext,hash:crypto.createHash("sha256").update(id).digest("hex") });
+      await actual.execute("INSERT INTO drawing_revision_files VALUES(:id,'company-one','revision-one',:id,:role,1,NULL)", { id,role });
+      await actual.execute("INSERT INTO drawing_revision_work_files VALUES('work-one',:id,:index)", { id,index });
+    }
+    mocks.evaluate.mockResolvedValue([{ allowed: true }]);
+    mocks.runLegacy.mockImplementation(async (_tx, _input, execute) => actual.transaction(execute));
+    const actor = { id: "profile-one", companyId: "company-one", permissions: { submit: true } } as Parameters<DrawingRevisionWorkService["submit"]>[1];
+    const locked = { owner_user_id: "profile-one", company_id: "company-one", drawing_id: "drawing-one", id: "work-one", revision_id: "revision-one", predecessor_revision_id: null, target_claim_id: null, proposed_payload: {}, target_label: "1", target_minor: 0, row_version: 2, handling: "owner" };
+    mocks.readWork.mockResolvedValue(locked);
+    try {
+      await expect(new DrawingRevisionWorkService(actual).submit("work-one", actor, { contractToken: "contract-one", expectedRowVersion: 2, idempotencyKey: `missing-${status}` }))
+        .rejects.toMatchObject({ code: "FORMAL_PDF_REQUIRED", status: 422 });
+      expect(await actual.queryOne("SELECT proposed_payload FROM drawing_revision_works")).toEqual({ proposed_payload: "{}" });
+      expect(await actual.queryOne("SELECT lifecycle_state FROM drawing_revisions")).toEqual({ lifecycle_state: "preparing" });
+      // Research may submit the same native files with any recognition state.
+      mocks.readWork.mockResolvedValue({ ...locked, target_label: "1.1", target_minor: 1 });
+      if (status !== "not_started") {
+        await actual.execute("INSERT INTO drawing_recognition_sessions VALUES('session','company-one','drawing-one','revision-one','drawing_revision','revision-one',:status,1,NULL,'fixture diagnostic','2026-11-23','2026-11-23')", { status });
+        for (const [id] of rows) await actual.execute("INSERT INTO drawing_recognition_sources VALUES('company-one','session',:id)", { id });
+      }
+      await new DrawingRevisionWorkService(actual).submit("work-one", actor, { contractToken: "contract-one", expectedRowVersion: 2, idempotencyKey: `research-${status}` });
+      const stored = JSON.parse((await actual.queryOne<{ proposed_payload: string }>("SELECT proposed_payload FROM drawing_revision_works"))!.proposed_payload);
+      expect(stored.dev130RecognitionSnapshot.status).toBe(status);
+      expect(stored.dev130RecognitionSnapshot.pdf).toEqual({ provided: false, adapterStatus: "not_applicable" });
+      expect(stored.dev130FileReadinessSnapshot).toMatchObject({ targetKind: "research", ready: true, warnings: [] });
+      expect(await actual.queryOne("SELECT lifecycle_state FROM drawing_revisions")).toEqual({ lifecycle_state: "in_review" });
+      expect(await actual.queryOne("SELECT handling FROM canonical_workbench_states")).toEqual({ handling: "review_owner" });
+      // Reset the isolated work for the formal variant of this same source set.
+      await actual.execute("UPDATE drawing_revisions SET lifecycle_state='preparing'");
+      await actual.execute("UPDATE canonical_workbench_states SET handling='owner',row_version=2");
+      mocks.readWork.mockResolvedValue(locked);
+      const pdf = Buffer.from("%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << >> >>\nendobj\ntrailer\n<< /Root 1 0 R /Size 4 >>\n%%EOF");
+      mocks.readObject.mockResolvedValue(pdf);
+      for (const [id, name, ext, role] of [["pdf","B.pdf","pdf","pdf"],["dwg","C.dwg","dwg","dwg_dxf"]]) {
+        await actual.execute("INSERT INTO file_assets(id,file_name,file_ext,file_size,content_hash,storage_provider,storage_key) VALUES(:id,:name,:ext,:size,:hash,'local_repository','fixture.pdf')", { id,name,ext,size:pdf.length,hash:crypto.createHash("sha256").update(pdf).digest("hex") });
+        await actual.execute("INSERT INTO drawing_revision_files VALUES(:id,'company-one','revision-one',:id,:role,0,NULL)", { id,role });
+        await actual.execute("INSERT INTO drawing_revision_work_files VALUES('work-one',:id,3)", { id });
+        if (status !== "not_started") await actual.execute("INSERT INTO drawing_recognition_sources VALUES('company-one','session',:id)", { id });
+      }
+      if (["partial","failed","timeout"].includes(status)) await actual.execute("INSERT INTO drawing_recognition_adapter_results VALUES('adapter','company-one','session','pdf','browser-pdf-ocr.v1',:status,'[\"fixture diagnostic\"]','2026-11-23')", { status });
+      await new DrawingRevisionWorkService(actual).submit("work-one", actor, { contractToken: "contract-one", expectedRowVersion: 2, idempotencyKey: `formal-${status}` });
+      const formal = JSON.parse((await actual.queryOne<{ proposed_payload: string }>("SELECT proposed_payload FROM drawing_revision_works"))!.proposed_payload);
+      expect(formal.dev130FileReadinessSnapshot).toMatchObject({ targetKind: "formal", ready: true, warnings: [{ code: "FORMAL_2D_FILENAME_MISMATCH" }] });
+      expect(formal.dev130RecognitionSnapshot.status).toBe(status);
+      expect(formal.dev130RecognitionSnapshot.pdf.adapterStatus).toBe(["partial","failed","timeout"].includes(status) ? status : status === "not_started" ? "not_started" : "pending");
+      const sent = mocks.reviewCreate.mock.calls.at(-1)?.[1].snapshotPayload;
+      expect(sent.payload.dev130FileReadinessSnapshot).toEqual(formal.dev130FileReadinessSnapshot);
+      expect(sent.payload.dev130RecognitionSnapshot).toEqual(formal.dev130RecognitionSnapshot);
+    } finally { if (pg) await actual.execute("DROP SCHEMA ai_pdm_core CASCADE"); await actual.close(); database?.close(); mocks.requiredFiles.mockReset(); }
+  });
   it("rejects a missing view grant before reading domain data", async () => {
     mocks.evaluate.mockResolvedValueOnce([
       { allowed: false }, { allowed: true }, { allowed: true }, { allowed: true }

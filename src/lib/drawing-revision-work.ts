@@ -10,22 +10,23 @@ import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
 import { uploadDrawingRevisionWorkFile, uploadDrawingRevisionWorkFilePrincipal } from "@/lib/drawing-revision-work-file";
-import { assertRequiredDrawingFiles } from "@/lib/pdm-file-ownership";
+import { assertDrawingRevisionFileReadiness, evaluateDrawingRevisionFileReadiness, type DrawingRevisionTargetKind, type RequiredDrawingFileInput } from "@/lib/pdm-file-ownership";
 import { dev087RequestHash, replayDev087TerminalReceipt, runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
-import { CanonicalWorkbenchError, parseCanonicalRowKey } from "@/lib/pdm-canonical-workbench-contract";
+import { CanonicalWorkbenchError, parseCanonicalRowKey, type CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
 import { beginDev087Approval, canAccessWorkReviewAssignment, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, sharedWorkReviewWritesEnabled, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { DrawingRevisionWorkAsyncRepository, parseCanonicalRevision, type RevisionTuple } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository, type PdmWorkReviewRequestRecord } from "@/lib/repositories/pdm-work-review-async-repository";
+import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 import { resolvePrincipalReviewResourceGroupsInSnapshot,
   requirePrincipalReviewResourceCapabilitiesInSnapshot, sharedWorkReviewAssignment } from "@/lib/pdm-principal-review-resource";
-import { hydrateDrawingChangeImpactForWork, validateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
-import { createFileStorageService } from "@/lib/file-storage";
+import { hydrateDrawingChangeImpactForWork, validateDrawingChangeImpactForWork, type DrawingChangeImpactProjection } from "@/lib/drawing-change-impact";
+import { createFileStorageService, createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { deriveDrawingRevisionBasis, type DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { issueDrawingRevisionTargetToken, verifyDrawingRevisionTargetToken } from "@/lib/drawing-revision-target-token.server";
 import { DrawingRevisionTargetContractError, parseDrawingRevisionCreateSelection } from "@/lib/drawing-revision-target-contract";
-import { assertDrawingRecognitionWriteReady, assertReviewPackagePrimaryRoot, assertReviewPackageRecognitionReady, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { assertReviewPackagePrimaryRoot, assertReviewPackageRecognitionReady, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { parseReviewPackageSnapshot, type ReviewPackageEnvelope,
   type ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
 
@@ -70,6 +71,126 @@ function validateDrawingPayload(value: unknown) {
   const text = JSON.stringify(record); if (Buffer.byteLength(text, "utf8") > 2_000_000) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料過大", 422);
   if (["branchId", "predecessorRevisionId", "sourceRevisionId", "companyId", "ownerUserId", "reviewerUserId", "changeImpactRequired", "relatedParts", "affectedParts"].some((key) => key in record)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料包含不可修改的系統欄位", 422);
   return record;
+}
+
+async function drawingRelationMatrix(client: AsyncDatabaseClient, companyId: string, drawingId: string): Promise<CanonicalRelationMatrixProjection> {
+  const repository = new RelationFormalAuthorityRepository(client);
+  const rootId = await repository.rootForEntity({ companyId, entityType: "drawing", entityId: drawingId });
+  if (!rootId) {
+    const matrixEtag = crypto.createHash("sha256").update(JSON.stringify({ companyId, drawingId, scope: "unscoped" })).digest("hex");
+    return { rootId: "", rootCode: "", matrixEtag, drawings: [], parts: [], cells: [] };
+  }
+  try {
+    return await repository.getMatrix({ companyId, rootId });
+  } catch (error) {
+    if (!(error instanceof CanonicalWorkbenchError) || error.code !== "WORKBENCH_RELATION_SCOPE_INVALID") throw error;
+    const matrixEtag = crypto.createHash("sha256").update(JSON.stringify({ companyId, drawingId, rootId, scope: "invalid" })).digest("hex");
+    return {
+      rootId: "",
+      rootCode: "",
+      matrixEtag,
+      drawings: [],
+      parts: [],
+      cells: [],
+      issue: { code: "WORKBENCH_RELATION_SCOPE_INVALID", message: "圖料關聯資料不完整，請聯絡系統管理員" }
+    };
+  }
+}
+
+type DrawingWorkReadinessFileRow = {
+  id: string;
+  source_file_asset_id: string;
+  file_name: string;
+  file_ext: string;
+  mime_type: string | null;
+  file_size: number | string | null;
+  content_hash: string | null;
+  role: string;
+  is_primary: number | string;
+  storage_provider?: string;
+  original_path?: string | null;
+  storage_bucket?: string | null;
+  storage_key?: string | null;
+  storage_generation?: string | null;
+  storage_metageneration?: string | null;
+};
+
+function readinessFile(row: DrawingWorkReadinessFileRow, readable?: boolean): RequiredDrawingFileInput {
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    fileExt: row.file_ext,
+    fileSize: row.file_size,
+    contentHash: row.content_hash,
+    role: row.role,
+    isPrimary: row.is_primary,
+    ...(readable === undefined ? {} : { readable })
+  };
+}
+
+async function verifyPdfObject(row: DrawingWorkReadinessFileRow) {
+  if (row.file_ext.toLowerCase() !== "pdf" || !row.storage_key || !row.content_hash) return false;
+  try {
+    const pointer = storagePointerFromRecord(row as Parameters<typeof storagePointerFromRecord>[0]);
+    const bytes = await createFileStorageServiceForPointer(pointer).readObject(pointer.key);
+    return bytes.byteLength === Number(row.file_size)
+      && crypto.createHash("sha256").update(bytes).digest("hex") === row.content_hash.toLowerCase()
+      && await (await import("@/lib/drawing-pdf-validity")).isReadableDrawingPdf(bytes);
+  } catch {
+    return false;
+  }
+}
+
+async function drawingRecognitionSubmissionSnapshot(client: AsyncDatabaseClient, input: {
+  companyId: string;
+  drawingId: string;
+  revisionId: string;
+  sourceAssetIds: string[];
+  hasPdf: boolean;
+}) {
+  const sessions = await client.query<{ id: string; status: string; warning_count: number | string; error_code: string | null; error_summary: string | null; updated_at: string }>(
+    `SELECT id, status, warning_count, error_code, error_summary, updated_at
+       FROM drawing_recognition_sessions
+      WHERE company_id = :companyId AND drawing_id = :drawingId
+        AND drawing_revision_id = :revisionId
+        AND source_context_type = 'drawing_revision' AND source_context_id = :revisionId
+      ORDER BY created_at DESC, id DESC`, input
+  );
+  const expected = [...new Set(input.sourceAssetIds)].sort();
+  let selected: typeof sessions[number] | null = null;
+  for (const session of sessions) {
+    const sources = await client.query<{ file_asset_id: string }>(
+      `SELECT file_asset_id FROM drawing_recognition_sources WHERE company_id = :companyId AND session_id = :sessionId ORDER BY file_asset_id`,
+      { companyId: input.companyId, sessionId: session.id }
+    );
+    const actual = [...new Set(sources.map((source) => source.file_asset_id))].sort();
+    if (expected.length === actual.length && expected.every((id, index) => id === actual[index])) {
+      selected = session;
+      break;
+    }
+  }
+  const adapters = selected ? await client.query<{
+    source_id: string; adapter_code: string; status: string; diagnostics_json: unknown; completed_at: string;
+  }>(
+    `SELECT source_id, adapter_code, status, diagnostics_json, completed_at
+       FROM drawing_recognition_adapter_results
+      WHERE company_id = :companyId AND session_id = :sessionId
+      ORDER BY completed_at DESC, id DESC`,
+    { companyId: input.companyId, sessionId: selected.id }
+  ) : [];
+  const pdfAdapter = adapters.find(adapter => adapter.adapter_code === 'browser-pdf-ocr.v1');
+  return {
+    schemaVersion: 1,
+    capturedAt: new Date().toISOString(),
+    sessionId: selected?.id ?? null,
+    status: selected?.status ?? "not_started",
+    warningCount: Number(selected?.warning_count ?? 0),
+    errorCode: selected?.error_code ?? null,
+    errorSummary: selected?.error_summary ?? null,
+    sourceAssetIds: expected,
+    adapters,
+    pdf: { provided: input.hasPdf, adapterStatus: !input.hasPdf ? "not_applicable" : pdfAdapter?.status ?? (selected ? "pending" : "not_started") }
+  };
 }
 
 async function returnDrawingRdVoidReview(tx: AsyncDatabaseClient,
@@ -210,30 +331,43 @@ export class DrawingRevisionWorkService {
       canApprove: false,
       canReturn: false
     } : interactionState;
-    const [drawing, files] = await Promise.all([
-      this.client.queryOne(`SELECT drawing_number AS code, purpose_code, purpose_description FROM drawings WHERE id = :drawingId AND company_id = :companyId`, { drawingId: work.drawing_id, companyId: actor.companyId }),
-      this.client.query(`SELECT binding.file_binding_id AS id, file.source_file_asset_id, file.display_name, file.role,
+    const [drawing, files, relationMatrix] = await Promise.all([
+      this.client.queryOne(`SELECT drawing_number AS code, purpose_code, purpose_description AS name FROM drawings WHERE id = :drawingId AND company_id = :companyId`, { drawingId: work.drawing_id, companyId: actor.companyId }),
+      this.client.query<DrawingWorkReadinessFileRow & { display_name: string; drawing_revision_id: string; current_revision_upload: number }>(`SELECT binding.file_binding_id AS id, file.source_file_asset_id, file.display_name, file.role,
           file.drawing_revision_id, file.is_primary, asset.file_name, asset.file_ext, asset.mime_type, asset.file_size,
+          asset.content_hash,
           CASE WHEN file.drawing_revision_id = :revisionId THEN 1 ELSE 0 END AS current_revision_upload
         FROM drawing_revision_work_files binding JOIN drawing_revision_files file ON file.id = binding.file_binding_id
         JOIN file_assets asset ON asset.id = file.source_file_asset_id
         WHERE binding.work_id = :workId AND file.removed_at IS NULL AND asset.deleted_at IS NULL
-        ORDER BY binding.ordinal, binding.file_binding_id`, { workId, revisionId: work.revision_id })
+        ORDER BY binding.ordinal, binding.file_binding_id`, { workId, revisionId: work.revision_id }),
+      drawingRelationMatrix(this.client, actor.companyId, work.drawing_id)
     ]);
+    const targetKind: DrawingRevisionTargetKind = Number(work.target_minor) === 0 ? "formal" : "research";
+    const currentFiles = files.filter((file) => Boolean(file.current_revision_upload));
+    const fileReadiness = evaluateDrawingRevisionFileReadiness(currentFiles.map((file) => readinessFile(file)), targetKind);
     const raw = sanitizeDrawingRevisionWorkPayload(typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload);
-    const changeImpactProjection = await hydrateDrawingChangeImpactForWork(this.client, {
+    const changeImpactInput = {
       companyId: actor.companyId,
       drawingId: work.drawing_id,
       revisionId: work.revision_id,
-      predecessorRevisionId: work.predecessor_revision_id,
-      impact: raw.changeImpact
-    });
+      predecessorRevisionId: work.predecessor_revision_id
+    };
+    let changeImpactReset = false;
+    let changeImpactProjection: DrawingChangeImpactProjection;
+    try {
+      changeImpactProjection = await hydrateDrawingChangeImpactForWork(this.client, { ...changeImpactInput, impact: raw.changeImpact });
+    } catch (error) {
+      if (!(error instanceof CanonicalWorkbenchError) || error.code !== "DRAWING_CHANGE_IMPACT_SNAPSHOT_STALE") throw error;
+      changeImpactProjection = await hydrateDrawingChangeImpactForWork(this.client, { ...changeImpactInput, impact: null });
+      changeImpactReset = true;
+    }
     if (changeImpactProjection.changeImpactRequired && changeImpactProjection.changeImpact) raw.changeImpact = changeImpactProjection.changeImpact;
     else delete raw.changeImpact;
     const { drawingId: _drawingId, revisionId: _revisionId, predecessorRevisionId: _predecessorRevisionId, ...payload } = raw;
     const assemblyPackage=await assemblySubmitAvailability(this.client,work);
     permittedInteraction.canSubmit=permittedInteraction.canSubmit&&assemblyPackage.canSubmit;
-    return { data: { entityType: "drawing" as const, entityId: work.drawing_id, workId: work.id, revisionId: work.revision_id, revision: work.target_label, rowVersion: Number(work.row_version), payload, identity: drawing, files, assemblyPackage, changeImpactRequired: changeImpactProjection.changeImpactRequired, relatedParts: changeImpactProjection.relatedParts, affectedParts: changeImpactProjection.affectedParts, readonly: !permittedInteraction.canMutateContent, interaction: permittedInteraction }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.profileId }), correlationId: crypto.randomUUID() } };
+    return { data: { entityType: "drawing" as const, entityId: work.drawing_id, workId: work.id, revisionId: work.revision_id, revision: work.target_label, targetKind, fileReadiness, rowVersion: Number(work.row_version), payload, identity: drawing, files, relationMatrix, assemblyPackage, changeImpactRequired: changeImpactProjection.changeImpactRequired, changeImpactReset, relatedParts: changeImpactProjection.relatedParts, affectedParts: changeImpactProjection.affectedParts, readonly: !permittedInteraction.canMutateContent, interaction: permittedInteraction }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.profileId }), correlationId: crypto.randomUUID() } };
   }
 
   async targets(drawingId: string, sourceRowKey: string, actor: DrawingRevisionActor) {
@@ -505,7 +639,6 @@ export class DrawingRevisionWorkService {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
       }
       await repository.assertWorkMutationBasis(tx, locked);
-      await assertDrawingRecognitionWriteReady(tx, { companyId, drawingId: locked.drawing_id, revisionId: locked.revision_id });
       const storedPayload = typeof locked.proposed_payload === "string" ? JSON.parse(locked.proposed_payload) : locked.proposed_payload;
       const submittedPayload = validateDrawingPayload(storedPayload);
       if (locked.predecessor_revision_id === null) {
@@ -513,11 +646,10 @@ export class DrawingRevisionWorkService {
       } else {
         submittedPayload.changeImpact = await validateDrawingChangeImpactForWork(tx, { companyId, drawingId: locked.drawing_id, revisionId: locked.revision_id, predecessorRevisionId: locked.predecessor_revision_id, impact: submittedPayload.changeImpact, mode: "submit" });
       }
-      await tx.execute(`UPDATE drawing_revision_works SET proposed_payload = :payload, updated_at = CURRENT_TIMESTAMP WHERE id = :workId AND company_id = :companyId`, { workId, companyId, payload: JSON.stringify(submittedPayload) });
-      const currentFiles = await tx.query<{
-        id: string; file_name: string; file_ext: string; file_size: number | string | null;
-        content_hash: string | null; role: string; is_primary: number | string;
-      }>(`SELECT file.id, asset.file_name, asset.file_ext, asset.file_size, asset.content_hash, file.role, file.is_primary
+      const currentFiles = await tx.query<DrawingWorkReadinessFileRow>(`SELECT file.id, file.source_file_asset_id,
+          asset.file_name, asset.file_ext, asset.mime_type, asset.file_size, asset.content_hash,
+          asset.storage_provider, asset.original_path, asset.storage_bucket, asset.storage_key,
+          asset.storage_generation, asset.storage_metageneration, file.role, file.is_primary
           FROM drawing_revision_work_files binding
           JOIN drawing_revision_files file ON file.id = binding.file_binding_id AND file.company_id = :companyId
           JOIN file_assets asset ON asset.id = file.source_file_asset_id
@@ -528,24 +660,30 @@ export class DrawingRevisionWorkService {
         workId,
         revisionId: locked.revision_id
       });
+      const targetKind: DrawingRevisionTargetKind = Number(locked.target_minor) === 0 ? "formal" : "research";
+      const readinessInputs = await Promise.all(currentFiles.map(async (file) => readinessFile(file,
+        file.file_ext.toLowerCase() === "pdf" ? await verifyPdfObject(file) : undefined)));
       try {
-        assertRequiredDrawingFiles(currentFiles.map((file) => ({
-          id: file.id,
-          fileName: file.file_name,
-          fileExt: file.file_ext,
-          fileSize: file.file_size,
-          contentHash: file.content_hash,
-          role: file.role,
-          isPrimary: file.is_primary
-        })));
+        assertDrawingRevisionFileReadiness(readinessInputs, targetKind);
       } catch (error) {
         const message = error instanceof Error ? error.message : "必須重新上傳本版次的 2D 與 3D 原始檔。";
         const code = error && typeof error === "object" && "code" in error ? String(error.code) : "WORKBENCH_BAD_REQUEST";
-        if (["DRAWING_2D_REQUIRED", "DRAWING_3D_REQUIRED", "DRAWING_2D_PRIMARY_REQUIRED", "DRAWING_3D_PRIMARY_REQUIRED", "DRAWING_ROLE_EXTENSION_MISMATCH"].includes(code)) {
+        if (["DRAWING_2D_REQUIRED", "DRAWING_3D_REQUIRED", "DRAWING_2D_PRIMARY_REQUIRED", "DRAWING_3D_PRIMARY_REQUIRED", "DRAWING_ROLE_EXTENSION_MISMATCH", "FORMAL_PDF_REQUIRED", "FORMAL_DWG_REQUIRED", "FORMAL_PDF_DUPLICATE", "FORMAL_DWG_DUPLICATE"].includes(code)) {
           throw new CanonicalWorkbenchError(code as "DRAWING_2D_REQUIRED", message, 422);
         }
         throw error;
       }
+      const fileReadinessSnapshot = evaluateDrawingRevisionFileReadiness(readinessInputs, targetKind);
+      const recognitionSnapshot = await drawingRecognitionSubmissionSnapshot(tx, {
+        companyId,
+        drawingId: locked.drawing_id,
+        revisionId: locked.revision_id,
+        sourceAssetIds: currentFiles.map((file) => file.source_file_asset_id),
+        hasPdf: currentFiles.some((file) => file.file_ext.toLowerCase() === "pdf")
+      });
+      submittedPayload.dev130FileReadinessSnapshot = fileReadinessSnapshot;
+      submittedPayload.dev130RecognitionSnapshot = recognitionSnapshot;
+      await tx.execute(`UPDATE drawing_revision_works SET proposed_payload = :payload, updated_at = CURRENT_TIMESTAMP WHERE id = :workId AND company_id = :companyId`, { workId, companyId, payload: JSON.stringify(submittedPayload) });
       await currentAssemblySubmission(tx,locked);
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const lifecycleBasis = principalOnly

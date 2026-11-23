@@ -137,6 +137,7 @@ const INFRASTRUCTURE = [
 ]
 
 const APPLICATION = [
+  /^scripts\/qc-dev130-(?:browser|postgres)\.mjs$/u,
   /^scripts\/qc-daily-fluency-browser\.mjs$/u,
   /^scripts\/qc-dev129-assembly-(?:browser|submit-browser|zip)\.mjs$/u,
   /^vitest\.config\.ts$/u,

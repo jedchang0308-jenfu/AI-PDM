@@ -198,6 +198,7 @@ export async function readDrawingRecognitionPdfSource(input: {
   roles: string[];
   client?: AsyncDatabaseClient;
   reauthorize?: (source: { expectedHash: string; sourceId: string; canonicalSourceIdentity: string }) => Promise<void>;
+  ifNoneMatch?: string | null;
 }) {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   const sourceId = requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID");
@@ -220,6 +221,9 @@ export async function readDrawingRecognitionPdfSource(input: {
     throw new DrawingRecognitionError("RECOGNITION_SOURCE_METADATA_MISMATCH", "辨識來源檔案狀態已改變，請重新辨識。", 409, true);
   }
   await input.reauthorize?.(source);
+  if (input.reauthorize && input.ifNoneMatch === `"${source.expectedHash.toLowerCase()}"`) {
+    return { fileName: source.fileName, mimeType: "application/pdf", bytes: Buffer.alloc(0), contentHash: source.expectedHash, notModified: true };
+  }
   const bytes = await storage.readObject(pointer.key);
   await input.reauthorize?.(source);
   const pdfMagic = Buffer.from(bytes.subarray(0, 5)).toString("ascii");

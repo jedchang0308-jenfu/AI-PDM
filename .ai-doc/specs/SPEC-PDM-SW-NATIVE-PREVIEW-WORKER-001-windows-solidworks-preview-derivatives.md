@@ -23,6 +23,15 @@ Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`
 Related QA: `.ai-doc/qa/qa-pdm-sw-native-preview-worker-validation-plan-2026-07-06.md`
 
+## 2026-11-23 DEV-130 產品邊界 — PNG 簡易預覽，不建 PDF renderer
+
+[DEV-130](DEV-130-png-preview-optional-pdf-formal-file-gate.md) 已由人類確認：AI-PDM 保留現有
+`.SLDDRW -> native_thumbnail_png -> sheet_png|thumbnail_png` 作簡易預覽，但不執行本文件歷史 Phase 2
+`.SLDDRW -> PDF`。`drawing_pdf` enum 可為相容性保留，正常 upload、preview、recognition、submit 或頁面開啟均不得
+自動 enqueue；既有 PDF 由使用者上傳並交現行 viewer／browser OCR。此決策不改寫 DEV-125 已完成的 Windows
+裝置、原生 metadata 或 PNG worker 證據，也不授權刪除既有資料／enum／API。若未來重新要求自動轉 PDF，須另行
+回到產品與資源決策，不能把下方歷史 `Phase 2 may add` 視為待辦自動恢復。
+
 Related authority:
 
 - `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`

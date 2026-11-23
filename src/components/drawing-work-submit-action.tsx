@@ -46,6 +46,10 @@ export function DrawingWorkSubmitAction({ drawingId, submitHref, disabled, onBef
         || !Number.isSafeInteger(work.rowVersion) || !packet?.meta?.contractToken || !work.interaction) {
         setError("工作資料已改變，請重新整理後再送審。"); return;
       }
+      // Formal submission must expose the server-projected four-file status and
+      // any filename warning before the write. Keep the compact drawer from
+      // becoming a second, less-informative submit path.
+      if (work.targetKind === "formal") { edit(); return; }
       if (!work.interaction.canSubmit) {
         if (work.interaction.canMutateContent && work.assemblyPackage?.canSubmit === false) edit();
         else setError("此版目前無法送審，請重新整理確認工作狀態與權限。");

@@ -420,7 +420,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
              SELECT 'job' AS record_kind, NULL AS id, source_file_asset_id, source_content_hash,
                     NULL AS derivative_kind, NULL AS storage_key, NULL AS mime_type,
                     NULL AS generator_profile, NULL AS generator_version, status, NULL AS created_at,
-                    COALESCE(locked_at, updated_at) AS last_heartbeat_at
+                    updated_at AS last_heartbeat_at
                FROM preview_jobs
               WHERE company_id = :companyId AND source_file_asset_id IN (${assetList.sql})
               ORDER BY source_file_asset_id, created_at DESC, last_heartbeat_at DESC`,

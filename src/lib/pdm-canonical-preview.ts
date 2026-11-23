@@ -1,5 +1,5 @@
 import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
-import { normalizeMediaType } from "@/lib/media-type";
+import { isPdfMediaCandidate, normalizeMediaType } from "@/lib/media-type";
 
 export type CanonicalPreviewState = "ready" | "pending" | "delayed" | "missing" | "failed" | "unavailable";
 
@@ -61,6 +61,16 @@ const TWO_D_ROLES = ["drawing_2d", "drawing", "primary_drawing"] as const;
 const READY_TWO_D_DERIVATIVE_KINDS = new Set(["drawing_pdf", "sheet_png", "thumbnail_png"]);
 const PREVIEW_HEARTBEAT_STALE_AFTER_MS = 30_000;
 
+export function previewJobWaitingState(status: string, lastHeartbeatAt: string | null) {
+  const at = Date.parse(lastHeartbeatAt ?? "");
+  const delayed = !Number.isFinite(at) || Date.now() - at > PREVIEW_HEARTBEAT_STALE_AFTER_MS;
+  return {
+    delayed,
+    stateTitle: delayed ? status === "queued" ? "預覽工作尚未被接手" : "預覽處理已中斷" : status === "queued" ? "等待預覽服務" : "預覽產生中",
+    stateText: delayed ? "請至 Windows 解析服務確認電腦連線與可處理項目，或下載原檔。" : status === "queued" ? "工作已排入佇列。" : "預覽服務正在處理。"
+  };
+}
+
 type CanonicalTwoDDerivativeReference = Pick<CanonicalPreviewDerivativeJobRow,
   "sourceFileAssetId" | "sourceContentHash" | "derivativeKind" | "mimeType" | "generatorProfile" | "generatorVersion"
 > & { status?: string };
@@ -99,7 +109,7 @@ export function selectCanonicalTwoDSource(
 }
 
 function isCanonicalPdfSource(source: CanonicalPreviewSourceRow) {
-  return source.fileExt === "pdf" && normalizeMediaType(source.mimeType) === "application/pdf";
+  return isPdfMediaCandidate(source.fileExt, source.mimeType);
 }
 
 export type WorkspacePreviewFile = {
@@ -111,10 +121,12 @@ export type WorkspacePreviewFile = {
   mime_type?: string;
   is_primary?: boolean | number;
   current_revision_upload?: boolean | number;
+  source_file_asset_id?: string | null;
 };
 
 export function isWorkspacePdf(file: WorkspacePreviewFile) {
   const mime = normalizeMediaType(file.mime_type);
+  if (isPdfMediaCandidate(file.file_ext || (/\.pdf$/iu.test(file.file_name || file.display_name || "") ? "pdf" : ""), mime)) return true;
   if (mime) return mime === "application/pdf";
   return file.file_ext?.toLowerCase().replace(/^\./u, "") === "pdf"
     || /\.pdf$/iu.test(file.file_name || file.display_name || "");
@@ -133,10 +145,17 @@ export function selectWorkspacePreviewSource<T extends WorkspacePreviewFile>(
   const requiresChoice = pdfs.length > 1 && primaries.length !== 1;
   const selected = requiresChoice ? pdfs.find((file) => file.id === selectedBindingId) : null;
   const preferredPdf = selected ?? (pdfs.length === 1 ? pdfs[0] : primaries.length === 1 ? primaries[0] : null);
-  // Previous-revision files remain references; never label a previous PDF as
-  // the full drawing for the current CAD. Keep the original non-PDF fallback.
-  const fallback = (current.length ? current : candidates).find((file) => !isWorkspacePdf(file)) ?? null;
+  // Previous-revision files remain references. A workspace must never label a
+  // historical CAD or PDF as the source for the current revision.
+  const fallback = current.find((file) => !isWorkspacePdf(file)) ?? null;
   return { file: requiresChoice ? selected ?? null : preferredPdf ?? fallback, pdfs, requiresChoice };
+}
+
+export function workspaceCurrentSourceAssetIds(files: readonly WorkspacePreviewFile[]) {
+  return Array.from(new Set(files
+    .filter((file) => Boolean(file.current_revision_upload))
+    .map((file) => file.source_file_asset_id)
+    .filter((id): id is string => Boolean(id))));
 }
 
 export function resolveCanonicalDrawingPreview(input: {
@@ -201,8 +220,7 @@ export function resolveCanonicalDrawingPreview(input: {
     .filter((row) => row.recordKind === "job")
     .sort((left, right) => String(right.lastHeartbeatAt ?? "").localeCompare(String(left.lastHeartbeatAt ?? "")))[0];
   if (latestJob?.status === "queued" || latestJob?.status === "running") {
-    const heartbeat = Date.parse(latestJob.lastHeartbeatAt ?? "");
-    const stale = !Number.isFinite(heartbeat) || Date.now() - heartbeat > PREVIEW_HEARTBEAT_STALE_AFTER_MS;
+    const stale = previewJobWaitingState(latestJob.status, latestJob.lastHeartbeatAt).delayed;
     return { state: stale ? "delayed" : "pending", media: null, ...base };
   }
   if (latestJob && ["failed", "skipped", "cancelled"].includes(latestJob.status)) {

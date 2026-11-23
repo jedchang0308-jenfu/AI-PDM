@@ -59,6 +59,26 @@ export type RequiredDrawingFileInput = {
   contentHash?: string | null;
   role?: string | null;
   isPrimary?: boolean | number | string | null;
+  /** Submit-time storage/signature verification. Undefined means the caller
+   * is projecting status only and has not opened the object bytes. */
+  readable?: boolean;
+};
+
+export type DrawingRevisionTargetKind = "research" | "formal";
+export type DrawingRevisionRequiredSlot = "drawing_2d" | "cad_3d" | "pdf" | "dwg";
+export type DrawingRevisionFileReadinessBlockerCode =
+  | RequiredDrawingFileReadiness["blockers"][number]["code"]
+  | "FORMAL_PDF_REQUIRED"
+  | "FORMAL_DWG_REQUIRED"
+  | "FORMAL_PDF_DUPLICATE"
+  | "FORMAL_DWG_DUPLICATE";
+
+export type DrawingRevisionFileReadiness = {
+  targetKind: DrawingRevisionTargetKind;
+  ready: boolean;
+  slots: Record<DrawingRevisionRequiredSlot, { present: boolean; count: number; fileIds: string[] }>;
+  blockers: Array<{ code: DrawingRevisionFileReadinessBlockerCode; message: string; fileIds?: string[] }>;
+  warnings: Array<{ code: "FORMAL_2D_FILENAME_MISMATCH"; message: string; fileIds: string[] }>;
 };
 
 export type RequiredDrawingFileReadiness = {
@@ -153,6 +173,65 @@ export function assertRequiredDrawingFiles(files: RequiredDrawingFileInput[]) {
       details?: RequiredDrawingFileReadiness["blockers"];
     };
     error.code = readiness.blockers[0]?.code ?? "DRAWING_FILE_READINESS_FAILED";
+    error.details = readiness.blockers;
+    throw error;
+  }
+  return readiness;
+}
+
+function baseName(file: RequiredDrawingFileInput) {
+  const name = String(file.fileName ?? "").trim();
+  const dot = name.lastIndexOf(".");
+  return (dot > 0 ? name.slice(0, dot) : name).toLocaleLowerCase("en-US");
+}
+
+/** One server policy for workbench projection and submit-time enforcement.
+ * Callers must pass only current, active bindings from the target revision. */
+export function evaluateDrawingRevisionFileReadiness(
+  files: RequiredDrawingFileInput[],
+  targetKind: DrawingRevisionTargetKind
+): DrawingRevisionFileReadiness {
+  const required = evaluateRequiredDrawingFiles(files);
+  const pdfs = files.filter((file) => extensionOfFileName(file.fileName, file.fileExt) === "pdf");
+  const dwgs = files.filter((file) => extensionOfFileName(file.fileName, file.fileExt) === "dwg");
+  const validPdfs = pdfs.filter((file) => file.readable !== false && Number(file.fileSize ?? 0) > 0 && Boolean(file.contentHash));
+  const blockers: DrawingRevisionFileReadiness["blockers"] = [...required.blockers];
+  const warnings: DrawingRevisionFileReadiness["warnings"] = [];
+
+  if (targetKind === "formal") {
+    if (pdfs.length > 1) blockers.push({ code: "FORMAL_PDF_DUPLICATE", message: "正式版只能有 1 個本版 PDF。", fileIds: pdfs.flatMap((file) => file.id ? [file.id] : []) });
+    else if (validPdfs.length !== 1) blockers.push({ code: "FORMAL_PDF_REQUIRED", message: pdfs.length ? "正式版 PDF 無法讀取，請重新上傳有效 PDF。" : "正式版送出前必須提供本版 PDF。", fileIds: pdfs.flatMap((file) => file.id ? [file.id] : []) });
+    if (dwgs.length > 1) blockers.push({ code: "FORMAL_DWG_DUPLICATE", message: "正式版只能有 1 個本版 DWG。", fileIds: dwgs.flatMap((file) => file.id ? [file.id] : []) });
+    else if (dwgs.length !== 1) blockers.push({ code: "FORMAL_DWG_REQUIRED", message: "正式版送出前必須提供本版 DWG；DXF 不可替代。", fileIds: dwgs.flatMap((file) => file.id ? [file.id] : []) });
+
+    const drawing = required.primary2d[0];
+    const comparable = [drawing, validPdfs[0], dwgs[0]].filter((file): file is RequiredDrawingFileInput => Boolean(file));
+    const names = new Set(comparable.map(baseName));
+    if (comparable.length === 3 && names.size > 1) warnings.push({
+      code: "FORMAL_2D_FILENAME_MISMATCH",
+      message: "2D 原始檔、PDF 與 DWG 的主檔名不一致；請確認版本對應。",
+      fileIds: comparable.flatMap((file) => file.id ? [file.id] : [])
+    });
+  }
+
+  const slot = (items: RequiredDrawingFileInput[]) => ({ present: items.length === 1, count: items.length, fileIds: items.flatMap((file) => file.id ? [file.id] : []) });
+  return {
+    targetKind,
+    ready: blockers.length === 0,
+    slots: { drawing_2d: slot(required.primary2d), cad_3d: slot(required.primary3d), pdf: slot(validPdfs), dwg: slot(dwgs) },
+    blockers,
+    warnings
+  };
+}
+
+export function assertDrawingRevisionFileReadiness(files: RequiredDrawingFileInput[], targetKind: DrawingRevisionTargetKind) {
+  const readiness = evaluateDrawingRevisionFileReadiness(files, targetKind);
+  if (!readiness.ready) {
+    const error = new Error(readiness.blockers.map((blocker) => blocker.message).join(" ")) as Error & {
+      code?: DrawingRevisionFileReadinessBlockerCode;
+      details?: DrawingRevisionFileReadiness["blockers"];
+    };
+    error.code = readiness.blockers[0]?.code;
     error.details = readiness.blockers;
     throw error;
   }

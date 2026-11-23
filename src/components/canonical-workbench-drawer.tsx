@@ -12,7 +12,6 @@ import { isPdfPreviewSlot, type DrawingPreviewSlotModel } from "@/lib/pdm-entity
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
 import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
-import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
 import { WorkbenchDeleteAction } from "@/components/draft-numbering-delete-action";
 import { DrawingWorkSubmitAction } from "./drawing-work-submit-action";
 import type { PartPreviewMutationResult } from "@/lib/pdm-part-preview";
@@ -117,7 +116,7 @@ function AttachmentManagementAction({ allowed, onClick }: { allowed: boolean; on
     aria-busy={state.kind === "loading" ? true : undefined} onClick={onClick}>管理附件</button>;
 }
 
-export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onMatrixSaved, onMatrixDirtyChange, onOpenMatrixDrawing, onOpenMatrixPart, onDeleteWork, onDraftBundleDeleted }: {
+export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canManageAttachments, historyRevisionId, onHistoryRevisionChange, onStartResize, onClose, onAction, onManageAttachments, onPartPreviewCommitted, onBeforeCreate, onOpenMatrixDrawing, onOpenMatrixPart, onDeleteWork, onDraftBundleDeleted }: {
   detail: Detail | null; loading: boolean; error: string; onClose: () => void;
   width: number; onStartResize: (clientX: number) => void;
   canManageAttachments: boolean;
@@ -127,26 +126,15 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
   onManageAttachments: (row: CanonicalWorkbenchRowDto) => void;
   onPartPreviewCommitted: (row: CanonicalWorkbenchRowDto, result: PartPreviewMutationResult) => void;
   onBeforeCreate: () => boolean;
-  onMatrixSaved: () => void;
-  onMatrixDirtyChange: (dirty: boolean) => void;
   onOpenMatrixDrawing: (detailHref: string) => void;
   onOpenMatrixPart: (detailHref: string) => void;
   onDeleteWork: (row: CanonicalWorkbenchRowDto, href: string) => Promise<string | null>;
   onDraftBundleDeleted: () => void;
 }) {
-  const [matrixEditing, setMatrixEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const presentation = detail?.data.presentation;
   const relationMatrix = presentation?.relationMatrix;
-  const relationEditable = Boolean(relationMatrix?.rootId)
-    && (relationMatrix?.drawings.length ?? 0) > 0
-    && (relationMatrix?.parts.length ?? 0) > 0
-    && detail?.data.row.entityType === "drawing"
-    && Boolean(detail?.data.row.actions.some((action) => action.key === "edit_relation_matrix"));
-  useEffect(() => { setMatrixEditing(false); setSubmitting(false); }, [detail?.data.row.rowKey]);
-  const relationAction = relationEditable && !matrixEditing
-    ? <button type="button" className="secondary-button canonical-preview-relation-action" data-canonical-relation-edit="true" onClick={() => setMatrixEditing(true)}>編輯關聯</button>
-    : null;
+  useEffect(() => { setSubmitting(false); }, [detail?.data.row.rowKey]);
   const row = detail?.data.row;
   const submitAction = row?.entityType === "drawing" && !historyRevisionId ? row.actions.find(action => action.key === "submit_work") : null;
   const footerActions = row?.actions.filter((action) => action.key !== "edit_relation_matrix" && action.key !== "cancel_work" && action.key !== "submit_work") ?? [];
@@ -221,19 +209,7 @@ export function CanonicalWorkbenchDrawer({ detail, loading, error, width, canMan
         <CanonicalRelationMatrixSection
         matrix={presentation.relationMatrix}
         contractToken={detail.meta.contractToken}
-        mode={presentation.kind === "drawing" ? "manage" : "readonly"}
-        editing={matrixEditing}
-        onEditingChange={setMatrixEditing}
-        editAction={relationAction}
-        createAction={presentation.relationMatrix.rootId ? <CanonicalNumberingCreateAction
-          surface={presentation.kind}
-          rootCode={presentation.relationMatrix.rootCode}
-          returnTo={typeof window === "undefined" ? undefined : `${window.location.pathname}${window.location.search}`}
-          className="secondary-button"
-          onBeforeNavigate={onBeforeCreate}
-        /> : null}
-        onSaved={onMatrixSaved}
-        onDirtyChange={onMatrixDirtyChange}
+        mode="readonly"
         onOpenDrawing={onOpenMatrixDrawing}
         onOpenPart={onOpenMatrixPart}
       /></> : null}

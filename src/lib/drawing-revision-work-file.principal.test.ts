@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -50,6 +51,7 @@ vi.mock("@/lib/pdm-canonical-command", async (importOriginal) => ({
 
 import { uploadDrawingRevisionWorkFilePrincipal } from "@/lib/drawing-revision-work-file";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { createAsyncDatabaseClient } from "@/lib/db-async-provider";
 
 const client = {
   kind: "postgres", transactionScope: "postgres",
@@ -59,7 +61,7 @@ const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-one" },
   session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
-const payload = Buffer.from("drawing-pdf");
+const payload = Buffer.from("%PDF-1.7 drawing-pdf");
 function input() {
   return { client, token: "v2-token", request: new Request("http://127.0.0.1:12000/api/pdm/drawing-revision-works/work-one/files", { method: "POST" }), workId: "work-one",
     file: new File([payload], "drawing.pdf", { type: "application/pdf" }),
@@ -82,6 +84,65 @@ beforeEach(() => {
 });
 
 describe("principal drawing file staging boundary", () => {
+  it.each([["pdf", false], ["dwg", false], ["pdf", true]] as const)("replaces legacy duplicate %s bindings with rollback=%s and preserves source/history bytes", async (extension, rollback) => {
+    const database = new Database(":memory:");
+    const actual = createAsyncDatabaseClient({ kind: "sqlite", database });
+    database.exec(`
+      CREATE TABLE drawings(id TEXT, company_id TEXT, part_root_id TEXT);
+      CREATE TABLE drawing_revision_works(id TEXT, company_id TEXT, drawing_id TEXT, revision_id TEXT, owner_user_id TEXT, handling TEXT, row_version INTEGER, target_label TEXT, updated_at TEXT);
+      CREATE TABLE canonical_workbench_states(company_id TEXT, work_id TEXT, handling TEXT, row_version INTEGER, updated_at TEXT);
+      CREATE TABLE file_assets(id TEXT PRIMARY KEY, storage_provider TEXT, original_path TEXT, storage_bucket TEXT, storage_key TEXT, storage_generation TEXT, storage_metageneration TEXT, file_name TEXT, file_ext TEXT, mime_type TEXT, file_size INTEGER, content_hash TEXT, linked_entity_type TEXT, linked_entity_id TEXT, document_category TEXT, display_name TEXT, description TEXT, revision TEXT, uploaded_by TEXT, deleted_at TEXT, deleted_by TEXT, deleted_reason TEXT, updated_at TEXT);
+      CREATE TABLE drawing_revision_files(id TEXT PRIMARY KEY, company_id TEXT, drawing_revision_id TEXT, source_file_asset_id TEXT, role TEXT, role_source TEXT, display_name TEXT, description TEXT, sort_order INTEGER, is_primary INTEGER, created_by TEXT, removed_at TEXT, removed_by TEXT, updated_at TEXT);
+      CREATE TABLE drawing_revision_work_files(work_id TEXT, file_binding_id TEXT, ordinal INTEGER, content_hash TEXT);
+      INSERT INTO drawings VALUES('drawing-one','company-one',NULL);
+      INSERT INTO drawing_revision_works VALUES('work-one','company-one','drawing-one','revision-one','profile-one','owner',2,'1',NULL);
+      INSERT INTO canonical_workbench_states VALUES('company-one','work-one','owner',2,NULL);
+    `);
+    const role = extension === "pdf" ? "pdf" : "dwg_dxf";
+    const bytes = extension === "pdf" ? payload : Buffer.from("AC1032 native DWG fixture");
+    const hash = crypto.createHash("sha256").update(bytes).digest("hex");
+    // One canonical asset belongs to the approved source and must stay readable.
+    for (const [index, revision] of ["revision-source", "revision-one"].entries()) {
+      database.prepare(`INSERT INTO file_assets(id,file_name,file_ext,file_size,content_hash,linked_entity_type,linked_entity_id) VALUES(?,?,?,?,?,'drawing_revision',?)`).run(`old-${index}`,`A.${extension}`,extension,bytes.length,hash,revision);
+      database.prepare(`INSERT INTO drawing_revision_files(id,company_id,drawing_revision_id,source_file_asset_id,role,sort_order) VALUES(?,'company-one','revision-one',?,?,?)`).run(`binding-${index}`,`old-${index}`,role,index);
+      database.prepare(`INSERT INTO drawing_revision_work_files VALUES('work-one',?,?,?)`).run(`binding-${index}`,index,hash);
+    }
+    mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(actual, verified));
+    mocks.readWork.mockImplementation(async tx => tx.queryOne("SELECT * FROM drawing_revision_works WHERE id='work-one'"));
+    mocks.runPrincipal.mockImplementation(async (_tx, _verified, _command, action) => actual.transaction(action));
+    mocks.putObject.mockImplementation(async ({ key, bytes: uploaded }) => ({ key, provider: "test", bytes: uploaded.length, sha256: crypto.createHash("sha256").update(uploaded).digest("hex") }));
+    try {
+      if (rollback) {
+        database.exec("CREATE TRIGGER reject_new_asset BEFORE INSERT ON file_assets BEGIN SELECT RAISE(ABORT, 'fixture_insert_failure'); END");
+        await expect(uploadDrawingRevisionWorkFilePrincipal({ ...input(), client: actual, file: new File([bytes], `A.${extension}`) }))
+          .rejects.toThrow('fixture_insert_failure');
+        expect(database.prepare("SELECT count(*) AS n FROM drawing_revision_files WHERE removed_at IS NULL").get()).toEqual({ n: 2 });
+        expect(database.prepare("SELECT count(*) AS n FROM drawing_revision_work_files").get()).toEqual({ n: 2 });
+        expect(database.prepare("SELECT row_version FROM drawing_revision_works").get()).toEqual({ row_version: 2 });
+        expect(database.prepare("SELECT count(*) AS n FROM file_assets WHERE deleted_at IS NOT NULL").get()).toEqual({ n: 0 });
+        return;
+      }
+      const result = await uploadDrawingRevisionWorkFilePrincipal({ ...input(), client: actual, file: new File([bytes], `A.${extension}`) });
+      expect(result).toMatchObject({ reused: false, rowVersion: 3 });
+      if (extension === "pdf") {
+        expect(database.prepare("SELECT mime_type FROM file_assets WHERE id=?").get(result.file.sourceFileAssetId)).toEqual({ mime_type: "application/pdf" });
+        expect(mocks.putObject).toHaveBeenCalledWith(expect.objectContaining({ contentType: "application/pdf" }));
+      }
+      expect(database.prepare("SELECT count(*) AS n FROM drawing_revision_files WHERE removed_at IS NULL").get()).toEqual({ n: 1 });
+      expect(database.prepare("SELECT count(*) AS n FROM drawing_revision_work_files").get()).toEqual({ n: 1 });
+      expect(database.prepare("SELECT count(*) AS n FROM drawing_revision_files WHERE removed_at IS NOT NULL").get()).toEqual({ n: 2 });
+      expect(database.prepare("SELECT deleted_at FROM file_assets WHERE id='old-0'").get()).toEqual({ deleted_at: null });
+      expect(database.prepare("SELECT content_hash FROM file_assets WHERE id='old-1'").get()).toEqual({ content_hash: hash });
+      expect(mocks.deleteObject).not.toHaveBeenCalled();
+    } finally { database.close(); }
+  });
+  it("rejects a PDF filename whose bytes are not a PDF before staging", async () => {
+    const invalid = new File(["not-a-pdf"], "drawing.pdf", { type: "application/pdf" });
+    await expect(uploadDrawingRevisionWorkFilePrincipal({ ...input(), file: invalid }))
+      .rejects.toMatchObject({ code: "FORMAL_PDF_REQUIRED", status: 422 });
+    expect(mocks.putObject).not.toHaveBeenCalled();
+  });
+
   it("rejects missing principal capability before staging file bytes", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: false }]);
     await expect(uploadDrawingRevisionWorkFilePrincipal(input()))
@@ -158,7 +219,7 @@ describe("principal drawing file staging boundary", () => {
   it("does not overwrite the original blob when a conflicting request changes bytes", async () => {
     mocks.runPrincipal.mockResolvedValue({reused:true,file:{sourceFileAssetId:"asset-one"}});
     await uploadDrawingRevisionWorkFilePrincipal(input());
-    const changed=Buffer.from("different drawing");
+    const changed=Buffer.from("%PDF-1.7 different drawing");
     mocks.putObject.mockResolvedValueOnce({key:"changed-stage",provider:"test",bytes:changed.length,
       sha256:crypto.createHash("sha256").update(changed).digest("hex")});
     await uploadDrawingRevisionWorkFilePrincipal({...input(),file:new File([changed],"drawing.pdf",{type:"application/pdf"})});

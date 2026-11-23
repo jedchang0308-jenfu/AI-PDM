@@ -3,7 +3,8 @@ import { auditStorageAccess } from "@/lib/storage-access-audit";
 import { readApprovalEvidenceFileSource } from "@/lib/pdm-approval-evidence-file-source";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
-import { normalizeMediaType } from "@/lib/media-type";
+import { isPdfMediaCandidate, normalizeMediaType } from "@/lib/media-type";
+import { isReadableDrawingPdf } from "@/lib/drawing-pdf-validity";
 import { protectedFileResponseHeaders } from "@/lib/file-response";
 import { assertStoredFileIntegrity, createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { isPdmFileReadContext, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
@@ -338,9 +339,11 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
   input: { wantsPreview: boolean; derivativeId: string | null; actorId: string; initiatorPrincipalId: string;
     principalInitiator: PrincipalJobInitiator;
     context: PdmFileReadContext; contextId: string; bindingId: string; requireSafePreview: boolean;
+    ifNoneMatch?: string | null;
     beforeRead: (original: boolean) => Promise<Response | null> }) {
   try {
-    const sourceMimeType = normalizeMediaType(source.mime_type);
+    const legacyPdf = isPdfMediaCandidate(source.file_ext, source.mime_type) && normalizeMediaType(source.mime_type) !== "application/pdf";
+    const sourceMimeType = legacyPdf ? "application/pdf" : normalizeMediaType(source.mime_type);
     const originalCanRenderInline = sourceMimeType === "application/pdf" || sourceMimeType.startsWith("image/");
     const requireDerivative = input.requireSafePreview && !originalCanRenderInline;
     const resolved = input.wantsPreview
@@ -394,8 +397,20 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
     if (authorizationFailure) return authorizationFailure;
     const pointer = storagePointerFromRecord(resolved.record);
     const storage = createFileStorageServiceForPointer(pointer);
+    const contentHash = resolved.record.content_hash?.toLowerCase();
+    if (!legacyPdf && resolved.record.id === source.id && normalizeMediaType(resolved.mimeType) === "application/pdf"
+      && contentHash && input.ifNoneMatch === `"${contentHash}"`) {
+      const metadata = await storage.getObjectMetadata(pointer.key);
+      if (!metadata || metadata.bytes !== Number(source.file_size)) return jsonError("PDM_FILE_NOT_FOUND", "檔案狀態已改變，請重新讀取。", 409);
+      const denied = await input.beforeRead(true);
+      if (denied) return denied;
+      return new Response(null, { status: 304, headers: { "cache-control": "private, no-store", "content-type": "application/pdf", "content-hash": contentHash, etag: `"${contentHash}"` } });
+    }
     const bytes = await storage.readObject(pointer.key);
     assertStoredFileIntegrity(bytes, resolved.record);
+    if (input.wantsPreview && legacyPdf && resolved.record.id === source.id && !await isReadableDrawingPdf(bytes)) {
+      return jsonError("PDM_PDF_INVALID", "PDF 內容無法讀取，請重新上傳有效 PDF。", 422);
+    }
     const responseHeaders = protectedFileResponseHeaders(input.wantsPreview ? "inline" : "attachment",
       resolved.fileName, resolved.mimeType || "application/octet-stream");
     const disposition = responseHeaders["content-disposition"].startsWith("inline;") ? "inline" : "attachment";
@@ -414,6 +429,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
       headers: {
         "content-type": resolved.mimeType || "application/octet-stream",
         "content-length": String(bytes.byteLength),
+        ...(contentHash ? { "content-hash": contentHash, etag: `"${contentHash}"` } : {}),
         ...responseHeaders
       }
     });
@@ -542,6 +558,7 @@ async function principalFileRead(request: Request, token: string, input: {
       derivativeId: input.derivativeId,
       context: input.context, contextId: input.contextId, bindingId: input.bindingId,
       requireSafePreview: source.dynamicPolicy,
+      ifNoneMatch: request.headers.get("if-none-match"),
       beforeRead: async original => {
         const fresh = await readSource(original ? 'download' : 'view');
         if (fresh instanceof Response) return fresh;

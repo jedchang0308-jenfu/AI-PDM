@@ -2244,7 +2244,8 @@ export class DrawingRecognitionAsyncRepository {
         JOIN drawing_revision_works work ON work.id = state.work_id AND work.company_id = state.company_id
         JOIN drawing_revision_work_files binding ON binding.work_id = work.id
         JOIN drawing_revision_files source ON source.id = binding.file_binding_id AND source.company_id = state.company_id
-        WHERE state.revision_id = :id AND state.company_id = :companyId AND source.removed_at IS NULL`),
+        WHERE state.revision_id = :id AND state.company_id = :companyId
+          AND source.drawing_revision_id = :id AND source.removed_at IS NULL`),
       { id, companyId }
     );
   }

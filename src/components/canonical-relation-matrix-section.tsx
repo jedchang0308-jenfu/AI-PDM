@@ -90,6 +90,7 @@ export function CanonicalRelationMatrixSection({
   onDirtyChange,
   onOpenDrawing,
   onOpenPart,
+  activeTarget,
   editAction,
   createAction,
   className = ""
@@ -105,6 +106,7 @@ export function CanonicalRelationMatrixSection({
   onDirtyChange?: (dirty: boolean) => void;
   onOpenDrawing: (detailHref: string) => void;
   onOpenPart: (detailHref: string) => void;
+  activeTarget?: { entityType: "drawing" | "part"; targetId: string };
   editAction?: ReactNode;
   createAction?: ReactNode;
   className?: string;
@@ -277,7 +279,7 @@ export function CanonicalRelationMatrixSection({
     <div className="canonical-drawer-section-heading"><h3>{matrix.rootCode} 全根號圖料關聯</h3><div className="canonical-drawer-section-actions">{canManage && activationMode === "explicit" && !editing ? editAction : null}{createAction}</div></div>
     {matrix.issue ? <p className="canonical-error" role="alert" data-anomaly-code={matrix.issue.code}>{matrix.issue.message}</p> : null}
     {error ? <p className="canonical-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p> : null}
-    {matrix.rootId ? <RelationMatrixTable rootCode={matrix.rootCode} drawings={matrix.drawings as RelationMatrixIdentity[]} parts={matrix.parts as RelationMatrixIdentity[]} matrix={cells} editable={editReady && saveState === "idle"} dirtyKeys={dirtyKeys} onChange={handleChange} onOpenDrawing={onOpenDrawing} onOpenPart={onOpenPart} /> : matrix.issue ? null : <p className="pdm-relation-empty-line">目前尚未建立圖料根號，暫無可顯示的關聯矩陣。</p>}
+    {matrix.rootId ? <RelationMatrixTable rootCode={matrix.rootCode} drawings={matrix.drawings.map((item) => ({ ...item, targetId: item.id })) as RelationMatrixIdentity[]} parts={matrix.parts.map((item) => ({ ...item, targetId: item.id })) as RelationMatrixIdentity[]} matrix={cells} editable={editReady && saveState === "idle"} dirtyKeys={dirtyKeys} onChange={handleChange} onOpenDrawing={onOpenDrawing} onOpenPart={onOpenPart} activeTarget={activeTarget} /> : matrix.issue ? null : <p className="pdm-relation-empty-line">目前尚未建立圖料根號，暫無可顯示的關聯矩陣。</p>}
     {editReady && (changes.length > 0 || saveState !== "idle") ? <div className={`canonical-matrix-actions is-${saveState}`} data-save-state={saveState}>
       {saveState === "idle" ? <>
         <button type="button" className="primary-button" disabled={!changes.length} onClick={() => void save()}>儲存關聯</button>

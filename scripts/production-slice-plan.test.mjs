@@ -11,6 +11,15 @@ test('normalizes Windows paths before classification', () => {
   assert.equal(normalizeChangedPath('.\\src\\lib\\permissions.ts'), 'src/lib/permissions.ts')
 })
 
+test('DEV-130 isolated UI and transaction runners select application checks', () => {
+  const plan = createProductionSlicePlan(['scripts/qc-dev130-browser.mjs', 'scripts/qc-dev130-postgres.mjs'])
+  assert.equal(plan.classification, 'AFFECTED_SLICES')
+  assert.equal(plan.gates.application, true)
+  assert.equal(plan.gates.infrastructure, false)
+  assert.equal(plan.gates.worker, false)
+  assert.equal(createProductionSlicePlan(['scripts/qc-dev130-unknown.mjs']).classification, 'FULL')
+})
+
 test('isolated daily fluency browser evidence belongs to application checks', () => {
   const plan = createProductionSlicePlan(['scripts/qc-daily-fluency-browser.mjs'])
   assert.equal(plan.classification, 'AFFECTED_SLICES')

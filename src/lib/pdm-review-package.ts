@@ -110,7 +110,8 @@ async function drawingFiles(client: AsyncDatabaseClient, input: { companyId: str
   if (input.workId) {
     const rows = await client.query<FileRow>(`SELECT binding.file_binding_id AS id, binding.file_binding_id AS binding_id,
         file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size,
-        asset.content_hash, file.is_primary, 1 AS current_revision_upload
+        asset.content_hash, file.is_primary,
+        CASE WHEN file.drawing_revision_id = :revisionId THEN 1 ELSE 0 END AS current_revision_upload
       FROM drawing_revision_work_files binding
       JOIN drawing_revision_files file ON file.id = binding.file_binding_id AND file.company_id = :companyId
       JOIN file_assets asset ON asset.id = file.source_file_asset_id
@@ -121,7 +122,7 @@ async function drawingFiles(client: AsyncDatabaseClient, input: { companyId: str
   if (!input.revisionId) return [];
   const rows = await client.query<FileRow>(`SELECT file.id, file.id AS binding_id, file.source_file_asset_id,
       asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash,
-      file.is_primary, 0 AS current_revision_upload
+      file.is_primary, 1 AS current_revision_upload
     FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id
     WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId
       AND file.removed_at IS NULL AND asset.deleted_at IS NULL
