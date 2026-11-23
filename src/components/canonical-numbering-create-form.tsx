@@ -18,6 +18,7 @@ import {
 } from "@/lib/numbering-item-kind";
 import { LoadingIndicator } from "@/components/loading-indicator";
 import type { NumberingStructureType } from "@/lib/numbering-structure-type";
+import { usePdmLocalDraft } from "./use-pdm-local-draft";
 
 type RootResult = {
   entityType: "part_root";
@@ -147,6 +148,30 @@ export function CanonicalNumberingCreateForm({
   const confirmedNameRef = useRef<HTMLInputElement>(null);
   const referencePurposeRef = useRef<HTMLInputElement>(null);
   const appendReasonRef = useRef<HTMLInputElement>(null);
+  const draftFields = { primaryNoun, nameBrand, nameSerialIdentifier, confirmedName, customSpecification, referencePurpose, appendReason,
+    content, itemKind, includeReferenceDrawing, isUniversal, seriesCode, purposeCode };
+  const localDraft = usePdmLocalDraft({
+    // Context choices and roots are not restored into another object. Only user-written text is retained.
+    record: `numbering-create:${from}:${scope}:${rootCode}`,
+    version: JSON.stringify(["create-text-v1", scope === "existing_root" && policyState.status === "ready"
+      ? { root: policyState.data.root, inheritedPart: policyState.data.inheritedPart, locked: policyState.data.locked, profileBlocked: policyState.data.profileBlocked, reasonRequired: policyState.data.reasonRequired } : "new"]),
+    fields: draftFields,
+    labels: { primaryNoun: "主要名詞", nameBrand: "品牌", nameSerialIdentifier: "流水識別", confirmedName: "確認品名", customSpecification: "規格／特性", referencePurpose: "參考用途", appendReason: "追加原因", content: "建立內容", itemKind: "料件類型", includeReferenceDrawing: "包含參考圖", isUniversal: "共用件", seriesCode: "系列代號", purposeCode: "圖號用途" },
+    dirty: [primaryNoun, nameBrand, nameSerialIdentifier, confirmedName, customSpecification, referencePurpose, appendReason].some(Boolean), enabled: !result && (scope === "new_root" || policyState.status === "ready" && policyState.data.root?.rootCode === rootCode),
+    apply(fields) {
+      const string = (key: string) => typeof fields[key] === "string" ? fields[key] as string : "";
+      setPrimaryNoun(string("primaryNoun")); setNameBrand(string("nameBrand")); setNameSerialIdentifier(string("nameSerialIdentifier"));
+      setConfirmedName(string("confirmedName")); setCustomSpecification(string("customSpecification"));
+      setReferencePurpose(string("referencePurpose")); setAppendReason(string("appendReason"));
+      if (["part", "drawing", "drawing_part"].includes(string("content"))) setContent(string("content") as CreateContent);
+      if (["manufactured", "purchased"].includes(string("itemKind"))) setItemKind(string("itemKind") as CanonicalNumberingItemKind);
+      if (typeof fields.includeReferenceDrawing === "boolean") setIncludeReferenceDrawing(fields.includeReferenceDrawing);
+      if (typeof fields.isUniversal === "boolean") setIsUniversal(fields.isUniversal);
+      setSeriesCode(string("seriesCode"));
+      if (["M", "R"].includes(string("purposeCode"))) setPurposeCode(string("purposeCode") as CreatePurposeCode);
+    },
+    reset() { setPrimaryNoun(""); setNameBrand(""); setNameSerialIdentifier(""); setConfirmedName(""); setCustomSpecification(""); setReferencePurpose(""); setAppendReason(""); },
+  });
   const rootSearchId = `${inputId}-root-search`;
   const seriesListId = `${inputId}-series-options`;
   const resolvedContent: CreateContent = scope === "new_root"
@@ -402,6 +427,7 @@ export function CanonicalNumberingCreateForm({
   }
 
   function chooseRoot(item: RootResult) {
+    setAppendReason(""); setReferencePurpose("");
     setRootCode(item.rootCode);
     setRootName(item.displayName);
     setRootQuery(item.rootCode);
@@ -431,6 +457,7 @@ export function CanonicalNumberingCreateForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (localDraft.invalidated) return;
     setError("");
     if (!validateFields()) return;
     if (scope === "existing_root" && policyState.status !== "ready") {
@@ -456,10 +483,12 @@ export function CanonicalNumberingCreateForm({
         body: JSON.stringify(request.body),
       });
       const body = await response.json().catch(() => null) as Record<string, unknown> | null;
+      if (!localDraft.isCurrent()) return;
       if (!response.ok) {
         setError(normalizeCreateError(response.status, body).message);
         return;
       }
+      localDraft.clear();
       setResult(body as typeof result);
       idempotencyKeyRef.current = crypto.randomUUID();
     } catch {
@@ -489,7 +518,8 @@ export function CanonicalNumberingCreateForm({
         </div>}
     </header>
 
-    <form className={`canonical-create-form${scope === "existing_root" ? " is-existing-root" : ""}`} onSubmit={(event) => void submit(event)} noValidate>
+    {localDraft.feedback}
+    <form className={`canonical-create-form${scope === "existing_root" ? " is-existing-root" : ""}`} onSubmit={(event) => void submit(event)} noValidate inert={busy || localDraft.invalidated}>
       {!initialRoot ? <fieldset className="canonical-create-scope">
         <legend>建立方式</legend>
         <div className="canonical-create-choice-row">

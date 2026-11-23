@@ -10,6 +10,8 @@ import { PartMaintenanceWorkspaceSections } from "@/components/part-maintenance-
 import { CANONICAL_NUMBERING_ITEM_KIND_OPTIONS } from "@/lib/numbering-item-kind";
 import { PART_MATRIX_AUTOSAVE_IDLE_MS, PART_MATRIX_MAX_CONCURRENCY, PART_MATRIX_ROW_REGISTRY, matrixPayloadEqual, matrixPayloadNeedsSave, matrixDraftAfterSave, matrixPayloadValue, matrixRowDiffers, normalizePartMaintenanceTab, PART_MAINTENANCE_TABS, type PartMaintenanceTab, type PartMatrixPayload, type PartMatrixRowKey } from "@/lib/part-number-matrix-contract";
 import { matrixCommandFingerprint } from "@/components/use-part-number-matrix-controller";
+import { usePdmLocalDraft } from "@/components/use-pdm-local-draft";
+import type { DraftFields } from "@/lib/pdm-local-draft";
 
 type MatrixColumn = {
   partId: string;
@@ -37,6 +39,16 @@ type MatrixData = { root: { id: string; code: string }; sourcePartId: string; so
 type MatrixResponse = { data: MatrixData; meta: { actorId: string; companyId: string; contractToken: string; correlationId: string } };
 
 const LEGACY_CONFIRMED_ATTRIBUTE_KEYS = new Set(["material", "color", "surface_finish", "surface_treatment", "variant_note"]);
+const RECOVERY_TEXT_KEYS = ["partName", "customSpecification", "materialLabel", "colorLabel", "surfaceTreatment", "variantNote"] as const;
+
+function recoveryFields(columns: MatrixColumn[], values: Record<string, PartMatrixPayload>): DraftFields {
+  const fields: DraftFields = {};
+  for (const column of columns) {
+    if (!column.canEdit) continue;
+    for (const key of RECOVERY_TEXT_KEYS) fields[JSON.stringify([column.partId, key])] = text((values[column.partId] ?? column.payload)[key]);
+  }
+  return fields;
+}
 
 function confirmedAttributeValue(column: MatrixColumn, key: string) {
   const attribute = column.confirmedAttributes.find((item) => item.key === key);
@@ -81,7 +93,9 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   const dataRef = useRef(data);
   const tokenRef = useRef(token);
   const loadSequenceRef = useRef(0);
+  const scopeGenerationRef = useRef(0);
   const activeLoadEndpointRef = useRef<string | null>(null);
+  const loadedEndpointRef = useRef<string | null>(null);
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const flightRef = useRef(new Set<string>());
   const commandKeysRef = useRef(new Map<string, string>());
@@ -89,6 +103,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   const poolWaitersRef = useRef<Array<() => void>>([]);
   const returnHref = returnTo || "/parts";
   const endpoint = useMemo(() => `/api/pdm/parts/${encodeURIComponent(partId)}/matrix-workspace?workId=${encodeURIComponent(workId)}`, [partId, workId]);
+  const isActiveScope = useCallback((generation: number) => scopeGenerationRef.current === generation && activeLoadEndpointRef.current === endpoint && loadedEndpointRef.current === endpoint, [endpoint]);
 
   useEffect(() => { draftRef.current = drafts; }, [drafts]);
   useEffect(() => { savedRef.current = saved; }, [saved]);
@@ -118,6 +133,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
           ? draftRef.current[column.partId]
           : clonePayload(column.payload);
       }
+      loadedEndpointRef.current = endpoint;
       setData(result.data);
       setToken(result.meta.contractToken);
       tokenRef.current = result.meta.contractToken;
@@ -138,8 +154,12 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     activeLoadEndpointRef.current = endpoint;
     void load();
     return () => {
+      scopeGenerationRef.current += 1;
       activeLoadEndpointRef.current = null;
+      loadedEndpointRef.current = null;
       loadSequenceRef.current += 1;
+      Object.values(timersRef.current).forEach(clearTimeout);
+      timersRef.current = {};
     };
   }, [endpoint, load]);
 
@@ -161,7 +181,8 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     return key;
   }
 
-  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload; lifecycleIntent?: "edit" | "first_release" }, submitted: PartMatrixPayload) => {
+  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload; lifecycleIntent?: "edit" | "first_release" }, submitted: PartMatrixPayload, scopeGeneration: number) => {
+    if (!isActiveScope(scopeGeneration) || !dataRef.current) return;
     setData((current) => current ? { ...current, columns: current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, lifecycleIntent: responseData.lifecycleIntent ?? column.lifecycleIntent, canSubmit: (!matrixPayloadEqual(responseData.payload, column.formalPayload) || (responseData.lifecycleIntent ?? column.lifecycleIntent) === "first_release") && column.canEdit } : column) } : current);
     dataRef.current = dataRef.current ? { ...dataRef.current, columns: dataRef.current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, lifecycleIntent: responseData.lifecycleIntent ?? column.lifecycleIntent, canSubmit: (!matrixPayloadEqual(responseData.payload, column.formalPayload) || (responseData.lifecycleIntent ?? column.lifecycleIntent) === "first_release") && column.canEdit } : column) } : dataRef.current;
     savedRef.current = { ...savedRef.current, [partIdValue]: clonePayload(responseData.payload) };
@@ -172,9 +193,11 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     setDrafts(draftRef.current);
     setCellErrors((current) => { const next = { ...current }; delete next[partIdValue]; return next; });
     setConflicts((current) => { const next = { ...current }; delete next[partIdValue]; return next; });
-  }, []);
+  }, [isActiveScope]);
 
   const flushPart = useCallback(async (partIdValue: string) => {
+    const scopeGeneration = scopeGenerationRef.current;
+    if (!isActiveScope(scopeGeneration)) return false;
     const pendingTimer = timersRef.current[partIdValue];
     if (pendingTimer) { clearTimeout(pendingTimer); delete timersRef.current[partIdValue]; }
     const currentData = dataRef.current;
@@ -191,32 +214,37 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     let savedSuccessfully = false;
     await acquirePool();
     try {
+      if (!isActiveScope(scopeGeneration)) return false;
       const response = await fetch(existingWorkId ? `/api/pdm/part-change-works/${encodeURIComponent(existingWorkId)}` : `/api/pdm/parts/${encodeURIComponent(part.partId)}/change-works`, {
         method: existingWorkId ? "PATCH" : "POST",
         headers: { "content-type": "application/json", "if-match": `"${expected}"`, "idempotency-key": key, "x-pdm-workbench-contract": tokenRef.current },
         body: JSON.stringify(body)
       });
       const responseBody = await response.json().catch(() => null) as { data?: { workId: string; rowVersion: number; payload: PartMatrixPayload }; error?: unknown } | null;
+      if (!isActiveScope(scopeGeneration)) return false;
       if (!response.ok && errorCode(responseBody) === "WORKBENCH_CONTRACT_EXPIRED") {
         await load(true);
+        if (!isActiveScope(scopeGeneration)) return false;
         const retryResponse = await fetch(existingWorkId ? `/api/pdm/part-change-works/${encodeURIComponent(existingWorkId)}` : `/api/pdm/parts/${encodeURIComponent(part.partId)}/change-works`, {
           method: existingWorkId ? "PATCH" : "POST",
           headers: { "content-type": "application/json", "if-match": `"${expected}"`, "idempotency-key": key, "x-pdm-workbench-contract": tokenRef.current },
           body: JSON.stringify(body)
         });
         const retryBody = await retryResponse.json().catch(() => null) as { data?: { workId: string; rowVersion: number; payload: PartMatrixPayload }; error?: unknown } | null;
+        if (!isActiveScope(scopeGeneration)) return false;
         if (!retryResponse.ok) throw Object.assign(new Error(errorMessage(retryBody, "儲存失敗。")), { code: errorCode(retryBody) });
         if (!retryBody?.data) throw new Error("儲存回應不完整，請重新載入後確認。");
-        applySavedResponse(part.partId, retryBody.data, draft);
+        applySavedResponse(part.partId, retryBody.data, draft, scopeGeneration);
         savedSuccessfully = true;
       } else if (!response.ok) {
         throw Object.assign(new Error(errorMessage(responseBody, "此料號儲存失敗。")), { code: errorCode(responseBody), status: response.status });
       } else if (responseBody?.data) {
-        applySavedResponse(part.partId, responseBody.data, draft);
+        applySavedResponse(part.partId, responseBody.data, draft, scopeGeneration);
         savedSuccessfully = true;
       } else throw new Error("儲存回應不完整，請重新載入後確認。");
       return true;
     } catch (flushError) {
+      if (!isActiveScope(scopeGeneration)) return false;
       const message = flushError instanceof Error ? flushError.message : "此料號儲存失敗。";
       const code = flushError && typeof flushError === "object" && "code" in flushError ? String((flushError as { code?: unknown }).code ?? "") : "";
       setCellErrors((current) => ({ ...current, [part.partId]: message }));
@@ -227,13 +255,13 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       flightRef.current.delete(partIdValue);
       const nextDraft = draftRef.current[partIdValue];
       const latestSaved = savedRef.current[partIdValue];
-      if (savedSuccessfully && nextDraft && latestSaved && matrixPayloadNeedsSave(nextDraft, latestSaved)) {
+      if (isActiveScope(scopeGeneration) && savedSuccessfully && nextDraft && latestSaved && matrixPayloadNeedsSave(nextDraft, latestSaved)) {
         // A newer keystroke arrived while the command was in flight.  Keep it
         // local and serialize the next command after this one terminally ends.
         void flushPart(partIdValue);
       }
     }
-  }, [applySavedResponse, load]);
+  }, [applySavedResponse, isActiveScope, load]);
 
   function scheduleFlush(partIdValue: string) {
     const prior = timersRef.current[partIdValue];
@@ -242,6 +270,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   }
 
   function updateField(partIdValue: string, key: PartMatrixRowKey, value: unknown) {
+    if (!isActiveScope(scopeGenerationRef.current)) return;
     const column = dataRef.current?.columns.find((item) => item.partId === partIdValue);
     if (!column || !column.canEdit) return;
     const current = draftRef.current[partIdValue] ?? column.payload;
@@ -265,6 +294,40 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     scheduleFlush(partIdValue);
   }
 
+  const textDraftFields = recoveryFields(data?.columns ?? [], drafts);
+  const savedTextFields = recoveryFields(data?.columns ?? [], saved);
+  const localDraft = usePdmLocalDraft({
+    record: `part-matrix:${JSON.stringify([partId, workId])}`,
+    version: JSON.stringify((data?.columns ?? []).map(column => [column.partId, column.workId, column.formalRowVersion, column.workRowVersion])),
+    fields: textDraftFields,
+    labels: Object.fromEntries((data?.columns ?? []).flatMap(column => RECOVERY_TEXT_KEYS.map(key => [JSON.stringify([column.partId, key]), `${column.partNumber} ${PART_MATRIX_ROW_REGISTRY.find(row => row.key === key)?.label ?? key}`]))),
+    savedFields: savedTextFields,
+    dirty: Object.keys(textDraftFields).some(key => textDraftFields[key] !== savedTextFields[key]),
+    enabled: status === "ready" && loadedEndpointRef.current === endpoint && activeTab === "data" && Boolean(data?.columns.some(column => column.canEdit)),
+    apply(fields) {
+      if (activeTab !== "data" || status !== "ready" || !isActiveScope(scopeGenerationRef.current)) return;
+      for (const column of dataRef.current?.columns ?? []) {
+        if (!column.canEdit) continue;
+        for (const key of RECOVERY_TEXT_KEYS) {
+          const value = fields[JSON.stringify([column.partId, key])];
+          if (typeof value === "string") updateField(column.partId, key, value);
+        }
+      }
+      setNotice("已恢復文字草稿，將沿用自動儲存；請確認各欄儲存結果。");
+    },
+    reset() {
+      scopeGenerationRef.current += 1;
+      loadSequenceRef.current += 1;
+      activeLoadEndpointRef.current = null;
+      loadedEndpointRef.current = null;
+      Object.values(timersRef.current).forEach(clearTimeout); timersRef.current = {};
+      dataRef.current = null; tokenRef.current = ""; draftRef.current = {}; savedRef.current = {};
+      setData(null); setToken(""); setDrafts({}); setSaved({}); setBusy(false);
+      setStatus("restricted"); setNotice(""); setError("身分或權限已變更，請重新開啟工作台。");
+    },
+  });
+  const recoveryFeedback = activeTab === "data" ? localDraft.feedback : null;
+
   function revertField(partIdValue: string) {
     const baseline = savedRef.current[partIdValue];
     if (!baseline) return;
@@ -280,10 +343,13 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   }
 
   async function changeReleaseIntent(partIdValue: string, requested: boolean) {
+    const scopeGeneration = scopeGenerationRef.current;
+    if (!isActiveScope(scopeGeneration)) return;
     if (busy) return;
     setBusy(true); setError("");
     try {
       await flushAll();
+      if (!isActiveScope(scopeGeneration)) return;
       if (flightRef.current.size || Object.keys(cellErrorsRef.current).length || Object.keys(conflictsRef.current).length) {
         throw new Error("資料尚未成功儲存，請先處理原格提示。");
       }
@@ -298,16 +364,21 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
         body: JSON.stringify(body)
       });
       const result = await response.json().catch(() => null);
+      if (!isActiveScope(scopeGeneration)) return;
       if (!response.ok || !result?.data) throw new Error(errorMessage(result, "發行申請未儲存。"));
-      applySavedResponse(partIdValue, result.data, payload);
+      applySavedResponse(partIdValue, result.data, payload, scopeGeneration);
     } catch (caught) {
+      if (!isActiveScope(scopeGeneration)) return;
       setError(caught instanceof Error ? caught.message : "發行申請未儲存。");
     } finally { setBusy(false); }
   }
 
   async function submitAll() {
+    const scopeGeneration = scopeGenerationRef.current;
+    if (!isActiveScope(scopeGeneration)) return;
     setBusy(true); setError(""); setNotice("");
     await flushAll();
+    if (!isActiveScope(scopeGeneration)) return;
     const latest = dataRef.current;
     if (!latest) { setBusy(false); return; }
     if (Object.keys(cellErrorsRef.current).length || Object.keys(conflictsRef.current).length || latest.columns.some((column) => {
@@ -319,6 +390,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     }
     let submitted = 0;
     for (const part of latest.columns) {
+      if (!isActiveScope(scopeGeneration)) return;
       const current = dataRef.current?.columns.find((column) => column.partId === part.partId) ?? part;
       const payload = draftRef.current[part.partId] ?? current.payload;
       if (!current.workId || !current.canEdit || (matrixPayloadEqual(payload, current.formalPayload) && current.lifecycleIntent !== "first_release")) continue;
@@ -327,10 +399,12 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       try {
         const response = await fetch(`/api/pdm/part-change-works/${encodeURIComponent(current.workId)}/submit`, { method: "POST", headers: { "content-type": "application/json", "if-match": `"${expected}"`, "idempotency-key": key, "x-pdm-workbench-contract": tokenRef.current }, body: "{}" });
         const body = await response.json().catch(() => null);
+        if (!isActiveScope(scopeGeneration)) return;
         if (!response.ok) throw new Error(errorMessage(body, "送出審核失敗。"));
         setData((value) => value ? { ...value, columns: value.columns.map((column) => column.partId === current.partId ? { ...column, handling: "review_owner", canEdit: false, canSubmit: false } : column) } : value);
         submitted += 1;
       } catch (submitError) {
+        if (!isActiveScope(scopeGeneration)) return;
         setCellErrors((value) => ({ ...value, [current.partId]: submitError instanceof Error ? submitError.message : "送出審核失敗。" }));
         setError(`已送出 ${submitted} 筆；其餘料號保留在本頁，可再次送出。`);
         setBusy(false);
@@ -389,7 +463,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     setError("");
   };
 
-  return <PdmEditPageFrame className="part-number-workspace" returnHref={returnHref} eyebrow="料號工作台" title={title} subtitle={data ? `${data.columns.length} 個料號 · 來源 ${data.columns.find((column) => column.partId === data.sourcePartId)?.partNumber ?? partId}` : ""} headingLayout="breadcrumb" status={status} error={error} notice={notice} isDirty={activeTab === "data" ? hasPending : maintenanceDirty} onRetry={() => void load()} actionDock={activeTab === "data" && status === "ready" && data ? <><span className="part-matrix-save-state" role="status">{hasPending ? "儲存中…" : "已自動儲存"}</span><button className="primary-button" type="button" disabled={busy || hasPending || submitCount === 0} onClick={() => void submitAll()}><Send size={15} aria-hidden="true" />送出審核{submitCount ? `（${submitCount}）` : ""}</button></> : null}>
+  return <PdmEditPageFrame className="part-number-workspace" returnHref={returnHref} eyebrow="料號工作台" title={title} subtitle={data ? `${data.columns.length} 個料號 · 來源 ${data.columns.find((column) => column.partId === data.sourcePartId)?.partNumber ?? partId}` : ""} headingLayout="breadcrumb" status={status} error={error} notice={recoveryFeedback ? <>{recoveryFeedback}{notice ? <p>{notice}</p> : null}</> : notice} isDirty={activeTab === "data" ? hasPending : maintenanceDirty} onRetry={() => void load()} actionDock={activeTab === "data" && status === "ready" && data ? <><span className="part-matrix-save-state" role="status">{hasPending ? "儲存中…" : "已自動儲存"}</span><button className="primary-button" type="button" disabled={busy || hasPending || submitCount === 0} onClick={() => void submitAll()}><Send size={15} aria-hidden="true" />送出審核{submitCount ? `（${submitCount}）` : ""}</button></> : null}>
     {status === "ready" && data ? <>
       <nav className="part-maintenance-tabs" aria-label="料號工作台分頁">{PART_MAINTENANCE_TABS.map((tab) => <button key={tab.value} type="button" className={activeTab === tab.value ? "is-active" : ""} aria-current={activeTab === tab.value ? "page" : undefined} onClick={() => void switchTab(tab.value)}>{tab.label}</button>)}</nav>
       {activeTab === "data" ? <section className="pdm-edit-page-card part-number-matrix-card" aria-label="料號資料總表">

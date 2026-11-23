@@ -15,6 +15,7 @@ import {
   type DrawingRecognitionEvidence
 } from "@/components/drawing-recognition-workspace-panel";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
+import { usePdmLocalDraft } from "./use-pdm-local-draft";
 import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import { isWorkspacePdf, selectWorkspacePreviewSource } from "@/lib/pdm-canonical-preview";
 import { normalizeMediaType } from "@/lib/media-type";
@@ -129,6 +130,25 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [pdfSelection, setPdfSelection] = useState<{ contextKey: string; bindingId: string } | null>(null);
   const uploadWorkFile = useMemo(() => createDrawingWorkFileUploader(workId ?? ""), [workId]);
   const [assemblyBlocked, setAssemblyBlocked] = useState(false);
+  const noteOf = (value: Record<string, unknown>) => {
+    const impact = value.changeImpact as Record<string, unknown> | undefined;
+    return typeof impact?.note === "string" ? impact.note : "";
+  };
+  const localDraft = usePdmLocalDraft({
+    record: `drawing-note:${drawingId}:${workId}`,
+    version: JSON.stringify([data?.workId, data?.rowVersion, noteOf(data?.payload ?? {})]),
+    fields: { note: noteOf(payload) },
+    labels: { note: "判定備註" },
+    dirty: payloadDirty && noteOf(payload) !== noteOf(data?.payload ?? {}),
+    enabled: Boolean(data?.workId === workId && data?.entityId === drawingId && data?.workId && !loading && !reviewRequestId && !snapshotMode && !initialData && (data.interaction?.canMutateContent ?? !data.readonly)),
+    apply(fields) {
+      if (typeof fields.note !== "string") return;
+      setPayload(current => ({ ...current, changeImpact: { ...(current.changeImpact as Record<string, unknown> ?? {}), note: fields.note || null } }));
+      setPayloadDirty(true);
+    },
+    reset() { loadSequenceRef.current++; loadControllerRef.current?.abort(); setPayload({}); setPayloadDirty(false); setContractToken(""); setData(null); },
+  });
+  const draftScopeCurrent = localDraft.isCurrent;
   async function updateAssemblyBinding(blocked: boolean, binding: string | null) {
     setAssemblyBlocked(blocked);
     if (!binding || !endpoint || !data || data.files?.some(file => file.id === binding)) return;
@@ -137,6 +157,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       const response = await fetch(endpoint, {cache:"no-store"});
       if (!response.ok) throw new Error();
       const latest = await response.json() as ResponseShape;
+      if (!draftScopeCurrent()) return;
       if (latest.data.workId !== original.workId || latest.data.rowVersion < original.rowVersion) return;
       if (JSON.stringify(latest.data.payload) !== JSON.stringify(original.payload)) {
         setError("圖號欄位已由另一筆操作修改，請核對後重新整理。");
@@ -187,6 +208,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     try {
       const response = await fetch(endpoint, { cache: "no-store", signal: controller.signal });
       const body = await response.json().catch(() => null);
+      if (!draftScopeCurrent()) return;
       if (sequence !== loadSequenceRef.current) return;
       if (!response.ok) {
         const code = apiCode(body) ?? "";
@@ -209,7 +231,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       setData(null); setPayload({}); setContractToken(""); setLoadErrorCode("");
       setLoading(false); setError(error instanceof Error ? error.message : "圖號工作資料目前無法載入。"); setReloadAvailable(true);
     }
-  }, [endpoint, initialData]);
+  }, [endpoint, initialData, draftScopeCurrent]);
   useEffect(() => {
     void load();
     return () => loadControllerRef.current?.abort();
@@ -231,6 +253,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     return { "content-type": "application/json", "if-match": `"${expectedRowVersion}"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": contractToken };
   }
   async function persistPayload(expectedRowVersion: number) {
+    if (localDraft.invalidated) return { ok: false, rowVersion: expectedRowVersion };
     if (!data?.workId || !payloadDirty) return { ok: true, rowVersion: expectedRowVersion };
     try {
       const response = await fetch(`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}`, {
@@ -239,11 +262,13 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
         body: JSON.stringify(payload)
       });
       const body = await response.json().catch(() => null);
+      if (!localDraft.isCurrent()) return { ok: false, rowVersion: expectedRowVersion };
       if (!response.ok) {
         handleMutationFailure(body, "工作內容儲存失敗，請重新整理後再試。");
         return { ok: false, rowVersion: expectedRowVersion };
       }
       const rowVersion = Number((body as { data?: { rowVersion?: number } } | null)?.data?.rowVersion ?? expectedRowVersion + 1);
+      localDraft.clear();
       setData((current) => current ? { ...current, rowVersion, payload } : current);
       setPayloadDirty(false);
       return { ok: true, rowVersion };
@@ -269,6 +294,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             cache: "no-store", signal: AbortSignal.timeout(10_000)
           });
           const latest = await response.json() as ResponseShape;
+          if (!localDraft.isCurrent()) return;
           if (!response.ok || latest.data.workId !== data.workId || latest.data.rowVersion !== saved.rowVersion) throw new Error();
           setData(latest.data); setPayload(latest.data.payload); setContractToken(latest.meta.contractToken);
         } catch {
@@ -282,6 +308,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     }
   }
   async function ownerCommand(kind: "submit" | "cancel"): Promise<string | null> {
+    if (!localDraft.isCurrent()) return "身分已變更，請重新開啟工作資料。";
     const interactionState = data?.interaction;
     if (!data?.workId || busy || commandPending.current || kind === "submit" && (recognitionDirty || interactionState && !interactionState.canSubmit) || kind === "cancel" && interactionState && !interactionState.canCancel) return "目前無法執行此操作。";
     commandPending.current = true;
@@ -299,6 +326,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       }
       const response = await fetch(`${base}/${kind}`, { method: "POST", headers: headers(rowVersion), body: "{}" });
       const body = await response.json().catch(() => null);
+      if (!localDraft.isCurrent()) return "身分已變更，請重新開啟工作資料。";
       if (!response.ok) { setTerminalTransition(false); setBusy(false); commandPending.current = false; handleMutationFailure(body, "操作未完成，請重新整理後再試。"); return apiMessage(body, "操作未完成，請重新整理後再試。"); }
       // Keep the workspace inert until navigation commits. Re-enabling it for
       // one render after a terminal command can restart recognition or reload a
@@ -315,6 +343,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     if (!endpoint || !data?.workId) throw new Error("找不到上傳工作。");
     const response = await fetch(endpoint, { cache: "no-store" });
     const latest = await response.json() as ResponseShape;
+    if (!localDraft.isCurrent()) throw new Error("身分已變更，請重新開啟工作資料。");
     if (!response.ok || latest.data?.workId !== data.workId) throw new Error("無法確認最新工作資料，請重新載入。");
     setData(latest.data); setPayload(latest.data.payload); setPayloadDirty(false); setContractToken(latest.meta.contractToken);
   }
@@ -502,6 +531,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const submitReady = filesReady && fffReady && !assemblyBlocked;
   const returnLabel = reviewRequestId ? "返回審核清單" : "返回圖號清單";
   if (terminalTransition) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在完成操作...</div>;
+  if (localDraft.invalidated) return <div role="alert">身分或權限已變更，請重新開啟工作資料。</div>;
   if (loading) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入圖號工作區...</div>;
   if (!data) return <div className="dev079-workspace-state" data-dev100-load-failed={loadErrorCode || "unknown"}><h1>圖號工作區</h1><p role="alert">{error || "找不到這筆圖號工作。"}</p><div className="dev100-load-failure-actions"><button className="secondary-button" type="button" onClick={leave}><ArrowLeft size={15} aria-hidden="true" />{returnLabel}</button><button className="secondary-button" type="button" onClick={() => void load()}>重新載入資料</button></div></div>;
 
@@ -515,6 +545,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
 
   return <div className={`dev079-workspace${embedded ? " is-embedded" : ""}`} data-dev="DEV-087" data-workspace-kind={reviewRequestId ? "reviewer" : "drawing-revision-work"}>
     {embedded ? null : <header className="dev079-workspace-header dev079-drawing-workspace-header"><div className="dev079-workspace-heading"><button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button><div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy"><span className="canonical-layer is-rd">研發版 {data.revision ?? text(payload.revision)}</span><h1>{title}</h1>{data.identity?.name ? <span className="dev079-drawing-workspace-name">{data.identity.name}</span> : null}</div></div><div className="dev079-workspace-preview-tabs" role="tablist" aria-label="預覽類型">{previewCards.map((card) => <button key={card.kind} type="button" role="tab" aria-selected={card.kind === visualKind} className={card.kind === visualKind ? "is-active" : ""} onClick={() => selectVisualKind(card.kind)}><span>{card.title}</span><small>{card.fileName || "尚無檔案"}</small></button>)}</div></header>}
+    {localDraft.feedback}
     {error ? <div className="dev079-workspace-notice is-error" role="alert"><span>{error}</span>{reloadAvailable ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void load()}>重新載入資料</button> : null}</div> : null}
     {!canMutateContent ? <div className="dev079-workspace-notice is-readonly" role="status">{stale ? "量產基準已更新，目前工作已凍結；此頁保留原預覽與證據，僅提供可恢復的清理動作。" : "目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。"}</div> : null}
     <div className="dev079-workspace-grid">

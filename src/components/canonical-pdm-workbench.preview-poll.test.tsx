@@ -104,7 +104,7 @@ describe("returning to a workbench (captured hooks)", () => {
     expect(h.text()).not.toContain("更新中");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it.each([401, 403, 503])("clears a restored list and cache after HTTP %i", async status => {
+  it.each([401, 403])("clears a restored list and cache after HTTP %i", async status => {
     const { h: first, fetch } = await start("missing");
     first.unmount();
     await vi.advanceTimersByTimeAsync(30_001);
@@ -114,6 +114,20 @@ describe("returning to a workbench (captured hooks)", () => {
     expect(h.text()).not.toContain("unchanged");
     expect(h.text()).toContain("denied or unavailable");
     expect(first.workbenchCache.readList(String(fetch.mock.calls[0][0]))).toBeNull();
+  });
+  it("keeps a recent snapshot after a 503 refresh failure without renewing its age", async () => {
+    const { h: first, fetch } = await start("missing");
+    first.unmount();
+    await vi.advanceTimersByTimeAsync(30_001);
+    fetch.mockImplementation(async () => new Response(JSON.stringify({ message: "temporarily unavailable" }), { status: 503 }));
+    const h = harness(false, first.workbenchCache);
+    await h.load(); h.render();
+    expect(h.text()).toContain("unchanged");
+    expect(h.text()).toContain("清單更新失敗");
+    await vi.advanceTimersByTimeAsync(270_000);
+    await h.load(); h.render();
+    expect(h.text()).not.toContain("unchanged");
+    expect(first.workbenchCache.readListSnapshot(String(fetch.mock.calls[0][0]))).toBeNull();
   });
   it("does not accept a successful old response after an account/permission invalidation", async () => {
     const { h, fetch } = await start("missing");

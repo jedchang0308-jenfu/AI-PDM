@@ -520,26 +520,38 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     const separator = listUrl.includes("?") ? "&" : "?";
     const requestUrl = cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl;
     const cacheGeneration = workbenchCache.generation();
-    const cached = workbenchCache.readList(requestUrl);
+    const snapshot = workbenchCache.readListSnapshot(requestUrl);
+    const cached = snapshot?.data;
     if (cached) {
       setGroups(cached.groups);
       setPreviewCapability(cached.previewEnabled ?? cached.previewByRowKey !== undefined);
       setPreviewByRowKey(cached.previewByRowKey ?? {});
       // Commands obtain their authority through the existing action flow.
       setNextCursor(cached.nextCursor); setPreviousCursor(cached.previousCursor); setContractToken("");
-      setLoading(false);
-      listAbortRef.current = null;
-      return;
+      if (snapshot?.fresh) {
+        setLoading(false);
+        listAbortRef.current = null;
+        return;
+      }
     }
     try {
       const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation) return;
       if (!response.ok) {
-        workbenchCache.clear(false);
         const message = errorMessage(body, "清單載入失敗");
-        setError(message);
-        setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
+        if (response.status === 401 || response.status === 403) {
+          // pdmPermissionFetch also invalidates the shell's permission projection.
+          workbenchCache.clear();
+          setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setContractToken("");
+          setError(message); setLoading(false);
+          return;
+        }
+        if (cacheGeneration !== workbenchCache.generation()) { setLoading(false); return; }
+        const retained = cached && workbenchCache.readListSnapshot(requestUrl);
+        setError(retained ? `清單更新失敗，顯示先前資料：${message}` : message);
+        if (!retained) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setContractToken(""); }
+        setLoading(false);
         return;
       }
       if (cacheGeneration !== workbenchCache.generation()) { setLoading(false); return; }
@@ -561,9 +573,11 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       setNextCursor(result.data.nextCursor); setPreviousCursor(result.data.previousCursor); setContractToken(result.meta.contractToken); setLoading(false);
     } catch (requestError) {
       if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation || (requestError instanceof Error && requestError.name === "AbortError")) return;
-      workbenchCache.clear(false);
-      setError("清單載入失敗");
-      setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false);
+      if (cacheGeneration !== workbenchCache.generation()) { setLoading(false); return; }
+      const retained = cached && workbenchCache.readListSnapshot(requestUrl);
+      setError(retained ? "清單更新失敗，顯示先前資料；請稍後重試。" : "清單載入失敗");
+      if (!retained) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setContractToken(""); }
+      setLoading(false);
     } finally {
       if (requestId === listRequestRef.current) {
         listAbortRef.current = null;
