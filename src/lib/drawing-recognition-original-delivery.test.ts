@@ -31,6 +31,14 @@ it('freshly authorizes before and after original reads, then audits the verified
   expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ principalId: 'principal-one',
     companyId: 'company-one', fileId: 'asset-one', disposition: 'inline' }))
 })
+it('reauthorizes a matching conditional PDF without downloading its body', async () => {
+  const request = { ...input(), ifNoneMatch: `"${source.expectedHash}"` }
+  expect(await readDrawingRecognitionPdfSource(request)).toMatchObject({ notModified: true, contentHash: source.expectedHash })
+  expect(request.reauthorize).toHaveBeenCalledOnce()
+  expect(mocks.read).not.toHaveBeenCalled()
+  request.reauthorize.mockRejectedValueOnce(new Error('revoked'))
+  await expect(readDrawingRecognitionPdfSource(request)).rejects.toThrow('revoked')
+})
 it('does not read original PDF bytes after fresh authorization denial', async () => {
   const request = input(); request.reauthorize.mockRejectedValueOnce(new Error('revoked'))
   await expect(readDrawingRecognitionPdfSource(request)).rejects.toThrow('revoked')

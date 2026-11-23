@@ -155,9 +155,15 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
   const description = optionalText(input.description, "圖面進版受控原始檔", 2_000);
   const bytes = Buffer.from(await input.file.arrayBuffer());
   const contentHash = crypto.createHash("sha256").update(bytes).digest("hex");
-  const mimeType = input.file.type.trim() || "application/octet-stream";
+  let mimeType = input.file.type.trim() || "application/octet-stream";
   const fileExt = extension(fileName);
+  if (fileExt === "pdf" && bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new CanonicalWorkbenchError("FORMAL_PDF_REQUIRED", "PDF 內容無法讀取，請重新匯出並上傳有效 PDF。", 422, correlation(input.context.correlationId));
+  }
+  if (fileExt === "pdf") mimeType = "application/pdf";
   const isPrimary = role === "drawing_2d" || role === "cad_3d";
+  const replacementExtension = role === "pdf" ? "pdf" : role === "dwg_dxf" && fileExt === "dwg" ? "dwg" : null;
+  const replacesCurrentRole = isPrimary || replacementExtension !== null;
   const repository = new DrawingRevisionWorkAsyncRepository(input.client);
   const work = await repository.readWork(input.client, input.actor.companyId, input.workId);
   if (!work) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料不存在", 404);
@@ -173,6 +179,17 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     // Stage bytes before opening the database transaction.  The transaction
     // only commits metadata and relation effects; a failed transaction can
     // therefore clean up one known orphan without holding a DB lock on I/O.
+    const currentReplacementCount = replacesCurrentRole ? await input.client.queryOne<{ count: number | string }>(
+      `SELECT COUNT(*) AS count
+         FROM drawing_revision_work_files binding
+         JOIN drawing_revision_files file ON file.id = binding.file_binding_id
+         JOIN file_assets asset ON asset.id = file.source_file_asset_id
+        WHERE binding.work_id = :workId AND file.company_id = :companyId
+          AND file.drawing_revision_id = :revisionId AND file.removed_at IS NULL
+          AND asset.deleted_at IS NULL AND file.role = :role
+          AND (:replacementExtension = '' OR LOWER(asset.file_ext) = :replacementExtension)`,
+      { workId: input.workId, companyId: input.actor.companyId, revisionId: work.revision_id, role, replacementExtension: replacementExtension ?? "" }
+    ) : null;
     const existing = await input.client.queryOne<{ id: string }>(
       `SELECT file.id
          FROM drawing_revision_files file
@@ -184,7 +201,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         LIMIT 1`,
       { workId: input.workId, companyId: input.actor.companyId, revisionId: work.revision_id, role, contentHash, fileSize: bytes.byteLength }
     );
-    if (!existing) {
+    if (!existing || Number(currentReplacementCount?.count ?? 0) > 1) {
       await input.checkpoint?.("before_upload_stage");
       const stableSource = input.principalToken || input.packageBinding;
       const fileAssetId = stableSource
@@ -280,7 +297,10 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
           fileSize: bytes.byteLength
         }
       );
-      if (exact) {
+      // A legacy duplicate set must still pass through replacement even when
+      // one of its files has identical bytes. The work row version fences the
+      // preflight count against intervening file mutations.
+      if (exact && (!replacesCurrentRole || Number(currentReplacementCount?.count ?? 0) <= 1)) {
         await recordAssemblyPrimaryBinding(tx,input.packageBinding,{id:exact.id,sourceFileAssetId:exact.source_file_asset_id});
         if (isNativeSolidWorksPreviewSource(fileExt) && principalInitiator) {
           await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
@@ -307,7 +327,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
       }
       const { fileAssetId, fileBindingId, stored } = staged;
 
-      const currentRoleBindings = isPrimary ? await tx.query<{
+      const currentRoleBindings = replacesCurrentRole ? await tx.query<{
         file_binding_id: string;
         ordinal: number | string;
         drawing_revision_id: string;
@@ -316,9 +336,11 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         `SELECT binding.file_binding_id, binding.ordinal, file.drawing_revision_id, file.source_file_asset_id
          FROM drawing_revision_work_files binding
          JOIN drawing_revision_files file ON file.id = binding.file_binding_id
+         JOIN file_assets asset ON asset.id = file.source_file_asset_id
          WHERE binding.work_id = :workId AND file.role = :role AND file.removed_at IS NULL
+           AND (:replacementExtension = '' OR LOWER(asset.file_ext) = :replacementExtension)
          ORDER BY binding.ordinal, binding.file_binding_id`,
-        { workId: input.workId, role }
+        { workId: input.workId, role, replacementExtension: replacementExtension ?? "" }
       ) : [];
       const maxOrdinal = await tx.queryOne<{ value: number | string }>(
         `SELECT COALESCE(MAX(ordinal), -1) AS value FROM drawing_revision_work_files WHERE work_id = :workId`,

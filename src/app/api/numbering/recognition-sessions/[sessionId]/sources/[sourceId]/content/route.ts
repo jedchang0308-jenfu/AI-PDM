@@ -32,6 +32,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
       actorId: access.actor.pdmUserId,
       principalId: access.actor.principalId,
       roles: recognitionRoles(access),
+      ifNoneMatch: request.headers.get("if-none-match"),
       reauthorize: async source => {
         const token = principalSessionTokenFromRequest(request);
         if (!token) throw new DrawingRecognitionError('RECOGNITION_AUTH_SESSION_INVALID', '登入已失效，請重新登入。', 401);
@@ -59,13 +60,14 @@ export async function GET(request: Request, context: { params: Promise<{ session
         }, { readOnly: true, isolationLevel: 'repeatable_read' });
       }
     });
-    return new NextResponse(result.bytes as unknown as BodyInit, {
-      status: 200,
+    return new NextResponse(result.notModified ? null : result.bytes as unknown as BodyInit, {
+      status: result.notModified ? 304 : 200,
       headers: {
         "cache-control": "private, no-store",
         "content-type": "application/pdf",
-        "content-length": String(result.bytes.byteLength),
+        ...(!result.notModified ? { "content-length": String(result.bytes.byteLength) } : {}),
         "content-hash": result.contentHash,
+        "etag": `"${result.contentHash.toLowerCase()}"`,
         "content-disposition": contentDisposition(result.fileName),
         "accept-ranges": "none",
         "x-content-type-options": "nosniff"

@@ -326,7 +326,28 @@ export class DrawingRevisionWorkAsyncRepository {
       throw error;
     }
     const revisionId = crypto.randomUUID();
-    const policySnapshot = buildDrawingRevisionPolicySnapshot({
+    const workId = crypto.randomUUID();
+    const formalCarryForward = input.target.minor === 0 && source.data_layer === "drawing_rd";
+    if (formalCarryForward && source.latest_approved_revision_id !== source.revision_id) {
+      throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "正式版必須從已核准的研發版建立。", 409);
+    }
+    const carryForwardSources = formalCarryForward ? await tx.query<{
+      id: string; source_file_asset_id: string; role: string; role_source: string;
+      display_name: string; description: string | null; sort_order: number | string;
+      is_primary: number | string; content_hash: string;
+    }>(`SELECT file.id, file.source_file_asset_id, file.role, file.role_source,
+              file.display_name, file.description, file.sort_order, file.is_primary, asset.content_hash
+         FROM drawing_revision_files file
+         JOIN file_assets asset ON asset.id = file.source_file_asset_id
+        WHERE file.company_id = :companyId AND file.drawing_revision_id = :sourceRevisionId
+          AND file.removed_at IS NULL AND asset.deleted_at IS NULL
+          AND file.role IN ('drawing_2d', 'cad_3d', 'pdf', 'dwg_dxf')
+        ORDER BY file.sort_order, file.id`, {
+      companyId: input.companyId, sourceRevisionId: source.revision_id
+    }) : [];
+    const carriedAt = new Date().toISOString();
+    const policySnapshot = {
+      ...buildDrawingRevisionPolicySnapshot({
       selectionMode: input.selectionMode,
       sourceRowId: source.id,
       sourceRowVersion: input.expectedRowVersion,
@@ -338,9 +359,23 @@ export class DrawingRevisionWorkAsyncRepository {
       requestedMinor: input.requestedMinor,
       resolvedMinor: input.target.minor,
       resolvedLabel: input.target.label
-    });
+      }),
+      ...(formalCarryForward ? { carryForwardReceipt: {
+        schemaVersion: 1,
+        sourceRevisionId: source.revision_id,
+        targetRevisionId: revisionId,
+        targetWorkId: workId,
+        actorId: input.ownerUserId,
+        carriedAt,
+        bindings: carryForwardSources.map((file) => ({
+          sourceBindingId: file.id,
+          sourceFileAssetId: file.source_file_asset_id,
+          contentHash: file.content_hash,
+          role: file.role
+        }))
+      } } : {})
+    };
     await tx.execute(`INSERT INTO drawing_revisions (id, company_id, drawing_id, revision, lifecycle_state, policy_snapshot_json, row_version, created_by, updated_by) VALUES (:id, :companyId, :drawingId, :revision, 'preparing', :policySnapshot, 1, :actorId, :actorId)`, { id: revisionId, companyId: input.companyId, drawingId: source.drawing_id, revision: input.target.label, policySnapshot: JSON.stringify(policySnapshot), actorId: input.ownerUserId });
-    const workId = crypto.randomUUID();
     const relationRows = await tx.query<{ id: string; link_type: string }>(
       `SELECT link.part_number_id AS id, link.link_type
          FROM drawing_part_links link
@@ -370,6 +405,27 @@ export class DrawingRevisionWorkAsyncRepository {
       FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id
       WHERE file.company_id = :companyId AND file.drawing_revision_id = :sourceRevisionId AND file.removed_at IS NULL`,
       { workId, companyId: input.companyId, sourceRevisionId: source.revision_id });
+    for (const sourceFile of carryForwardSources) {
+      const carriedBindingId = crypto.randomUUID();
+      await tx.execute(`INSERT INTO drawing_revision_files (
+          id, company_id, drawing_revision_id, source_file_asset_id, role, role_source,
+          display_name, description, sort_order, is_primary, created_by
+        ) VALUES (
+          :id, :companyId, :revisionId, :fileAssetId, :role, 'system',
+          :displayName, :description, :sortOrder, :isPrimary, :actorId
+        )`, {
+        id: carriedBindingId, companyId: input.companyId, revisionId,
+        fileAssetId: sourceFile.source_file_asset_id, role: sourceFile.role,
+        displayName: sourceFile.display_name, description: sourceFile.description,
+        sortOrder: sourceFile.sort_order, isPrimary: sourceFile.is_primary,
+        actorId: input.ownerUserId
+      });
+      await tx.execute(`INSERT INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash)
+        VALUES (:workId, :fileBindingId, :ordinal, :contentHash)`, {
+        workId, fileBindingId: carriedBindingId, ordinal: sourceFile.sort_order,
+        contentHash: sourceFile.content_hash
+      });
+    }
     if (newBranch) {
       await tx.execute(`INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer, branch_id, revision_id, work_id, handling, row_version) VALUES (:id, :companyId, 'drawing', :drawingId, 'drawing_rd', :branchId, :revisionId, :workId, 'owner', 1)`, { id: crypto.randomUUID(), companyId: input.companyId, drawingId: source.drawing_id, branchId, revisionId, workId });
     } else {
@@ -436,8 +492,13 @@ export class DrawingRevisionWorkAsyncRepository {
       `UPDATE shared_cad_model_versions
        SET status = 'Obsolete'
        WHERE source_file_asset_id IN (
-         SELECT source_file_asset_id FROM drawing_revision_files
-         WHERE company_id = :companyId AND drawing_revision_id = :revisionId
+         SELECT revision_file.source_file_asset_id
+         FROM drawing_revision_files revision_file
+         JOIN file_assets asset ON asset.id = revision_file.source_file_asset_id
+         WHERE revision_file.company_id = :companyId
+           AND revision_file.drawing_revision_id = :revisionId
+           AND asset.linked_entity_type = 'drawing_revision'
+           AND asset.linked_entity_id = :revisionId
        ) AND status IN ('Draft', 'Pending')`,
       { companyId: input.companyId, revisionId: work.revision_id }
     );

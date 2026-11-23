@@ -1,5 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { normalizeMediaType } from "@/lib/media-type";
+import { isPdfMediaCandidate, normalizeMediaType } from "@/lib/media-type";
 
 export type DrawingPreviewSource = {
   id: string;
@@ -46,7 +46,7 @@ export async function resolveDrawingPreviewAsync(
   source: DrawingPreviewSource,
   options: { derivativeId?: string | null; requireDerivative?: boolean } = {}
 ): Promise<ResolvedDrawingPreview | null> {
-  const mimeType = normalizeMediaType(source.mime_type);
+  const mimeType = isPdfMediaCandidate(source.file_ext, source.mime_type) ? "application/pdf" : normalizeMediaType(source.mime_type);
   if (!options.requireDerivative && (mimeType === "application/pdf" || mimeType.startsWith("image/"))) {
     return { record: source, fileName: source.file_name || "圖面附件", mimeType: mimeType || drawingPreviewMimeType(source.file_ext) };
   }

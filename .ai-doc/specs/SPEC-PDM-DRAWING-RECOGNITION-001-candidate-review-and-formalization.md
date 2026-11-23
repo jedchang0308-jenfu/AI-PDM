@@ -17,6 +17,16 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
 - `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
 
+## 2026-11-23 DEV-130 目標取代註記 — 原生屬性加選配 PDF
+
+[DEV-130](DEV-130-png-preview-optional-pdf-formal-file-gate.md) 已確認 AI-PDM 不產生 PDF：原生 SolidWorks 檔維持
+`filename.v1 + native-metadata-bridge.v1`，只有使用者已上傳的本版 PDF 才規劃 `browser-pdf-ocr.v1`。
+沒有 PDF 時，native adapters 完成即為正常終態，UI 說明未執行圖框／圖面文字辨識，不得顯示仍在等待 PDF。
+PNG 簡易預覽不是 OCR source；歷史 PDF／PNG 不得加入本版 session。此為 target contract，產品實作與驗證完成前
+不改寫下方既有 DEV-082／107／110 歷史證據或宣稱 runtime 已切換。PDF 上傳成功後立即由目前 workspace client
+啟動既有 `browser-pdf-ocr.v1`，不等待智慧辨識分頁；關頁中斷後下次進入同一工作區重跑未完成 adapter，已 terminal
+的同一 source hash 不重跑，且不得新增 server OCR queue／worker。
+
 ## 2026-08-31 DEV-110 Target Successor Amendment — Common Value／Exceptions To Part Work
 
 Status：`RD Implemented Locally / Human Confirmed / Full QC Passed 60/60 / Production Release Gated`。完整Current Phase authority為`.ai-doc/specs/SPEC-PDM-RECOGNITION-COMMON-VALUE-EXCEPTIONS-001-upstream-part-work-handoff.md`，QA plan為`.ai-doc/qa/qa-dev-110-recognition-common-value-part-work-handoff-validation-plan-2026-08-31.md`，accepted target ADR為`ADR-PDM-DRAWING-RECOGNITION-PART-WORK-HANDOFF-001`；local receipt為`.ai-doc/qc/qc-dev-110-local-implementation-2026-08-31.md`，aggregate為`output/qa/dev-110/DEV110-aggregate-2026-08-31T13-51-48-003Z/aggregate.json`。C/R/P/B/I與G01～G04均已執行並PASS；DEV-107僅保留legacy baseline，runtime activation仍受release gate管制。

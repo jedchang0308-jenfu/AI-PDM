@@ -30,6 +30,6 @@ it("starts the protected preview request for an automatically recovered queued s
     state: "missing", stateTitle: "無可用預覽", stateText: "目前沒有可預覽的 2D 檔案。",
     mediaHref: null, downloadHref: null };
   const html = renderToStaticMarkup(<DrawingCanonicalPreview previews={[queued, missing]} />);
-  expect(html).toContain("預覽正在準備");
+  expect(html).toContain("正在讀取來源檔");
   expect(html).not.toContain("等待已連結的解析電腦");
 });

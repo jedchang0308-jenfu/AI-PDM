@@ -13,7 +13,10 @@ describe("PDF recognition source media type", () => {
   it.each(["application/pdf; charset=binary", " Application/PDF ; charset=binary ", "APPLICATION/PDF"])("accepts a normalized PDF %s", mimeType => {
     expect(isBrowserPdfRecognitionSource({ fileExt: ".PDF", mimeType })).toBe(true);
   });
-  it.each(["", "image/png", "application/octet-stream", "application/pdfx"])("rejects non-PDF media type %s", mimeType => {
+  it.each(["", "application/octet-stream"])("admits a legacy PDF candidate for protected content validation %s", mimeType => {
+    expect(isBrowserPdfRecognitionSource({ fileExt: "pdf", mimeType })).toBe(true);
+  });
+  it.each(["image/png", "application/pdfx"])("rejects conflicting media type %s", mimeType => {
     expect(isBrowserPdfRecognitionSource({ fileExt: "pdf", mimeType })).toBe(false);
   });
   it("preserves the PDF extension requirement", () => {

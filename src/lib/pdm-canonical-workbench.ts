@@ -8,14 +8,14 @@ import { PdmCanonicalWorkbenchAsyncRepository } from "@/lib/repositories/pdm-can
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
-import { buildCanonicalDrawingPreviewMap, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource, selectCanonicalTwoDSource, type CanonicalPreviewProjection, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
+import { buildCanonicalDrawingPreviewMap, previewJobWaitingState, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource, selectCanonicalTwoDSource, type CanonicalPreviewProjection, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
 import { canonicalNumberingItemKindLabel } from "@/lib/numbering-item-kind";
 import { isDrawingWorkbenchPreviewGalleryV1Enabled, isPartWorkbenchPreviewGalleryV1Enabled } from "@/lib/number-state-flow-feature";
 import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import { ensureAutomaticPreviewJobsForSourceAssetsAsync, isRecoverableUnavailablePreviewJob } from "@/lib/preview-derivatives";
-import { normalizeMediaType } from "@/lib/media-type";
+import { isPdfMediaCandidate, normalizeMediaType } from "@/lib/media-type";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
 
@@ -299,7 +299,7 @@ export class PdmCanonicalWorkbenchService {
   private async previewJobs(companyId: string, assetIds: string[]): Promise<CanonicalPreviewJob[]> {
     const list = namedSqlList("previewJobAsset", assetIds);
     const rows = await this.client.query<Record<string, unknown>>(`SELECT source_file_asset_id, source_content_hash, status, error_code,
-        COALESCE(locked_at, updated_at) AS last_heartbeat_at
+        updated_at AS last_heartbeat_at
       FROM preview_jobs WHERE company_id = :companyId AND source_file_asset_id IN (${list.sql})
       ORDER BY updated_at DESC, created_at DESC`, { companyId, ...list.params });
     const seen = new Set<string>();
@@ -608,6 +608,12 @@ export function canonicalPreviewSlot(
       ]
     });
     const state = resolved.state === "pending" ? "queued" : resolved.state;
+    const waitingJob = jobs.filter(item => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash)
+      .sort((a, b) => b.lastHeartbeatAt.localeCompare(a.lastHeartbeatAt))[0];
+    if ((state === "queued" || state === "delayed") && waitingJob && ["queued", "running"].includes(waitingJob.status)) {
+      const waiting = previewJobWaitingState(waitingJob.status, waitingJob.lastHeartbeatAt);
+      return { kind, title, fileName: source.displayName || source.fileName, state, stateTitle: waiting.stateTitle, stateText: waiting.stateText, mediaHref: null, downloadHref: readHref, retryCommandRef: null };
+    }
     const recoverableJob = jobs.find((item) => item.sourceFileAssetId === source.assetId
       && item.sourceContentHash === source.contentHash
       && isRecoverableUnavailablePreviewJob({ status: item.status, errorCode: item.errorCode }));
@@ -619,8 +625,8 @@ export function canonicalPreviewSlot(
     const text = state === "ready" ? "可直接開啟預覽。" : state === "queued" ? "工作已排入佇列。" : state === "delayed" ? "請稍後重新整理或確認預覽服務。" : state === "failed" ? "可先下載原始檔查看。" : state === "missing" ? "3D 原檔已存在，預覽工作尚未建立。" : "3D 原檔已存在，但目前沒有可看的預覽。";
     return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "預覽尚未建立" : "預覽暫時無法顯示", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
   }
-  if (kind === "two-d" && source.fileExt === "pdf" && normalizeMediaType(source.mimeType) === "application/pdf") {
-    return { kind, title, fileName: displayName, state: "ready", mediaMimeType: normalizeMediaType(source.mimeType), stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
+  if (kind === "two-d" && isPdfMediaCandidate(source.fileExt, source.mimeType)) {
+    return { kind, title, fileName: displayName, state: "ready", mediaMimeType: "application/pdf", stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
   }
   const accepted = new Set(["drawing_pdf", "sheet_png", "thumbnail_png"]);
   const derivative = derivatives.find((item) => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash && accepted.has(item.derivativeKind));
@@ -634,11 +640,13 @@ export function canonicalPreviewSlot(
       downloadHref: readHref, retryCommandRef: null };
   }
   if (job?.status === "running") {
-    const heartbeat = Date.parse(job.lastHeartbeatAt);
-    const delayed = !Number.isFinite(heartbeat) || Date.now() - heartbeat > 30_000;
-    return { kind, title, fileName: displayName, state: delayed ? "delayed" : "running", stateTitle: delayed ? "預覽服務未回應" : "預覽產生中", stateText: delayed ? "請稍後重新整理或確認預覽服務。" : "預覽服務正在處理。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
+    const waiting = previewJobWaitingState(job.status, job.lastHeartbeatAt);
+    return { kind, title, fileName: displayName, state: waiting.delayed ? "delayed" : "running", stateTitle: waiting.stateTitle, stateText: waiting.stateText, mediaHref: null, downloadHref: readHref, retryCommandRef: null };
   }
-  if (job?.status === "queued") return { kind, title, fileName: displayName, state: "queued", stateTitle: "等待預覽服務", stateText: "工作已排入佇列。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
+  if (job?.status === "queued") {
+    const waiting = previewJobWaitingState(job.status, job.lastHeartbeatAt);
+    return { kind, title, fileName: displayName, state: waiting.delayed ? "delayed" : "queued", stateTitle: waiting.stateTitle, stateText: waiting.stateText, mediaHref: null, downloadHref: readHref, retryCommandRef: null };
+  }
   if (job?.status === "failed") return { kind, title, fileName: displayName, state: "failed", stateTitle: "預覽產生失敗", stateText: "可先下載原始檔查看。", mediaHref: null, downloadHref: readHref, retryCommandRef: null };
   const terminalTitle = job?.status === "cancelled" ? "預覽已取消" : job?.status === "skipped" ? "預覽已略過" : job?.status === "succeeded" ? "預覽結果無法讀取" : null;
   if (terminalTitle) return { kind, title, fileName: displayName, state: "unavailable", stateTitle: terminalTitle,

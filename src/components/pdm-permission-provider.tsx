@@ -8,6 +8,8 @@ import { createPdmPermissionStore, subscribePdmPermissionInvalidation, subscribe
 import { createPdmWorkbenchCache } from "@/lib/pdm-workbench-cache";
 import { createPdmPreviewImageCache, createPdmPreviewImageDenials } from "@/lib/pdm-preview-image-cache";
 import { PdmPreviewImageCacheContext } from "./pdm-preview-image-cache-context";
+import { createPdmProtectedPdfCache } from "@/lib/pdm-protected-pdf-cache";
+import { pdmPermissionFetch } from "@/lib/pdm-permission-client";
 import type { NumberingPagePermissionCode, NumberingActionPermissionCode } from "@/lib/numbering-permission-codes";
 
 const Context = createContext<ReturnType<typeof usePermissionValue> | null>(null);
@@ -33,25 +35,28 @@ export function PdmPermissionProvider({ children }: { children: ReactNode }) {
   const store = useMemo(() => createPdmPermissionStore(), []);
   const workbenchCache = useMemo(() => createPdmWorkbenchCache(), []);
   const previewImageCache = useMemo(() => createPdmPreviewImageCache(), []);
+  const pdfCache = useMemo(() => createPdmProtectedPdfCache(pdmPermissionFetch), []);
   const deniedHrefs = useMemo(() => createPdmPreviewImageDenials(), []);
   const active = useRef(false);
   useEffect(() => {
     active.current = true;
-    if (publicPage) { clearCurrentPdmUser(); clearPendingPdmApprovalCount(); workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); store.invalidate("logout"); }
+    if (publicPage) { clearCurrentPdmUser(); clearPendingPdmApprovalCount(); workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); pdfCache.clear(); store.invalidate("logout"); }
     else if (store.getSnapshot().kind === "unauthenticated") store.invalidate("account-changed");
     else void store.ensure();
-    const unsubscribe = subscribePdmPermissionInvalidation(reason => { workbenchCache.clear(); if (reason !== "forbidden") deniedHrefs.clear(); previewImageCache.clear(); store.invalidate(reason); });
+    const unsubscribe = subscribePdmPermissionInvalidation(reason => { workbenchCache.clear(); if (reason !== "forbidden") deniedHrefs.clear(); previewImageCache.clear(); pdfCache.clear(); store.invalidate(reason); });
+    // PDF reuse always reauthorizes its binding/hash. Unrelated writes such as
+    // OCR-result submission must not force a second download of the same bytes.
     const unsubscribeMutation = subscribePdmMutationInvalidation(() => { workbenchCache.clear(false); deniedHrefs.clear(); previewImageCache.clear(); });
     return () => {
       active.current = false;
       unsubscribe();
       unsubscribeMutation();
       // React StrictMode remounts effects synchronously. Preserve its one in-flight request.
-      queueMicrotask(() => { if (!active.current) { workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); store.dispose(); } });
+      queueMicrotask(() => { if (!active.current) { workbenchCache.clear(); deniedHrefs.clear(); previewImageCache.clear(); pdfCache.clear(); store.dispose(); } });
     };
-  }, [publicPage, store, workbenchCache, previewImageCache, deniedHrefs]);
+  }, [publicPage, store, workbenchCache, previewImageCache, pdfCache, deniedHrefs]);
   const value = usePermissionValue(store, publicPage, workbenchCache, previewImageCache, deniedHrefs);
-  const previewValue = useMemo(() => ({ cache: previewImageCache, deniedHrefs, enabled: value.state.kind === "ready" }), [previewImageCache, deniedHrefs, value.state.kind]);
+  const previewValue = useMemo(() => ({ cache: previewImageCache, pdfCache, deniedHrefs, enabled: value.state.kind === "ready" }), [previewImageCache, pdfCache, deniedHrefs, value.state.kind]);
   return <Context.Provider value={value}>
     <PdmPreviewImageCacheContext.Provider value={previewValue}>
     {!publicPage && value.state.kind === "unauthenticated" ? <div role="alert" className="inline-error">登入已失效，請重新登入。<Link href="/login">返回登入</Link></div> : null}

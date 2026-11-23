@@ -10,7 +10,7 @@ const session: DrawingRecognitionBrowserOcrSession = { id: "session", status: "r
   pendingClientAdapters: [{ sourceId: "source", fileName: "drawing.pdf", contentHash: "hash", adapterCode: "browser-pdf-ocr.v1" }] };
 let root: Root, container: HTMLDivElement;
 const fetchMock = vi.fn<typeof fetch>(), onError = vi.fn(), onProjection = vi.fn();
-function Harness() { useDrawingRecognitionBrowserOcr({ session, onError, onProjection }); return null; }
+function Harness({ value = session }: { value?: DrawingRecognitionBrowserOcrSession }) { useDrawingRecognitionBrowserOcr({ session: value, onError, onProjection }); return null; }
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -19,6 +19,22 @@ beforeEach(() => {
   ocr.run.mockResolvedValue({ adapterCode: "browser-pdf-ocr.v1", adapterVersion: "1", status: "succeeded", diagnostics: [], observations: [] });
 });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); });
+it("resumes an interrupted current PDF on remount but does not rerun a terminal source", async () => {
+  fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+    ? Response.json({ session: { ...session, pendingClientAdapters: [] } })
+    : new Response("%PDF-source", { headers: { "content-type": "application/pdf", "content-hash": "hash" } }));
+  ocr.run.mockRejectedValueOnce(new DOMException("interrupted", "AbortError"));
+  await act(async () => root.render(<Harness />));
+  expect(ocr.run).toHaveBeenCalledTimes(1);
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  await act(async () => root.unmount()); root = createRoot(container);
+  await act(async () => root.render(<Harness />));
+  expect(ocr.run).toHaveBeenCalledTimes(2);
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+  await act(async () => root.unmount()); root = createRoot(container);
+  await act(async () => root.render(<Harness value={{ ...session, pendingClientAdapters: [] }} />));
+  expect(ocr.run).toHaveBeenCalledTimes(2);
+});
 it.each([
   [" Application/PDF ; charset=binary ", "hash", true],
   ["application/pdfx", "hash", false],

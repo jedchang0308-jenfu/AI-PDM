@@ -58,6 +58,9 @@ function resolveNextTsconfigPath() {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir,
+  // The Node PDF parser loads its sibling worker dynamically. Preserve that
+  // package boundary instead of bundling it into each server route.
+  serverExternalPackages: ["pdfjs-dist"],
   typescript: {
     tsconfigPath: resolveNextTsconfigPath()
   },
@@ -91,6 +94,7 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     "/*": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
       "./node_modules/gcp-metadata/**/*",
       "./node_modules/gaxios/**/*",
       "./node_modules/google-logging-utils/**/*",

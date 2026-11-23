@@ -2011,6 +2011,23 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
+<a id="dev-130-png-preview-optional-pdf-formal-file-gate"></a>
+
+- ◇ DEV-130 [交付點] [RD Complete／Local Verification Passed／Not Released] [P1] PNG 簡易預覽、選配 PDF 辨識與正式版檔案門檻
+  - 人類定案：AI-PDM 不執行 `.SLDDRW -> PDF` 自動轉換；現有 PNG 只作簡易預覽。智慧辨識處理本版原生檔屬性，只有使用者已上傳 PDF 時才追加 PDF 文字／OCR。
+  - 研發版最低要求為本版 `.SLDDRW` 與一個 primary `.SLDPRT/.SLDASM`；PDF、DWG 選配且缺少時不警告。引導決策 Q1=`A`：正式版工作可先建立及編輯，只有執行「送出正式版」時才在同一 server transaction 內要求 2D 原檔、3D 原檔、PDF、DWG；不得提前阻擋工作建立或延後到最終核准。DXF 不替代 DWG；既有 Released 歷史不回溯失效。
+  - UI 在沒有 PDF 時把 2D PNG 標為`簡易預覽`，並說明尺寸、圖框與完整圖面須上傳 PDF；辨識區顯示原生屬性已完成、未執行 PDF 圖框文字辨識，不呈現等待狀態。PDF 存在後移除提示並優先使用既有 PDF viewer／browser OCR。
+  - 引導決策 Q2=`A`：本版同時有 PDF 與 PNG 時，2D 頁籤自動顯示 PDF；PNG 只在沒有 PDF 或 PDF 讀取失敗時作簡易降級，失敗狀態不得被 PNG 靜默掩蓋。
+  - 引導決策 Q3=`B`：正式版 `.SLDDRW`／PDF／DWG 主檔名不一致時仍可送出，但產生 `FORMAL_2D_FILENAME_MISMATCH` 非阻擋 warning，並隨送審快照保留給審核者；不增加確認 modal。
+  - 引導決策 Q4=`A`：本版最多各一個 current active PDF／DWG；重傳以受控 replacement 取代舊檔且歷史可追溯，不新增 primary 選擇。既有重複 active 資料在正式送出時以 duplicate blocker 拒絕，不由server猜測主檔。
+  - 引導決策 Q5=`B`：PDF 上傳成功後立即在目前瀏覽器自動執行既有 PDF 文字／OCR，不等待切換分頁且不新增按鈕；關頁中斷後於下次進入同一工作區重跑未完成 adapter，不建立 server OCR job。
+  - 引導決策 Q6=`A`：PDF 辨識未完成、部分完成或失敗不阻擋正式送出；辨識狀態與缺漏隨 snapshot 保留。PDF 本身仍須是可讀的有效檔案，不能以損壞檔案滿足門檻。
+  - 引導決策 Q7=`A`：正式版工作區在上傳區及送出動作附近固定顯示精簡四項狀態；缺件逐項可見，齊備後收斂成一行，不另建說明卡，也不延後到送出失敗才揭露。
+  - 引導決策 Q8=`A`：研發版主上傳區只突出2D／3D必要檔；PDF、DWG及其他選配附件共用一個`加入其他檔案`入口，不常駐顯示選填slot，但上傳後照常參與預覽、辨識與下載。
+  - 引導決策 Q9=`A`：從已核准研發版建立正式工作時，以相同canonical asset／hash受控帶入目前有效2D、3D、PDF、DWG並建立server receipt，不複製bytes；缺PDF／DWG仍可建立，送出前可替換且送出時重驗。
+  - RD交付：readiness、正式版交易內 gate、current-only preview／recognition、PDF／DWG replacement／rollback、carry-forward receipt、取消來源保護及 shell-owned PDF bytes 共用已完成。17項驗收對照在[開發契約 §13](specs/DEV-130-png-preview-optional-pdf-formal-file-gate.md#13-最終本機-rd-驗收對照)。Vitest 18檔171案加新增OCR續跑案通過；native PG 5案、Edge桌面／窄版6情境、affected-slice、typecheck、focused lint及隔離建置通過。db-boundary通過，主要資料未變，task-owned runtime已清理。
+  - 計入交付：本機產品開發與RD自查完成一次；非獨立QC／正式登入驗收，未部署、未修改正式資料。既有dirty UI修改保留，本機工作樹交付。
+
 <a id="dev-129-assembly-package-cad-bom-draft"></a>
 
 - ◐ DEV-129 [交付點] [部署前驗證／A0054 實檔與原生 BOM 已核對] 組立包上傳與自動 BOM 草稿

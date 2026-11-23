@@ -19,15 +19,55 @@ export type CanonicalPreviewMediaModel = {
   focusRegion?: PdfPageFocusRegion;
   renderPdfPage?: boolean;
   fullPdf?: boolean;
+  contentHash?: string | null;
+  /** Optional current-revision PNG/native fallback used only after the full
+   * PDF cannot be read. Historical files must never be supplied here. */
+  fallback?: CanonicalPreviewMediaModel;
+  fallbackNotice?: string;
 };
 
 const retryIntervalMs = 2_000;
 const retryLimit = 30;
+const requestTimeoutMs = 20_000;
 
 class PreviewResponseError extends Error {
-  constructor(readonly pending: boolean, readonly state: string | null) {
+  constructor(
+    readonly pending: boolean,
+    readonly state: string | null,
+    readonly status: number,
+    readonly code: string | null,
+    readonly jobErrorCode: string | null
+  ) {
     super("preview-response");
   }
+}
+
+class PreviewRequestTimeoutError extends Error {
+  constructor() { super("preview-request-timeout"); }
+}
+
+function previewErrorFields(body: unknown) {
+  if (!body || typeof body !== "object" || !("error" in body) || !body.error || typeof body.error !== "object") {
+    return { code: null, jobErrorCode: null };
+  }
+  const error = body.error as Record<string, unknown>;
+  return {
+    code: typeof error.code === "string" ? error.code : null,
+    jobErrorCode: typeof error.jobErrorCode === "string" ? error.jobErrorCode : null
+  };
+}
+
+function terminalPreviewReason(error: PreviewResponseError) {
+  if (error.status === 401) return "登入狀態已失效，請重新開啟工作區。";
+  if (error.status === 403) return "目前沒有讀取這份預覽的權限。";
+  if (error.state === "cancelled" || error.code === "PREVIEW_CANCELLED") return "預覽已取消；可下載原檔。";
+  if (error.state === "unsupported" || error.code === "PREVIEW_UNSUPPORTED") return "此格式目前不支援預覽，可下載原檔。";
+  if (error.code === "PREVIEW_OUTPUT_MISSING") return "預覽工作已完成，但找不到輸出檔。";
+  if (error.jobErrorCode === "preview_worker_unavailable" || error.jobErrorCode === "preview_worker_heartbeat_timeout") {
+    return "Windows 預覽服務目前未連線，可稍後重新讀取。";
+  }
+  if (error.code === "PREVIEW_FAILED" || error.state === "failed") return "預覽產生失敗，可下載原檔或稍後重新讀取。";
+  return "預覽無法顯示，可下載原檔。";
 }
 
 export function canonicalPreviewResponseDisposition(status: number, state: string | null, body: unknown) {
@@ -63,6 +103,7 @@ export function CanonicalPreviewMedia({
   const [loadedHref, setLoadedHref] = useState("");
   const [deniedHref, setDeniedHref] = useState("");
   const previewContext = usePdmPreviewImageCache();
+  const pdfCache = previewContext?.pdfCache;
   const imageCache = media.mode === "image" ? previewContext?.cache : null;
   const enabled = previewContext?.enabled ?? true;
   const deniedHrefs = previewContext?.deniedHrefs;
@@ -90,19 +131,36 @@ export function CanonicalPreviewMedia({
     setLoadedHref("");
 
     const readBlob = async (signal: AbortSignal) => {
-      const response = await fetch(media.href, { credentials: "same-origin", cache: "no-store", signal });
-      if (signal.aborted) throw new DOMException("Preview read aborted", "AbortError");
-      if (response.status === 401 || response.status === 403) {
-        if (deniedHrefs) deniedHrefs.add(media.href);
-        else setDeniedHref(media.href);
-        invalidatePdmPermissions(response.status === 401 ? "unauthenticated" : "forbidden");
+      const requestController = new AbortController();
+      const abortRequest = () => requestController.abort();
+      if (signal.aborted) abortRequest();
+      else signal.addEventListener("abort", abortRequest, { once: true });
+      const requestDeadline = requiresFullPdf ? null : setTimeout(abortRequest, requestTimeoutMs);
+      try {
+        const response = requiresFullPdf && media.contentHash && pdfCache
+          ? await pdfCache.read(media.href, media.contentHash, requestController.signal)
+          : await fetch(media.href, { credentials: "same-origin", cache: "no-store", signal: requestController.signal });
+        if (signal.aborted) throw new DOMException("Preview read aborted", "AbortError");
+        if (response.status === 401 || response.status === 403) {
+          if (deniedHrefs) deniedHrefs.add(media.href);
+          else setDeniedHref(media.href);
+          invalidatePdmPermissions(response.status === 401 ? "unauthenticated" : "forbidden");
+        }
+        if (!response.ok || response.status === 202) {
+          const state = response.headers.get("x-pdm-preview-state");
+          const body: unknown = await response.json().catch(() => null);
+          const fields = previewErrorFields(body);
+          throw new PreviewResponseError(canonicalPreviewResponseDisposition(response.status, state, body) === "pending", state,
+            response.status, fields.code, fields.jobErrorCode);
+        }
+        return response.blob();
+      } catch (error) {
+        if (!signal.aborted && requestController.signal.aborted) throw new PreviewRequestTimeoutError();
+        throw error;
+      } finally {
+        if (requestDeadline) clearTimeout(requestDeadline);
+        signal.removeEventListener("abort", abortRequest);
       }
-      if (!response.ok || response.status === 202) {
-        const state = response.headers.get("x-pdm-preview-state");
-        const body: unknown = await response.json().catch(() => null);
-        throw new PreviewResponseError(canonicalPreviewResponseDisposition(response.status, state, body) === "pending", state);
-      }
-      return response.blob();
     };
 
     const load = async () => {
@@ -148,7 +206,11 @@ export function CanonicalPreviewMedia({
             retryTimer = setTimeout(() => { retryTimer = null; void load(); }, retryIntervalMs);
             return;
           }
-          if (!error.pending) setTerminalReason(error.state === "cancelled" ? "預覽已取消；可下載原檔。" : error.state === "unsupported" ? "此格式無法預覽，可下載原檔。" : "預覽無法顯示，可下載原檔。");
+          setTerminalReason(error.pending ? "預覽服務處理逾時，可稍後重新讀取。" : terminalPreviewReason(error));
+        } else if (error instanceof PreviewRequestTimeoutError) {
+          setTerminalReason("預覽服務回應逾時，請稍後重新讀取。");
+        } else {
+          setTerminalReason("無法連線到預覽服務，請稍後重新讀取。");
         }
         if (readDeadline) clearTimeout(readDeadline);
         if (!cancelled) setLoadState("failed");
@@ -181,7 +243,7 @@ export function CanonicalPreviewMedia({
       unsubscribe?.();
       stop();
     };
-  }, [media.href, media.mode, renderDocumentAsPdfPage, requiresFullPdf, retryToken, imageCache, enabled, deniedHrefs, deniedHref]);
+  }, [media.href, media.mode, media.contentHash, renderDocumentAsPdfPage, requiresFullPdf, retryToken, imageCache, pdfCache, enabled, deniedHrefs, deniedHref]);
 
   let rendered: ReactNode = null;
   const hasLoadedMedia = enabled && !previewBlocked && loadedHref === media.href && loadState === "ready";
@@ -213,9 +275,18 @@ export function CanonicalPreviewMedia({
     >{rendered}</a>;
   }
 
+  if (loadState === "failed" && media.fallback) {
+    const { fallback: _nestedFallback, fallbackNotice: _nestedNotice, ...fallback } = media.fallback;
+    return <div className="drawing-preview-fallback" data-preview-state="fallback">
+      <div className="drawing-preview-fallback-status" role="status"><strong>{terminalReason || "PDF 預覽無法顯示。"}</strong><span>{media.fallbackNotice || "已改用本版簡易預覽。若要查看完整圖面，請重新上傳 PDF。"}</span></div>
+      <CanonicalPreviewMedia media={fallback} interactive={interactive} compact={compact} />
+      {interactive && !compact ? <button className="secondary-button preview-generate-button" type="button" onClick={() => { deniedHrefs?.delete(media.href); setDeniedHref(""); setRetryToken((token) => token + 1); }}>重新讀取 PDF</button> : null}
+    </div>;
+  }
+
   return <span className={`drawing-preview-placeholder ${loadState === "failed" ? "unavailable" : "pending"}`} data-preview-state={loadState === "failed" ? "unavailable" : "pending"}>
-    <strong>{loadState === "failed" ? terminalReason || "預覽尚未就緒" : <LoadingIndicator>{compact ? "載入中…" : "預覽正在準備"}</LoadingIndicator>}</strong>
-    {!compact && loadState !== "failed" ? <span>完成後會自動顯示，請稍候。</span> : null}
-    {loadState === "failed" && interactive && (!terminalReason || previewBlocked) ? <button className="secondary-button preview-generate-button" type="button" onClick={() => { deniedHrefs?.delete(media.href); setDeniedHref(""); setRetryToken((token) => token + 1); }}>重新整理預覽</button> : null}
+    <strong>{loadState === "failed" ? terminalReason || "預覽尚未就緒" : <LoadingIndicator>{compact ? "載入中…" : loadState === "waiting" ? "正在產生預覽" : "正在讀取來源檔"}</LoadingIndicator>}</strong>
+    {!compact && loadState !== "failed" ? <span>{loadState === "waiting" ? "預覽服務已接單，完成後會自動顯示。" : "正在確認來源、權限與既有預覽。"}</span> : null}
+    {loadState === "failed" && interactive && !compact ? <button className="secondary-button preview-generate-button" type="button" onClick={() => { deniedHrefs?.delete(media.href); setDeniedHref(""); setRetryToken((token) => token + 1); }}>重新讀取結果</button> : null}
   </span>;
 }

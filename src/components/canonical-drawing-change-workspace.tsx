@@ -5,7 +5,7 @@ import { pdmPermissionFetch as fetch } from "@/lib/pdm-permission-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DrawingAssemblyPackagePanel } from "./drawing-assembly-package-panel";
 import { WorkbenchDeleteAction } from "./draft-numbering-delete-action";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, LoaderCircle, ScanSearch, Send, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Files, History, LoaderCircle, ScanSearch, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard, type DrawingDetailPreviewKind } from "@/components/drawing-detail-preview";
 import { DrawingWorkspaceUpload } from "./drawing-workspace-upload";
@@ -17,11 +17,17 @@ import {
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { usePdmLocalDraft } from "./use-pdm-local-draft";
 import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
-import { isWorkspacePdf, selectWorkspacePreviewSource } from "@/lib/pdm-canonical-preview";
+import { isWorkspacePdf, selectWorkspacePreviewSource, workspaceCurrentSourceAssetIds } from "@/lib/pdm-canonical-preview";
 import { normalizeMediaType } from "@/lib/media-type";
 import { isReviewPackageRecognitionProjection } from "@/lib/pdm-review-package-contract";
 import type { DrawingRecognitionReviewProjection } from "@/lib/drawing-recognition-review-projection";
 import { parseNumberingIdentity } from "@/lib/numbering-identity";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
+import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
+import type { CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
+import type { DrawingRevisionFileReadiness, DrawingRevisionTargetKind } from "@/lib/pdm-file-ownership";
 
 type FileRow = {
   id: string;
@@ -32,6 +38,7 @@ type FileRow = {
   file_ext?: string;
   mime_type?: string;
   file_size?: number;
+  content_hash?: string | null;
   is_primary?: boolean | number;
   current_revision_upload?: boolean | number;
 };
@@ -42,6 +49,8 @@ export type DrawingWorkspacePayload = {
   revisionId?: string;
   requestKind?: "drawing_revision" | "drawing_rd_void";
   revision?: string;
+  targetKind?: DrawingRevisionTargetKind;
+  fileReadiness?: DrawingRevisionFileReadiness;
   rowVersion: number;
   payload: Record<string, unknown>;
   readonly: boolean;
@@ -57,7 +66,9 @@ export type DrawingWorkspacePayload = {
   };
   identity?: { code?: string; name?: string } | null;
   files?: FileRow[];
+  relationMatrix?: CanonicalRelationMatrixProjection;
   changeImpactRequired?: boolean;
+  changeImpactReset?: boolean;
   relatedParts?: Array<{ id: string; code: string; name: string | null }>;
   assemblyPackage?: { applicable: boolean; canSubmit: boolean; reason: string | null };
   affectedParts?: Array<{ id: string; code: string; name: string | null }>;
@@ -65,6 +76,7 @@ export type DrawingWorkspacePayload = {
 };
 type ResponseShape = { data: DrawingWorkspacePayload; meta: { contractToken: string } };
 type ChangeImpactState = "no_impact" | "suspected_impact" | "confirmed_impact";
+type DrawingWorkspaceView = DrawingDetailPreviewKind | "relations";
 function text(value: unknown) { return typeof value === "string" ? value : ""; }
 function apiMessage(body: unknown, fallback: string) {
   const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
@@ -121,15 +133,23 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [loadErrorCode, setLoadErrorCode] = useState("");
   const [reloadAvailable, setReloadAvailable] = useState(false);
   const [visualKind, setVisualKind] = useState<DrawingDetailPreviewKind>("two-d");
+  const [workspaceView, setWorkspaceView] = useState<DrawingWorkspaceView>("two-d");
   const [recognitionDirty, setRecognitionDirty] = useState(false);
+  const [relationDirty, setRelationDirty] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<DrawingRecognitionEvidence | null>(null);
   const [evidenceOriginKind, setEvidenceOriginKind] = useState<DrawingDetailPreviewKind | null>(null);
   const [showEvidenceFocus, setShowEvidenceFocus] = useState(false);
   const [evidenceLocationNotice, setEvidenceLocationNotice] = useState<string | null>(null);
   const [uploadPending, setUploadPending] = useState(false);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [pdfSelection, setPdfSelection] = useState<{ contextKey: string; bindingId: string } | null>(null);
   const uploadWorkFile = useMemo(() => createDrawingWorkFileUploader(workId ?? ""), [workId]);
   const [assemblyBlocked, setAssemblyBlocked] = useState(false);
+  const { drawerWidth: historyDrawerWidth, startDrawerResize: startHistoryDrawerResize } = useRememberedDrawerWidth({
+    storageKey: "pdm-drawing-revision-history-drawer-width",
+    defaultWidth: 460,
+    minWidth: 360
+  });
   const noteOf = (value: Record<string, unknown>) => {
     const impact = value.changeImpact as Record<string, unknown> | undefined;
     return typeof impact?.note === "string" ? impact.note : "";
@@ -194,7 +214,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
 
   const load = useCallback(async () => {
     if (initialData) {
-      setData(initialData); setPayload(initialData.payload ?? {}); setPayloadDirty(false); setContractToken(""); setLoadErrorCode(""); setLoading(false); setReloadAvailable(false); return;
+      setData(initialData); setPayload(initialData.payload ?? {}); setPayloadDirty(initialData.changeImpactReset === true); setContractToken(""); setLoadErrorCode(""); setLoading(false); setReloadAvailable(false); return;
     }
     if (!endpoint) {
       setData(null); setPayload({}); setContractToken(""); setLoadErrorCode("");
@@ -225,7 +245,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
         setData(null); setPayload({}); setContractToken(""); setLoadErrorCode("");
         setLoading(false); setError("審核對象不是圖號資料。"); setReloadAvailable(true); return;
       }
-      setData(result.data); setPayload(result.data.payload ?? {}); setPayloadDirty(false); setContractToken(result.meta.contractToken); setLoadErrorCode(""); setLoading(false); setReloadAvailable(false);
+      setData(result.data); setPayload(result.data.payload ?? {}); setPayloadDirty(result.data.changeImpactReset === true); setContractToken(result.meta.contractToken); setLoadErrorCode(""); setLoading(false); setReloadAvailable(false);
     } catch (error) {
       if (controller.signal.aborted || sequence !== loadSequenceRef.current) return;
       setData(null); setPayload({}); setContractToken(""); setLoadErrorCode("");
@@ -237,6 +257,17 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     return () => loadControllerRef.current?.abort();
   }, [load]);
   useEffect(() => {
+    if (embedded) return;
+    const requested = new URLSearchParams(window.location.search).get("view");
+    if (requested === "three-d" || requested === "two-d") {
+      setWorkspaceView(requested);
+      setVisualKind(requested);
+    } else if (requested === "relations") setWorkspaceView("relations");
+  }, [embedded]);
+  useEffect(() => {
+    if (workspaceView === "relations" && data && !data.relationMatrix) setWorkspaceView(visualKind);
+  }, [data, visualKind, workspaceView]);
+  useEffect(() => {
     if (!evidenceLocationNotice) return;
     const timer = window.setTimeout(() => setEvidenceLocationNotice(null), 2_800);
     return () => window.clearTimeout(timer);
@@ -247,8 +278,32 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     return () => window.clearTimeout(timer);
   }, [saveNotice]);
 
-  const canLeave = useUnsavedChangesGuard(payloadDirty || recognitionDirty || uploadPending);
+  const canLeave = useUnsavedChangesGuard(payloadDirty || recognitionDirty || relationDirty || uploadPending);
   function leave() { if (!busy && canLeave()) router.push(safeReturn); }
+  function selectWorkspaceView(next: DrawingWorkspaceView) {
+    if (next === workspaceView) return;
+    if (relationDirty && next !== "relations") {
+      setError("請先儲存或取消料號關聯變更。");
+      return;
+    }
+    if (next === "relations" && (payloadDirty || recognitionDirty || uploadPending)) {
+      setError("請先儲存目前變更，再編輯料號關聯。");
+      return;
+    }
+    setError("");
+    setWorkspaceView(next);
+    if (next !== "relations") {
+      setVisualKind(next);
+      setSelectedEvidence(null);
+      setShowEvidenceFocus(false);
+      setEvidenceOriginKind(null);
+    }
+    if (!embedded) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", next);
+      window.history.replaceState(window.history.state, "", url);
+    }
+  }
   function headers(expectedRowVersion = data?.rowVersion ?? 0) {
     return { "content-type": "application/json", "if-match": `"${expectedRowVersion}"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": contractToken };
   }
@@ -269,7 +324,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       }
       const rowVersion = Number((body as { data?: { rowVersion?: number } } | null)?.data?.rowVersion ?? expectedRowVersion + 1);
       localDraft.clear();
-      setData((current) => current ? { ...current, rowVersion, payload } : current);
+      setData((current) => current ? { ...current, rowVersion, payload, changeImpactReset: false } : current);
       setPayloadDirty(false);
       return { ok: true, rowVersion };
     } catch {
@@ -345,7 +400,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     const latest = await response.json() as ResponseShape;
     if (!localDraft.isCurrent()) throw new Error("身分已變更，請重新開啟工作資料。");
     if (!response.ok || latest.data?.workId !== data.workId) throw new Error("無法確認最新工作資料，請重新載入。");
-    setData(latest.data); setPayload(latest.data.payload); setPayloadDirty(false); setContractToken(latest.meta.contractToken);
+    setData(latest.data); setPayload(latest.data.payload); setPayloadDirty(latest.data.changeImpactReset === true); setContractToken(latest.meta.contractToken);
   }
   async function beginUnifiedUpload() {
     if (busy || commandPending.current || !data?.workId || !(data.interaction?.canMutateContent ?? !data.readonly)) throw new Error("目前無法上傳。");
@@ -409,6 +464,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     setSelectedEvidence(evidence);
     setShowEvidenceFocus(true);
     setVisualKind("two-d");
+    setWorkspaceView("two-d");
   }
 
   function selectVisualKind(kind: DrawingDetailPreviewKind) {
@@ -418,7 +474,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
       setEvidenceOriginKind(null);
     }
     setEvidenceLocationNotice(null);
-    setVisualKind(kind);
+    selectWorkspaceView(kind);
   }
   function updateChangeImpact(patch: Record<string, unknown>) {
     setSaveNotice("");
@@ -446,11 +502,21 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     updateChangeImpact({ replacement: { sourcePartNumberId: text(currentReplacement.sourcePartNumberId) || affectedPartIds[0] || "", ...currentReplacement, ...patch } });
   }
 
+  const canMutateContent = data?.interaction?.canMutateContent ?? !data?.readonly;
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const currentFiles = useMemo(() => files.filter((file) => Boolean(file.current_revision_upload)), [files]);
+  const historyFiles = useMemo(() => files.filter((file) => !Boolean(file.current_revision_upload)), [files]);
+  function fileDownloadHref(file: FileRow) {
+    const readContextId = fileReadContext === "review_package" ? data?.entityId : data?.workId;
+    return file.source_file_asset_id && readContextId
+      ? pdmFileReadHref({ fileAssetId: file.source_file_asset_id, context: fileReadContext, contextId: readContextId, bindingId: file.id, reviewRequestId })
+      : null;
+  }
   const pdfContextKey = JSON.stringify([fileReadContext, data?.entityId, data?.workId, data?.revisionId, reviewRequestId]);
   const selectedPdfBindingId = pdfSelection?.contextKey === pdfContextKey ? pdfSelection.bindingId : undefined;
-  const twoDSelection = useMemo(() => selectWorkspacePreviewSource(files, "two-d", selectedPdfBindingId), [files, selectedPdfBindingId]);
+  const twoDSelection = useMemo(() => selectWorkspacePreviewSource(currentFiles, "two-d", selectedPdfBindingId), [currentFiles, selectedPdfBindingId]);
+  const nativeTwoDFile = useMemo(() => currentFiles.find((file) => file.role === "drawing_2d" && Boolean(file.is_primary)) ?? null, [currentFiles]);
+  const uploadInputId = data?.workId ? `drawing-workspace-upload-${data.workId}` : undefined;
   const hasCurrent2d = currentFiles.some((file) => file.role === "drawing_2d" && Boolean(file.is_primary));
   const hasCurrent3d = currentFiles.some((file) => file.role === "cad_3d" && Boolean(file.is_primary));
   const filesReady = hasCurrent2d && hasCurrent3d;
@@ -481,10 +547,12 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
         };
       }
-      const file = kind === "two-d" ? twoDSelection.file : selectWorkspacePreviewSource(files, kind).file;
+      const file = kind === "two-d" ? twoDSelection.file : selectWorkspacePreviewSource(currentFiles, kind).file;
       if (kind === "two-d" && twoDSelection.requiresChoice && !file) return { kind, title: "2D 圖面", fileName: null, state: "missing", stateTitle: "選擇 PDF 圖面", stateText: "本版次有多份 PDF。" };
       const readContextId = fileReadContext === "review_package" ? data?.entityId : data?.workId;
-      if (!file || !readContextId || !file.source_file_asset_id) return { kind, title: kind === "three-d" ? "3D 模型" : "2D 圖面", fileName: null, state: "missing", stateTitle: "尚無檔案", stateText: "目前工作資料沒有這類檔案。" };
+      if (!file || !readContextId || !file.source_file_asset_id) return kind === "three-d"
+        ? { kind, title: "3D 模型", fileName: null, state: "missing", stateTitle: "尚未上傳本版 3D 模型", stateText: "請上傳本版 .SLDPRT 或 .SLDASM；歷史版本僅供參考與下載。" }
+        : { kind, title: "2D 圖面", fileName: null, state: "missing", stateTitle: "尚未上傳本版 2D 圖面", stateText: "請上傳本版 PDF 或 .SLDDRW；歷史版本不會自動當成本版預覽。" };
       const href = pdmFileReadHref({
         fileAssetId: file.source_file_asset_id,
         context: fileReadContext,
@@ -492,6 +560,10 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
         bindingId: file.id,
         reviewRequestId
       });
+      const nativeFallbackHref = kind === "two-d" && isWorkspacePdf(file) && nativeTwoDFile?.source_file_asset_id && readContextId
+        ? pdmFileReadHref({ fileAssetId: nativeTwoDFile.source_file_asset_id, context: fileReadContext, contextId: readContextId, bindingId: nativeTwoDFile.id, reviewRequestId })
+        : null;
+      const simplePreview = kind === "two-d" && !isWorkspacePdf(file);
       return {
         kind,
         title: kind === "three-d" ? "3D 模型" : "2D 圖面",
@@ -505,15 +577,30 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           title: file.display_name || file.file_name || "圖面檔案",
           alt: file.display_name || file.file_name || "圖面檔案",
           fullPdf: kind === "two-d" && isWorkspacePdf(file),
-          openInNewTab: true
+          contentHash: file.content_hash,
+          openInNewTab: true,
+          ...(nativeFallbackHref ? {
+            fallback: { href: `${nativeFallbackHref}&preview=1`, mode: "document" as const, title: nativeTwoDFile?.display_name || nativeTwoDFile?.file_name || "本版簡易預覽", alt: "本版簡易預覽" },
+            fallbackNotice: "PDF 無法讀取，已改用本版簡易預覽。若要查看尺寸、圖框或完整圖面，請重新上傳 PDF。"
+          } : {})
         },
-        overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
+        overlay: evidenceLocationNotice
+          ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div>
+          : simplePreview ? <div className="dev130-simple-preview" role="note"><strong>簡易預覽</strong><span>目前顯示簡易預覽。若要查看尺寸、圖框或完整圖面，請上傳 PDF。</span>{canMutateContent && uploadInputId ? <button type="button" className="secondary-button" onClick={() => document.getElementById(uploadInputId)?.click()}>上傳 PDF</button> : null}</div> : undefined
       };
     });
-  }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus, twoDSelection]);
-  const sourceAssetIds = useMemo(() => files.map((file) => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
+  }, [canMutateContent, currentFiles, data, evidenceLocationNotice, fileReadContext, nativeTwoDFile, reviewRequestId, selectedEvidence, showEvidenceFocus, twoDSelection, uploadInputId]);
+  const sourceAssetIds = useMemo(() => workspaceCurrentSourceAssetIds(currentFiles), [currentFiles]);
   const title = data?.identity?.code || drawingId || "圖號工作資料";
   const revisionLabel = text(data?.revision ?? payload.revision) || "—";
+  const snapshotReadiness = payload.dev130FileReadinessSnapshot && typeof payload.dev130FileReadinessSnapshot === "object"
+    ? payload.dev130FileReadinessSnapshot as unknown as DrawingRevisionFileReadiness : null;
+  const fileReadiness = data?.fileReadiness ?? snapshotReadiness;
+  const targetKind = data?.targetKind ?? fileReadiness?.targetKind ?? "research";
+  const isFormal = targetKind === "formal";
+  const formalFilesReady = !isFormal || fileReadiness?.ready === true;
+  const recognitionSnapshot = payload.dev130RecognitionSnapshot && typeof payload.dev130RecognitionSnapshot === "object"
+    ? payload.dev130RecognitionSnapshot as { status?: string; pdf?: { provided?: boolean; adapterStatus?: string }; errorSummary?: string | null } : null;
   const changeImpactRequired = Boolean(data?.changeImpactRequired);
   const changeImpact = payload.changeImpact && typeof payload.changeImpact === "object" ? payload.changeImpact as Record<string, unknown> : {};
   const formState = text(changeImpact.formState) as ChangeImpactState | "";
@@ -528,54 +615,114 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const fffReady = !changeImpactRequired || fffStatesComplete
     && (!reasonRequired || Boolean(text(changeImpact.reasonCategory)))
     && (!confirmedImpact || Boolean(text(replacement?.sourcePartNumberId)) && Boolean(text(replacement?.reservedPartNumber)));
-  const submitReady = filesReady && fffReady && !assemblyBlocked;
+  const submitReady = filesReady && formalFilesReady && fffReady && !assemblyBlocked;
   const returnLabel = reviewRequestId ? "返回審核清單" : "返回圖號清單";
-  if (terminalTransition) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在完成操作...</div>;
+  if (terminalTransition) return <div className={`dev079-workspace-loading${embedded ? "" : " is-fullscreen"}`} role="status"><LoaderCircle className="spin" size={20} />正在完成操作...</div>;
   if (localDraft.invalidated) return <div role="alert">身分或權限已變更，請重新開啟工作資料。</div>;
-  if (loading) return <div className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入圖號工作區...</div>;
-  if (!data) return <div className="dev079-workspace-state" data-dev100-load-failed={loadErrorCode || "unknown"}><h1>圖號工作區</h1><p role="alert">{error || "找不到這筆圖號工作。"}</p><div className="dev100-load-failure-actions"><button className="secondary-button" type="button" onClick={leave}><ArrowLeft size={15} aria-hidden="true" />{returnLabel}</button><button className="secondary-button" type="button" onClick={() => void load()}>重新載入資料</button></div></div>;
+  if (loading) return <div className={`dev079-workspace-loading${embedded ? "" : " is-fullscreen"}`} role="status"><LoaderCircle className="spin" size={20} />正在載入圖號工作區...</div>;
+  if (!data) return <div className={`dev079-workspace-state${embedded ? "" : " is-fullscreen"}`} data-dev100-load-failed={loadErrorCode || "unknown"}><h1>圖號工作區</h1><p role="alert">{error || "找不到這筆圖號工作。"}</p><div className="dev100-load-failure-actions"><button className="secondary-button" type="button" onClick={leave}><ArrowLeft size={15} aria-hidden="true" />{returnLabel}</button><button className="secondary-button" type="button" onClick={() => void load()}>重新載入資料</button></div></div>;
 
-  const canMutateContent = data.interaction?.canMutateContent ?? !data.readonly;
   const canCancel = !snapshotMode && (data.interaction?.canCancel ?? (!data.readonly && !reviewRequestId));
   const canSubmit = !snapshotMode && (data.interaction?.canSubmit ?? (!data.readonly && !reviewRequestId));
   const canApprove = data.interaction?.canApprove ?? (Boolean(reviewRequestId) && !data.readonly);
   const canReturn = data.interaction?.canReturn ?? Boolean(reviewRequestId);
   const stale = data.interaction?.basisState === "stale";
   const rootCode = parseNumberingIdentity(data.identity?.code ?? "").rootCode;
+  const relationCount = data.relatedParts?.length ?? 0;
+  const activeRelationDrawingId = data.relationMatrix?.drawings.find((item) => item.number === data.identity?.code)?.id;
 
-  return <div className={`dev079-workspace${embedded ? " is-embedded" : ""}`} data-dev="DEV-087" data-workspace-kind={reviewRequestId ? "reviewer" : "drawing-revision-work"}>
-    {embedded ? null : <header className="dev079-workspace-header dev079-drawing-workspace-header"><div className="dev079-workspace-heading"><button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button><div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy"><span className="canonical-layer is-rd">研發版 {data.revision ?? text(payload.revision)}</span><h1>{title}</h1>{data.identity?.name ? <span className="dev079-drawing-workspace-name">{data.identity.name}</span> : null}</div></div><div className="dev079-workspace-preview-tabs" role="tablist" aria-label="預覽類型">{previewCards.map((card) => <button key={card.kind} type="button" role="tab" aria-selected={card.kind === visualKind} className={card.kind === visualKind ? "is-active" : ""} onClick={() => selectVisualKind(card.kind)}><span>{card.title}</span><small>{card.fileName || "尚無檔案"}</small></button>)}</div></header>}
+  return <div className={`dev079-workspace${embedded ? " is-embedded" : " is-fullscreen"}`} data-dev="DEV-087" data-workspace-kind={reviewRequestId ? "reviewer" : "drawing-revision-work"} data-workspace-view={workspaceView}>
+    {embedded ? null : <header className="dev079-workspace-header dev079-drawing-workspace-header">
+      <div className="dev079-workspace-mode-group">
+        <button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button>
+        <div className="dev079-workspace-preview-tabs" role="tablist" aria-label="工作模式">
+          {previewCards.map((card) => <button key={card.kind} type="button" role="tab" aria-selected={workspaceView === card.kind} className={workspaceView === card.kind ? "is-active" : ""} onClick={() => selectVisualKind(card.kind)}><span>{card.title}</span></button>)}
+          {data.relationMatrix ? <button type="button" role="tab" aria-selected={workspaceView === "relations"} className={workspaceView === "relations" ? "is-active" : ""} onClick={() => selectWorkspaceView("relations")}><span>圖料關聯 · {relationCount}</span></button> : null}
+        </div>
+      </div>
+      <div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy">
+        {data.identity?.name ? <span className="dev079-drawing-workspace-name" title={data.identity.name}>
+          <span>{data.identity.name}</span>
+        </span> : null}
+        <span className={`canonical-layer ${isFormal ? "is-production" : "is-rd"}`}>{isFormal ? "正式版" : "研發版"} {data.revision ?? text(payload.revision)}</span>
+        <h1>{title}</h1>
+      </div>
+    </header>}
     {localDraft.feedback}
     {error ? <div className="dev079-workspace-notice is-error" role="alert"><span>{error}</span>{reloadAvailable ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void load()}>重新載入資料</button> : null}</div> : null}
     {!canMutateContent ? <div className="dev079-workspace-notice is-readonly" role="status">{stale ? "量產基準已更新，目前工作已凍結；此頁保留原預覽與證據，僅提供可恢復的清理動作。" : "目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。"}</div> : null}
     <div className="dev079-workspace-grid">
-      <section className="dev079-workspace-visual" aria-label="圖面主視覺">{visualKind === "two-d" && !selectedEvidence && twoDSelection.requiresChoice ? <label className="dev122-pdf-source-choice"><span>PDF 圖面</span><select aria-label="本版次 PDF 圖面" value={twoDSelection.file?.id ?? ""} onChange={(event) => setPdfSelection({ contextKey: pdfContextKey, bindingId: event.target.value })}><option value="">請選擇</option>{twoDSelection.pdfs.map((file) => <option key={file.id} value={file.id}>{file.display_name || file.file_name || file.id}</option>)}</select></label> : null}<div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>
+      {workspaceView === "relations" && data.relationMatrix ? <section className="dev079-workspace-relations" aria-label="圖料關聯矩陣">
+        <CanonicalRelationMatrixSection
+          matrix={data.relationMatrix}
+          contractToken={contractToken}
+          mode={canMutateContent && !reviewRequestId && !snapshotMode ? "manage" : "readonly"}
+          activationMode="immediate"
+          createAction={data.relationMatrix.rootId ? <CanonicalNumberingCreateAction
+            surface="drawing"
+            rootCode={data.relationMatrix.rootCode}
+            returnTo={typeof window === "undefined" ? undefined : `${window.location.pathname}${window.location.search}`}
+            className="secondary-button"
+            onBeforeNavigate={canLeave}
+          /> : null}
+          activeTarget={activeRelationDrawingId ? { entityType: "drawing", targetId: activeRelationDrawingId } : undefined}
+          onReloadRequested={async () => { await load(); return true; }}
+          onSaved={() => { setRelationDirty(false); void load(); }}
+          onDirtyChange={setRelationDirty}
+          onOpenDrawing={(href) => { if (canLeave()) router.push(href); }}
+          onOpenPart={(href) => { if (canLeave()) router.push(href); }}
+          className="dev079-workspace-relation-matrix"
+        />
+      </section> : <section className="dev079-workspace-visual" aria-label="圖面主視覺">{visualKind === "two-d" && !selectedEvidence && twoDSelection.requiresChoice ? <label className="dev122-pdf-source-choice"><span>PDF 圖面</span><select aria-label="本版次 PDF 圖面" value={twoDSelection.file?.id ?? ""} onChange={(event) => setPdfSelection({ contextKey: pdfContextKey, bindingId: event.target.value })}><option value="">請選擇</option>{twoDSelection.pdfs.map((file) => <option key={file.id} value={file.id}>{file.display_name || file.file_name || file.id}</option>)}</select></label> : null}<div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>}
       <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content" inert={busy}>
+        {workspaceView === "relations" ? <section className="dev079-unified-task-section dev079-relation-context" aria-labelledby="dev079-relation-context-heading">
+          <h2 id="dev079-relation-context-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />目前圖號</h2>
+          <div className="dev079-relation-current"><strong>{title}</strong>{data.identity?.name ? <span>{data.identity.name}</span> : null}</div>
+          <div className="canonical-drawer-section-heading"><h3>已關聯料號 · {relationCount}</h3></div>
+          {data.relatedParts?.length ? <ul className="canonical-affected-part-list" aria-label="已關聯料號">{data.relatedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong>{part.name ? ` ${part.name}` : ""}</span></li>)}</ul> : <p className="canonical-empty">目前沒有直接關聯料號</p>}
+          <p className="canonical-note">儲存關聯後會重新載入判定範圍；若範圍改變，送審前須重新確認 FFF。</p>
+        </section> : <>
         <section className="dev079-unified-task-section dev079-workspace-editor dev079-workspace-file-editor" aria-labelledby="dev079-files-heading">
-          <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>版次與檔案</span><small className="dev079-workspace-revision">版次 {revisionLabel}</small></h2>
+          <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>本版檔案</span></h2>
           {reviewRequestId ? <DrawingAssemblyPackagePanel key={reviewRequestId} frozen base={`/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}/assembly-package`}/>
             : data.workId && !snapshotMode ? <DrawingAssemblyPackagePanel key={data.workId} editable={canMutateContent}
               base={`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}/assembly-packages`}
               uploadControl={context => <DrawingWorkspaceUpload base={`/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId!)}/assembly-packages`}
-                code={data.identity?.code ?? title} compact={files.length > 0 || Boolean(context.downloadHref)} disabled={busy || !context.ready}
+                code={data.identity?.code ?? title} compact={files.length > 0 || Boolean(context.downloadHref)} inputId={uploadInputId} disabled={busy || !context.ready}
                 activePackageId={context.activePackageId} downloadHref={context.downloadHref} archiveName={context.archiveName}
                 onBegin={beginUnifiedUpload} onComplete={completeUnifiedUpload} onUploadFile={uploadWorkFile}
                 onPendingChange={setUploadPending} onPackageBusy={context.setBusy} />}
               onChange={(blocked,binding)=>void updateAssemblyBinding(blocked,binding)}/> : null}
-          <p className={`dev079-workspace-file-requirement ${filesReady ? "is-ready" : ""}`} role="status">
-            {filesReady ? <CheckCircle2 size={15} /> : <FileText size={15} />}
-            {filesReady ? "本版次 2D 與 3D 主檔已齊備。" : `送審前須重新上傳本版次主檔：${hasCurrent2d ? "" : ".SLDDRW"}${!hasCurrent2d && !hasCurrent3d ? " ＋ " : ""}${hasCurrent3d ? "" : ".SLDPRT／.SLDASM"}`}
-          </p>
-          {files.length > 0 ? <ul className="canonical-file-list dev079-workspace-file-list">{files.map((file) => {
+          {!filesReady ? <div className="dev079-workspace-file-requirement" role="status">
+            <FileText size={17} aria-hidden="true" />
+            <div>
+              <strong>送審前補齊本版主檔</strong>
+              <span className="dev079-workspace-file-requirement-types">
+                {!hasCurrent2d ? <span><b>2D</b>.SLDDRW</span> : null}
+                {!hasCurrent3d ? <span><b>3D</b>.SLDPRT／.SLDASM</span> : null}
+              </span>
+            </div>
+          </div> : null}
+          {isFormal && fileReadiness ? <div className={`dev130-formal-readiness${fileReadiness.ready ? " is-ready" : ""}`} role="status" aria-label="正式版必要檔案狀態">
+            {fileReadiness.ready ? <span><CheckCircle2 size={16} aria-hidden="true" />正式版必要檔案已齊備</span> : <><strong>正式版送出前需補齊</strong><div className="dev130-formal-readiness-slots">
+              {([
+                ["drawing_2d", "2D 原始檔"], ["cad_3d", "3D 原始檔"], ["pdf", "PDF"], ["dwg", "DWG"]
+              ] as const).map(([key, label]) => <span key={key} className={fileReadiness.slots[key].present ? "is-present" : "is-missing"}>{fileReadiness.slots[key].present ? <CheckCircle2 size={14} aria-hidden="true" /> : <XCircle size={14} aria-hidden="true" />}{label}</span>)}
+            </div></>}
+            {fileReadiness.blockers.filter(blocker => !["DRAWING_2D_REQUIRED", "DRAWING_3D_REQUIRED", "FORMAL_PDF_REQUIRED", "FORMAL_DWG_REQUIRED"].includes(blocker.code)).map(blocker => <span key={blocker.code} className="dev130-formal-warning"><AlertTriangle size={14} aria-hidden="true" />{blocker.message}</span>)}
+            {fileReadiness.warnings.map((warning) => <span key={warning.code} className="dev130-formal-warning"><AlertTriangle size={14} aria-hidden="true" />{warning.message}</span>)}
+          </div> : null}
+          {currentFiles.length > 0 ? <ul className="canonical-file-list dev079-workspace-file-list">{currentFiles.map((file) => {
             const fileName = file.display_name || file.file_name || "檔案";
-            const readContextId = fileReadContext === "review_package" ? data.entityId : data.workId;
-            const downloadHref = file.source_file_asset_id && readContextId ? pdmFileReadHref({ fileAssetId: file.source_file_asset_id, context: fileReadContext, contextId: readContextId, bindingId: file.id, reviewRequestId }) : null;
-            return <li key={file.id}><div><strong title={fileName}>{fileName}</strong><span>{fileRoleLabel(file)} · {file.current_revision_upload ? "本版次" : "前版參考"}</span></div><div className="dev079-workspace-file-actions">{downloadHref ? <a className="ghost-button" href={downloadHref} download aria-label={`下載 ${fileName}`}><Download size={14} aria-hidden="true" />下載</a> : null}{canMutateContent && Boolean(file.current_revision_upload) ? <button type="button" className="ghost-button" disabled={busy} onClick={() => void removeFile(file)}>移除</button> : null}</div></li>;
-          })}</ul> : <p className="canonical-empty">尚無檔案，請先上傳本版次的 2D 與 3D 主檔。</p>}
+            const downloadHref = fileDownloadHref(file);
+            return <li key={file.id}><div><strong title={fileName}>{fileName}</strong><span>{fileRoleLabel(file)} · 本版次</span></div><div className="dev079-workspace-file-actions">{downloadHref ? <a className="ghost-button" href={downloadHref} download aria-label={`下載 ${fileName}`}><Download size={14} aria-hidden="true" />下載</a> : null}{canMutateContent ? <button type="button" className="ghost-button" disabled={busy} onClick={() => void removeFile(file)}>移除</button> : null}</div></li>;
+          })}</ul> : null}
+          {historyFiles.length > 0 ? <button type="button" className="secondary-button dev079-history-drawer-trigger" onClick={() => setHistoryDrawerOpen(true)}><History size={15} aria-hidden="true" />歷史版本（{historyFiles.length}）</button> : null}
         </section>
         {changeImpactRequired ? <section className="dev079-unified-task-section dev079-workspace-editor" aria-labelledby="dev079-impact-heading">
-          <h2 id="dev079-impact-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />FFF／變更影響</h2>
-          {data.affectedParts?.length ? <><p className="canonical-note">判定範圍如下；這些料號尚未因此被視為已確認受影響。</p><ul className="canonical-affected-part-list" aria-label="判定範圍">{data.affectedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong>{part.name ? ` ${part.name}` : ""}</span></li>)}</ul></> : <p className="canonical-empty">目前沒有可判定的關聯料號</p>}
+          <h2 id="dev079-impact-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />進板料號影響評估/FFF原則</h2>
+          {data.changeImpactReset ? <p className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />料號關聯範圍已變更，原判定已清除；請重新確認後儲存。</p> : null}
+          {data.affectedParts?.length ? <ul className="canonical-affected-part-list" aria-label="判定範圍">{data.affectedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong></span></li>)}</ul> : <p className="canonical-empty">目前沒有可判定的關聯料號</p>}
           <div className="pdm-master-field-grid canonical-fff-grid" data-fff-form-state={formState || "unassessed"} data-fff-fit-state={fitState || "unassessed"} data-fff-function-state={functionState || "unassessed"}>
             {(["formState", "fitState", "functionState"] as const).map((key) => <label key={key}><span>{key === "formState" ? "Form" : key === "fitState" ? "Fit" : "Function"}</span><select data-fff-axis={key} value={text(changeImpact[key])} disabled={!canMutateContent} onChange={(event) => updateFffState(key, event.target.value as ChangeImpactState)}><option value="">請判定</option><option value="no_impact">相容</option><option value="suspected_impact">條件相容</option><option value="confirmed_impact">不相容</option></select></label>)}
             {reasonRequired ? <label><span>原因分類</span><select aria-label="原因分類" value={text(changeImpact.reasonCategory)} disabled={!canMutateContent} onChange={(event) => updateChangeImpact({ reasonCategory: event.target.value || null })}><option value="">請選擇原因</option><option value="form_change">外形變更</option><option value="fit_review">裝配／配合需確認</option><option value="function_change">功能變更</option><option value="material_process_change">材料／製程變更</option>{text(changeImpact.reasonCategory) && !["form_change", "fit_review", "function_change", "material_process_change"].includes(text(changeImpact.reasonCategory)) ? <option value={text(changeImpact.reasonCategory)}>其他既有原因</option> : null}</select></label> : null}
@@ -583,16 +730,18 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           </div>
           {confirmedImpact ? <div className="canonical-fff-replacement"><strong>不相容需指定替代料號</strong><label><span>替代料號</span><input value={text(replacement?.reservedPartNumber)} disabled={!canMutateContent} onChange={(event) => updateReplacement({ reservedPartNumber: event.target.value })} placeholder="例如 A0001-P01" /></label><label><span>料件類型</span><select value={text(replacement?.itemType) || "self_made"} disabled={!canMutateContent} onChange={(event) => updateReplacement({ itemType: event.target.value })}><option value="self_made">自製</option><option value="purchased">外購</option></select></label><small>來源料號沿用目前關聯清單的第一個正式料號；若資料已變更，送審會阻擋並要求重新整理。</small></div> : null}
           {!fffReady && canMutateContent ? <p className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請完成三軸判定，以及適用的原因與替代料號。</p> : null}
-        </section> : <section className="dev079-unified-task-section dev079-workspace-editor dev079-related-parts-section" aria-labelledby="dev079-related-parts-heading"><h2 id="dev079-related-parts-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />關聯料號</h2>{data.relatedParts?.length ? <ul className="canonical-affected-part-list" aria-label="關聯料號">{data.relatedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong>{part.name ? ` ${part.name}` : ""}</span></li>)}</ul> : <p className="canonical-empty">目前沒有直接關聯料號</p>}</section>}
+        </section> : null}
         <section className="dev079-unified-task-section" aria-labelledby="dev079-recognition-heading">
           <h2 id="dev079-recognition-heading" className="dev079-unified-task-heading"><ScanSearch size={16} aria-hidden="true" />智慧辨識</h2>
+          {snapshotMode && recognitionSnapshot ? <div className="canonical-note" role="status"><strong>送審時辨識狀態：{recognitionSnapshot.status ?? "not_started"}</strong><span>{recognitionSnapshot.pdf?.provided ? `PDF 辨識：${recognitionSnapshot.pdf.adapterStatus ?? "not_started"}` : "未提供 PDF，因此未辨識圖框與圖面文字。"}</span>{recognitionSnapshot.errorSummary ? <span>{recognitionSnapshot.errorSummary}</span> : null}</div> : null}
           {snapshotMode ? isReviewPackageRecognitionProjection(data.recognition)
             ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId ?? ""} sourceAssetIds={sourceAssetIds} snapshotProjection={data.recognition} disabled />
             : <div className="canonical-note" title="這筆相容資料沒有完整辨識投影"><strong>辨識依據不完整</strong><span>{data.recognition && "status" in data.recognition && data.recognition.status ? `相容狀態：${data.recognition.status}` : "送審時沒有可用的完整辨識快照"}</span></div>
-            : data.revisionId ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId} sourceAssetIds={sourceAssetIds} disabled={!canMutateContent || busy} onEvidenceSelect={locateRecognitionEvidence} onDirtyChange={setRecognitionDirty} /> : <p className="canonical-empty">這筆工作資料尚無可辨識的版次來源。</p>}
+            : data.revisionId ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId} sourceAssetIds={sourceAssetIds} disabled={!canMutateContent || busy} onEvidenceSelect={locateRecognitionEvidence} onDirtyChange={setRecognitionDirty} onRequestPdfUpload={canMutateContent && uploadInputId ? () => document.getElementById(uploadInputId)?.click() : undefined} /> : <p className="canonical-empty">這筆工作資料尚無可辨識的版次來源。</p>}
         </section>
+        </>}
       </div>
-      </div>{suppressFooter ? null : <footer className="dev079-workspace-footer" aria-label="圖號工作區操作列"><div className="dev079-workspace-footer-actions">
+      </div>{suppressFooter || workspaceView === "relations" ? null : <footer className="dev079-workspace-footer" aria-label="圖號工作區操作列"><div className="dev079-workspace-footer-actions">
         {recognitionDirty ? <span className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請先儲存智慧辨識欄位修改</span> : null}
         {saveNotice ? <span role="status">{saveNotice}</span> : null}
         {reviewRequestId ? <>
@@ -607,9 +756,36 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             onBeforeDelete={() => !busy && !commandPending.current}
             onDeleteWork={() => ownerCommand("cancel")}
             onPermanentDeleted={() => router.push(safeReturn)} /> : null}
-          {canSubmit ? <button className="primary-button" type="button" disabled={busy || uploadPending || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送審</button> : null}
+          {canSubmit ? <button className="primary-button" type="button" disabled={busy || uploadPending || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !formalFilesReady ? "請先補齊正式版 PDF 與 DWG" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />{isFormal ? "送出正式版" : "送審"}</button> : null}
         </>}
       </div></footer>}</aside>
     </div>
+    {historyDrawerOpen ? <PdmEntityDetailDrawer
+      open
+      width={historyDrawerWidth}
+      ariaLabel="歷史版本檔案"
+      title="歷史版本"
+      subtitle={data.identity?.name ? `${title} · ${data.identity.name}` : title}
+      sourceContext="drawing-revision-history"
+      detailFamily="drawing-workspace"
+      closeLabel="關閉歷史版本"
+      keepOpenSelector=".dev079-history-drawer-trigger"
+      onClose={() => setHistoryDrawerOpen(false)}
+      onStartResize={startHistoryDrawerResize}
+    >
+      <div className="pdm-entity-drawer-body canonical-drawer-body">
+        <section>
+          <h3>前版參考檔案</h3>
+          <p className="canonical-note">這些檔案僅供歷史比對與下載，不屬於目前版次。</p>
+          <ul className="canonical-file-list dev079-workspace-file-list">
+            {historyFiles.map((file) => {
+              const fileName = file.display_name || file.file_name || "檔案";
+              const downloadHref = fileDownloadHref(file);
+              return <li key={file.id}><div><strong title={fileName}>{fileName}</strong><span>{fileRoleLabel(file)} · 前版參考</span></div><div className="dev079-workspace-file-actions">{downloadHref ? <a className="ghost-button" href={downloadHref} download aria-label={`下載 ${fileName}`}><Download size={14} aria-hidden="true" />下載</a> : null}</div></li>;
+            })}
+          </ul>
+        </section>
+      </div>
+    </PdmEntityDetailDrawer> : null}
   </div>;
 }

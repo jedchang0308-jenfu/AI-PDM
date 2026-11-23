@@ -274,7 +274,6 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [matrixDirty, setMatrixDirty] = useState(false);
   const detailAbortRef = useRef<AbortController | null>(null);
   const detailRequestRef = useRef(0);
   const [busy, setBusy] = useState(false);
@@ -752,18 +751,12 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     }
   }, [config.detailEndpoint]);
 
-  const confirmDiscardMatrix = useCallback(() => {
-    if (!matrixDirty) return true;
-    return window.confirm("關聯矩陣尚未儲存，確定要離開並捨棄變更嗎？");
-  }, [matrixDirty]);
   const selectDetail = useCallback((rowKey: string) => {
-    if (rowKey !== selectedRowKey && !confirmDiscardMatrix()) return;
-    setMatrixDirty(false);
     syncFilterLocation();
     const historyMode = detailKey ? "replace" : "push";
     setHistoryRevisionId(null);
     setSelectedRowKey(rowKey); setDetailKey(rowKey); replaceLocation({ detail: rowKey, historyRevision: null, historyMode });
-  }, [confirmDiscardMatrix, detailKey, selectedRowKey, syncFilterLocation]);
+  }, [detailKey, syncFilterLocation]);
 
   useEffect(() => { if (detailKey) void openDetail(detailKey); }, [detailKey, openDetail]);
   const changeLayout = useCallback((next: CanonicalWorkbenchLayout) => {
@@ -772,35 +765,31 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     writeStoredLayout(entityType === "drawing" ? DRAWING_LAYOUT_STORAGE_KEY : PART_LAYOUT_STORAGE_KEY, next);
     replaceLocation({ layout: next });
   }, [entityType, previewCapability]);
-  const closeDetail = useCallback((discardConfirmed = false) => {
-    if (discardConfirmed !== true && !confirmDiscardMatrix()) return;
+  const closeDetail = useCallback(() => {
     const focusKey = selectedRowKey ?? detailKey;
     detailRequestRef.current += 1;
     detailAbortRef.current?.abort();
     detailAbortRef.current = null;
-    setDetailKey(null); setHistoryRevisionId(null); setDetail(null); setDetailLoading(false); setDetailError(""); setMatrixDirty(false); replaceLocation({ detail: null });
+    setDetailKey(null); setHistoryRevisionId(null); setDetail(null); setDetailLoading(false); setDetailError(""); replaceLocation({ detail: null });
     window.requestAnimationFrame(() => {
       const target = focusKey ? [...(listRef.current?.querySelectorAll<HTMLElement>("[data-row-key]") ?? [])].find((element) => element.dataset.rowKey === focusKey) : null;
       (target ?? listRef.current)?.focus({ preventScroll: true });
     });
-  }, [confirmDiscardMatrix, detailKey, selectedRowKey]);
+  }, [detailKey, selectedRowKey]);
   const changeHistoryRevision = useCallback((revisionId: string | null) => {
     setHistoryRevisionId(revisionId);
     replaceLocation({ historyRevision: revisionId, historyMode: "push" });
   }, []);
   const manageAttachments = useCallback((row: CanonicalWorkbenchRowDto) => {
-    if (!confirmDiscardMatrix()) return;
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     router.push(`/parts/${encodeURIComponent(row.code)}/attachments?returnTo=${encodeURIComponent(returnTo)}`);
-  }, [confirmDiscardMatrix, router]);
+  }, [router]);
   const openMatrixIdentity = useCallback((detailHref: string) => {
-    if (!confirmDiscardMatrix()) return;
-    setMatrixDirty(false);
     const destination = new URL(detailHref, window.location.href);
     const nextLocation = `${destination.pathname}${destination.search}${destination.hash}`;
     if (destination.pathname === window.location.pathname) router.push(nextLocation);
     else window.location.assign(nextLocation);
-  }, [confirmDiscardMatrix, router]);
+  }, [router]);
 
   const flatRows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
   const partPreviewCommitted = useCallback((row: CanonicalWorkbenchRowDto, result: PartPreviewMutationResult) => {
@@ -905,7 +894,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       }
       const { response, result } = packet;
       if (!response.ok) { const message = errorMessage(result, "操作失敗"); options?.onFailure?.(message); if (!options?.onFailure) setError(message); return null; }
-      closeDetail(options?.discardConfirmed); await load(); return result;
+      closeDetail(); await load(); return result;
     } finally { setBusy(false); }
   }, [closeDetail, config.detailEndpoint, contractToken, detailKey, load, openDetail]);
 
@@ -1057,7 +1046,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       </tbody></table></div>}
       <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={() => { if (!previousCursor) return; const nextPageIndex = Math.max(0, pageIndex - 1); setPageIndex(nextPageIndex); replaceLocation({ cursor: previousCursor, direction: "before", pageIndex: nextPageIndex, historyMode: "push" }); void load(previousCursor, "before"); }} onNext={() => { if (!nextCursor) return; const nextPageIndex = pageIndex + 1; setPageIndex(nextPageIndex); replaceLocation({ cursor: nextCursor, direction: "after", pageIndex: nextPageIndex, historyMode: "push" }); void load(nextCursor, "after"); }} />
     </section>
-    {detailKey ? <Drawer detail={detail} loading={detailLoading} error={detailError} width={drawerWidth} canManageAttachments={canManageAttachments} historyRevisionId={historyRevisionId} onHistoryRevisionChange={changeHistoryRevision} onStartResize={startDrawerResize} onClose={closeDetail} onAction={onAction} onManageAttachments={manageAttachments} onPartPreviewCommitted={partPreviewCommitted} onBeforeCreate={confirmDiscardMatrix} onMatrixSaved={() => { setMatrixDirty(false); if (detailKey) void openDetail(detailKey); }} onMatrixDirtyChange={setMatrixDirty} onOpenMatrixDrawing={openMatrixIdentity} onOpenMatrixPart={openMatrixIdentity} onDeleteWork={deleteWork} onDraftBundleDeleted={() => { closeDetail(true); void load(); }} /> : null}
+    {detailKey ? <Drawer detail={detail} loading={detailLoading} error={detailError} width={drawerWidth} canManageAttachments={canManageAttachments} historyRevisionId={historyRevisionId} onHistoryRevisionChange={changeHistoryRevision} onStartResize={startDrawerResize} onClose={closeDetail} onAction={onAction} onManageAttachments={manageAttachments} onPartPreviewCommitted={partPreviewCommitted} onBeforeCreate={() => true} onOpenMatrixDrawing={openMatrixIdentity} onOpenMatrixPart={openMatrixIdentity} onDeleteWork={deleteWork} onDraftBundleDeleted={() => { closeDetail(); void load(); }} /> : null}
     {candidateRow ? <div className="canonical-modal-backdrop"><section className="canonical-modal canonical-revision-modal" role="dialog" aria-modal="true" aria-labelledby="canonical-advance-title" onKeyDown={(event) => { if (event.key === "Escape" && !busy) setCandidateRow(null); }}><header><div><h2 id="canonical-advance-title">建立進版工作</h2><p>{candidateRow.code} · {candidateRow.layerLabel}</p></div><button className="secondary-button" type="button" onClick={() => setCandidateRow(null)} disabled={busy}>關閉</button></header>{candidateError ? <p className="canonical-error" role="alert">{candidateError}</p> : null}{busy && !manualRule ? <p className="canonical-modal-status" role="status">正在取得可用版次…</p> : null}{manualRule?.enabled ? <div className="canonical-revision-choice" role="radiogroup" aria-label="進版方式"><label className={candidateMode === "recommended" ? "is-selected" : ""}><input type="radio" name="revision-selection-mode" value="recommended" checked={candidateMode === "recommended"} onChange={() => setCandidateMode("recommended")} /><span><strong>使用系統建議</strong><small>由伺服器選擇下一個未占用版次</small></span></label><label className={candidateMode === "manual_minor" ? "is-selected" : ""}><input type="radio" name="revision-selection-mode" value="manual_minor" checked={candidateMode === "manual_minor"} onChange={() => setCandidateMode("manual_minor")} /><span><strong>自訂研發小版</strong><small>主版次固定為 {manualRule.major}，只能輸入大於 {manualRule.minExclusive} 的小版次</small></span></label></div> : null}{manualRule?.enabled && candidateMode === "recommended" ? <div className="canonical-revision-targets" role="radiogroup" aria-label="伺服器建議版次">{candidates.map((candidate) => <label key={candidate.kind} className={`${candidateKind === candidate.kind ? "is-selected" : ""}${!candidate.enabled ? " is-disabled" : ""}`}><input type="radio" name="revision-target" value={candidate.kind} checked={candidateKind === candidate.kind} disabled={!candidate.enabled || busy} onChange={() => setCandidateKind(candidate.kind)} /><span><strong>{candidate.label}</strong><small>{candidate.reason || (candidate.kind === "rd" ? "建立研發版工作" : "採用為量產版，核准後才會成為正式量產基準")}</small></span></label>)}</div> : null}{manualRule?.enabled && candidateMode === "manual_minor" ? <label className="canonical-manual-minor"><span>研發版 {manualRule.major} .</span><input inputMode="numeric" pattern="[0-9]*" value={manualMinor} onChange={(event) => setManualMinor(event.target.value.replace(/\D/g, "").slice(0, 10))} placeholder={`大於 ${manualRule.minExclusive}`} aria-label="自訂研發小版次" /></label> : null}{candidateRecovery ? <div className="canonical-revision-recovery" role="alert"><span>這個研發分支的量產基準已更新，不能沿用舊分支進版。</span><button type="button" className="secondary-button" disabled={busy} onClick={async () => { setCandidateError(""); setManualRule(null); setCandidates([]); setBusy(true); const response = await fetch(candidateRecovery.targetsHref, { cache: "no-store" }); const body = await readJson(response); setBusy(false); if (!response.ok) setCandidateError(errorMessage(body, "無法取得目前量產版")); else { const result = body as RevisionTargetResponse; setCandidateSourceRowKey(result.data.source.rowKey); setCandidateSourceRowVersion(result.data.source.rowVersion); setCandidates(result.data.candidates); setCandidateRecovery(result.data.recovery); setManualRule(result.data.manualRule); setCandidateKind(result.data.candidates.find((candidate) => candidate.kind === "rd" && candidate.enabled) ? "rd" : "production"); setContractToken(result.meta.contractToken); } }}>{candidateRecovery.label}</button></div> : null}{manualRule?.enabled ? <div className="canonical-modal-actions"><button type="button" className="primary-button" disabled={busy || (candidateMode === "manual_minor" ? !manualMinor || Number(manualMinor) <= Number(manualRule.minExclusive) : !candidates.some((candidate) => candidate.kind === candidateKind && candidate.enabled && candidate.candidateToken))} onClick={() => void createRevision()}>{busy ? "建立中…" : "建立進版工作"}</button></div> : null}</section></div> : null}
     {obsoleteRow ? <div className="canonical-modal-backdrop"><section className="canonical-modal canonical-obsolete-modal" role="dialog" aria-modal="true" aria-labelledby="canonical-obsolete-title"><header><div><h2 id="canonical-obsolete-title">申請正式資料作廢</h2><p>{obsoleteRow.code} · {obsoleteRow.layerLabel}</p></div><button className="secondary-button" type="button" onClick={() => setObsoleteRow(null)} disabled={busy}>關閉</button></header>{obsoleteLoading ? <><p role="status">正在讀取最新影響範圍…</p>{obsoleteError ? <p className="canonical-error" role="alert">{obsoleteError}</p> : null}</> : obsoleteError && !obsoleteImpact ? <p className="canonical-error" role="alert">{obsoleteError}</p> : obsoleteImpact ? <><p>影響項目：{obsoleteImpact.dependencies.length} 筆。送出前會再次驗證範圍；若資料已變更，系統會載入新範圍並要求重新確認。</p>{obsoleteImpact.dependencies.length ? <ul className="canonical-record-list">{obsoleteImpact.dependencies.map((dependency) => <li className="canonical-record" key={`${dependency.kind}:${dependency.id}`}><span>{dependency.code}</span><small>受影響項目</small></li>)}</ul> : <p className="canonical-empty">目前沒有其他受影響項目</p>}<label className="canonical-obsolete-reason"><span>作廢原因</span><textarea value={obsoleteReason} onChange={(event) => setObsoleteReason(event.target.value)} placeholder="請說明正式資料為何需要作廢" rows={3} /></label>{obsoleteError ? <p className="canonical-error" role="alert">{obsoleteError}</p> : null}<div className="canonical-modal-actions"><button type="button" className="primary-button" disabled={!obsoleteReason.trim() || busy} onClick={() => void requestObsolete()}>{busy ? "送出中…" : "送出作廢申請"}</button><button type="button" className="secondary-button" disabled={busy} onClick={() => setObsoleteRow(null)}>取消</button></div></> : null}</section></div> : null}
   </div>;

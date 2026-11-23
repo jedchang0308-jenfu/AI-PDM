@@ -357,7 +357,8 @@ export function DrawingRecognitionWorkspacePanel({
   snapshotProjection,
   disabled = false,
   onEvidenceSelect,
-  onDirtyChange
+  onDirtyChange,
+  onRequestPdfUpload
 }: {
   drawingNumber: string;
   sourceContextType: "candidate_revision" | "drawing_revision" | "drawing_number";
@@ -367,6 +368,7 @@ export function DrawingRecognitionWorkspacePanel({
   disabled?: boolean;
   onEvidenceSelect?: (evidence: DrawingRecognitionEvidence) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onRequestPdfUpload?: () => void;
 }) {
   const snapshotMode = snapshotProjection !== undefined;
   const immutableSession = useMemo(() => snapshotProjection ? immutableSessionFromProjection(snapshotProjection) : null, [snapshotProjection]);
@@ -902,6 +904,10 @@ export function DrawingRecognitionWorkspacePanel({
   }
 
   const recognitionProcessing = Boolean(session && ["queued", "extracting"].includes(session.status));
+  const hasPdfSource = Boolean(session?.sources.some((source) => /\.pdf$/iu.test(source.fileName)));
+  const pdfOcrComplete = Boolean(hasPdfSource && (session?.pdfOcrSources?.length ?? 0) > 0
+    && session?.pdfOcrSources?.every((source) => source.status === "succeeded"));
+  const pdfOcrTerminalIssue = Boolean(hasPdfSource && (session?.pdfOcrSources ?? []).some((source) => ["failed", "timeout", "unsupported"].includes(source.status)));
   return (
     <div className={`${styles.panelStyles} dev079-recognition-panel`} data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
       {snapshotMode && session ? <div className="canonical-note" role="status"><strong>辨識送審快照</strong><span>投影 {snapshotProjection?.projectionHash.slice(0, 12)} · {session.sources.length} 個來源</span></div> : null}
@@ -916,6 +922,14 @@ export function DrawingRecognitionWorkspacePanel({
       ) : null}
 
       {recognitionProcessing ? <div className="dev079-recognition-state" role="status"><LoaderCircle className="spin" size={18} /><strong>智慧辨識處理中</strong><span>完成後會自動顯示辨識結果。</span></div> : null}
+
+      {session && !recognitionProcessing ? <div className="dev130-recognition-source-summary" role="status">
+        {!hasPdfSource ? <><strong>{session.adapterHealth?.nativeMetadata && !["ready", "empty"].includes(session.adapterHealth.nativeMetadata.state) ? "原生檔屬性辨識未完整完成" : "已完成原生檔屬性辨識"}</strong><span>未提供 PDF，因此未辨識圖框與圖面文字。</span></>
+          : pdfOcrComplete ? <><strong>辨識來源已完成</strong><span>已辨識原生檔屬性與 PDF 圖面文字。</span></>
+            : pdfOcrTerminalIssue ? <><strong>圖面文字辨識未完成</strong><span>PDF 圖面文字辨識未完成；可重試或重新上傳 PDF，不影響版次送出。</span></>
+              : null}
+        {!hasPdfSource && !disabled && onRequestPdfUpload ? <button type="button" className="secondary-button" onClick={onRequestPdfUpload}>上傳 PDF 以辨識圖框與文字</button> : null}
+      </div> : null}
 
       {session && !recognitionProcessing ? (
         <>

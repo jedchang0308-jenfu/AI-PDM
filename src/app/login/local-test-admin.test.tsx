@@ -23,10 +23,35 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("local test administrator login", () => {
+  it("recovers a timed-out auth-mode read with one automatic retry", async () => {
+    vi.useFakeTimers();
+    const request = vi.fn().mockImplementationOnce((_url, init) => new Promise((_resolve, reject) =>
+      init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))))
+      .mockResolvedValueOnce(Response.json(authMode(true)));
+    vi.stubGlobal("fetch", request);
+    await act(async () => root.render(<LoginPage />));
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("以測試超級管理員登入");
+    expect(container.textContent).not.toContain("登入設定暫時無法使用");
+  });
+
+  it("stops automatic retries after the second failure", async () => {
+    vi.useFakeTimers();
+    const request = vi.fn(async () => Response.json({ code: "unavailable" }, { status: 503 }));
+    vi.stubGlobal("fetch", request);
+    await act(async () => root.render(<LoginPage />));
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("重新取得登入設定");
+  });
   it("offers one local action and recovers a failed login without visiting SSO", async () => {
     let finish!: (value: Response) => void;
     const request = vi.fn((url: string) => url === "/api/auth/mode"

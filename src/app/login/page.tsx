@@ -112,6 +112,7 @@ export default function LoginPage() {
   const [modeState, setModeState] = useState<LoginModeState>("loading");
   const modeRequestGeneration = useRef(0);
   const modeAbortController = useRef<AbortController | null>(null);
+  const modeAutoRetryUsed = useRef(false);
 
   function loginReturnTo() {
     const candidate = new URLSearchParams(window.location.search).get("returnTo") ?? "/";
@@ -169,6 +170,17 @@ export default function LoginPage() {
       modeAbortController.current?.abort();
     };
   }, [loadAuthMode]);
+
+  // A development route may still be compiling when its first read times out.
+  // This public GET is safe to retry once; keep persistent failures bounded.
+  useEffect(() => {
+    if (modeState !== "unavailable" || modeAutoRetryUsed.current) return;
+    const retry = window.setTimeout(() => {
+      modeAutoRetryUsed.current = true;
+      void loadAuthMode();
+    }, 500);
+    return () => window.clearTimeout(retry);
+  }, [modeState, loadAuthMode]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

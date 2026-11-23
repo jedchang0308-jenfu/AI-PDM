@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { canonicalPreviewSlot } from "./pdm-canonical-workbench";
+import { canonicalPreviewSlot, PdmCanonicalWorkbenchService } from "./pdm-canonical-workbench";
+import Database from "better-sqlite3";
+import { createAsyncDatabaseClient } from "./db-async-provider";
 import type { CanonicalPreviewSourceRow } from "./pdm-canonical-preview";
 
 const source: CanonicalPreviewSourceRow = {
@@ -9,6 +11,32 @@ const source: CanonicalPreviewSourceRow = {
   contentHash: "hash", isPrimary: true, sortOrder: 0
 };
 describe("canonical 2D preview projection", () => {
+  it("uses the renewed heartbeat rather than the old lease start to judge live processing", async () => {
+    const database = new Database(":memory:");
+    try {
+      database.exec("CREATE TABLE preview_jobs(company_id TEXT,source_file_asset_id TEXT,source_content_hash TEXT,status TEXT,error_code TEXT,locked_at TEXT,updated_at TEXT,created_at TEXT)");
+      const now = new Date().toISOString();
+      database.prepare("INSERT INTO preview_jobs VALUES('company','asset','hash','running',NULL,'2026-01-01T00:00:00Z',?,?)").run(now, now);
+      const service = new PdmCanonicalWorkbenchService(createAsyncDatabaseClient({kind:"sqlite",database}));
+      const jobs = await (service as unknown as { previewJobs(company: string, assets: string[]): Promise<Array<{sourceFileAssetId:string;sourceContentHash:string;status:string;lastHeartbeatAt:string}>> }).previewJobs("company", ["asset"]);
+      expect(canonicalPreviewSlot("two-d", "2D", source, [], jobs, "candidate_revision", null).state).toBe("running");
+    } finally { database.close(); }
+  });
+  it.each(["three-d", "two-d"] as const)("shows unclaimed and interrupted work consistently for %s without claiming the service is offline", kind => {
+    const current = { ...source, role: kind === "three-d" ? "cad_3d" : "drawing_2d", fileExt: kind === "three-d" ? "sldprt" : "slddrw" };
+    for (const status of ["queued", "running"]) {
+      const result = canonicalPreviewSlot(kind, kind, current, [], [{ sourceFileAssetId: source.assetId,
+        sourceContentHash: source.contentHash, status, lastHeartbeatAt: "2026-01-01T00:00:00Z" }], "candidate_revision", null);
+      expect(result.state).toBe("delayed");
+      expect(result.stateTitle).toBe(status === "queued" ? "預覽工作尚未被接手" : "預覽處理已中斷");
+      expect(result.stateText).not.toContain("稍後");
+    }
+  });
+  it("selects a legacy PDF through the protected byte-validation endpoint", () => {
+    const result = canonicalPreviewSlot("two-d", "2D", { ...source, fileExt: "pdf", mimeType: "application/octet-stream" }, [], [], "candidate_revision", null);
+    expect(result.mediaMimeType).toBe("application/pdf");
+    expect(result.mediaHref).toContain("preview=1");
+  });
   it.each([
     ["cancelled", "預覽已取消"], ["skipped", "預覽已略過"], ["succeeded", "預覽結果無法讀取"]
   ])("preserves terminal %s without retry and keeps the exact original download", (status, title) => {

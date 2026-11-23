@@ -109,7 +109,9 @@ export function evaluateRevisionPackageCompleteness(input: {
     byRole.set(file.role, [...(byRole.get(file.role) ?? []), file]);
   }
 
-  if (!roles.has("pdf")) {
+  // Minor revisions are research targets; optional delivery formats are not missing work.
+  const researchTarget = /^\d+\.[1-9]\d*$/u.test(input.revision.trim());
+  if (!researchTarget && !roles.has("pdf")) {
     warnings.push({
       code: "missing_pdf",
       severity: "warning",
@@ -117,7 +119,7 @@ export function evaluateRevisionPackageCompleteness(input: {
       messageForReviewer: "此版次缺少 PDF，系統不阻擋送審，但審核者需確認是否可接受。"
     });
   }
-  if (!roles.has("dwg_dxf")) {
+  if (!researchTarget && !roles.has("dwg_dxf")) {
     warnings.push({
       code: "missing_dwg_dxf",
       severity: "warning",

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, FileSearch, LoaderCircle, RefreshCcw } from "lucide-react";
 import type { BrowserPdfOcrProgress } from "@/lib/browser-pdf-ocr";
 import { normalizeMediaType } from "@/lib/media-type";
+import { usePdmPreviewImageCache } from "./pdm-preview-image-cache-context";
 
 export type DrawingRecognitionPendingClientAdapter = {
   sourceId: string;
@@ -109,6 +110,7 @@ export function useDrawingRecognitionBrowserOcr<T extends DrawingRecognitionBrow
   const [retryVersion, setRetryVersion] = useState(0);
   const attemptedRef = useRef(new Set<string>());
   const controllersRef = useRef(new Map<string, AbortController>());
+  const pdfCache = usePdmPreviewImageCache()?.pdfCache;
   const callbacksRef = useRef(input);
   const sessionIdRef = useRef<string | null>(null);
   const mountedRef = useRef(false);
@@ -158,7 +160,8 @@ export function useDrawingRecognitionBrowserOcr<T extends DrawingRecognitionBrow
         setActivity({ sourceId: pending.sourceId, fileName: pending.fileName, progress: { stage: "preparing" } });
       }
       try {
-        const contentResponse = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/sources/${encodeURIComponent(pending.sourceId)}/content`, {
+        const contentUrl = `/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/sources/${encodeURIComponent(pending.sourceId)}/content`;
+        const contentResponse = pdfCache ? await pdfCache.read(contentUrl, pending.contentHash, controller.signal) : await fetch(contentUrl, {
           cache: "no-store",
           signal: controller.signal
         });
@@ -214,7 +217,7 @@ export function useDrawingRecognitionBrowserOcr<T extends DrawingRecognitionBrow
         }
       }
     })();
-  }, [input.session, retryVersion]);
+  }, [input.session, retryVersion, pdfCache]);
 
   const retryPending = useCallback(() => {
     if (!pendingFailure) return;

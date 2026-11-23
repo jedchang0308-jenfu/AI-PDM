@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   getApprovalDetail: vi.fn(), queryOne: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
-  readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn(),
+  readObject: vi.fn(), metadata: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn(),
   dynamic: vi.fn(), dynamicAuthorize: vi.fn(), recoverPreview: vi.fn(),
   readLatestPreview: vi.fn(), enqueuePreview: vi.fn(), isVerifiedLocalTestAdmin: vi.fn()
 }));
@@ -46,7 +46,7 @@ vi.mock("@/lib/pdm-review-package", async (importOriginal) => ({
 vi.mock("@/lib/file-storage", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/file-storage")>(),
   storagePointerFromRecord: () => ({ key: "object-one" }),
-  createFileStorageServiceForPointer: () => ({ readObject: mocks.readObject, createDownloadUrl: mocks.createDownload })
+  createFileStorageServiceForPointer: () => ({ readObject: mocks.readObject, getObjectMetadata: mocks.metadata, createDownloadUrl: mocks.createDownload })
 }));
 vi.mock("@/lib/auth-async", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-async")>(),
@@ -90,7 +90,7 @@ const params = { params: Promise.resolve({ fileAssetId: "asset-one" }) };
 const source = { id: "asset-one", company_id: "company-one",
   linked_entity_id: "drawing-one", linked_entity_type: 'drawing_revision', content_hash: createHash("sha256").update("review-file").digest("hex"),
   storage_provider: "test", storage_key: "object-one",
-  file_name: "drawing.pdf", file_ext: "pdf", mime_type: "application/pdf" };
+  file_name: "drawing.pdf", file_ext: "pdf", mime_type: "application/pdf", file_size: 11 };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -124,9 +124,40 @@ beforeEach(() => {
     workspace: { files: [{ bindingId: "binding-one", sourceFileAssetId: "asset-one",
       contentHash: createHash("sha256").update("review-file").digest("hex") }], attachments: [] } }] });
   mocks.readObject.mockResolvedValue(Buffer.from("review-file"));
+  mocks.metadata.mockResolvedValue({ bytes: 11 });
 });
 
 describe("principal review package file read", () => {
+  it("rejects a legacy PDF with invalid bytes even when the caller supplies its hash as an ETag", async () => {
+    mocks.queryOne.mockImplementation(async (sql) => String(sql).includes("SELECT snapshot_payload")
+      ? { snapshot_payload: {}, snapshot_hash: "package-hash" } : { ...source, mime_type: "application/octet-stream" });
+    const original = previewRequest("review_package");
+    const conditional = new Request(original, { headers: { ...Object.fromEntries(original.headers), "if-none-match": `"${source.content_hash}"` } });
+    const response = await GET(conditional, params);
+    expect(response.status).toBe(422);
+    expect(mocks.readObject).toHaveBeenCalledOnce();
+    expect(mocks.enqueuePreview).not.toHaveBeenCalled();
+  });
+  it("reauthorizes a conditional PDF without sending or reading its body", async () => {
+    const original = request();
+    const conditional = new Request(original, { headers: { ...Object.fromEntries(original.headers), "if-none-match": `"${source.content_hash}"` } });
+    const response = await GET(conditional, params);
+    expect(response.status).toBe(304);
+    expect(response.headers.get("content-hash")).toBe(source.content_hash);
+    expect(await response.text()).toBe("");
+    expect(mocks.withVerified.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(mocks.readObject).not.toHaveBeenCalled();
+  });
+  it("does not confirm cached PDF bytes after authorization or metadata changes", async () => {
+    const original = request();
+    const conditional = new Request(original, { headers: { ...Object.fromEntries(original.headers), "if-none-match": `"${source.content_hash}"` } });
+    mocks.metadata.mockResolvedValueOnce(null);
+    expect((await GET(conditional, params)).status).toBe(409);
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]).mockResolvedValueOnce([{ allowed: false }]);
+    expect((await GET(conditional, params)).status).not.toBe(304);
+    expect(mocks.readObject).not.toHaveBeenCalled();
+    mocks.evaluate.mockReset();
+  });
   it.each(["readObject", "audit"] as const)("maps an unknown %s fault to exact safe JSON 500", async dependency => {
     mocks[dependency].mockRejectedValueOnce(new Error("DEV122_PRIVATE_DEPENDENCY_FAULT"));
     const response = await GET(request(), params);
