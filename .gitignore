@@ -9,6 +9,7 @@ data/*
 data/quality/*
 !data/quality/defect-register.json
 .tmp/
+/.tmpdev032-migration-runner-build-current/
 tmp/
 artifacts/
 *.log
