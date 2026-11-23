@@ -57,7 +57,7 @@ check("CPG-013 Drawing/Part URL-storage precedence is explicit", component.inclu
 check("CPG-014 layout switch uses replaceState and a single radiogroup", component.includes("replaceLocation({ layout: next })") && layoutSwitch.includes('role="radiogroup"') && layoutSwitch.includes('role="radio"') && layoutSwitch.includes("aria-checked"));
 check("CPG-015 cursor pagination replaces the current-page neutral map", component.includes("setPreviewByRowKey(result.data.previewByRowKey ?? {})") && !component.includes("append ? { ...current, ...(result.data.previewByRowKey ?? {}) }"));
 check("CPG-016 list response race is guarded", component.includes("listAbortRef.current?.abort()") && component.includes("listRequestRef.current"));
-check("CPG-017 media failure is owned by shared loader", media.includes("setLoadState(\"failed\")") && media.includes("重新整理預覽") && !gallery.includes("failedImages"));
+check("CPG-017 media failure is owned by shared loader", media.includes("setLoadState(\"failed\")") && media.includes("重新讀取結果") && media.includes("setRetryToken") && !gallery.includes("failedImages"));
 check("CPG-018 gallery keyboard navigation is roving", gallery.includes("ArrowRight") && gallery.includes("PageDown") && gallery.includes("aria-pressed") && gallery.includes("tabIndex"));
 check("CPG-019 focus and accessible state do not rely on color", gallery.includes("aria-label={accessibleName}") && gallery.includes("aria-keyshortcuts"));
 check("CPG-020 cards expose identity, source, layer and handling", gallery.includes("row.code") && gallery.includes("row.name") && gallery.includes("preview.sourceLabel") && gallery.includes("row.layerLabel") && gallery.includes("row.handlingLabel"));
