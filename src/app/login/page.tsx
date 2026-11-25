@@ -86,7 +86,7 @@ const googleErrorMessages: Record<string, string> = {
   sso_code_consumed: "登入驗證已失效，請重新從鉦富平台進入。",
   sso_pkce_invalid: "登入驗證已失效，請重新從鉦富平台進入。",
   sso_reauthentication_required: "登入狀態已變更，請重新登入鉦富平台。",
-  sso_access_denied: "此帳號尚未取得 AI-PDM 的有效權限，請聯絡系統管理員。",
+  sso_access_denied: "登入未完成，或此帳號目前沒有 AI-PDM 的使用權限。可重新登入或改用其他 Google 帳號。",
   principal_not_active: "此帳號尚未開通 PDM，請聯絡系統管理員。",
   principal_access_denied: "此帳號尚未取得 AI-PDM 的有效權限，請聯絡系統管理員。",
   sso_principal_stale: "帳號或權限已更新，請重新登入。",
@@ -392,8 +392,9 @@ export default function LoginPage() {
           <div className="google-auth-choice">
             <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
               <LogIn size={16} aria-hidden="true" />
-              使用鉦富平台登入
+              使用 Google 登入
             </button>
+            {error && <a className="secondary-button" href={`/api/auth/jenfu-sso/start?reauth=1&returnTo=${encodeURIComponent(loginReturnTo())}`}>改用其他 Google 帳號</a>}
             <p className="login-provider-note">登入一次即可進入你有權限的 Jenfu 系統。</p>
           </div>
         ) : modeState === "ready" && !localPrincipalSandbox && authMode !== "demo" ? (

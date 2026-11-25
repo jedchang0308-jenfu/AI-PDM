@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePdmLoginHref } from "./use-pdm-login-href";
 import { clearCurrentPdmUser, clearPendingPdmApprovalCount } from "@/lib/pdm-current-user-client";
 import { createPdmPermissionStore, subscribePdmPermissionInvalidation, subscribePdmMutationInvalidation, type PdmPermissionInvalidationReason } from "@/lib/pdm-permission-client";
 import { createPdmWorkbenchCache } from "@/lib/pdm-workbench-cache";
@@ -31,6 +32,7 @@ function usePermissionValue(store: ReturnType<typeof createPdmPermissionStore>, 
 
 export function PdmPermissionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const loginHref = usePdmLoginHref(pathname);
   const publicPage = pathname === "/login" || /^\/(?:invite|account-recovery|account-invitation|public)(?:\/|$)/u.test(pathname);
   const store = useMemo(() => createPdmPermissionStore(), []);
   const workbenchCache = useMemo(() => createPdmWorkbenchCache(), []);
@@ -59,7 +61,7 @@ export function PdmPermissionProvider({ children }: { children: ReactNode }) {
   const previewValue = useMemo(() => ({ cache: previewImageCache, pdfCache, deniedHrefs, enabled: value.state.kind === "ready" }), [previewImageCache, pdfCache, deniedHrefs, value.state.kind]);
   return <Context.Provider value={value}>
     <PdmPreviewImageCacheContext.Provider value={previewValue}>
-    {!publicPage && value.state.kind === "unauthenticated" ? <div role="alert" className="inline-error">登入已失效，請重新登入。<Link href="/login">返回登入</Link></div> : null}
+    {!publicPage && value.state.kind === "unauthenticated" ? <div role="alert" className="inline-error">登入已失效，請重新登入。<Link href={loginHref}>返回登入</Link></div> : null}
     {!publicPage && value.state.kind === "unavailable" ? <div role="alert" className="inline-error">
       目前無法確認操作權限，請稍後重試。<button type="button" onClick={value.retry}>重試權限</button>
     </div> : null}

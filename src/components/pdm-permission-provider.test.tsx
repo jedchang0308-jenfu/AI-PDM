@@ -33,6 +33,15 @@ async function render(label = "create") {
   await act(async () => root.render(<StrictMode><PdmPermissionProvider><Consumer label={label} /><Consumer /></PdmPermissionProvider></StrictMode>));
 }
 describe("app-shell permission ownership", () => {
+  it("returns an unauthenticated deep page to the exact original query and fragment", async () => {
+    navigation.pathname = "/numbering/drawings";
+    window.history.replaceState({}, "", "/numbering/drawings?dev015=return-check#selected");
+    vi.stubGlobal("fetch", vi.fn(async () => json({}, 401)));
+    await render();
+    const link=container.querySelector('a[href^="/login"]');
+    expect(link?.textContent).toBe("返回登入");
+    expect(new URL(link!.getAttribute("href")!,window.location.origin).searchParams.get("returnTo")).toBe("/numbering/drawings?dev015=return-check#selected");
+  });
   it("clears display data on writes (even unknown outcomes) and logout without reusing a previous account", async () => {
     let cache!: ReturnType<typeof usePdmPermissions>["workbenchCache"];
     function Capture() {

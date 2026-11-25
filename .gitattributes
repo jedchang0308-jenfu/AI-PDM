@@ -1,5 +1,6 @@
 # Keep migration sources and generated mirrors byte-stable across Windows and CI.
 db/postgres/*.sql text eol=lf
+db/postgres/local/110_dev015_legacy_native_owner_alignment.sql text eol=lf
 supabase/migrations/*.sql text eol=lf
 supabase/migrations/manifest.json text eol=lf
 

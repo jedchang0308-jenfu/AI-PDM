@@ -15,6 +15,22 @@ AI-PDM consumes Platform `jenfu.sso-handoff.v1` for the fixed `ai-pdm` audience.
 
 ## Implemented surface
 
+<a id="dev015-sso-error-return"></a>
+
+DEV-015 原生隔離前置追加：歷史 DEV-127 local migration 097 保留 postgres schema/table ownership，因此 current dev126 native forward 在 101 寫入前回 `LOCAL_NATIVE_AI_PDM_SCHEMA_OWNER_MISMATCH`，原 096／097 收據保留。新增 local-only `db/postgres/local/110_dev015_legacy_native_owner_alignment.sql` 與 owner bootstrap 入口，只接受 loopback `jenfu_local_*`、固定 096／097 checksum、原 postgres owner inventory、runtime 無 owner／migrator／CREATE。新 forward 將自身 schemas／DDL 物件移交既有 NOLOGIN migrator，原子核對歷史 ledger 完全未變並追加獨立 local native receipt；101–109 仍使用原 native guards。此 local prerequisite 不列入正式 release migration profile，不改身份映射、任用或業務資料。guard／既有 native owner 單元測試 17/17；隔離實際 forward 收據由 Platform 主控保存。
+
+隔離執行來源 `e09e27421effb2387ab05a8ac21113d37e705e30`：task caller 在同一 connection 先核對指定 cold copy 的 `SHOW data_directory` 與 port `61315`（通用 owner helper 本身只限制 disposable loopback／`jenfu_local_*`）。local110 原子套用及 local receipt readback 通過，其後原 native executor 的 101–109 **9/9 APPLIED_READBACK_CONFIRMED**；第一次 schema owner 失敗收據保留，未覆寫成 PASS。實際收據保存於主控 task-owned `.local/dev015-native-prep/`；此次來源的 db-boundary 及 app typecheck 通過。登入 CTA 同步為「使用 Google 登入」。這些是 native schema／focused source 證據，真 Google 旅程仍由主控完成。
+
+原生 deep-link 首敗：`/numbering/drawings?dev015=return-check` 的主導覽登入及 401 全域 alert「返回登入」均只連到 `/login`，遺失目的頁。兩個直接 caller 現共用安全登入連結，保存當前 path/query/hash 到 `returnTo`；外部／遞迴登入／auth API、反斜線、控制字元與超長目的保持本地 fallback。provider／sidebar／return helper／local-admin-hidden focused 29/29、app typecheck、targeted lint 0 errors/warnings。CI `45568451956` 的 local-admin-hidden 舊文案 oracle 首敗另保留，同步「使用 Google 登入」後 5/5，admin 不可見斷言未改弱。
+
+### Platform DEV-015 單次操作登入：拒絕／取消返回（2026-11-25，source candidate）
+
+原 callback 新增與 `code,state,iss` 互斥的 `error,state,iss` 格式，只接受 `access_denied`／`temporarily_unavailable`。先驗證唯一交易 cookie 簽章、state、issuer 及期限，再清除 cookie 並回本地 `/login`，保留原交易 `returnTo`；無 cookie、錯 state／issuer、過期、重複 cookie／query、混合格式與額外欄位不可當成已驗取消，也不自動重啟 broker。有效拒絕不交換 code 或建立／撤銷 session。
+
+登入頁顯示登入未完成／沒有權限或暫時不可用，正常重試保持原目的頁；換 Google 帳號入口使用 `reauth=1`，由 start 轉為 Platform `prompt=login`。身份映射、能力與成功 handoff 不變。Focused callback、cookie、成功 Principal 與登入頁 68/68、app typecheck 通過；lint 0 errors，登入頁保留三項既存導頁 warnings。`npm run build:isolated` PASS（artifact／primary invariant／cleanup 均 true，worktree 主 DB 不存在）；依賴 junction 導致 standalone tracing 有 27 個 root 外依賴省略警告，這個建置只證明本機編譯／產物，不證明可部署 standalone 或正式來源包。跨 owner 整鏈／真實 Google／正式發布仍未執行。
+
+worktree `C:/VIBE CODING/Jenfu-Platform/.local/dev015-consumers/AI_PDM` 保留供 Platform 主控整鏈驗收；主控不再需要候選時檢查保存與清理。依賴只重用持久 AI_PDM root，未安裝新套件。
+
 - `src/lib/jenfu-sso-handoff.ts`: signed transaction cookie, exact callback／state／PKCE validation, attached service identity exchange, principal／assignment／auth-state recheck, assurance resolution, expiry cap, local session issuance, and failure cleanup.
 - `src/lib/jenfu-platform-identity-contract.ts`／`jenfu-auth-epoch-repository.ts`: direct Firebase exchange and protected requests consume `authState v2`, preserve original `auth_time`, and fail closed on stale revocation state.
 - `src/app/api/auth/jenfu-sso/*`／`src/app/login/page.tsx`／`src/app/api/auth/mode/route.ts`: owner start／callback routes and a single Platform login entry when explicitly enabled; existing demo／local modes remain unchanged.

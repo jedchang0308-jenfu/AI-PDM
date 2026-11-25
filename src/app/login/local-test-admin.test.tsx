@@ -15,6 +15,7 @@ const authMode = (localTestAdmin: boolean) => ({
   localQuickLogin: false, localPrincipalSandbox: localTestAdmin, localTestAdmin,
 });
 beforeEach(() => {
+  window.history.replaceState({}, '', '/login');
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -28,6 +29,19 @@ afterEach(async () => {
 });
 
 describe("local test administrator login", () => {
+  it("keeps a refused SSO attempt on login and offers change-account with its original destination", async () => {
+    window.history.replaceState({}, '', '/login?auth_error=sso_access_denied&returnTo=%2Fdrawings%3Ftab%3Drecent');
+    const request = vi.fn(async () => Response.json(authMode(false)));
+    vi.stubGlobal("fetch", request);
+    await act(async () => { root.render(<LoginPage />); });
+    expect(container.textContent).toContain("登入未完成");
+    const link = [...container.querySelectorAll('a')].find(item => item.textContent === '改用其他 Google 帳號')!;
+    const start = new URL(link.href);
+    expect(start.searchParams.get('reauth')).toBe('1');
+    expect(start.searchParams.get('returnTo')).toBe('/drawings?tab=recent');
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith('/api/auth/mode', expect.anything());
+  });
   it("recovers a timed-out auth-mode read with one automatic retry", async () => {
     vi.useFakeTimers();
     const request = vi.fn().mockImplementationOnce((_url, init) => new Promise((_resolve, reject) =>
@@ -79,6 +93,6 @@ describe("local test administrator login", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json(authMode(false))));
     await act(async () => { root.render(<LoginPage />); });
     expect(container.textContent).not.toContain("以測試超級管理員登入");
-    expect(container.textContent).toContain("鉦富平台");
+    expect(container.textContent).toContain("使用 Google 登入");
   });
 });
