@@ -23,6 +23,47 @@ beforeEach(()=>{
 afterEach(()=>{vi.unstubAllEnvs();vi.restoreAllMocks();});
 
 describe('SSO transaction cookie transport',()=>{
+  it.each(['access_denied', 'temporarily_unavailable'])('returns a verified %s without exchanging a code and preserves returnTo',async refusal=>{
+    const start=await jenfuSsoStart(new Request('http://127.0.0.1:3000/api/auth/jenfu-sso/start?returnTo=%2Fdrawings%3Ftab%3Drecent'));
+    const authorize=new URL(start.headers.get('location')!);
+    const callback=new URL('/api/auth/jenfu-sso/callback',local.PDM_PUBLIC_BASE_URL);
+    callback.search=new URLSearchParams({error:refusal,state:authorize.searchParams.get('state')!,iss:'http://localhost:4000/api/sso'}).toString();
+    const response=await jenfuSsoCallback(new Request(callback,{headers:{cookie:start.headers.get('set-cookie')!.split(';')[0]}}));
+    const login=new URL(response.headers.get('location')!);
+    expect(response.status).toBe(303);expect(login.pathname).toBe('/login');expect(login.origin).toBe(local.PDM_PUBLIC_BASE_URL);
+    expect(login.searchParams.get('auth_error')).toBe(refusal==='access_denied'?'sso_access_denied':'sso_dependency_unavailable');
+    expect(login.searchParams.get('returnTo')).toBe('/drawings?tab=recent');
+    expect(response.headers.get('set-cookie')).toMatch(/Max-Age=0/iu);expect(service).not.toHaveBeenCalled();
+  });
+  it.each(['state','issuer','missing-cookie','duplicate-cookie','expired','mixed','duplicate-error','unknown-error','extra'])(
+    'rejects %s refusal callbacks without accepting cancellation or restarting SSO',async defect=>{
+      vi.useFakeTimers();
+      try {
+        const start=await jenfuSsoStart(new Request('http://127.0.0.1:3000/api/auth/jenfu-sso/start?returnTo=%2Fparts'));
+        const authorize=new URL(start.headers.get('location')!);const callback=new URL('/api/auth/jenfu-sso/callback',local.PDM_PUBLIC_BASE_URL);
+        callback.search=new URLSearchParams({error:'access_denied',state:authorize.searchParams.get('state')!,iss:'http://localhost:4000/api/sso'}).toString();
+        let cookie=start.headers.get('set-cookie')!.split(';')[0];
+        if(defect==='state')callback.searchParams.set('state','x'.repeat(22));
+        if(defect==='issuer')callback.searchParams.set('iss','https://foreign.example/api/sso');
+        if(defect==='missing-cookie')cookie='';
+        if(defect==='duplicate-cookie')cookie+='; '+cookie;
+        if(defect==='expired')vi.advanceTimersByTime(15*60_000);
+        if(defect==='mixed')callback.searchParams.set('code','untrusted-code');
+        if(defect==='duplicate-error')callback.searchParams.append('error','access_denied');
+        if(defect==='unknown-error')callback.searchParams.set('error','login_required');
+        if(defect==='extra')callback.searchParams.set('returnTo','https://foreign.example');
+        const response=await jenfuSsoCallback(new Request(callback,{headers:{cookie}}));
+        const login=new URL(response.headers.get('location')!);
+        expect(login.pathname).toBe('/login');expect(login.searchParams.get('auth_error')).toBe('sso_request_invalid');
+        expect(login.searchParams.has('returnTo')).toBe(false);expect(service).not.toHaveBeenCalled();
+      } finally {vi.useRealTimers();}
+    });
+  it('requests Platform reauthentication only from the explicit change-account start',async()=>{
+    const start=await jenfuSsoStart(new Request('http://127.0.0.1:3000/api/auth/jenfu-sso/start?reauth=1&returnTo=%2Fparts'));
+    expect(new URL(start.headers.get('location')!).searchParams.get('prompt')).toBe('login');
+    const invalid=await jenfuSsoStart(new Request('http://127.0.0.1:3000/api/auth/jenfu-sso/start?reauth=0'));
+    expect(invalid.status).toBe(400);
+  });
   it.each(['http://localhost:3000','http://127.0.0.1:3000','http://[::1]:3000'])(
     'allows HTTP only on explicit development/test loopback: %s',base=>{
       expect(getJenfuSsoHandoffConfig({...local,PDM_PUBLIC_BASE_URL:base}).base).toBe(base);

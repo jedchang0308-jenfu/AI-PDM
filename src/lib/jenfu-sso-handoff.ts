@@ -110,9 +110,10 @@ function callbackErrorCode(errorValue: unknown) {
   return "sso_dependency_unavailable";
 }
 
-function callbackFailure(config: ReturnType<typeof setup>, code: string) {
+function callbackFailure(config: ReturnType<typeof setup>, code: string, returnTo?: string) {
   const target = new URL("/login", config.base);
   target.searchParams.set("auth_error", code);
+  if (returnTo !== undefined) target.searchParams.set("returnTo", returnTo);
   const response = NextResponse.redirect(target, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
@@ -157,7 +158,8 @@ export async function jenfuSsoServiceToken(audience: string, environment: NodeJS
 
 function readCookie(request: Request, config: ReturnType<typeof setup>) {
   const name = transactionCookieName(config);
-  const value = request.headers.get("cookie")?.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1);
+  const values = request.headers.get("cookie")?.split(";").map((item) => item.trim()).filter((item) => item.startsWith(`${name}=`)) ?? [];
+  const value = values.length === 1 ? values[0].slice(name.length + 1) : undefined;
   if (!value) return undefined;
   try { return decodeURIComponent(value); } catch { return undefined; }
 }
@@ -190,11 +192,14 @@ export async function jenfuSsoStart(request: Request) {
   let config;
   try { config = setup(); } catch { return error("sso_request_invalid", 404); }
   if (request.method !== "GET") return error("sso_request_invalid", 405);
+  const reauth = new URL(request.url).searchParams.get("reauth");
+  if (reauth !== null && reauth !== "1") return error("sso_request_invalid", 400);
   const returnTo = safeJenfuSsoReturnTo(new URL(request.url).searchParams.get("returnTo"));
   const state = crypto.randomBytes(16).toString("base64url");
   const verifier = crypto.randomBytes(32).toString("base64url");
   const authorize = new URL("/api/sso/authorize", config.broker);
   authorize.search = new URLSearchParams({ response_type: "code", client_id: "ai-pdm", redirect_uri: config.callback, state, code_challenge: crypto.createHash("sha256").update(verifier, "ascii").digest("base64url"), code_challenge_method: "S256" }).toString();
+  if (reauth === "1") authorize.searchParams.set("prompt", "login");
   const response = NextResponse.redirect(authorize, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
@@ -210,23 +215,29 @@ export async function jenfuSsoCallback(request: Request) {
   const rawTransaction = readCookie(request, config);
   const decoded = decode(rawTransaction);
   const code = params.get("code");
+  const refusal = params.get("error");
   const state = params.get("state");
   const issuer = params.get("iss");
-  const exactCallback = [...params.keys()].every((key) => ["code", "state", "iss"].includes(key))
-    && ["code", "state", "iss"].every((key) => params.getAll(key).length === 1)
-    && !!state && /^[A-Za-z0-9_-]{22,256}$/u.test(state) && !!code && code.length <= 4096 && issuer === config.issuer;
+  const callbackKeys = params.has("error") ? ["error", "state", "iss"] : ["code", "state", "iss"];
+  const exactCallback = [...params.keys()].every((key) => callbackKeys.includes(key))
+    && callbackKeys.every((key) => params.getAll(key).length === 1)
+    && !!state && /^[A-Za-z0-9_-]{22,256}$/u.test(state) && issuer === config.issuer
+    && (refusal !== null ? ["access_denied", "temporarily_unavailable"].includes(refusal) : !!code && code.length <= 4096);
   if (!exactCallback) return callbackFailure(config, "sso_request_invalid");
   if (!decoded) {
-    if (transactionCookiePresent(request)) return callbackFailure(config, "sso_request_invalid");
+    if (refusal !== null || transactionCookiePresent(request)) return callbackFailure(config, "sso_request_invalid");
     return jenfuSsoStart(new Request(new URL("/api/auth/jenfu-sso/start", config.base)));
   }
   const { transaction: tx, expired } = decoded;
   if (state !== tx.state || issuer !== tx.issuer) return callbackFailure(config, "sso_request_invalid");
   if (expired) {
+    if (refusal !== null) return callbackFailure(config, "sso_request_invalid");
     const restart = new URL("/api/auth/jenfu-sso/start", config.base);
     restart.searchParams.set("returnTo", tx.returnTo);
     return jenfuSsoStart(new Request(restart));
   }
+  if (refusal !== null) return callbackFailure(config,
+    refusal === "access_denied" ? "sso_access_denied" : "sso_dependency_unavailable", tx.returnTo);
   let stage: CallbackStage = "service_identity";
   try {
     const service = await jenfuSsoServiceToken(config.broker);
@@ -235,7 +246,7 @@ export async function jenfuSsoCallback(request: Request) {
     const timeout = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
     let proof: unknown;
     try {
-      const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) });
+      const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code: code!, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) });
       if (!brokerResponse.ok) await brokerFailure(brokerResponse);
       proof = await brokerResponse.json();
     } catch (errorValue) {

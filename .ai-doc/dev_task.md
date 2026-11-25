@@ -1,4 +1,6 @@
 
+- 2026-11-25 Platform DEV-015 consumer source candidate：[SSO 拒絕／取消返回及原目的頁恢復](specs/DEV-013-ai-pdm-sso-consumer.md#dev015-sso-error-return)。68 focused tests／app typecheck／isolated build PASS（限制見契約）；留獨立 worktree 給 Platform 整鏈，未發布。
+
 <a id="pdm-session-revocation"></a>
 
 ## DEV-121：登入期間重用權限與工作階段撤銷

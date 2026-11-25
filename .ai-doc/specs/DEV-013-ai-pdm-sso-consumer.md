@@ -15,6 +15,16 @@ AI-PDM consumes Platform `jenfu.sso-handoff.v1` for the fixed `ai-pdm` audience.
 
 ## Implemented surface
 
+<a id="dev015-sso-error-return"></a>
+
+### Platform DEV-015 單次操作登入：拒絕／取消返回（2026-11-25，source candidate）
+
+原 callback 新增與 `code,state,iss` 互斥的 `error,state,iss` 格式，只接受 `access_denied`／`temporarily_unavailable`。先驗證唯一交易 cookie 簽章、state、issuer 及期限，再清除 cookie 並回本地 `/login`，保留原交易 `returnTo`；無 cookie、錯 state／issuer、過期、重複 cookie／query、混合格式與額外欄位不可當成已驗取消，也不自動重啟 broker。有效拒絕不交換 code 或建立／撤銷 session。
+
+登入頁顯示登入未完成／沒有權限或暫時不可用，正常重試保持原目的頁；換 Google 帳號入口使用 `reauth=1`，由 start 轉為 Platform `prompt=login`。身份映射、能力與成功 handoff 不變。Focused callback、cookie、成功 Principal 與登入頁 68/68、app typecheck 通過；lint 0 errors，登入頁保留三項既存導頁 warnings。`npm run build:isolated` PASS（artifact／primary invariant／cleanup 均 true，worktree 主 DB 不存在）；依賴 junction 導致 standalone tracing 有 27 個 root 外依賴省略警告，這個建置只證明本機編譯／產物，不證明可部署 standalone 或正式來源包。跨 owner 整鏈／真實 Google／正式發布仍未執行。
+
+worktree `C:/VIBE CODING/Jenfu-Platform/.local/dev015-consumers/AI_PDM` 保留供 Platform 主控整鏈驗收；主控不再需要候選時檢查保存與清理。依賴只重用持久 AI_PDM root，未安裝新套件。
+
 - `src/lib/jenfu-sso-handoff.ts`: signed transaction cookie, exact callback／state／PKCE validation, attached service identity exchange, principal／assignment／auth-state recheck, assurance resolution, expiry cap, local session issuance, and failure cleanup.
 - `src/lib/jenfu-platform-identity-contract.ts`／`jenfu-auth-epoch-repository.ts`: direct Firebase exchange and protected requests consume `authState v2`, preserve original `auth_time`, and fail closed on stale revocation state.
 - `src/app/api/auth/jenfu-sso/*`／`src/app/login/page.tsx`／`src/app/api/auth/mode/route.ts`: owner start／callback routes and a single Platform login entry when explicitly enabled; existing demo／local modes remain unchanged.
