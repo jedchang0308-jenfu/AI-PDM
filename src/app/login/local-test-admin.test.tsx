@@ -93,6 +93,6 @@ describe("local test administrator login", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json(authMode(false))));
     await act(async () => { root.render(<LoginPage />); });
     expect(container.textContent).not.toContain("以測試超級管理員登入");
-    expect(container.textContent).toContain("鉦富平台");
+    expect(container.textContent).toContain("使用 Google 登入");
   });
 });
