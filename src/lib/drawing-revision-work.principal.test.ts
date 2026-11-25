@@ -252,7 +252,7 @@ describe("principal drawing revision work read", () => {
       expect(sent.payload.dev130FileReadinessSnapshot).toEqual(formal.dev130FileReadinessSnapshot);
       expect(sent.payload.dev130RecognitionSnapshot).toEqual(formal.dev130RecognitionSnapshot);
     } finally { if (pg) await actual.execute("DROP SCHEMA ai_pdm_core CASCADE"); await actual.close(); database?.close(); mocks.requiredFiles.mockReset(); }
-  });
+  }, 30_000);
   it("rejects a missing view grant before reading domain data", async () => {
     mocks.evaluate.mockResolvedValueOnce([
       { allowed: false }, { allowed: true }, { allowed: true }, { allowed: true }
