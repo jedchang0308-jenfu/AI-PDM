@@ -90,7 +90,7 @@ describe("Principal canonical workbench read", () => {
     });
   });
 
-  it("does not derive Drawing edit or non-owner rights from the historical profile role", async () => {
+  it("does not derive Drawing edit capabilities from the historical profile role", async () => {
     allowCodes("numbering.workspace.create", "numbering.workspace.update");
     const request = new Request("https://example.test/api/numbering/drawings/workbench");
     await principalCanonicalWorkbenchResponse(request, drawingRoute, "drawing",
@@ -99,7 +99,7 @@ describe("Principal canonical workbench read", () => {
     expect(mocks.principalRead).toHaveBeenCalledWith(request, "numbering.drawings.view", expect.any(Function));
     expect(mocks.list).toHaveBeenCalledWith(snapshot, expect.any(URL), "drawing",
       expect.objectContaining({
-        canEditNonOwned: false,
+        canEditNonOwned: true,
         permissions: expect.objectContaining({ createWork: false, updateWork: false })
       }));
   });
@@ -124,7 +124,7 @@ describe("Principal canonical workbench read", () => {
       (service, actor) => service.list(new URL(request.url), entityType, actor));
     expect(response.status).toBe(200);
     expect(mocks.list).toHaveBeenCalledWith(snapshot, expect.any(URL), entityType,
-      expect.objectContaining({ canEditNonOwned: false, permissions: expect.objectContaining({
+      expect.objectContaining({ canEditNonOwned: entityType === "drawing", permissions: expect.objectContaining({
         createWork: true, updateWork: true, submitWork: true, decideReview: false }) }));
   });
 });

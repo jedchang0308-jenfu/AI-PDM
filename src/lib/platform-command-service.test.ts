@@ -260,7 +260,7 @@ describe("principal-first PDM command actor", () => {
         expiresAt: "2026-10-01T01:00:00Z"
       },
       permissions: {
-        version: 1, sourceVersion: "test", assignmentVersion: 1, assignmentVersionId: "test",
+        version: 1, resolutionVersion: 2, sourceVersion: "test", assignmentVersion: 1, assignmentVersionId: "test",
         catalogVersion: "ai-pdm.role-policy.fixture", employeeName: null, scopes: [["global", null]],
         permissions: {
           "action:approval.request.decide:8": [[0, true, "rd_manager", "fixture"]],

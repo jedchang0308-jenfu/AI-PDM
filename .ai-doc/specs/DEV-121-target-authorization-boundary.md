@@ -31,9 +31,11 @@
 #### 授權來源與使用方式
 
 - 沿用現有「角色與能力」及 `/api/settings/access/role-policies/workspace`。矩陣橫軸是角色，縱軸是圖號、料號、模型／BOM、技轉及 PDM 管理等作業，格內配置檢視、編輯、送審、核准、帳號與政策管理等動作。PDM 維護發布版能力，OrgMaster 提供本人的角色指派、公司／專案範圍及有效期。
-- UI、API 和資料查詢以相同的業務能力代碼對應矩陣。沿用既有能力及舊代碼映射，從同一份發布版在登入時計算多角色、允許／拒絕及適用範圍，保存到既有工作階段。角色政策管理沿用原生簽發的管理資格。
+- UI、API 和資料查詢以相同的業務能力代碼對應矩陣。沿用既有能力及舊代碼映射，從同一份發布版在登入時計算有效多角色的能力聯集及適用範圍，保存到既有工作階段。每個業務動作獨立判定；任一未撤銷、未過期且範圍相符的角色授予該動作即允許，其他角色的未授予／明示關閉不覆蓋這個允許。現階段沒有獨立的強制禁止機制；角色政策管理沿用原生簽發的管理資格。
 - 正常請求一次本地讀取確認工作階段有效並取得快照。UI 使用投影決定可見動作，API 使用伺服器讀回的快照判定授權。資料層把同一判定的公司／專案範圍與案件條件併入查詢或寫入。圖號送審等入口若在路由與服務各檢查同一能力，合併判定並在同一交易傳遞已驗證的動作與範圍，涵蓋跨擁有者操作所需的限制。
 - 登出、到期、全域登出與撤權使工作階段失效。使用者下次登入才重新計算。沿用既有跨系統順序：OrgMaster 準備異動，Platform 通知 PDM，PDM 結束舊會話並處理在途寫入後回執，OrgMaster 發布新權限，PDM 確認新版本後恢復登入。
+
+2026-11-25 圖號授權決策：正常 Principal 的圖號資料、清單動作、組立包、工作檔案與辨識操作，只依發布矩陣中各自的查看、編輯、送審、核准及下載能力和已驗證範圍判定，不再依建立者或寫死的角色名稱追加限制；建立者／負責人保留供追蹤與稽核。工作檔案上傳／移除及組立背景處理同樣採各自能力，並保留來源、租約、撤權、版本、業務狀態與原子寫入條件。現行 canonical 圖號工作沒有可靠的 `projectCode` 時，視為同公司共用：通過公司邊界後，任一有效角色的圖號動作能力均可使用，不以 project scope 排除。日後圖號具備伺服器可信的 `projectCode` 時才啟用專案隔離，global／同公司 workspace 或相同 project 的允許候選任一成立即可；不同 project 仍拒絕。這個未綁定共用規則僅適用圖號，不擴張料號等其他資源或非 Principal 相容路徑。
 
 ```mermaid
 flowchart TB
@@ -159,7 +161,7 @@ Source lock 保留無操作綁定的原 migration manifest；producer 從同一 
 - AI-PDM 的能力身份一律是 `(permissionKind, permissionCode)`。以現行 route/method map、實際 Principal evaluator／owner command、正常 page/nav caller 與共用依賴建立受控 active capability 清單；逐項有 caller／kind／用途證據。保留但沒有正常 caller 的歷史常數、已退休／明確不支援 route 不因同名就自動增權；未知用途須查明，不能猜映射或宣告退役。分母檢查同時比較實際入口與目錄，不能只證明 catalog 聯集。
 - 建立新的 immutable `config/access-control/jenfu-role-catalog.v6.json`，version `ai-pdm.role-catalog.2026-10-05.v6`。system_admin 對上述每個有效 kind/code 都明確 `allowed=true`；其餘八角色的能力、stableRoleId、code、subject、risk、scope、委派與推薦規則不變。保持九角色與既有 canonical role/catalog hashing，重新產生本批確切 hash；v5 檔案、hash、已套用 SQL 保留。不在 runtime 使用 wildcard、未知 code 自動 allow、email／UID／Jed 特判或 role bypass。
 - 發布前唯讀核對 `orgmaster_contract.v_ai_pdm_principal_effective_grants_v4` 與 typed active account：Jed exact Principal `principal-firebase-b71682bf0d7cc5596b48dfad991e4096`／Employee `employee-shijie` 已有效 `role-system-admin`／`system_admin`、subject principal、targetPrincipalId 同 actor、direct、global/null、無 delegation，版本／有效期一致。settings action allow 只能證明該能力，不能替代此 formal grant readback。未核實或缺指派不得改 email 綁定或自動啟用，也不移除禁止自我指派規則。
-- 全能力不取消 same-snapshot Principal／Employee／profile active、company/resource、owner/reviewer、role priority／deny、委派、撤權、session、CAS、禁止自審／自我指派及稽核條件。system_admin 不傳播至同 Employee 的另一 Principal。未知／新增能力須日後顯式納入新版本，不從已授權全開推導永久自動擴權。
+- 全能力不取消 same-snapshot Principal／Employee／profile active、company/resource、owner/reviewer、有效角色／scope、委派、撤權、session、CAS、禁止自審／自我指派及稽核條件。角色順序僅供穩定歸因，不作 deny 覆蓋；同範圍任一角色允許即形成有效能力。system_admin 不傳播至同 Employee 的另一 Principal。未知／新增能力須日後顯式納入新版本，不從已授權全開推導永久自動擴權。
 
 ### Typed caller 與已發布 PostgreSQL 顯示契約
 
@@ -223,7 +225,7 @@ Jed同一Principal可依OrgMaster已發布rd／rd_manager／pdm_admin及scope完
 
 固定proof／signature可在snapshot前解析；可變session row、revocation、Platform principal state、typed producer、PDM account lifecycle/profile、OrgMaster grant v4、active catalog、delegation／公司與資源資料，在同一短REPEATABLE READ READ ONLY snapshot、同client與decision time讀取。缺state不當epoch0；任何依賴失敗不開旁路global connection或fallback。業務mutation在owner pinned write transaction內再驗同一proof／current state，至少既有RR或SERIALIZABLE強度，保留鎖與row version/CAS；retry須新transaction重新驗證，不復用舊allow。
 
-company從可信session/profile／server resource確立；workspace `current`／`company-jenfu`只以owner固定映射解析，project scope從server resource解析，URL/body不是範圍證據。既有role priority、deny優先及delegation有效期／sponsor／資源predicate保持；有入口指派仍可能缺業務grant，不能借相似permission或猜測擴權。
+company從可信session/profile／server resource確立；workspace `current`／`company-jenfu`只以owner固定映射解析，project scope從server resource解析，URL/body不是範圍證據。多角色採能力聯集，角色順序不讓關閉候選覆蓋另一角色的允許；delegation有效期／sponsor／資源predicate保持。有入口指派仍可能缺業務grant，不能借相似permission或猜測擴權。圖號缺可信project scope時套用本節的同公司共用語意；其他資源仍不得把project-only grant推升為workspace grant。
 
 route清單須與實際method、typed discriminator、exact permissionCode、SSR/middleware及共用依賴一致。每個必要能力對應allow、deny及scope證據；25個歷史缺碼按現行v5用途逐項確認，必要工作不能全部封閉後宣稱完成。未知用途須釐清，明確退役入口須可觀察403/410、caller清理及無正常舊路徑。
 

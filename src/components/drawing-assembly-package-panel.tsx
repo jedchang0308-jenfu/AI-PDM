@@ -76,8 +76,10 @@ export function DrawingAssemblyPackagePanel({base,frozen=false,editable=false,on
           timer=setTimeout(()=>void poll(),document.hidden || pkg.status==="queued" ? 15000:3000);
       } catch (reason) {
         if (!abort.signal.aborted) {
-          setError(reason instanceof Error?reason.message:"無法讀取組立包");
-          timer=setTimeout(()=>void poll(),15000);
+          const denied=reason instanceof AssemblyHttpError && (reason.status===401 || reason.status===403);
+          if (denied) {setCollection({data:null});setLoaded(false);}
+          setError(reason instanceof AssemblyHttpError && reason.status===403 ? "目前無權限讀取組立包。" : reason instanceof Error?reason.message:"無法讀取組立包");
+          if (!denied) timer=setTimeout(()=>void poll(),15000);
         }
       }
     }

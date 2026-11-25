@@ -321,25 +321,24 @@ describe("principal review package file read", () => {
     expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
   });
 
-  it("hides a work file when its current owner is another profile", async () => {
-    mocks.queryOne.mockResolvedValueOnce({ ...source,
+  it("reads another owner's work file with its own granted view/download capabilities", async () => {
+    mocks.queryOne.mockResolvedValue({ ...source,
       work_id: "work-one", owner_user_id: "profile-other" });
-    expect((await GET(request("drawing_revision_work"), params)).status).toBe(404);
-    expect(mocks.readObject).not.toHaveBeenCalled();
+    expect((await GET(request("drawing_revision_work"), params)).status).toBe(200);
+    expect(mocks.readObject).toHaveBeenCalled();
   });
 
-  it("allows only the exact work preview for a verified local test admin", async () => {
+  it("binds work previews and downloads to the exact work regardless of creator", async () => {
     mocks.isVerifiedLocalTestAdmin.mockReturnValue(true);
     mocks.queryOne.mockResolvedValue({ ...source, work_id: "work-one", owner_user_id: "profile-other" });
     const preview = await GET(previewRequest("drawing_revision_work"), params);
     expect(preview.status).toBe(200);
     expect(preview.headers.get("content-type")).toContain("application/pdf");
-    expect(mocks.isVerifiedLocalTestAdmin).toHaveBeenCalledWith(expect.any(Object), tx);
-    expect((await GET(request("drawing_revision_work"), params)).status).toBe(404);
+    expect((await GET(request("drawing_revision_work"), params)).status).toBe(200);
 
     mocks.queryOne.mockResolvedValue({ ...source, work_id: "work-other", owner_user_id: "profile-other" });
     expect((await GET(previewRequest("drawing_revision_work"), params)).status).toBe(404);
-    expect(mocks.readObject).toHaveBeenCalledTimes(1);
+    expect(mocks.readObject).toHaveBeenCalledTimes(2);
   });
 
   it("does not load bytes for another reviewer or a legacy review package", async () => {

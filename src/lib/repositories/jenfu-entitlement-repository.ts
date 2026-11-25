@@ -244,6 +244,7 @@ export class JenfuEntitlementRepository {
     }
     return inputs.map((candidate) => {
       let scopeCandidate = false;
+      let inScopeDeny = false;
       for (const { assignment, role } of preparedAssignments) {
         const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
         const permissionDecision = rolePolicyPermissionDecision(role, candidate.permissionKind, candidate.permissionCode,
@@ -252,15 +253,26 @@ export class JenfuEntitlementRepository {
         const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
           ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
           : null;
-        const inScope = assignment.scopeKind === "workspace"
+        const unboundSharedDrawing = candidate.projectCode == null &&
+          (candidate.resourceGroup === "drawing" ||
+            (candidate.resourceGroups?.length === 1 && candidate.resourceGroups[0] === "drawing"));
+        const sameCompany = candidate.workspaceCode == null || candidate.workspaceCode === candidate.actor.companyId;
+        const inScope = assignment.scopeKind === "global"
+          ? sameCompany
+          : assignment.scopeKind === "workspace"
           ? workspaceKey !== null && workspaceKey === candidate.actor.companyId
-          : scopeMatches(assignment, { workspaceKey: candidate.workspaceCode, projectKey: candidate.projectCode });
+          : assignment.scopeKind === "project" && unboundSharedDrawing
+            ? sameCompany && Boolean(assignment.scopeKey)
+            : sameCompany && scopeMatches(assignment,
+              { workspaceKey: candidate.workspaceCode, projectKey: candidate.projectCode });
         if (!inScope) { scopeCandidate = true; continue; }
         if (permissionDecision === "explicit_deny") {
-          return { publication, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
+          inScopeDeny = true;
+          continue;
         }
         return { publication, assignments, decisionCode: "allowed" as const, role, assignment, evaluatedRoles };
       }
+      if (inScopeDeny) return { publication, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
       if (scopeCandidate) return { publication, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
       return { publication, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
     });

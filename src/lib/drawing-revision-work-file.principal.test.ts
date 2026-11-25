@@ -166,7 +166,9 @@ describe("principal drawing file staging boundary", () => {
     expect(mocks.runLegacy).not.toHaveBeenCalled();
   });
 
-  it("replays an existing file through a principal receipt without the legacy command", async () => {
+  it("lets a custom matrix editor upload to another owner's work through a principal receipt", async () => {
+    mocks.evaluate.mockResolvedValue([{ allowed: true, roleCode: "new-file-editor" }]);
+    mocks.readWork.mockResolvedValue({ owner_user_id: "profile-other", revision_id: "revision-one", row_version: 2, handling: "owner" });
     vi.mocked(client.queryOne).mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes("SELECT file.id, file.source_file_asset_id")) return {
@@ -186,6 +188,9 @@ describe("principal drawing file staging boundary", () => {
         idempotencyKey: "file-one" }), expect.any(Function));
     expect(mocks.runLegacy).not.toHaveBeenCalled();
     expect(mocks.putObject).not.toHaveBeenCalled();
+    expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
+      { permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "drawing" }
+    ]);
   });
   it("reuses a stable Principal/company/work/command blob on unknown-outcome replay", async () => {
     mocks.runPrincipal.mockResolvedValue({reused:true,file:{sourceFileAssetId:"asset-one"}});

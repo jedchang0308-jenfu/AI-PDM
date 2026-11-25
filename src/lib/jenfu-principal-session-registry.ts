@@ -75,6 +75,7 @@ export class JenfuPrincipalSessionRegistry {
         AND account.account_status='active' AND account.system_role_enabled
         AND (account.session_invalid_before IS NULL OR session.issued_at>account.session_invalid_before)
         AND session.permission_snapshot->>'version'='1'
+        AND session.permission_snapshot->>'resolutionVersion'='2'
       ${lock ? "FOR SHARE OF session" : ""}
     `, {
       principalId: claims.principalId, sessionIdHash: hashJenfuPrincipalSessionId(claims.sessionId),

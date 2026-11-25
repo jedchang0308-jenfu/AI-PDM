@@ -5,7 +5,7 @@ import { withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from
 import { principalRequestInput } from "@/lib/jenfu-principal-http";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot, evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { authorizeDynamicResourceCapabilityInSnapshot } from "@/lib/principal-resource-capability";
-import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
+import { drawingWorkReadPermissions } from "@/lib/drawing-work-read-permissions";
 import { DrawingRevisionWorkAsyncRepository, type DrawingWorkRow } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { principalJobInitiatorFromVerifiedRequest, parsePrincipalJobInitiator, requireCurrentPrincipalJobAuthority } from "@/lib/principal-job-authority";
 import { createAssemblyStorageService, type AssemblyUploadSession, type AssemblyStoredObject } from "@/lib/assembly-storage";
@@ -61,18 +61,20 @@ export async function requireAssemblyPackageJobAuthority(client: AsyncDatabaseCl
   if (!editDecision?.allowed) assemblyError("組立包發起者已無編輯權限", 403);
   const work = await new DrawingRevisionWorkAsyncRepository(client).readWork(client, pkg.company_id, pkg.work_id);
   if (!work || work.handling !== "owner" || work.revision_id !== pkg.revision_id || !pkg.active_at || pkg.superseded_at || pkg.status !== "accepted") assemblyError("組立包來源已失效");
-  if (work.owner_user_id !== initiator.pdmUserId && !hasPdmNonOwnerEditScope({roles:editDecision.roleCode ? [editDecision.roleCode] : []})) assemblyError("組立包發起者已無工作編輯資格",403);
   await new DrawingRevisionWorkAsyncRepository(client).assertWorkMutationBasis(client, work);
   return initiator;
 }
 async function authorize(client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest, workId: string, write: boolean, bytes = false) {
-  const code = write ? "numbering.workspace.update" : "numbering.workspace.view";
-  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, [{ permissionKind: "action", permissionCode: code, resourceGroup: "drawing" }]);
-  if (!decision?.allowed) assemblyError("無權限執行此操作", 403);
+  if (write) {
+    const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified,
+      [{ permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "drawing" }]);
+    if (!decision?.allowed) assemblyError("無權限執行此操作", 403);
+  } else {
+    await drawingWorkReadPermissions(client, verified);
+  }
   const repository = new DrawingRevisionWorkAsyncRepository(client);
   const work = await repository.readWork(client, verified.profile.companyId, workId, write);
   if (!work) assemblyError("圖面工作不存在", 404);
-  if (work.owner_user_id !== verified.profile.pdmUserId && !hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] })) assemblyError("無權限執行此操作", 403);
   if (write) {
     if (work.handling !== "owner") assemblyError("此工作目前無法修改");
     await repository.assertWorkMutationBasis(client, work);

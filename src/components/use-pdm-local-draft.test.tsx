@@ -57,6 +57,21 @@ it("invalidates synchronously and clears visible fields on account switch", asyn
   expect(hook.isCurrent()).toBe(false); expect(node.querySelector("input")!.value).toBe("");
   expect(readLocalDraft(window.localStorage, owner(), "record-a")?.fields.note).toBe("帳號A內容");
 });
+it("retains the editor and its unsaved draft when a resource request is forbidden", async () => {
+  await render(); await type("尚未保存的圖號備註");
+  await act(async () => invalidatePdmPermissions("forbidden"));
+  expect(hook.isCurrent()).toBe(true);
+  expect(hook.invalidated).toBe(false);
+  expect(node.querySelector("input")!.value).toBe("尚未保存的圖號備註");
+  expect(readLocalDraft(localStorage, owner(), "record-a")?.fields.note).toBe("尚未保存的圖號備註");
+});
+it.each(["logout", "unauthenticated", "permissions-changed"] as const)("still clears the editor on %s", async reason => {
+  await render(); await type("不再顯示的內容");
+  await act(async () => invalidatePdmPermissions(reason));
+  expect(hook.isCurrent()).toBe(false);
+  expect(hook.invalidated).toBe(true);
+  expect(node.querySelector("input")!.value).toBe("");
+});
 it("handles a denied localStorage getter without crashing the editor", async () => {
   vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("denied", "SecurityError"); });
   await render(); await type("仍可編輯");
