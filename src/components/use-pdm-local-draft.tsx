@@ -23,7 +23,10 @@ export function usePdmLocalDraft({ record, version, fields, savedFields, labels 
   useLayoutEffect(() => { callbacks.current = { apply, reset }; activeVersion.current = version; });
   const isCurrent = useCallback(() => valid.current, []);
   useEffect(() => {
-    const unsubscribe = subscribePdmPermissionInvalidation(() => {
+    const unsubscribe = subscribePdmPermissionInvalidation(reason => {
+      // A resource denial refreshes shell permissions, but does not establish
+      // an account/session change. The server still authorizes every write.
+      if (reason === "forbidden") return;
       valid.current = false; setOwner(null); slot.current = null; setPending(null); setInvalidated(true);
       setNotice("身分或權限已變更，請重新開啟表單。"); callbacks.current.reset();
     });

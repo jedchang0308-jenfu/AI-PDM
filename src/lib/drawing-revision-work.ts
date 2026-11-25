@@ -7,6 +7,7 @@ import { withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from
 import { principalRequestInput } from "@/lib/jenfu-principal-http";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
+import { drawingWorkReadPermissions } from "@/lib/drawing-work-read-permissions";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
 import { uploadDrawingRevisionWorkFile, uploadDrawingRevisionWorkFilePrincipal } from "@/lib/drawing-revision-work-file";
@@ -291,19 +292,10 @@ export class DrawingRevisionWorkService {
         verified.session.contractVersion !== "jenfu.ai-pdm-session.v2") {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
-    const permissions = ["numbering.workspace.view", "numbering.workspace.update",
-      "numbering.candidate.review.submit", "numbering.workspace.cancel"] as const;
-    const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, permissions.map((permissionCode) => ({ permissionKind: "action", permissionCode, resourceGroup: "drawing" })));
-    if (decisions.length !== permissions.length || !decisions[0]?.allowed) {
-      throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
-    }
+    const { decisions, canEditNonOwned } = await drawingWorkReadPermissions(this.client, verified);
     return this.readForProfile(workId, { profileId: verified.profile.pdmUserId,
       companyId: verified.profile.companyId,
-      canEditNonOwned: hasPdmNonOwnerEditScope({
-        roles: decisions.filter((decision) => decision.allowed)
-          .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
-      }),
+      canEditNonOwned,
       principalCapabilities: {
         update: decisions[1]?.allowed === true,
         submit: decisions[2]?.allowed === true,

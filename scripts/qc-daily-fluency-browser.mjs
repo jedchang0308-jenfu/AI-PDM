@@ -11,8 +11,10 @@ const origin = process.env.FLUENCY_ORIGIN ?? 'http://127.0.0.1:13227';
 if (!['127.0.0.1', 'localhost'].includes(new URL(origin).hostname) || new URL(origin).protocol !== 'http:') throw new Error('Loopback HTTP runtime required');
 const baseline = process.argv.includes('--baseline');
 const runtimeRoot = baseline ? path.resolve('.tmp/daily-fluency-baseline') : process.cwd();
+const runId = process.env.FLUENCY_RUN_ID ?? 'default';
+if (!/^[a-z0-9-]+$/u.test(runId)) throw new Error('Invalid fluency run ID');
 const child = spawn(process.execPath, [path.resolve('node_modules/next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', new URL(origin).port], {
-  cwd: runtimeRoot, env: { ...process.env, PDM_DB_PROVIDER: 'sqlite', PDM_DATA_DIR: path.join(runtimeRoot, '.tmp/daily-fluency-data'), PDM_REPOSITORY_DIR: path.join(runtimeRoot, '.tmp/daily-fluency-data/repository'), PDM_NEXT_DIST_DIR: '.tmp/daily-fluency-next' }, stdio: ['ignore', 'pipe', 'pipe'],
+  cwd: runtimeRoot, env: { ...process.env, PDM_DB_PROVIDER: 'sqlite', PDM_DATA_DIR: path.join(runtimeRoot, `.tmp/daily-fluency-data-${runId}`), PDM_REPOSITORY_DIR: path.join(runtimeRoot, `.tmp/daily-fluency-data-${runId}/repository`), PDM_NEXT_DIST_DIR: `.tmp/daily-fluency-next-${runId}` }, stdio: ['ignore', 'pipe', 'pipe'],
 });
 let serverOutput = ''; child.stdout.on('data', chunk => { serverOutput += chunk; }); child.stderr.on('data', chunk => { serverOutput += chunk; });
 console.log(`task-owned Next PID=${child.pid} port=${new URL(origin).port} root=${runtimeRoot}`);
@@ -23,11 +25,12 @@ async function prepareBrowser() {
     return await chromium.launch({ channel: 'msedge', headless: true });
   } catch (error) { await stopNextApp(child); throw error; }
 }
-const output = path.resolve('output/playwright/daily-fluency'); fs.mkdirSync(output, { recursive: true });
+const output = path.resolve('output/playwright/daily-fluency', runId); fs.mkdirSync(output, { recursive: true });
 const codes = fs.readFileSync('src/lib/numbering-permission-codes.ts', 'utf8');
 const names = [...codes.matchAll(/"([a-z][a-z_.]+)"/g)].map(m => m[1]);
 let actor = 'actor-a', failList = false, listRequests = 0, mutations = 0;
 let drawingVersion = 1, drawingNote = '伺服器圖號備註', partVersion = 1, failPartSave = true;
+let assemblyStatus = 200, assemblyReads = 0;
 let partPayload = { partName: '量測料件', itemKind: 'manufactured', customSpecification: null, isUniversal: false, materialCode: null, materialLabel: null, colorCode: null, colorLabel: null, surfaceTreatment: null, variantNote: null };
 const row = { rowKey: 'daily-drawing', entityType: 'drawing', entityId: 'drawing-a', code: 'DAILY-M01', name: '日常操作量測圖面', layer: 'rd', layerLabel: '研發版', revision: '1.1', dataState: 'editing', dataStateLabel: '編輯中', handling: 'owner', handlingLabel: '負責人處理', blockerReason: null, detailHref: '/numbering/drawings/drawing-a/workspace?workId=work-a', rowVersion: 1, basisState: 'current', actions: [] };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -44,7 +47,12 @@ await context.route('**/api/**', async route => {
   else if (p === '/api/numbering/permissions') body = { contractVersion: 'ai-pdm.frontend-permission-projection.v1', applicationId: 'ai-pdm', generatedAt: new Date().toISOString(), pages: Object.fromEntries(names.map(k => [k, true])), actions: Object.fromEntries(names.map(k => [k, true])) };
   else if (p === '/api/numbering/drawings/workbench') { listRequests++; await sleep(650); status = failList ? 503 : 200; body = failList ? { message: '受控背景更新失敗' } : { data: { groups: [{ groupKey: 'daily', rows: [row] }], nextCursor: null, previousCursor: null, previewEnabled: false, totalGroups: 1, totalRows: 1 }, meta: { contractToken: 'fresh-fixture-only', correlationId: 'daily' } }; }
   else if (p === '/api/numbering/series-codes') body = { seriesCodeOptions: ['A'] };
-  else if (p === '/api/pdm/drawing-revision-works/work-a') { await sleep(650); body = { data: { entityType: 'drawing', entityId: 'drawing-a', workId: 'work-a', rowVersion: drawingVersion, revision: '1.1', readonly: false, identity: { code: 'DAILY-M01' }, changeImpactRequired: true, payload: { changeImpact: { formState: 'no_impact', fitState: 'no_impact', functionState: 'no_impact', note: drawingNote } }, files: [], interaction: { mode: 'owner_edit', basisState: 'current', canMutateContent: true, canSubmit: true, canCancel: true } }, meta: { contractToken: 'fresh-drawing-only' } }; }
+  else if (p === '/api/pdm/drawing-revision-works/work-a/assembly-packages') { assemblyReads++; status = assemblyStatus; body = status === 200 ? { data: null } : { error: { message: '受控組立包拒絕' } }; }
+  else if (p === '/api/pdm/drawing-revision-works/work-a') {
+    await sleep(650);
+    if (route.request().method() === 'PATCH') { drawingVersion++; drawingNote = route.request().postDataJSON().changeImpact.note; }
+    body = { data: { entityType: 'drawing', entityId: 'drawing-a', workId: 'work-a', rowVersion: drawingVersion, revision: '1.1', readonly: false, identity: { code: 'DAILY-M01' }, changeImpactRequired: true, payload: { changeImpact: { formState: 'no_impact', fitState: 'no_impact', functionState: 'no_impact', note: drawingNote } }, files: [], interaction: { mode: 'owner_edit', basisState: 'current', canMutateContent: true, canSubmit: true, canCancel: true } }, meta: { contractToken: 'fresh-drawing-only' } };
+  }
   else if (p === '/api/pdm/parts/part-a/matrix-workspace') { await sleep(650); body = { data: { root: { id: 'root-a', code: 'DAILY' }, sourcePartId: 'part-a', sourceRowKey: 'part-row', columns: [{ partId: 'part-a', partNumber: 'DAILY-P01', sequenceNo: 1, formalRowVersion: 1, recordStatus: 'Released', lifecycleIntent: 'edit', canRequestRelease: false, handling: 'owner', canEdit: true, canSubmit: true, disabledReason: null, workId: 'part-work-a', workRowVersion: partVersion, workOwner: { id: actor }, valueSource: 'work', payload: partPayload, formalPayload: partPayload, attachmentCount: 0, confirmedAttributes: [] }] }, meta: { actorId: actor, companyId: 'company-a', contractToken: 'fresh-part-only' } }; }
   else if (p === '/api/pdm/part-change-works/part-work-a') {
     await sleep(650);
@@ -116,6 +124,25 @@ try {
     assert.equal(await page.getByRole('button', { name: '恢復草稿', exact: true }).count(), 0);
     measurements.serverVersionConflict = true;
     await page.screenshot({ path: path.join(output, 'version-conflict.png'), fullPage: true });
+    await page.getByRole('button', { name: '捨棄草稿', exact: true }).click();
+    assemblyStatus = 403; await page.reload();
+    await page.getByText('目前無權限讀取組立包。', { exact: true }).waitFor();
+    const deniedReads = assemblyReads;
+    await page.getByLabel(/判定備註/).fill('組立包拒絕後仍可編輯');
+    await page.getByText('已保留本機草稿，尚未儲存至伺服器。', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '儲存', exact: true }).click();
+    await page.getByText('已儲存', { exact: true }).waitFor();
+    assert.equal(drawingNote, '組立包拒絕後仍可編輯');
+    await sleep(16000);
+    assert.equal(assemblyReads, deniedReads, 'a denied package must not poll repeatedly');
+    assert.equal(await page.getByLabel(/判定備註/).inputValue(), drawingNote);
+    await page.screenshot({ path: path.join(output, 'assembly-forbidden-editor-retained.png'), fullPage: true });
+    measurements.assemblyForbiddenEditorRetained = true;
+    assemblyStatus = 401; await page.reload();
+    await page.getByText('身分或權限已變更，請重新開啟工作資料。', { exact: true }).waitFor();
+    assert.equal(await page.getByLabel(/判定備註/).count(), 0);
+    measurements.invalidSessionEditorClosed = true;
+    assemblyStatus = 200;
   }
   await measure('partFormMs', () => page.goto(`${origin}/parts/part-a/workspace?workId=part-work-a`), () => page.locator('[data-cell="part-a:variantNote"] textarea').waitFor());
   const partNote = page.locator('[data-cell="part-a:variantNote"] textarea');
