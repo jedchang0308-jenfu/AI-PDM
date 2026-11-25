@@ -41,7 +41,7 @@ it("reads only the PDM session and resolves its scoped permission without upstre
   vi.stubEnv("PDM_SESSION_REVOCATION_ENABLED", "1");
   vi.stubEnv("PDM_SESSION_PERMISSION_SNAPSHOTS_ENABLED", "1");
   const permissions: PrincipalSessionPermissions = {
-    version: 1, sourceVersion: "source-4", assignmentVersion: 4, assignmentVersionId: "assignment-version-4",
+    version: 1, resolutionVersion: 2, sourceVersion: "source-4", assignmentVersion: 4, assignmentVersionId: "assignment-version-4",
     catalogVersion: "catalog-4", employeeName: null, scopes: [["project", "p-denied"], ["global", null]],
     permissions: { "action:numbering.draft.update": [[0, false, "rd", "deny"], [1, true, "rd", "allow"]] }
   };
@@ -57,10 +57,12 @@ it("reads only the PDM session and resolves its scoped permission without upstre
       return Promise.all(["p-denied", "p-allowed"].map(projectCode =>
         evaluatePrincipalResourcePermissionsInSnapshot(client, verified, requested, { projectCode })));
     }, { readOnly: false });
-    expect(result[0][0]).toMatchObject({ allowed: false, decisionCode: "permission_explicit_deny" });
+    expect(result[0][0]).toMatchObject({ allowed: true, assignmentId: "allow", publishedAssignmentVersion: 4 });
     expect(result[1][0]).toMatchObject({ allowed: true, assignmentId: "allow", publishedAssignmentVersion: 4 });
     expect(queryOne).toHaveBeenCalledOnce();
     expect(queryOne.mock.calls[0][0]).toContain("FOR SHARE OF session");
+    expect(queryOne.mock.calls[0][0]).toContain("permission_snapshot->>'version'='1'");
+    expect(queryOne.mock.calls[0][0]).toContain("permission_snapshot->>'resolutionVersion'='2'");
     expect(queryOne.mock.calls[0][0]).not.toMatch(/orgmaster_contract|platform_contract/u);
     expect(snapshot.query).not.toHaveBeenCalled();
   } finally {

@@ -144,7 +144,8 @@ function dynamicRole(stableRoleId: string, roleCode: string, permissions: Dynami
   return {
     stableRoleId, roleCode, displayName: roleCode, assignable: true,
     risk: "normal" as const, subjectKind: "employee" as const, recommendationAllowed: true,
-    delegationAllowed: true, allowedScopeKinds: ["workspace" as const], assignmentTier: "app_admin" as const,
+    delegationAllowed: true, allowedScopeKinds: ["workspace"] as ("global" | "workspace" | "project")[],
+    assignmentTier: "app_admin" as const,
     permissions, roleDefinitionHash: `synthetic-${roleCode}`, roleStatus
   };
 }
@@ -317,7 +318,7 @@ describe("DEV-005 EntitlementRepository", () => {
     })).rejects.toMatchObject({ code: "permission_explicit_deny" });
   });
 
-  it("applies the configured role priority before resolving conflicting explicit grants", async () => {
+  it("uses the multi-role allow union regardless of configured role order", async () => {
     const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
     const twoRoleCatalog: JenfuEntitlementRoleCatalog = {
       roles: [
@@ -337,13 +338,13 @@ describe("DEV-005 EntitlementRepository", () => {
     };
     await expect(repository({ assignmentRows: [assignment, qaAssignment] }, twoRoleCatalog).evaluatePermission({
       actor, rolePriority: ["qa", "rd"], permissionKind: "page", permissionCode: "numbering.search", workspaceCode: "company-jenfu"
-    })).rejects.toMatchObject({ code: "permission_explicit_deny" });
+    })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
     await expect(repository({ assignmentRows: [assignment, qaAssignment] }, twoRoleCatalog).evaluatePermission({
       actor, rolePriority: ["rd", "qa"], permissionKind: "page", permissionCode: "numbering.search", workspaceCode: "company-jenfu"
     })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
   });
 
-  it("keeps a higher-priority mapped deny when another required action is absent", async () => {
+  it("does not let a higher-priority mapped deny override another role's complete allow", async () => {
     const higher = dynamicRole("role-rd", "rd", [
       { kind: "action", code: "pdm.drawing.view", allowed: false }
     ]);
@@ -355,7 +356,7 @@ describe("DEV-005 EntitlementRepository", () => {
     const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
     await expect(repository({ assignmentRows: [assignment, qaAssignment] }, dynamicCatalog([higher, lower])
       ).evaluatePermission(submissionViewInput(["rd", "qa"])))
-      .rejects.toMatchObject({ code: "permission_explicit_deny" });
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "qa" } });
   });
 
   it("does not let a lower-priority deny override a higher-priority full allow", async () => {
@@ -403,7 +404,7 @@ describe("DEV-005 EntitlementRepository", () => {
       .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "qa" } });
   });
 
-  it("keeps production planning and procurement assignments isolated across scope, identity, and original role priority", async () => {
+  it("keeps production planning and procurement assignments isolated across scope and identity", async () => {
     const sourceCandidate = structuredClone(buildDefaultRolePolicyCandidate(
       "ai-pdm.role-policy.synthetic-qa05-0000-4000-8000-000000000001"));
     const planning = sourceCandidate.roles.find(role => role.stableRoleId === "role-production-planning")!;
@@ -451,7 +452,7 @@ describe("DEV-005 EntitlementRepository", () => {
     const source = repository({ assignmentRows: [planningAssignment, procurementAssignment] }, effectiveCatalog);
     const planningFirst = submissionViewInput(["production_planning", "procurement"]);
     await expect(source.evaluatePermission(planningFirst))
-      .rejects.toMatchObject({ code: "permission_explicit_deny" });
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "procurement" } });
     await expect(source.evaluatePermission({ ...planningFirst, rolePriority: ["procurement", "production_planning"] }))
       .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "procurement" } });
 
@@ -462,6 +463,35 @@ describe("DEV-005 EntitlementRepository", () => {
       ...procurementAssignment, principal_id: "principal-other", employee_id: "employee-other"
     }] }, effectiveCatalog).evaluatePermission(planningFirst))
       .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
+  it("treats only an unbound drawing as company-shared for a project-scoped role", async () => {
+    const projectRole = {
+      ...dynamicRole("role-rd", "rd", [
+        { kind: "action" as const, code: "pdm.drawing.view", allowed: true },
+        { kind: "action" as const, code: "pdm.part.view", allowed: true }
+      ]),
+      allowedScopeKinds: ["project" as const]
+    };
+    const projectAssignment = {
+      ...assignment, scope_kind: "project" as const, scope_key: "PROJECT-001"
+    };
+    const source = repository({ assignmentRows: [projectAssignment] }, dynamicCatalog([projectRole]));
+    const input = (resourceGroup: "drawing" | "part", projectCode: string | null,
+      workspaceCode = actor.companyId) => ({
+      actor, rolePriority: ["rd"], permissionKind: "action" as const,
+      permissionCode: "numbering.workspace.view", resourceGroup, workspaceCode, projectCode
+    });
+    await expect(source.evaluatePermission(input("drawing", null)))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+    await expect(source.evaluatePermission(input("drawing", "PROJECT-001")))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
+    await expect(source.evaluatePermission(input("drawing", "PROJECT-002")))
+      .rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
+    await expect(source.evaluatePermission(input("drawing", null, "company-other")))
+      .rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
+    await expect(source.evaluatePermission(input("part", null)))
+      .rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
   });
 
   it("fails closed if an active assignment role is absent from the priority contract", async () => {

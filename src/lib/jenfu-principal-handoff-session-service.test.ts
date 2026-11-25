@@ -104,7 +104,7 @@ describe("DEV-121 principal handoff session issuance", () => {
   it("persists one permission snapshot and expires the token at the upcoming grant boundary", async () => {
     mocks.snapshotsEnabled.mockReturnValueOnce(true);
     const permissions = {
-      version: 1, sourceVersion: "4", assignmentVersion: 4, assignmentVersionId: "source-4",
+      version: 1, resolutionVersion: 2, sourceVersion: "4", assignmentVersion: 4, assignmentVersionId: "source-4",
       catalogVersion: "catalog-1", employeeName: null, scopes: [], permissions: {}
     };
     const nextExpiry = nowMs + 60_500;
@@ -125,7 +125,7 @@ describe("DEV-121 principal handoff session issuance", () => {
     mocks.snapshotsEnabled.mockReturnValueOnce(true);
     const authority = { source_version: "4" };
     mocks.ensureFirstLogin.mockResolvedValueOnce({ authority });
-    const permissionSnapshot = { version: 1, sourceVersion: "4" };
+    const permissionSnapshot = { version: 1, resolutionVersion: 2, sourceVersion: "4" };
     mocks.createPermissions.mockResolvedValueOnce({ snapshot: permissionSnapshot, nextExpiry: Infinity });
     const result = await issueSessionForPrincipalHandoff(base);
     expect(mocks.ensureFirstLogin).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({

@@ -17,6 +17,7 @@ type Scope = ["global" | "workspace" | "project", string | null];
 type Candidate = [scope: number, allowed: boolean, roleCode: string, assignmentId: string];
 export type PrincipalSessionPermissions = {
   version: 1;
+  resolutionVersion: 2;
   sourceVersion: string;
   assignmentVersion: number;
   assignmentVersionId: string;
@@ -69,7 +70,8 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
         if (decision === "not_granted") continue;
         const key = mask === 0 ? operation : `${operation}:${mask}`;
         const list = permissions[key] ??= [];
-        if (!list.some(candidate => candidate[0] === scope)) {
+        if (!list.some(candidate => candidate[0] === scope && candidate[1] === (decision === "allowed") &&
+          candidate[2] === role.roleCode && candidate[3] === assignment.assignmentId)) {
           list.push([scope, decision === "allowed", role.roleCode, assignment.assignmentId]);
         }
       }
@@ -87,7 +89,8 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
       for (const mask of contexts.keys()) {
         const key = mask === 0 ? operation : `${operation}:${mask}`;
         const list = permissions[key] ??= [];
-        if (!list.some(candidate => candidate[0] === scope)) {
+        if (!list.some(candidate => candidate[0] === scope && candidate[1] === true &&
+          candidate[2] === role.roleCode && candidate[3] === "shared-daily-system-test-admin")) {
           list.unshift([scope, true, role.roleCode, "shared-daily-system-test-admin"]);
         }
       }
@@ -105,7 +108,7 @@ export async function createPrincipalSessionPermissions(client: AsyncDatabaseCli
       (assignment.stableRoleId === "role-system-admin" && assignment.roleCode === "system_admin" &&
         accountType === "human_privileged")));
   const snapshot: PrincipalSessionPermissions = {
-    version: 1, sourceVersion, assignmentVersion: publication.assignmentVersion,
+    version: 1, resolutionVersion: 2, sourceVersion, assignmentVersion: publication.assignmentVersion,
     assignmentVersionId: publication.assignmentVersionId, catalogVersion: catalog.catalogVersion,
     employeeName: await readPrincipalChineseEmployeeName(client, actor.principalId, actor.employeeId),
     canManageRolePolicy: manager,
@@ -124,13 +127,18 @@ export function resolvePrincipalSessionPermissions(snapshot: PrincipalSessionPer
     const candidates = mask === undefined || (mask > 0 && mask < 16)
       ? snapshot.permissions[`${permissionKind}:${permissionCode}${mask === undefined ? "" : `:${mask}`}`] ?? []
       : [];
-    const match = candidates.find(([scope]) => {
+    const sameCompany = (resource.workspaceCode ?? actor.companyId) === actor.companyId;
+    const unboundSharedDrawing = resource.projectCode == null && sameCompany &&
+      (resourceGroup === "drawing" || (resourceGroups?.length === 1 && resourceGroups[0] === "drawing"));
+    const matching = candidates.filter(([scope]) => {
       const [kind, key] = snapshot.scopes[scope];
-      if (kind === "global") return true;
-      if (kind === "project") return !!key && key === resource.projectCode;
-      return actor.companyId === "company-jenfu" && (resource.workspaceCode ?? actor.companyId) === actor.companyId &&
-        (key === "current" || key === actor.companyId);
+      if (kind === "global") return sameCompany;
+      if (kind === "project") return sameCompany && !!key && (unboundSharedDrawing || key === resource.projectCode);
+      return actor.companyId === "company-jenfu" && sameCompany && (key === "current" || key === actor.companyId);
     });
+    // Role order is attribution-only. Any in-scope allow contributes to the
+    // actor's effective capability; an explicit deny is not a deny override.
+    const match = matching.find(([, allowed]) => allowed) ?? matching[0];
     return {
       allowed: match?.[1] === true, permissionCode,
       decisionCode: match ? match[1] ? "allowed" : "permission_explicit_deny"
