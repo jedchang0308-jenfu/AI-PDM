@@ -6,7 +6,10 @@ import { subscribePdmPermissionInvalidation, subscribePdmMutationInvalidation } 
 let current: Promise<Response> | null = null;
 let identityGeneration = 0;
 export function clearCurrentPdmUser() { identityGeneration++; current = null; }
-subscribePdmPermissionInvalidation(clearCurrentPdmUser);
+subscribePdmPermissionInvalidation(reason => {
+  // A resource 403 refreshes capabilities, not the authenticated identity.
+  if (reason !== "forbidden") clearCurrentPdmUser();
+});
 
 export async function fetchCurrentPdmUser(): Promise<Response> {
   if (!current) {

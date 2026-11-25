@@ -23,6 +23,25 @@ it("rejects identity readback from a previous login", async () => {
   finish(Response.json({ user: { id: "previous" } }));
   await expect(old).rejects.toThrow("PDM_IDENTITY_CHANGED");
 });
+it("keeps an in-flight identity readback valid across a resource denial", async () => {
+  let finish!: (response: Response) => void;
+  const fetcher = vi.fn(() => new Promise<Response>(resolve => { finish = resolve; }));
+  vi.stubGlobal("fetch", fetcher);
+  const pending = fetchCurrentPdmUser();
+  invalidatePdmPermissions("forbidden");
+  finish(Response.json({ user: { id: "same-user" } }));
+  expect(await (await pending).json()).toEqual({ user: { id: "same-user" } });
+  await fetchCurrentPdmUser();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it.each(["logout", "unauthenticated", "permissions-changed"] as const)("discards pending identity when %s establishes session invalidation", async reason => {
+  let finish!: (response: Response) => void;
+  vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+  const pending = fetchCurrentPdmUser();
+  invalidatePdmPermissions(reason);
+  finish(Response.json({ user: { id: "old-user" } }));
+  await expect(pending).rejects.toThrow("PDM_IDENTITY_CHANGED");
+});
 
 it("reuses a count for 30 seconds and refreshes after approval changes", async () => {
   vi.useFakeTimers();

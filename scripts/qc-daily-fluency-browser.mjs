@@ -31,6 +31,7 @@ const names = [...codes.matchAll(/"([a-z][a-z_.]+)"/g)].map(m => m[1]);
 let actor = 'actor-a', failList = false, listRequests = 0, mutations = 0;
 let drawingVersion = 1, drawingNote = '伺服器圖號備註', partVersion = 1, failPartSave = true;
 let assemblyStatus = 200, assemblyReads = 0;
+let identityGate = null;
 let partPayload = { partName: '量測料件', itemKind: 'manufactured', customSpecification: null, isUniversal: false, materialCode: null, materialLabel: null, colorCode: null, colorLabel: null, surfaceTreatment: null, variantNote: null };
 const row = { rowKey: 'daily-drawing', entityType: 'drawing', entityId: 'drawing-a', code: 'DAILY-M01', name: '日常操作量測圖面', layer: 'rd', layerLabel: '研發版', revision: '1.1', dataState: 'editing', dataStateLabel: '編輯中', handling: 'owner', handlingLabel: '負責人處理', blockerReason: null, detailHref: '/numbering/drawings/drawing-a/workspace?workId=work-a', rowVersion: 1, basisState: 'current', actions: [] };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,7 +44,7 @@ await context.route('**/api/**', async route => {
   const url = new URL(route.request().url()), p = url.pathname;
   if (!['GET', 'HEAD'].includes(route.request().method()) && p !== '/api/numbering/duplicate-check') mutations++;
   let body = {}, status = 200;
-  if (p === '/api/auth/me') { await sleep(650); body = { user: { id: actor, display_name: actor, companies: [], default_company: { id: 'company-a' } }, session: { principalId: actor, companyId: 'company-a' } }; }
+  if (p === '/api/auth/me') { if (identityGate) await identityGate; await sleep(650); body = { user: { id: actor, display_name: actor, companies: [], default_company: { id: 'company-a' } }, session: { principalId: actor, companyId: 'company-a' } }; }
   else if (p === '/api/numbering/permissions') body = { contractVersion: 'ai-pdm.frontend-permission-projection.v1', applicationId: 'ai-pdm', generatedAt: new Date().toISOString(), pages: Object.fromEntries(names.map(k => [k, true])), actions: Object.fromEntries(names.map(k => [k, true])) };
   else if (p === '/api/numbering/drawings/workbench') { listRequests++; await sleep(650); status = failList ? 503 : 200; body = failList ? { message: '受控背景更新失敗' } : { data: { groups: [{ groupKey: 'daily', rows: [row] }], nextCursor: null, previousCursor: null, previewEnabled: false, totalGroups: 1, totalRows: 1 }, meta: { contractToken: 'fresh-fixture-only', correlationId: 'daily' } }; }
   else if (p === '/api/numbering/series-codes') body = { seriesCodeOptions: ['A'] };
@@ -125,11 +126,15 @@ try {
     measurements.serverVersionConflict = true;
     await page.screenshot({ path: path.join(output, 'version-conflict.png'), fullPage: true });
     await page.getByRole('button', { name: '捨棄草稿', exact: true }).click();
+    let releaseIdentity;
+    identityGate = new Promise(resolve => { releaseIdentity = resolve; });
     assemblyStatus = 403; await page.reload();
     await page.getByText('目前無權限讀取組立包。', { exact: true }).waitFor();
     const deniedReads = assemblyReads;
     await page.getByLabel(/判定備註/).fill('組立包拒絕後仍可編輯');
+    releaseIdentity(); identityGate = null;
     await page.getByText('已保留本機草稿，尚未儲存至伺服器。', { exact: true }).waitFor();
+    measurements.assemblyDeniedBeforeIdentityRetainsDraft = true;
     await page.getByRole('button', { name: '儲存', exact: true }).click();
     await page.getByText('已儲存', { exact: true }).waitFor();
     assert.equal(drawingNote, '組立包拒絕後仍可編輯');

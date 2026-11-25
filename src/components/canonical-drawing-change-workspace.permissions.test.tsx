@@ -64,3 +64,20 @@ it("still closes the drawing editor when the assembly response establishes an in
   expect(container.querySelector("textarea")).toBeNull();
   expect(container.textContent).toContain("身分或權限已變更");
 });
+it("enables local draft protection when identity resolves after an initial assembly denial", async () => {
+  const normal = fetcher.getMockImplementation()!;
+  let finishIdentity!: (response: Response) => void;
+  fetcher.mockImplementation((input, init) => String(input) === "/api/auth/me"
+    ? new Promise<Response>(resolve => { finishIdentity = resolve; }) : normal(input, init));
+  await render();
+  await act(async () => {
+    const field = container.querySelector("textarea")!;
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(field, "身分確認前的文字");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    finishPackage(json({ error: { message: "拒絕" } }, 403));
+  });
+  await act(async () => finishIdentity(json({ user: { id: "user" }, session: { principalId: "principal", companyId: "company" } })));
+  expect(container.querySelector("textarea")?.value).toBe("身分確認前的文字");
+  expect(container.textContent).toContain("已保留本機草稿，尚未儲存至伺服器。");
+  expect(Object.values(localStorage).join(" ")).toContain("身分確認前的文字");
+});
