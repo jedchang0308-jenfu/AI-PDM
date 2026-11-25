@@ -392,7 +392,7 @@ export default function LoginPage() {
           <div className="google-auth-choice">
             <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
               <LogIn size={16} aria-hidden="true" />
-              使用鉦富平台登入
+              使用 Google 登入
             </button>
             {error && <a className="secondary-button" href={`/api/auth/jenfu-sso/start?reauth=1&returnTo=${encodeURIComponent(loginReturnTo())}`}>改用其他 Google 帳號</a>}
             <p className="login-provider-note">登入一次即可進入你有權限的 Jenfu 系統。</p>

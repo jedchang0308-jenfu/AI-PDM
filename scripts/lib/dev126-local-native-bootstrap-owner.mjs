@@ -16,8 +16,80 @@ const DEV090_MIGRATION_043 = Object.freeze({
 const V3_CATALOG_VERSION = 'ai-pdm.role-catalog.2026-09-03.v3'
 const PDM_SCHEMA = 'ai_pdm_core'
 const LEGACY_SCHEMA = 'ai_pdm_legacy_stage'
+export const DEV015_LEGACY_OWNER_FORWARD = Object.freeze({
+  path: 'db/postgres/local/110_dev015_legacy_native_owner_alignment.sql',
+  sha256: '743161afd0494e49e6ff713b033c911b270a847b8d1950bd03e76c2ba7f70081',
+})
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => Object.assign(new Error('LOCAL_NATIVE_AI_PDM_' + code), { code: 'LOCAL_NATIVE_AI_PDM_' + code })
+
+/** Only the historical DEV-127 isolated baseline may advance to native owner
+ * prerequisites. Normal executeMigration ownership/ACL guards stay unchanged. */
+export async function executeDev015LegacyOwnerForward(client, sql, sourceRevision) {
+  const entry = { path: DEV015_LEGACY_OWNER_FORWARD.path, sourceSha256: DEV015_LEGACY_OWNER_FORWARD.sha256,
+    appliedSha256: DEV015_LEGACY_OWNER_FORWARD.sha256 }
+  if (typeof sql !== 'string' || sha256(Buffer.from(sql)) !== entry.sourceSha256 || !HASH40.test(sourceRevision ?? '')) throw fail('SOURCE_INVALID')
+  await guardTarget(client)
+  await client.query('BEGIN')
+  try {
+    const operator = await rows(client, 'SELECT current_user AS role_name')
+    if (operator.length !== 1 || operator[0].role_name !== 'postgres') throw fail('LEGACY_OPERATOR_REQUIRED')
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('ai-pdm-dev015-legacy-owner-forward'))")
+    const baseline = await rows(client, `SELECT version,btrim(checksum_sha256) AS checksum
+      FROM ai_pdm_core.schema_migrations WHERE version=ANY($1::text[]) ORDER BY version`,
+    [['ai-pdm-096','ai-pdm-local-dev127-owner-alignment-v1']])
+    if (baseline.length !== 2 || baseline[0].version !== 'ai-pdm-096' || baseline[0].checksum !== '36d53700ba87ea6aa278ff227aef33f1f203942b491f0d01e4af5de8b6087ffa' ||
+      baseline[1].version !== 'ai-pdm-local-dev127-owner-alignment-v1' || baseline[1].checksum !== '810921336bde4dcebbe6a0754eccf491b218c9de1b1cdac74a1f307c9a55bef8') throw fail('LEGACY_BASELINE_MISMATCH')
+    const runtimeSafe = async () => {
+      const result = await rows(client, `SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='jenfu_ai_pdm_runtime')
+        AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='jenfu_ai_pdm_migrator' AND NOT
+          (rolcanlogin OR rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls))
+        AND NOT EXISTS(SELECT 1 FROM pg_roles r WHERE r.rolname='jenfu_ai_pdm_runtime'
+        AND (r.rolsuper OR r.rolcreaterole OR r.rolcreatedb OR r.rolreplication OR r.rolbypassrls
+          OR pg_has_role(r.oid,'jenfu_ai_pdm_migrator','MEMBER')
+          OR has_schema_privilege(r.oid,'ai_pdm_core','CREATE') OR has_schema_privilege(r.oid,'ai_pdm_contract','CREATE'))) AS safe`)
+      if (result.length !== 1 || result[0].safe !== true) throw fail('RUNTIME_OWNER_PRIVILEGE')
+    }
+    await runtimeSafe()
+    const history = async () => (await rows(client, 'SELECT to_jsonb(ledger) AS row FROM ai_pdm_core.schema_migrations ledger ORDER BY version')).map(value => value.row)
+    const before = JSON.stringify(await history())
+    const receiptTable = await relationInfo(client, PDM_SCHEMA, 'local_native_bootstrap_receipts')
+    if (receiptTable.length > 1) throw fail('LOCAL_RECEIPT_TABLE_INVALID')
+    if (receiptTable.length === 1) {
+      const existing = await readLocalReceipt(client, entry.path)
+      if (existing.length > 1) throw fail('LOCAL_RECEIPT_READBACK_INVALID')
+      if (existing.length === 1) {
+        if (!localReceiptMatches(existing[0], entry, sourceRevision)) throw fail('LOCAL_RECEIPT_MISMATCH')
+        await client.query('SET LOCAL ROLE ' + MIGRATOR)
+        await assertSchemaOwner(client, PDM_SCHEMA)
+        await assertSchemaOwner(client, 'ai_pdm_contract')
+        await assertRelationShape(client, PDM_SCHEMA, 'local_native_bootstrap_receipts', LOCAL_RECEIPT_SHAPE)
+        await assertNoRuntimeReceiptAcl(client)
+        await client.query('COMMIT')
+        return { reused: true }
+      }
+    }
+    const schemas = await rows(client, "SELECT nspname,pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname=ANY(ARRAY['ai_pdm_core','ai_pdm_contract']) ORDER BY nspname")
+    if (schemas.length !== 2 || schemas.some(value => value.owner !== 'postgres')) throw fail('LEGACY_SCHEMA_OWNER_MISMATCH')
+    await client.query(sql)
+    await client.query('SET LOCAL ROLE ' + MIGRATOR)
+    await assertMigratorRole(client)
+    await assertSchemaOwner(client, PDM_SCHEMA)
+    await assertSchemaOwner(client, 'ai_pdm_contract')
+    await assertRelationShape(client, PDM_SCHEMA, 'schema_migrations', NATIVE_LEDGER_SHAPE)
+    await runtimeSafe()
+    if (JSON.stringify(await history()) !== before) throw fail('LEGACY_LEDGER_CHANGED')
+    if (receiptTable.length === 0) await createLocalReceiptTable(client)
+    await assertRelationShape(client, PDM_SCHEMA, 'local_native_bootstrap_receipts', LOCAL_RECEIPT_SHAPE)
+    await assertNoRuntimeReceiptAcl(client)
+    await insertLocalReceipt(client, entry, sourceRevision)
+    await client.query('COMMIT')
+    return { reused: false }
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw error
+  }
+}
 
 async function rows(client, sql, values) {
   const result = await client.query(sql, values)

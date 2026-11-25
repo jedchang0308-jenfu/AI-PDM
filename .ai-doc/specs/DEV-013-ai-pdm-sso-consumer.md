@@ -17,6 +17,8 @@ AI-PDM consumes Platform `jenfu.sso-handoff.v1` for the fixed `ai-pdm` audience.
 
 <a id="dev015-sso-error-return"></a>
 
+DEV-015 原生隔離前置追加：歷史 DEV-127 local migration 097 保留 postgres schema/table ownership，因此 current dev126 native forward 在 101 寫入前回 `LOCAL_NATIVE_AI_PDM_SCHEMA_OWNER_MISMATCH`，原 096／097 收據保留。新增 local-only `db/postgres/local/110_dev015_legacy_native_owner_alignment.sql` 與 owner bootstrap 入口，只接受 loopback `jenfu_local_*`、固定 096／097 checksum、原 postgres owner inventory、runtime 無 owner／migrator／CREATE。新 forward 將自身 schemas／DDL 物件移交既有 NOLOGIN migrator，原子核對歷史 ledger 完全未變並追加獨立 local native receipt；101–109 仍使用原 native guards。此 local prerequisite 不列入正式 release migration profile，不改身份映射、任用或業務資料。guard／既有 native owner 單元測試 17/17；隔離實際 forward 收據由 Platform 主控保存。
+
 ### Platform DEV-015 單次操作登入：拒絕／取消返回（2026-11-25，source candidate）
 
 原 callback 新增與 `code,state,iss` 互斥的 `error,state,iss` 格式，只接受 `access_denied`／`temporarily_unavailable`。先驗證唯一交易 cookie 簽章、state、issuer 及期限，再清除 cookie 並回本地 `/login`，保留原交易 `returnTo`；無 cookie、錯 state／issuer、過期、重複 cookie／query、混合格式與額外欄位不可當成已驗取消，也不自動重啟 broker。有效拒絕不交換 code 或建立／撤銷 session。
