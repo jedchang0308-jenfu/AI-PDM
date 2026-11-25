@@ -7,7 +7,6 @@ import { principalSessionTokenFromRequest, principalRequestInput } from '@/lib/j
 import { withVerifiedJenfuPrincipalRequest } from '@/lib/jenfu-principal-request-guard';
 import { DrawingRecognitionAsyncRepository } from '@/lib/repositories/drawing-recognition-async-repository';
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from '@/lib/jenfu-principal-permission-service';
-import { recognitionRolesArePrivileged } from '@/lib/drawing-recognition';
 import { requireRecognitionSourceCapabilities } from '@/lib/principal-recognition-capability';
 
 export const runtime = "nodejs";
@@ -49,7 +48,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
           const repository = new DrawingRecognitionAsyncRepository(snapshot);
           await repository.assertSessionScope({ sessionId: params.sessionId, companyId: verified.profile.companyId,
             actorId: verified.profile.pdmUserId, principalId: verified.session.principalId,
-            privileged: recognitionRolesArePrivileged(decision.roleCode ? [decision.roleCode] : []) });
+            privileged: true });
           await requireRecognitionSourceCapabilities(snapshot, verified, params.sessionId, 'download', params.sourceId);
           const current = await repository.getSourceForActor({ sessionId: params.sessionId, sourceId: params.sourceId,
             companyId: verified.profile.companyId });

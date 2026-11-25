@@ -93,7 +93,7 @@ describe("recognition commands retain the verified Principal context", () => {
     mocks.calculateImpact.mockResolvedValue({ impactFingerprint: "impact-one", requiresPostReleaseChange: true });
     mocks.applyFormalization.mockResolvedValue({ ok: true });
     mocks.execute.mockImplementationOnce(async (input) => ({
-      result: await input.execute(snapshot, { roleCode: "rd" }, verified),
+      result: await input.execute(snapshot, { allowed: true, roleCode: "custom-recognition-editor" }, verified),
       reusedFromCommandReceipt: false
     }));
     await formalizeDrawingRecognition({
@@ -116,7 +116,7 @@ describe("recognition commands retain the verified Principal context", () => {
   it("records the verified Principal for inline commit and review decisions", async () => {
     mocks.commit.mockResolvedValue({ ok: true });
     mocks.execute.mockImplementationOnce(async (input) => ({
-      result: await input.execute(snapshot, { roleCode: "rd" }, verified),
+      result: await input.execute(snapshot, { allowed: true, roleCode: "custom-recognition-editor" }, verified),
       reusedFromCommandReceipt: false
     }));
     await commitDrawingRecognition({
@@ -144,7 +144,7 @@ describe("recognition commands retain the verified Principal context", () => {
     });
     mocks.createSession.mockResolvedValue({ id: "successor-one" });
     mocks.execute.mockImplementationOnce(async (input) => ({
-      result: await input.execute(snapshot, { roleCode: "rd" }, verified),
+      result: await input.execute(snapshot, { allowed: true, roleCode: "custom-recognition-editor" }, verified),
       reusedFromCommandReceipt: false
     }));
     await createDrawingRecognitionAmendment({

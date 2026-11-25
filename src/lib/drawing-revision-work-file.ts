@@ -16,7 +16,6 @@ import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-r
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import { reconcileSldasmAssemblyEvidence } from "@/lib/sldasm-assembly-evidence";
 import { principalJobInitiatorFromVerifiedRequest, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
-import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { assertAssemblyPrimaryUpload, recordAssemblyPrimaryBinding, type AssemblyPrimaryBinding } from "@/lib/drawing-assembly-primary";
 
 type CommandContext = {
@@ -33,13 +32,14 @@ type DrawingFileActor = Pick<DrawingRevisionActor, "id" | "companyId" | "canEdit
 async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest, workId: string, contractToken: string) {
   const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-    verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update" }]);
+    verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "drawing" }]);
   if (!decision?.allowed) throw new CanonicalWorkbenchError(
     "WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
   const actor: DrawingFileActor = {
     id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
     principalId: verified.session.principalId,
-    canEditNonOwned: hasPdmNonOwnerEditScope({ roles: decision.roleCode ? [decision.roleCode] : [] }),
+    // Only the verified drawing edit capability controls the company-scoped work.
+    canEditNonOwned: true,
     permissions: { update: true }
   };
   await verifyCanonicalWorkbenchCommandContract(client,

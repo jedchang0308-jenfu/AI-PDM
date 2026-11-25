@@ -262,11 +262,14 @@ describe("principal drawing revision work read", () => {
     expect(mocks.readWork).not.toHaveBeenCalled();
   });
 
-  it("rejects a different work owner without deriving non-owner power from the legacy role", async () => {
-    mocks.readWork.mockResolvedValueOnce({ owner_user_id: "profile-other" });
-    await expect(new DrawingRevisionWorkService(client).readPrincipal("work-one", verified))
-      .rejects.toMatchObject({ status: 403 });
-    expect(mocks.resolveWorkBasis).not.toHaveBeenCalled();
+  it("reads another owner's work using the view capability rather than role names", async () => {
+    const work = await mocks.readWork();
+    mocks.readWork.mockResolvedValue({ ...work, owner_user_id: "profile-other" });
+    mocks.evaluate.mockResolvedValueOnce([
+      { allowed: true, roleCode: "custom-reader" }, { allowed: false }, { allowed: false }, { allowed: false }
+    ]);
+    const result = await new DrawingRevisionWorkService(client).readPrincipal("work-one", verified);
+    expect(result.data.readonly).toBe(true);
   });
 
   it("projects only granted interactions for the verified principal and owner", async () => {
@@ -333,18 +336,29 @@ describe("principal drawing revision work read", () => {
         expectedRowVersion: 2 }));
   });
 
-  it.each(["update", "cancel"] as const)("rejects %s on a different owner before writing", async (command) => {
-    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
-    mocks.readWork.mockResolvedValueOnce({ owner_user_id: "profile-other" });
+  it.each(["update", "cancel"] as const)("allows a custom role's granted %s on another owner's work", async (command) => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, roleCode: "custom-drawing-operator" }]);
+    const work = await mocks.readWork();
+    mocks.readWork.mockResolvedValue({ ...work, owner_user_id: "profile-other" });
     const service = new DrawingRevisionWorkService(client);
     const context = { contractToken: "contract-one", expectedRowVersion: 2,
       idempotencyKey: `${command}-one` };
     const action = command === "update"
       ? service.updatePrincipal("work-one", {}, verified, context)
       : service.cancelPrincipal("work-one", verified, context);
+    await expect(action).resolves.toMatchObject({ workId: "work-one" });
+    expect(command === "update" ? mocks.update : mocks.cancel).toHaveBeenCalled();
+  });
+  it.each(["update", "cancel", "submit"] as const)("rejects %s without its own capability before reading or writing work", async command => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: false, roleCode: "custom-editor" }]);
+    const service = new DrawingRevisionWorkService(client);
+    const context = { contractToken: "contract-one", expectedRowVersion: 2, idempotencyKey: "denied-command" };
+    const action = command === "update" ? service.updatePrincipal("work-one", {}, verified, context)
+      : command === "cancel" ? service.cancelPrincipal("work-one", verified, context)
+      : service.submitPrincipal("work-one", verified, context);
     await expect(action).rejects.toMatchObject({ status: 403 });
-    expect(mocks.update).not.toHaveBeenCalled();
-    expect(mocks.cancel).not.toHaveBeenCalled();
+    expect(mocks.readWork).not.toHaveBeenCalled();
+    expect(mocks.runPrincipal).not.toHaveBeenCalled();
   });
 
   it("cancels a locked owned work with a principal-bound receipt", async () => {

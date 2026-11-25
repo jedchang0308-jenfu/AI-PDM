@@ -22,7 +22,8 @@ const actionCodes = [
 async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
   company: PdmCompanyContext, entityType: WorkbenchEntityType): Promise<CanonicalWorkbenchActor> {
   const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
-    actionCodes.map((permissionCode) => ({ permissionKind: "action" as const, permissionCode })));
+    actionCodes.map((permissionCode) => ({ permissionKind: "action" as const, permissionCode,
+      ...(entityType === "drawing" ? { resourceGroup: "drawing" as const } : {}) })));
   if (decisions.length !== actionCodes.length || decisions.some((decision, index) =>
     !decision || decision.principalId !== verified.session.principalId ||
     decision.permissionCode !== actionCodes[index])) {
@@ -35,7 +36,9 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
     // above is decided for the verified principal in this same database snapshot.
     id: verified.profile.pdmUserId,
     companyId: company.companyId,
-    canEditNonOwned: hasPdmNonOwnerEditScope({
+    // Drawing operations use only their matrix decision and company scope.
+    // Keep the existing Part contract separate.
+    canEditNonOwned: entityType === "drawing" || hasPdmNonOwnerEditScope({
       roles: decisions.filter((decision) => decision.allowed)
         .flatMap((decision) => decision.roleCode ? [decision.roleCode] : [])
     }),

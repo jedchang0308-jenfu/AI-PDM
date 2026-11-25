@@ -75,13 +75,19 @@ export function recognitionRolesArePrivileged(roles: string[]) {
   return hasPdmNonOwnerEditScope({ roles });
 }
 
+/** Principal entrypoints already admit the exact action and workspace. Ownership
+ * is audit data, while legacy SQLite callers retain their existing contract. */
+function recognitionCompanyScope(client: AsyncDatabaseClient | undefined, principalId: string | undefined, roles: string[]) {
+  return (client ?? getAsyncDatabaseClient()).kind === "postgres"
+    ? Boolean(principalId) : recognitionRolesArePrivileged(roles);
+}
+
 function recognitionCommandCanReviewNonOwned(
   transaction: AsyncDatabaseClient,
-  publishedRoleCode: string | null | undefined,
+  allowed: boolean | undefined,
   fixtureRoles: string[]
 ) {
-  return recognitionRolesArePrivileged(transaction.kind === "postgres"
-    ? publishedRoleCode ? [publishedRoleCode] : [] : fixtureRoles);
+  return transaction.kind === "postgres" ? allowed === true : recognitionRolesArePrivileged(fixtureRoles);
 }
 
 export async function createDrawingRecognitionSession(input: {
@@ -184,7 +190,7 @@ export async function getDrawingRecognitionProjection(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles)
   });
   return repository.getProjection(input.sessionId, input.companyId);
 }
@@ -207,7 +213,7 @@ export async function readDrawingRecognitionPdfSource(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles)
   });
   const source = await repository.getSourceForActor({ sessionId: input.sessionId, sourceId, companyId: input.companyId });
   const maxBytes = Math.max(1_024, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_BROWSER_PDF_MAX_BYTES ?? 67_108_864), 134_217_728));
@@ -259,7 +265,7 @@ export async function appendDrawingRecognitionClientAdapterResult(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles)
   });
   return repository.appendClientAdapterResult({
     sessionId: input.sessionId,
@@ -283,7 +289,7 @@ export async function getLatestDrawingRecognitionForDrawing(input: {
   if (!latest) return null;
   await repository.assertSessionScope({ sessionId: latest.id, companyId: input.companyId,
     actorId: input.actorId, principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles) });
   return latest;
 }
 
@@ -304,7 +310,7 @@ export async function getLatestDrawingRecognitionForPart(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles)
   });
   return repository.getProjection(latest.id, input.companyId);
 }
@@ -322,7 +328,7 @@ export async function saveDrawingRecognitionDecisions(input: {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId,
     actorId: input.actorId, principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles) });
   return repository.saveDecisions({ ...input, actorPrincipalId: input.principalId });
 }
 
@@ -342,7 +348,7 @@ export async function createDrawingRecognitionAmendment(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.metadata.actor.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.metadata.actor.principalId, input.roles)
   });
   if (session.status !== "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_NOT_ALLOWED", "只有已寫入 PDM 的辨識結果可以建立編輯版本。", 409);
   const expectedRowVersion = input.expectedRowVersion ?? session.row_version;
@@ -365,7 +371,7 @@ export async function createDrawingRecognitionAmendment(input: {
         companyId: input.companyId,
         actorId: input.actorId,
         principalId: verified?.session.principalId,
-        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.roleCode, input.roles)
+        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.allowed, input.roles)
       });
       if (current.status !== "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_NOT_ALLOWED", "只有已寫入 PDM 的辨識結果可以建立編輯版本。", 409);
       if (Number(current.row_version) !== expectedRowVersion) throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
@@ -415,7 +421,7 @@ export async function commitDrawingRecognition(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.metadata.actor.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.metadata.actor.principalId, input.roles)
   });
   const command = createPdmCommand({
     commandName: "drawing_recognition.commit.v1",
@@ -441,7 +447,7 @@ export async function commitDrawingRecognition(input: {
       await transactionalRepository.assertSessionScope({
         sessionId: input.sessionId, companyId: input.companyId, actorId: input.actorId,
         principalId: verified?.session.principalId,
-        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.roleCode, input.roles)
+        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.allowed, input.roles)
       });
       return transactionalRepository.commit({
         sessionId: input.sessionId,
@@ -482,7 +488,7 @@ export async function cancelDrawingRecognitionAmendment(input: {
     companyId: input.companyId,
     actorId: input.actorId,
     principalId: input.metadata.actor.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles)
+    privileged: recognitionCompanyScope(input.client, input.metadata.actor.principalId, input.roles)
   });
   const command = createPdmCommand({
     commandName: "drawing_recognition.amendment.cancel.v1",
@@ -501,7 +507,7 @@ export async function cancelDrawingRecognitionAmendment(input: {
       await transactionalRepository.assertSessionScope({
         sessionId: input.sessionId, companyId: input.companyId, actorId: input.actorId,
         principalId: verified?.session.principalId,
-        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.roleCode, input.roles)
+        privileged: recognitionCommandCanReviewNonOwned(transaction, primaryDecision?.allowed, input.roles)
       });
       return transactionalRepository.cancelAmendment({ sessionId: input.sessionId,
         companyId: input.companyId, actorId: input.actorId,
@@ -530,7 +536,7 @@ export async function getDrawingRecognitionObservation(input: {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId,
     actorId: input.actorId, principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles) });
   return repository.getObservationEvidence(input);
 }
 
@@ -546,7 +552,7 @@ export async function rerunDrawingRecognition(input: {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId,
     actorId: input.actorId, principalId: input.initiatorPrincipalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.initiatorPrincipalId, input.roles) });
   const previous = await repository.getProjection(input.sessionId, input.companyId);
   if (["queued", "extracting"].includes(previous.status)) {
     // A session created before the browser baseline release can remain queued
@@ -584,7 +590,7 @@ export async function calculateDrawingRecognitionImpact(input: {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId,
     actorId: input.actorId, principalId: input.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.principalId, input.roles) });
   const impact = await repository.calculateImpact(input);
   return {
     ...impact,
@@ -611,7 +617,7 @@ export async function formalizeDrawingRecognition(input: {
   const repository = new DrawingRecognitionAsyncRepository(client);
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId,
     actorId: input.actorId, principalId: input.metadata.actor.principalId,
-    privileged: recognitionRolesArePrivileged(input.roles) });
+    privileged: recognitionCompanyScope(input.client, input.metadata.actor.principalId, input.roles) });
   const token = verifyRecognitionImpactToken(input.impactToken, { sessionId: input.sessionId, companyId: input.companyId });
   const command = createPdmCommand({
     commandName: "drawing_recognition.formalize.v1",
@@ -636,7 +642,7 @@ export async function formalizeDrawingRecognition(input: {
         await transactionalRepository.assertSessionScope({
           sessionId: input.sessionId, companyId: input.companyId, actorId: input.actorId,
           principalId: verified.session.principalId,
-          privileged: recognitionRolesArePrivileged(primaryDecision?.roleCode ? [primaryDecision.roleCode] : [])
+          privileged: primaryDecision?.allowed === true
         });
         const currentImpact = await transactionalRepository.calculateImpact({
           sessionId: input.sessionId, companyId: input.companyId,
