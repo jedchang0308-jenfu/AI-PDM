@@ -7,6 +7,7 @@ import { usePdmPermissions } from "@/components/pdm-permission-provider";
 import { LoadingIndicator } from "@/components/loading-indicator";
 import { pdmPermissionFetch as fetch, invalidatePdmPermissions } from "@/lib/pdm-permission-client";
 import { usePathname, useRouter } from "next/navigation";
+import { usePdmLoginHref } from "./use-pdm-login-href";
 import { useEffect, useState } from "react";
 import {
   Boxes,
@@ -129,6 +130,7 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
 
 export function SidebarNav() {
   const pathname = usePathname() || "/";
+  const loginHref = usePdmLoginHref(pathname);
   const router = useRouter();
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/");
   const { state: permissionState } = usePdmPermissions();
@@ -327,7 +329,7 @@ export function SidebarNav() {
                   const trackOnly = item.href === "/approvals" && canTrackSubmittedReviews(permissions) &&
                     permissions?.actions["approval.inbox.view"] !== true;
                   const targetHref = unopened ? `/production-slice-blocked?from=${encodeURIComponent(item.href)}`
-                    : trackOnly ? "/approvals?view=submitted" : item.href;
+                    : trackOnly ? "/approvals?view=submitted" : item.href === "/login" ? loginHref : item.href;
                   const itemTitle = unopened
                     ? `${label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
                     : signedInEntry

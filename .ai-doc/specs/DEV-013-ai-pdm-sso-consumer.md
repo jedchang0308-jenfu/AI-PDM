@@ -21,6 +21,8 @@ DEV-015 原生隔離前置追加：歷史 DEV-127 local migration 097 保留 pos
 
 隔離執行來源 `e09e27421effb2387ab05a8ac21113d37e705e30`：task caller 在同一 connection 先核對指定 cold copy 的 `SHOW data_directory` 與 port `61315`（通用 owner helper 本身只限制 disposable loopback／`jenfu_local_*`）。local110 原子套用及 local receipt readback 通過，其後原 native executor 的 101–109 **9/9 APPLIED_READBACK_CONFIRMED**；第一次 schema owner 失敗收據保留，未覆寫成 PASS。實際收據保存於主控 task-owned `.local/dev015-native-prep/`；此次來源的 db-boundary 及 app typecheck 通過。登入 CTA 同步為「使用 Google 登入」。這些是 native schema／focused source 證據，真 Google 旅程仍由主控完成。
 
+原生 deep-link 首敗：`/numbering/drawings?dev015=return-check` 的主導覽登入及 401 全域 alert「返回登入」均只連到 `/login`，遺失目的頁。兩個直接 caller 現共用安全登入連結，保存當前 path/query/hash 到 `returnTo`；外部／遞迴登入／auth API、反斜線、控制字元與超長目的保持本地 fallback。provider／sidebar／return helper／local-admin-hidden focused 29/29、app typecheck、targeted lint 0 errors/warnings。CI `45568451956` 的 local-admin-hidden 舊文案 oracle 首敗另保留，同步「使用 Google 登入」後 5/5，admin 不可見斷言未改弱。
+
 ### Platform DEV-015 單次操作登入：拒絕／取消返回（2026-11-25，source candidate）
 
 原 callback 新增與 `code,state,iss` 互斥的 `error,state,iss` 格式，只接受 `access_denied`／`temporarily_unavailable`。先驗證唯一交易 cookie 簽章、state、issuer 及期限，再清除 cookie 並回本地 `/login`，保留原交易 `returnTo`；無 cookie、錯 state／issuer、過期、重複 cookie／query、混合格式與額外欄位不可當成已驗取消，也不自動重啟 broker。有效拒絕不交換 code 或建立／撤銷 session。
